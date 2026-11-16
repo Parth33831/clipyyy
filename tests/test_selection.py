@@ -133,3 +133,20 @@ def test_selection_does_not_retry_non_retryable_llm_failure(transcript):
     with pytest.raises(ValueError, match="local model timed out"):
         select_clips(llm, {"title": "x"}, transcript, OPTIONS)
     assert llm.calls == 1
+
+
+def test_local_model_timeout_aborts_all_remaining_windows():
+    transcript = {
+        "language": "en",
+        "sentences": [
+            {"start": 0.0, "end": 10.0, "text": "first window"},
+            {"start": 600.0, "end": 610.0, "text": "later window"},
+        ],
+    }
+    llm = FakeLLM([
+        LLMError("local model timed out", retryable=False),
+        {"clips": [raw(600, 610)]},
+    ])
+    with pytest.raises(ValueError, match="local model timed out"):
+        select_clips(llm, {"title": "Long talk"}, transcript, OPTIONS)
+    assert llm.calls == 1
