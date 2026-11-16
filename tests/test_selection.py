@@ -97,3 +97,30 @@ def test_select_clips_retries_until_valid(transcript):
 def test_select_clips_without_speech_fails():
     with pytest.raises(ValueError, match="No speech"):
         select_clips(FakeLLM([]), {}, {"sentences": []}, OPTIONS)
+
+
+
+def test_long_transcript_is_analysed_in_multiple_windows():
+    transcript = {
+        "language": "en",
+        "sentences": [
+            {"start": 0.0, "end": 10.0, "text": "opening sentence"},
+            {"start": 10.0, "end": 20.0, "text": "first useful point"},
+            {"start": 20.0, "end": 30.0, "text": "first payoff"},
+            {"start": 500.0, "end": 510.0, "text": "second opening"},
+            {"start": 510.0, "end": 520.0, "text": "second useful point"},
+            {"start": 520.0, "end": 530.0, "text": "second payoff"},
+        ],
+    }
+    options = {**OPTIONS, "clip_count": 2}
+    llm = FakeLLM([
+        {"clips": [raw(0, 20, overall_score=8.5)]},
+        {"clips": [raw(500, 520, overall_score=9.0)]},
+    ])
+
+    result = select_clips(llm, {"title": "Long talk", "duration_seconds": 600}, transcript, options)
+
+    assert llm.calls == 2
+    assert len(result["clips"]) == 2
+    assert result["clips"][0]["start_seconds"] == 500.0
+    assert result["clips"][1]["start_seconds"] == 0.0
