@@ -150,7 +150,10 @@ def get_llm(model: str | None = None) -> LLM:
     if provider is None:
         raise LLMError(f"Unknown LLM provider '{provider_key}'. Available: {', '.join(PROVIDERS)}")
     selected_model = model or get_setting("llm_model")
-    if provider.local and not selected_model:
+    if provider.local and (
+        not selected_model or selected_model == "google/gemini-3.8-flash"
+    ):
+        # The config's hosted-provider default is not a valid Ollama model name.
         selected_model = "qwen2.5:1.5b"
     return OpenAICompatibleLLM(
         provider,
