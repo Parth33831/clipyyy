@@ -26,7 +26,7 @@ It has a web app for people and a JSON command line for scripts and AI coding ag
 ## Features
 
 - **AI clip finder.** An LLM reads the whole transcript and ranks the strongest standalone moments by hook, value and clarity. Clips are snapped to sentence boundaries so nothing starts or ends mid-thought.
-- **Bring your own model.** Works with any model on [OpenRouter](https://openrouter.ai): Gemini, Claude, GPT, DeepSeek, Qwen, Llama and more. A one-hour video costs about one cent with a fast model.
+- **Bring your own model or run locally.** Use hosted models through [OpenRouter](https://openrouter.ai), or connect to [Ollama](https://ollama.com) for local, no-API-key inference with models such as Qwen 2.5. Local performance depends on your hardware.
 - **Local transcription.** [faster-whisper](https://github.com/SYSTRAN/faster-whisper) with word-level timestamps, on CPU or GPU, in 90+ languages.
 - **Automatic reframing.** Face tracking (MediaPipe) keeps the speaker centred when converting horizontal video to 9:16, 4:5 or 1:1.
 - **Animated captions.** Word-by-word highlighted subtitles in three styles, rendered with ffmpeg.
@@ -47,7 +47,7 @@ cd clipyyy
 docker compose up -d
 ```
 
-Open http://localhost:8000, paste your [OpenRouter API key](https://openrouter.ai/keys) when asked, paste a video link and click **Find clips**. Clips, runs and settings are saved in `./data`.
+Open http://localhost:8000, choose a model provider in Settings, paste a video link and click **Find clips**. For hosted models, add an [OpenRouter API key](https://openrouter.ai/keys). For local inference, run Ollama and set `llm_provider` to `ollama` and `llm_model` to an installed model (for example `qwen2.5:1.5b`). Clips, runs and settings are saved in `./data`.
 
 ### From source
 
@@ -81,7 +81,13 @@ brew install ffmpeg-full uv node deno
 Everything in the web app is also available from the command line. Every command accepts `--json`, so scripts and coding agents (Claude Code, Codex, Cursor and others) can use clipyyy directly.
 
 ```bash
+# Hosted model (optional)
 clipyyy config set openrouter_api_key sk-or-...
+
+# Or use a local Ollama model without an API key
+ollama pull qwen2.5:1.5b
+clipyyy config set llm_provider ollama
+clipyyy config set llm_model qwen2.5:1.5b
 
 # Find the 5 best clips under 45 seconds and save them to ./shorts
 clipyyy clip "https://www.youtube.com/watch?v=..." --count 5 --max 45 --out ./shorts
