@@ -1,4 +1,4 @@
-"""Ask an LLM for the best clips, then snap them to sentence boundaries and validate."""
+"""Ask an LLM for strong clips, then snap them to sentence boundaries and validate."""
 
 from __future__ import annotations
 
@@ -13,6 +13,9 @@ from clipyyy.llm import LLM, LLMError
 logger = logging.getLogger(__name__)
 
 MAX_ATTEMPTS = 3
+# Small local models produce better results when a long transcript is analysed in focused windows.
+WINDOW_SECONDS = 8 * 60
+WINDOW_OVERLAP_SECONDS = 30
 
 SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -80,26 +83,67 @@ def build_prompt(source: dict, transcript: dict, options: dict) -> tuple[str, st
     return system, user
 
 
+def _windows(sentences: list[dict]) -> list[dict]:
+    """Split long transcripts into overlapping time windows while keeping original timestamps."""
+    if not sentences:
+        return []
+    first = min(float(s["start"]) for s in sentences)
+    last = max(float(s["end"]) for s in sentences)
+    if last - first <= WINDOW_SECONDS:
+        return [{"sentences": sentences}]
+    windows = []
+    cursor = first
+    step = WINDOW_SECONDS - WINDOW_OVERLAP_SECONDS
+    while cursor < last:
+        limit = cursor + WINDOW_SECONDS
+        chunk = [s for s in sentences if float(s["end"]) > cursor and float(s["start"]) < limit]
+        if chunk:
+            windows.append({"sentences": chunk})
+        cursor += step
+    return windows
+
+
 def select_clips(llm: LLM, source: dict, transcript: dict, options: dict) -> dict:
-    if not transcript.get("sentences"):
+    sentences = transcript.get("sentences") or []
+    if not sentences:
         raise ValueError("No speech found in the video, so there is nothing to clip")
-    system, user = build_prompt(source, transcript, options)
+
+    windows = _windows(sentences)
+    candidates: list[dict] = []
     last_error = "no clips returned"
-    for attempt in range(1, MAX_ATTEMPTS + 1):
-        try:
-            raw = llm.complete_json(system, user, SCHEMA, "clip_selection").get("clips", [])
-        except LLMError as exc:
-            if attempt == MAX_ATTEMPTS:
-                raise
-            last_error = str(exc)
-            logger.warning("clip selection attempt %d failed: %s", attempt, exc)
-            continue
-        clips = validate_clips(raw, transcript, options)
-        if clips:
-            return {"model": llm.model, "clips": clips}
-        last_error = f"none of the {len(raw)} suggested clips fit the length limits"
-        logger.warning("clip selection attempt %d: %s", attempt, last_error)
-    raise ValueError(f"Clip selection failed after {MAX_ATTEMPTS} attempts: {last_error}")
+
+    # Keep the original single-call path for short videos. For long videos, ask for
+    # one strong moment per focused window, then rank all candidates together.
+    for window in windows:
+        window_transcript = {**transcript, "sentences": window["sentences"]}
+        window_options = {**options, "clip_count": 1} if len(windows) > 1 else options
+        system, user = build_prompt(source, window_transcript, window_options)
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            try:
+                raw = llm.complete_json(system, user, SCHEMA, "clip_selection").get("clips", [])
+            except LLMError as exc:
+                last_error = str(exc)
+                logger.warning("clip selection attempt %d failed: %s", attempt, exc)
+                if attempt == MAX_ATTEMPTS:
+                    break
+                continue
+            valid = validate_clips(raw, window_transcript, window_options)
+            if valid:
+                candidates.extend(raw)
+                break
+            last_error = "the model did not suggest a clip within the requested length"
+            logger.warning("clip selection attempt %d: %s", attempt, last_error)
+
+    if not candidates:
+        raise ValueError(f"Clip selection failed: {last_error}")
+
+    # Compare scores across windows so the final clips are the strongest, not merely
+    # the first moments returned by the model. validate_clips removes overlaps globally.
+    candidates.sort(key=lambda item: _num(item.get("overall_score"), 0.0), reverse=True)
+    for rank, candidate in enumerate(candidates, start=1):
+        candidate["rank"] = rank
+    clips = validate_clips(candidates, transcript, options)
+    return {"model": llm.model, "clips": clips}
 
 
 def validate_clips(raw_clips: list[dict], transcript: dict, options: dict) -> list[dict]:
