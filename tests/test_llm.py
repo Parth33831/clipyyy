@@ -65,3 +65,44 @@ def test_get_llm_requires_key_and_uses_settings():
     db.set_setting("llm_model", "x/y")
     assert get_llm().model == "x/y"
     assert get_llm("override/model").model == "override/model"
+
+
+
+def test_ollama_provider_needs_no_api_key_and_sends_no_auth_header():
+    seen = {}
+
+    def handler(request):
+        seen["url"] = str(request.url)
+        seen["auth"] = request.headers.get("authorization")
+        seen["body"] = json.loads(request.content)
+        return reply('{"clips": []}')
+
+    llm = OpenAICompatibleLLM(
+        PROVIDERS["ollama"], "", "qwen2.5:1.5b", transport=httpx.MockTransport(handler)
+    )
+    assert llm.complete_json("sys", "user", {"type": "object"}, "x") == {"clips": []}
+    assert seen["url"] == "http://127.0.0.1:11434/v1/chat/completions"
+    assert seen["auth"] is None
+    assert seen["body"]["model"] == "qwen2.5:1.5b"
+
+
+def test_ollama_timeout_is_not_retryable():
+    def handler(request):
+        raise httpx.ReadTimeout("local model did not respond")
+
+    llm = OpenAICompatibleLLM(
+        PROVIDERS["ollama"], "", "qwen2.5:1.5b", transport=httpx.MockTransport(handler)
+    )
+    with pytest.raises(LLMError) as error:
+        llm.complete_json("sys", "user", {"type": "object"}, "x")
+    assert error.value.retryable is False
+
+
+def test_get_llm_uses_local_default_model(monkeypatch):
+    from clipyyy import llm as llm_module
+
+    values = {"llm_provider": "ollama", "llm_model": ""}
+    monkeypatch.setattr(llm_module, "get_setting", lambda key: values.get(key, ""))
+    client = get_llm()
+    assert client.provider.name == "Ollama (local)"
+    assert client.model == "qwen2.5:1.5b"
