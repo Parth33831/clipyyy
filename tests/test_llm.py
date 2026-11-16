@@ -101,7 +101,7 @@ def test_ollama_timeout_is_not_retryable():
 def test_get_llm_uses_local_default_model(monkeypatch):
     from clipyyy import llm as llm_module
 
-    values = {"llm_provider": "ollama", "llm_model": ""}
+    values = {"llm_provider": "ollama", "llm_model": "google/gemini-3.8-flash"}
     monkeypatch.setattr(llm_module, "get_setting", lambda key: values.get(key, ""))
     client = get_llm()
     assert client.provider.name == "Ollama (local)"
