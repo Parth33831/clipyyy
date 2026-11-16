@@ -124,7 +124,9 @@ def select_clips(llm: LLM, source: dict, transcript: dict, options: dict) -> dic
             except LLMError as exc:
                 last_error = str(exc)
                 logger.warning("clip selection attempt %d failed: %s", attempt, exc)
-                if attempt == MAX_ATTEMPTS:
+                # A timeout or connection failure cannot be fixed by resending the same
+                # expensive local inference request. Stop this window immediately.
+                if not getattr(exc, "retryable", True) or attempt == MAX_ATTEMPTS:
                     break
                 continue
             valid = validate_clips(raw, window_transcript, window_options)
