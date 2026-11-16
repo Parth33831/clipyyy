@@ -124,12 +124,29 @@ export function SettingsPage() {
         </aside>
 
         <div className="flex flex-col gap-6">
-          <Section id="ai" title="AI" description="A language model reads the transcript and picks the clips. OpenRouter gives you every major model with one key.">
-            <Field label="OpenRouter API key" hint={<Ext href="https://openrouter.ai/keys">Create a key</Ext>}>
-              {secret('openrouter_api_key', 'sk-or-…')}
+          <Section id="ai" title="AI" description="Choose a hosted model or run inference privately on your own computer with Ollama.">
+            <Field label="AI provider" hint="Ollama runs locally and does not need an API key or paid credits.">
+              <Select value={draft.llm_provider ?? 'openrouter'} onChange={(e) => update('llm_provider')(e.target.value)}>
+                <option value="ollama">Ollama · local and free</option>
+                <option value="openrouter">OpenRouter · hosted models</option>
+              </Select>
             </Field>
-            <Field label="Default model" hint="Type to search. Fast, cheap long-context models work well; a one-hour video is about 15k tokens.">
-              <ModelInput value={draft.llm_model ?? ''} onChange={update('llm_model')} />
+            {(draft.llm_provider ?? 'openrouter') === 'openrouter' && (
+              <Field label="OpenRouter API key" hint={<Ext href="https://openrouter.ai/keys">Create a key</Ext>}>
+                {secret('openrouter_api_key', 'sk-or-…')}
+              </Field>
+            )}
+            <Field
+              label="Default model"
+              hint={(draft.llm_provider ?? 'openrouter') === 'ollama'
+                ? 'Enter an installed Ollama model name, for example qwen2.5:1.5b. Make sure Ollama is running.'
+                : 'Type to search. Fast, cheap long-context models work well; a one-hour video is about 15k tokens.'}
+            >
+              <ModelInput
+                value={draft.llm_model ?? ''}
+                onChange={update('llm_model')}
+                placeholder={(draft.llm_provider ?? 'openrouter') === 'ollama' ? 'qwen2.5:1.5b' : 'google/gemini-3.8-flash'}
+              />
             </Field>
             <Field label="Transcription model" hint="faster-whisper runs locally and downloads the model on first use.">
               <Select value={draft.whisper_model ?? 'small'} onChange={(e) => update('whisper_model')(e.target.value)}>
