@@ -124,3 +124,12 @@ def test_long_transcript_is_analysed_in_multiple_windows():
     assert len(result["clips"]) == 2
     assert result["clips"][0]["start_seconds"] == 500.0
     assert result["clips"][1]["start_seconds"] == 0.0
+
+
+
+def test_selection_does_not_retry_non_retryable_llm_failure(transcript):
+    error = LLMError("local model timed out", retryable=False)
+    llm = FakeLLM([error, {"clips": [raw(0, 20)]}])
+    with pytest.raises(ValueError, match="local model timed out"):
+        select_clips(llm, {"title": "x"}, transcript, OPTIONS)
+    assert llm.calls == 1
