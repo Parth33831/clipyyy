@@ -126,7 +126,12 @@ def select_clips(llm: LLM, source: dict, transcript: dict, options: dict) -> dic
                 logger.warning("clip selection attempt %d failed: %s", attempt, exc)
                 # A timeout or connection failure cannot be fixed by resending the same
                 # expensive local inference request. Stop this window immediately.
-                if not getattr(exc, "retryable", True) or attempt == MAX_ATTEMPTS:
+                if not getattr(exc, "retryable", True):
+                    # A local timeout/connection failure applies to the whole model
+                    # service, not just this transcript window. Abort the run instead
+                    # of waiting through the remaining windows one by one.
+                    raise ValueError(f"Clip selection stopped: {last_error}") from exc
+                if attempt == MAX_ATTEMPTS:
                     break
                 continue
             valid = validate_clips(raw, window_transcript, window_options)
