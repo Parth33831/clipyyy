@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import shutil
+from statistics import median
 from pathlib import Path
 
 from clipyyy.captions import ass_filter, clip_words, write_ass
@@ -76,6 +77,15 @@ def render_clip(
     caption_style: str | None,
 ) -> None:
     width, height = size
+    # The common no-B-roll case can be rendered directly from the source in one
+    # FFmpeg pass. The old segment/concat path re-encoded every 3-second window and
+    # then encoded the whole clip again for captions.
+    if all(window["type"] == "speaker" for window in clip["windows"]):
+        render_speaker_only(
+            source_video, clip, prepared, work_dir, output, size, caption_style
+        )
+        return
+
     segments_dir = work_dir / "segments"
     segments_dir.mkdir(parents=True, exist_ok=True)
     speaker = Path(prepared["speaker_path"])
@@ -174,3 +184,87 @@ def nearest_box(t: float, boxes: list[dict]) -> dict:
 def slugify(text: str, limit: int = 40) -> str:
     slug = re.sub(r"[^\w]+", "-", text.lower(), flags=re.UNICODE).strip("-")
     return slug[:limit].rstrip("-") or "clip"
+
+
+
+def render_speaker_only(
+    source_video: Path,
+    clip: dict,
+    prepared: dict,
+    work_dir: Path,
+    output: Path,
+    size: tuple[int, int],
+    caption_style: str | None,
+) -> None:
+    """Crop, scale, caption and encode a speaker-only clip in one FFmpeg pass."""
+    width, height = size
+    source_width, source_height, _ = probe(source_video)
+    aspect = width / height
+    boxes = prepared.get("crop_boxes") or []
+    crop = crop_filter(boxes, source_width, source_height, aspect)
+    filters = [crop, f"scale={width}:{height}", "setsar=1", f"fps={FPS}", "format=yuv420p"]
+    if caption_style:
+        # Caption words are generated in render_clips and passed through the normal
+        # render path; this helper is also directly testable without transcript data.
+        ass_path = work_dir / "captions.ass"
+        if ass_path.exists():
+            filters.append(ass_filter(ass_path))
+    duration = float(clip["end_seconds"]) - float(clip["start_seconds"])
+    args = [
+        "-ss", str(clip["start_seconds"]),
+        "-i", str(source_video),
+        "-t", str(duration),
+        "-vf", ",".join(filters),
+        "-map", "0:v:0",
+    ]
+    if has_audio(source_video):
+        args += ["-map", "0:a:0", "-c:a", "aac", "-b:a", "160k"]
+    args += [
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+        "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(output),
+    ]
+    run_ffmpeg(args)
+
+
+def crop_filter(boxes: list[dict], source_width: int, source_height: int, aspect: float) -> str:
+    """Build a smoothly interpolated crop path from face samples."""
+    if not boxes:
+        crop_h = source_height
+        crop_w = min(source_width, round(crop_h * aspect))
+        crop_h = min(source_height, round(crop_w / aspect))
+        x = (source_width - crop_w) // 2
+        y = (source_height - crop_h) // 2
+        return f"crop={crop_w}:{crop_h}:{x}:{y}"
+
+    ordered = sorted(boxes, key=lambda box: float(box.get("t", 0.0)))
+    crop_w = min(source_width, max(2, round(median(float(box["width"]) for box in ordered))))
+    crop_h = min(source_height, max(2, round(crop_w / aspect)))
+    if crop_h > source_height:
+        crop_h = source_height - source_height % 2
+        crop_w = min(source_width, round(crop_h * aspect))
+    crop_w -= crop_w % 2
+    crop_h -= crop_h % 2
+
+    points_x = []
+    points_y = []
+    for box in ordered:
+        cx = float(box["x"]) + float(box["width"]) / 2
+        cy = float(box["y"]) + float(box["height"]) / 2
+        points_x.append((float(box.get("t", 0.0)), max(0.0, min(source_width - crop_w, cx - crop_w / 2))))
+        points_y.append((float(box.get("t", 0.0)), max(0.0, min(source_height - crop_h, cy - crop_h / 2))))
+    x_expr = _interpolate_expression(points_x)
+    y_expr = _interpolate_expression(points_y)
+    return f"crop={crop_w}:{crop_h}:{x_expr}:{y_expr}:eval=frame"
+
+
+def _interpolate_expression(points: list[tuple[float, float]]) -> str:
+    if len(points) <= 1:
+        return f"{points[0][1]:.3f}" if points else "0"
+    expression = f"{points[-1][1]:.3f}"
+    for (t0, v0), (t1, v1) in reversed(list(zip(points, points[1:], strict=False))):
+        if t1 <= t0:
+            continue
+        delta = t1 - t0
+        segment = f"{v0:.3f}+({v1 - v0:.3f})*(t-{t0:.3f})/{delta:.3f}"
+        expression = f"if(lt(t\\,{t1:.3f})\\,{segment}\\,{expression})"
+    return expression
