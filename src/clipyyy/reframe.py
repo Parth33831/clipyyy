@@ -22,7 +22,6 @@ MODEL_URL = (
 
 @dataclass(slots=True)
 
-
 class Face:
     x: float
     y: float
@@ -69,13 +68,13 @@ def prepare_clips(
                 ]
             )
             item["speaker_path"] = str(speaker_path)
-            plan = plan_crop(speaker_path, aspect) if face_tracking else center_plan(
-                width, height, aspect, "face tracking off"
+            plan = (
+                plan_crop(speaker_path, aspect)
+                if face_tracking
+                else center_plan(width, height, aspect, "face tracking off")
             )
         elif face_tracking:
-            plan = plan_crop(
-                source_path, aspect, clip["start_seconds"], clip["end_seconds"]
-            )
+            plan = plan_crop(source_path, aspect, clip["start_seconds"], clip["end_seconds"])
         else:
             plan = center_plan(width, height, aspect, "face tracking off")
         prepared.append({**item, **plan})
@@ -159,11 +158,7 @@ def sample_faces(
             str(start_seconds),
             "-i",
             str(clip_path),
-            *(
-                ["-t", str(end_seconds - start_seconds)]
-                if end_seconds is not None
-                else []
-            ),
+            *(["-t", str(end_seconds - start_seconds)] if end_seconds is not None else []),
             "-an",
             "-vf",
             f"fps={SAMPLE_FPS},scale={sample_width}:{sample_height}",
