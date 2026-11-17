@@ -26,15 +26,19 @@ from clipyyy.worker import Worker
 
 WEB_DIR = PACKAGE_DIR / "web"
 
+
 class CreateRuns(BaseModel):
     sources: list[str] = Field(..., min_length=1, max_length=50)
     options: pipeline.ClipOptions = pipeline.ClipOptions()
 
+
 class RetryRun(BaseModel):
     from_stage: str | None = None
 
+
 class UpdateSettings(BaseModel):
     values: dict[str, str | None]
+
 
 class PublishRequest(BaseModel):
     channel_ids: list[str] = Field(..., min_length=1)
@@ -42,6 +46,7 @@ class PublishRequest(BaseModel):
     scheduled_at: datetime | None = None
     text: str | None = None
     title: str | None = None
+
 
 def create_app(start_worker: bool = True) -> FastAPI:
     worker = Worker() if start_worker else None
@@ -242,6 +247,7 @@ def create_app(start_worker: bool = True) -> FastAPI:
 
     return app
 
+
 def run_detail(run_id: str) -> dict:
     run = _run_or_404(run_id)
     stage_rows = {s["name"]: s for s in db.list_stages(run_id)}
@@ -279,6 +285,7 @@ def run_detail(run_id: str) -> dict:
         "posts": db.list_posts(run_id=run_id),
     }
 
+
 def _clip_public(clip: dict) -> dict:
     data = {k: v for k, v in clip.items() if k != "file_path"}
     data["filename"] = Path(clip["file_path"]).name if clip.get("file_path") else None
@@ -287,11 +294,13 @@ def _clip_public(clip: dict) -> dict:
     data["download_url"] = f"/api/clips/{clip['id']}/video?download=true"
     return data
 
+
 def _run_or_404(run_id: str) -> dict[str, Any]:
     run = db.get_run(run_id)
     if run is None:
         raise HTTPException(404, "Run not found")
     return run
+
 
 def _safe(text: str) -> str:
     from clipyyy.render import slugify
