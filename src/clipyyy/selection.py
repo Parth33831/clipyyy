@@ -123,7 +123,10 @@ def select_clips(llm: LLM, source: dict, transcript: dict, options: dict) -> dic
         # Ask each focused window for a small shortlist, not just one pick. A single
         # weak or overlapping local-model suggestion should not leave the whole video
         # with fewer than the requested number of usable clips.
-        window_count = min(2, int(options["clip_count"]))
+        # Spread the requested clips across windows. Asking every window for two
+        # candidates wastes output tokens on CPU-only local models when only a few
+        # final clips are needed. Keep a two-candidate ceiling for larger requests.
+        window_count = max(1, min(2, (int(options["clip_count"]) + len(windows) - 1) // len(windows)))
         window_options = {**options, "clip_count": window_count} if len(windows) > 1 else options
         system, user = build_prompt(source, window_transcript, window_options)
         for attempt in range(1, max_attempts + 1):
