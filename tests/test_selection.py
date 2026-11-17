@@ -166,11 +166,11 @@ def test_local_model_timeout_aborts_all_remaining_windows():
 
 
 
-def test_local_model_invalid_output_gets_only_one_retry(transcript):
-    llm = FakeLLM([{"clips": [{"rank": 1}]}, {"clips": [{"rank": 1}]}])
+def test_local_model_invalid_output_is_not_retried(transcript):
+    llm = FakeLLM([{"clips": [{"rank": 1}]}])
     llm.provider = type("LocalProvider", (), {"local": True})()
 
     with pytest.raises(ValueError, match="Clip selection failed"):
         select_clips(llm, {"title": "x"}, transcript, OPTIONS)
 
-    assert llm.calls == 2
+    assert llm.calls == 1
