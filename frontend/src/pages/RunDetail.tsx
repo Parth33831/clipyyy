@@ -150,6 +150,9 @@ function Progress({ run }: { run: RunDetail }) {
           <li key={stage.name} className="flex flex-col gap-3 bg-surface p-4">
             <span className="label text-faint">{String(i + 1).padStart(2, '0')}</span>
             <span className={cn('text-sm font-medium', stage.status === 'pending' && 'text-faint')}>{stage.label}</span>
+            {stage.duration_seconds != null && stage.status !== 'pending' && (
+              <span className="font-mono text-[11px] text-muted">{formatDuration(stage.duration_seconds)}</span>
+            )}
             <span
               className={cn(
                 'h-1.5 w-full',
@@ -166,7 +169,7 @@ function Progress({ run }: { run: RunDetail }) {
         <div className="border-t border-line px-5 py-4 text-[13px]">
           {run.status === 'queued' && <p className="text-muted">Waiting in the queue. Runs are processed one at a time.</p>}
           {run.status === 'running' && run.current_stage === 'transcribe' && (
-            <p className="text-muted">Transcribing locally. A one-hour video takes a few minutes on a laptop CPU.</p>
+            <p className="text-muted">Transcribing locally. Time depends on video length, the Whisper model and your CPU.</p>
           )}
           {run.error && <p className="font-mono text-[12px] leading-relaxed text-bad">{run.error}</p>}
         </div>
@@ -332,4 +335,13 @@ function CopyBlock({ label, text }: { label: string; text: string }) {
       </button>
     </div>
   )
+}
+
+
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)}s`
+  const minutes = Math.floor(seconds / 60)
+  const remainder = Math.round(seconds % 60)
+  return remainder ? `${minutes}m ${remainder}s` : `${minutes}m`
 }
