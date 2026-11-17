@@ -1,17 +1,14 @@
 from clipyyy.reframe import Face, center_plan, detection_dimensions, dominant, face_box, smooth
 
-
 def test_center_plan_for_landscape_source():
     plan = center_plan(1920, 1080, 9 / 16, None)
     box = plan["crop_boxes"][0]
     assert box["height"] == 1080 and box["width"] == 608
     assert box["x"] == (1920 - 608) // 2
 
-
 def test_center_plan_square():
     box = center_plan(1920, 1080, 1.0, None)["crop_boxes"][0]
     assert box["width"] == box["height"] == 1080
-
 
 def test_face_box_stays_inside_frame():
     face = Face(0.9, 0.1, 0.08, 0.15)
@@ -19,26 +16,19 @@ def test_face_box_stays_inside_frame():
     assert box["x"] >= 0 and box["x"] + box["width"] <= 1920
     assert box["y"] >= 0 and box["y"] + box["height"] <= 1080
 
-
 def test_dominant_prefers_largest_face():
     small, big = Face(0.1, 0.1, 0.05, 0.05), Face(0.6, 0.3, 0.2, 0.2)
     assert dominant([small, big]) is big
     assert dominant([]) is None
 
-
 def test_smooth_averages_neighbours():
     assert smooth([(0, 0), (3, 3), (0, 0)])[1] == (1, 1)
-
-
 
 def test_detection_dimensions_downscale_landscape_and_keep_aspect():
     assert detection_dimensions(1920, 1080) == (640, 360)
 
-
 def test_detection_dimensions_do_not_upscale_small_video():
     assert detection_dimensions(640, 360) == (640, 360)
-
-
 
 def test_prepare_clips_skips_full_video_intermediate_without_broll(monkeypatch, tmp_path):
     import clipyyy.reframe as reframe
