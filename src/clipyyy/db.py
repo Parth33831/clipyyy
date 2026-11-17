@@ -215,6 +215,35 @@ def requeue_interrupted_runs() -> None:
 def _alive(pid: int) -> bool:
     if pid == os.getpid():
         return False
+
+    # On Windows, signal number 0 is CTRL_C_EVENT, not a harmless existence
+    # check. Sending it to the parent process interrupts the test runner/app.
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        open_process = kernel32.OpenProcess
+        open_process.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+        open_process.restype = wintypes.HANDLE
+        get_exit_code = kernel32.GetExitCodeProcess
+        get_exit_code.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+        get_exit_code.restype = wintypes.BOOL
+        close_handle = kernel32.CloseHandle
+        close_handle.argtypes = (wintypes.HANDLE,)
+        close_handle.restype = wintypes.BOOL
+
+        handle = open_process(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return ctypes.get_last_error() == 5  # Access denied: assume process exists.
+        try:
+            exit_code = wintypes.DWORD()
+            if not get_exit_code(handle, ctypes.byref(exit_code)):
+                return True  # Be conservative if Windows cannot query the process.
+            return exit_code.value == 259  # STILL_ACTIVE
+        finally:
+            close_handle(handle)
+
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
