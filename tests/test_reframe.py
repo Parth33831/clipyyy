@@ -1,4 +1,4 @@
-from clipyyy.reframe import Face, center_plan, dominant, face_box, smooth
+from clipyyy.reframe import Face, center_plan, detection_dimensions, dominant, face_box, smooth
 
 
 def test_center_plan_for_landscape_source():
@@ -28,3 +28,12 @@ def test_dominant_prefers_largest_face():
 
 def test_smooth_averages_neighbours():
     assert smooth([(0, 0), (3, 3), (0, 0)])[1] == (1, 1)
+
+
+
+def test_detection_dimensions_downscale_landscape_and_keep_aspect():
+    assert detection_dimensions(1920, 1080) == (640, 360)
+
+
+def test_detection_dimensions_do_not_upscale_small_video():
+    assert detection_dimensions(640, 360) == (640, 360)
