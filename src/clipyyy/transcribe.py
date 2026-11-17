@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 SENTENCE_ENDINGS = (".", "!", "?", "…", "。", "？", "！", "؟", "।")
 
-
 def transcribe(video_path: Path, work_dir: Path, model_size: str, language: str = "auto") -> dict:
     audio_path = work_dir / "audio.wav"
     run_ffmpeg(
@@ -30,7 +29,6 @@ def transcribe(video_path: Path, work_dir: Path, model_size: str, language: str 
         words, detected = _run_whisper(audio, model_size, lang, "cpu", "int8")
     audio_path.unlink(missing_ok=True)
     return {"language": detected, "model": model_size, "words": words, "sentences": group_sentences(words)}
-
 
 def _run_whisper(audio, model_size: str, language: str | None, device: str, compute_type: str):
     import warnings
@@ -59,7 +57,6 @@ def _run_whisper(audio, model_size: str, language: str | None, device: str, comp
     ]
     return words, info.language
 
-
 def load_wav(path: Path):
     """16 kHz mono PCM as float32. Decoding ourselves avoids PyAV version drift."""
     import wave
@@ -69,7 +66,6 @@ def load_wav(path: Path):
     with wave.open(str(path), "rb") as wav:
         frames = wav.readframes(wav.getnframes())
     return np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
-
 
 def group_sentences(words: list[dict], max_words: int = 60) -> list[dict]:
     """Group words into sentences on punctuation, with a cap for unpunctuated speech."""
@@ -83,7 +79,6 @@ def group_sentences(words: list[dict], max_words: int = 60) -> list[dict]:
     if current:
         sentences.append(_sentence(current))
     return sentences
-
 
 def _sentence(words: list[dict]) -> dict:
     return {
