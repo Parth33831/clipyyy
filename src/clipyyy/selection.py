@@ -140,7 +140,10 @@ def select_clips(llm: LLM, source: dict, transcript: dict, options: dict) -> dic
                 continue
             valid = validate_clips(raw, window_transcript, window_options)
             if valid:
-                candidates.extend(raw)
+                # Keep only candidates that passed this window's timestamp/length checks.
+                for candidate in valid:
+                    candidate["overall_score"] = candidate.pop("score", 0.0)
+                candidates.extend(valid)
                 break
             last_error = "the model did not suggest a clip within the requested length"
             logger.warning("clip selection attempt %d: %s", attempt, last_error)
@@ -150,7 +153,7 @@ def select_clips(llm: LLM, source: dict, transcript: dict, options: dict) -> dic
 
     # Compare scores across windows so the final clips are the strongest, not merely
     # the first moments returned by the model. validate_clips removes overlaps globally.
-    candidates.sort(key=lambda item: _num(item.get("overall_score"), 0.0), reverse=True)
+    candidates.sort(key=lambda item: _num(item.get("overall_score", item.get("score")), 0.0), reverse=True)
     for rank, candidate in enumerate(candidates, start=1):
         candidate["rank"] = rank
     clips = validate_clips(candidates, transcript, options)
