@@ -87,9 +87,7 @@ def test_ollama_timeout_is_not_retryable():
     def handler(request):
         raise httpx.ReadTimeout("local model did not respond")
 
-    llm = OpenAICompatibleLLM(
-        PROVIDERS["ollama"], "", "qwen2.5:1.5b", transport=httpx.MockTransport(handler)
-    )
+    llm = OpenAICompatibleLLM(PROVIDERS["ollama"], "", "qwen2.5:1.5b", transport=httpx.MockTransport(handler))
     with pytest.raises(LLMError) as error:
         llm.complete_json("sys", "user", {"type": "object"}, "x")
     assert error.value.retryable is False
