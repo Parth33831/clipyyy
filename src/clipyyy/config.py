@@ -42,7 +42,7 @@ SETTINGS: dict[str, SettingSpec] = {
     "llm_model": SettingSpec(
         "CLIPYYY_LLM_MODEL", "google/gemini-3.8-flash", description="Model used to pick clips"
     ),
-    "whisper_model": SettingSpec("CLIPYYY_WHISPER_MODEL", "small", description="faster-whisper model size"),
+    "whisper_model": SettingSpec("CLIPYYY_WHISPER_MODEL", "base", description="faster-whisper model size"),
     "pexels_api_key": SettingSpec("PEXELS_API_KEY", secret=True, description="Pexels key for B-roll"),
     "buffer_api_key": SettingSpec("BUFFER_API_KEY", secret=True, description="Buffer API key"),
     "buffer_organization_id": SettingSpec(
