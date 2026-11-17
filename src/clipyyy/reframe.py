@@ -28,42 +28,54 @@ class Face:
     height: float
 
 
-def prepare_clips(source: dict, timeline: dict, work_dir: Path, aspect: float, face_tracking: bool) -> dict:
+def prepare_clips(
+    source: dict,
+    timeline: dict,
+    work_dir: Path,
+    aspect: float,
+    face_tracking: bool,
+    broll: bool = False,
+) -> dict:
     prepared = []
+    source_path = Path(source["video_path"])
+    width, height, _ = probe(source_path)
     for clip in timeline["clips"]:
         clip_dir = work_dir / f"clip-{clip['rank']:02d}"
         clip_dir.mkdir(parents=True, exist_ok=True)
-        speaker_path = clip_dir / "speaker.mp4"
-        run_ffmpeg(
-            [
-                "-ss",
-                str(clip["start_seconds"]),
-                "-to",
-                str(clip["end_seconds"]),
-                "-i",
-                source["video_path"],
-                "-c:v",
-                "libx264",
-                "-preset",
-                "veryfast",
-                "-crf",
-                "18",
-                "-an",
-                str(speaker_path),
-            ]
-        )
-        if face_tracking:
-            plan = plan_crop(speaker_path, aspect)
+        item = {"rank": clip["rank"]}
+        if broll:
+            # The legacy B-roll compositor needs a local speaker-only clip to build
+            # alternating speaker/B-roll segments. Without B-roll, analyse the source
+            # directly and skip this full-resolution intermediate encode.
+            speaker_path = clip_dir / "speaker.mp4"
+            run_ffmpeg(
+                [
+                    "-ss", str(clip["start_seconds"]),
+                    "-i", str(source_path),
+                    "-t", str(clip["end_seconds"] - clip["start_seconds"]),
+                    "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
+                    str(speaker_path),
+                ]
+            )
+            item["speaker_path"] = str(speaker_path)
+            plan = plan_crop(speaker_path, aspect) if face_tracking else center_plan(
+                width, height, aspect, "face tracking off"
+            )
+        elif face_tracking:
+            plan = plan_crop(
+                source_path, aspect, clip["start_seconds"], clip["end_seconds"]
+            )
         else:
-            width, height, _ = probe(speaker_path)
             plan = center_plan(width, height, aspect, "face tracking off")
-        prepared.append({"rank": clip["rank"], "speaker_path": str(speaker_path), **plan})
+        prepared.append({**item, **plan})
     return {"clips": prepared}
 
 
-def plan_crop(clip_path: Path, aspect: float) -> dict:
+def plan_crop(
+    clip_path: Path, aspect: float, start_seconds: float = 0.0, end_seconds: float | None = None
+) -> dict:
     width, height, _ = probe(clip_path)
-    samples = sample_faces(clip_path, width, height)
+    samples = sample_faces(clip_path, width, height, start_seconds, end_seconds)
     if not samples:
         return center_plan(width, height, aspect, "face detector unavailable")
     tracked = [(t, f) for t, f in samples if f is not None]
@@ -104,7 +116,13 @@ def face_box(face: Face, width: int, height: int, cx: float, cy: float, aspect: 
     return {"x": round(x), "y": round(y), "width": round(crop_w), "height": round(crop_h)}
 
 
-def sample_faces(clip_path: Path, width: int, height: int) -> list[tuple[float, Face | None]]:
+def sample_faces(
+    clip_path: Path,
+    width: int,
+    height: int,
+    start_seconds: float = 0.0,
+    end_seconds: float | None = None,
+) -> list[tuple[float, Face | None]]:
     os.environ.setdefault("GLOG_minloglevel", "2")  # silence MediaPipe/LiteRT info logs
     os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
     try:
@@ -126,8 +144,15 @@ def sample_faces(clip_path: Path, width: int, height: int) -> list[tuple[float, 
             "-hide_banner",
             "-loglevel",
             "error",
+            "-ss",
+            str(start_seconds),
             "-i",
             str(clip_path),
+            *(
+                ["-t", str(end_seconds - start_seconds)]
+                if end_seconds is not None
+                else []
+            ),
             "-vf",
             f"fps={SAMPLE_FPS},scale={sample_width}:{sample_height}",
             "-f",
