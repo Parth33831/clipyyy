@@ -171,6 +171,10 @@ def validate_clips(raw_clips: list[dict], transcript: dict, options: dict) -> li
         except (KeyError, TypeError, ValueError):
             continue
         start, end = snap(start, end, sentences, min_s, max_s)
+        # Never manufacture duration beyond the transcript when a boundary cannot
+        # be extended to a real sentence (for example, at the end of a short window).
+        if start < float(sentences[0]["start"]) or end > float(sentences[-1]["end"]):
+            continue
         if not (min_s - 0.5 <= end - start <= max_s + 0.5):
             continue
         if any(start < c["end_seconds"] and c["start_seconds"] < end for c in accepted):
