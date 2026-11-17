@@ -78,9 +78,11 @@ class FakeLLM:
     def __init__(self, responses):
         self.responses = list(responses)
         self.calls = 0
+        self.prompts = []
 
     def complete_json(self, system, user, schema, name):
         self.calls += 1
+        self.prompts.append((system, user))
         response = self.responses.pop(0)
         if isinstance(response, Exception):
             raise response
@@ -124,6 +126,7 @@ def test_long_transcript_is_analysed_in_multiple_windows():
     assert len(result["clips"]) == 2
     assert result["clips"][0]["start_seconds"] == 500.0
     assert result["clips"][1]["start_seconds"] == 0.0
+    assert all("Select up to 2 non-overlapping clips" in system for system, _ in llm.prompts)
 
 
 
