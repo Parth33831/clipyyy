@@ -35,12 +35,10 @@ def render_clips(
         output = out_dir / f"clip-{rank:02d}-{slugify(meta['title'])}.mp4"
         clip_dir = work_dir / f"clip-{rank:02d}"
         try:
+            clip_dir.mkdir(parents=True, exist_ok=True)
             words = clip_words(transcript, clip["start_seconds"], clip["end_seconds"])
-            ass_path = None
             if options["captions"] and words:
-                ass_path = write_ass(
-                    words, clip_dir / "captions.ass", width, height, options["caption_style"]
-                )
+                write_ass(words, clip_dir / "captions.ass", width, height, options["caption_style"])
             render_clip(
                 source_video=Path(source["video_path"]),
                 clip=clip,
