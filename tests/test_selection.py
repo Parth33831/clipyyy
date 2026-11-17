@@ -54,6 +54,16 @@ def test_validate_skips_garbage(transcript):
     assert validate_clips([{"rank": 1, "start_seconds": "x"}], transcript, OPTIONS) == []
 
 
+def test_validate_rejects_clip_that_extends_past_transcript_end():
+    transcript = {
+        "sentences": [
+            {"start": 0.0, "end": 10.0, "text": "first"},
+            {"start": 10.0, "end": 20.0, "text": "last"},
+        ]
+    }
+    assert validate_clips([raw(20, 40)], transcript, OPTIONS) == []
+
+
 def test_caption_and_hashtag_cleanup():
     assert clean_caption("Great point (87 chars)") == "Great point"
     tags, caption = clean_hashtags(["growth", "#Startups", "#growth"], "Build things #founders #Startups")
