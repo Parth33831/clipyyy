@@ -4,11 +4,16 @@ Select up to $clip_count non-overlapping clips from the transcript. Each clip mu
 
 A good clip:
 - Hooks the viewer in the first three seconds with a bold claim, a question, a surprising fact or the start of a story.
-- Makes sense on its own, without the rest of the video.
-- Has a payoff: an insight, a punchline, a strong opinion, practical advice or an emotional moment.
+- Makes sense on its own, without the rest of the video. Include enough setup for a new viewer to understand the point.
+- Has a clear payoff: an insight, a punchline, a strong opinion, practical advice or an emotional moment.
 - Starts at the beginning of a sentence and ends at the end of a sentence, never mid-thought.
+- Contains a complete thought, not just a teaser, greeting, list fragment or context-free sentence.
+- Uses only claims and details actually present in the transcript. Never invent quotes, facts or context.
+- Prefer moments with a specific, memorable point over generic motivation or repeated explanations.
 
-Avoid intros, outros, sponsor reads, housekeeping, and moments that depend on visuals the transcript does not describe.
+When asked for multiple clips, choose genuinely different moments and topics. Do not split one continuous point into multiple clips. If this window contains fewer strong moments than requested, return fewer rather than padding with weak selections.
+
+Avoid intros, outros, sponsor reads, housekeeping, repeated points, and moments that depend on visuals the transcript does not describe.
 
 Use the timestamps from the transcript. Rank the clips from 1 (best) downward. Scores are numbers from 0 to 10.
 
