@@ -15,7 +15,11 @@ When asked for multiple clips, choose genuinely different moments and topics. Do
 
 Avoid intros, outros, sponsor reads, housekeeping, repeated points, and moments that depend on visuals the transcript does not describe.
 
-Use the timestamps from the transcript. Rank the clips from 1 (best) downward. Scores are numbers from 0 to 10.
+Use the timestamps from the transcript. Rank the clips from 1 (best) downward. Scores are numbers from 0 to 10:
+- hook_score: how strongly the first 3 seconds make someone stop scrolling.
+- value_score: how interesting, useful, surprising or emotionally compelling the complete moment is.
+- clarity_score: how understandable the clip is without watching the full video.
+- overall_score: your honest combined quality score, weighted toward hook and standalone value. Do not give every candidate the same score; reserve 9–10 for exceptional moments.
 
 For each clip also write posting metadata for the account that will publish it:
 - title: a short internal name for the clip.
