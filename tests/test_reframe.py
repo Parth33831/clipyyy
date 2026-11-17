@@ -37,3 +37,40 @@ def test_detection_dimensions_downscale_landscape_and_keep_aspect():
 
 def test_detection_dimensions_do_not_upscale_small_video():
     assert detection_dimensions(640, 360) == (640, 360)
+
+
+
+def test_prepare_clips_skips_full_video_intermediate_without_broll(monkeypatch, tmp_path):
+    import clipyyy.reframe as reframe
+
+    monkeypatch.setattr(reframe, "probe", lambda path: (1920, 1080, 3600.0))
+    monkeypatch.setattr(
+        reframe,
+        "plan_crop",
+        lambda path, aspect, start, end: {
+            "crop_mode": "face",
+            "crop_boxes": [{"t": 0.0, "x": 500, "y": 100, "width": 300, "height": 500}],
+        },
+    )
+    monkeypatch.setattr(
+        reframe,
+        "run_ffmpeg",
+        lambda args: (_ for _ in ()).throw(AssertionError("unexpected full-resolution encode")),
+    )
+
+    result = reframe.prepare_clips(
+        {"video_path": str(tmp_path / "source.mp4")},
+        {
+            "clips": [
+                {"rank": 1, "start_seconds": 30.0, "end_seconds": 60.0},
+            ]
+        },
+        tmp_path / "work",
+        9 / 16,
+        True,
+        False,
+    )
+
+    assert len(result["clips"]) == 1
+    assert "speaker_path" not in result["clips"][0]
+    assert result["clips"][0]["crop_mode"] == "face"
