@@ -13,7 +13,6 @@ from clipyyy.media import has_audio, probe, run_ffmpeg
 FPS = 30
 SIZES = {"9:16": (1080, 1920), "4:5": (1080, 1350), "1:1": (1080, 1080)}
 
-
 def render_clips(
     source: dict,
     selection: dict,
@@ -68,7 +67,6 @@ def render_clips(
     if not any(r["status"] == "ready" for r in renders):
         raise RuntimeError("Every clip failed to render: " + "; ".join(r.get("error", "") for r in renders))
     return {"renders": renders}
-
 
 def render_clip(
     source_video: Path,
@@ -150,10 +148,8 @@ def render_clip(
 
     run_ffmpeg([*inputs, *maps, *video_args, "-shortest", "-movflags", "+faststart", str(output)])
 
-
 def poster_path(video: Path) -> Path:
     return video.with_suffix(".jpg")
-
 
 def make_poster(video: Path, at: float) -> None:
     """A still frame for previews in the UI."""
@@ -173,23 +169,18 @@ def make_poster(video: Path, at: float) -> None:
         ]
     )
 
-
 def fill_filter(width: int, height: int) -> str:
     return (
         f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},"
         f"setsar=1,fps={FPS},format=yuv420p"
     )
 
-
 def nearest_box(t: float, boxes: list[dict]) -> dict:
     return min(boxes, key=lambda b: abs(b["t"] - t))
-
 
 def slugify(text: str, limit: int = 40) -> str:
     slug = re.sub(r"[^\w]+", "-", text.lower(), flags=re.UNICODE).strip("-")
     return slug[:limit].rstrip("-") or "clip"
-
-
 
 def render_speaker_only(
     source_video: Path,
@@ -213,20 +204,33 @@ def render_speaker_only(
             filters.append(ass_filter(ass_path))
     duration = float(clip["end_seconds"]) - float(clip["start_seconds"])
     args = [
-        "-ss", str(clip["start_seconds"]),
-        "-i", str(source_video),
-        "-t", str(duration),
-        "-vf", ",".join(filters),
-        "-map", "0:v:0",
+        "-ss",
+        str(clip["start_seconds"]),
+        "-i",
+        str(source_video),
+        "-t",
+        str(duration),
+        "-vf",
+        ",".join(filters),
+        "-map",
+        "0:v:0",
     ]
     if has_audio(source_video):
         args += ["-map", "0:a:0", "-c:a", "aac", "-b:a", "160k"]
     args += [
-        "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
-        "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(output),
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "20",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+        str(output),
     ]
     run_ffmpeg(args)
-
 
 def crop_filter(boxes: list[dict], source_width: int, source_height: int, aspect: float) -> str:
     """Build a smoothly interpolated crop path from face samples."""
@@ -257,7 +261,6 @@ def crop_filter(boxes: list[dict], source_width: int, source_height: int, aspect
     x_expr = _interpolate_expression(points_x)
     y_expr = _interpolate_expression(points_y)
     return f"crop={crop_w}:{crop_h}:{x_expr}:{y_expr}:eval=frame"
-
 
 def _interpolate_expression(points: list[tuple[float, float]]) -> str:
     if len(points) <= 1:
