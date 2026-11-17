@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 ASPECTS = {"9:16": 9 / 16, "4:5": 4 / 5, "1:1": 1.0}
 
+
 class ClipOptions(BaseModel):
     clip_count: int = Field(3, ge=1, le=10, description="Maximum number of clips")
     min_seconds: float = Field(20, ge=5, le=170)
@@ -42,7 +43,10 @@ class ClipOptions(BaseModel):
             raise ValueError("max_seconds must be at least 5 seconds more than min_seconds")
         return self
 
+
 @dataclass(slots=True)
+
+
 class Context:
     run_id: str
     source: str
@@ -51,10 +55,12 @@ class Context:
     out_dir: Path
     state: dict[str, Any]
 
+
 def run_dir(run_id: str) -> Path:
     return runs_dir() / run_id
 
 # ── stages ───────────────────────────────────────────────────────────────────
+
 
 def stage_download(ctx: Context) -> dict:
     from clipyyy.source import fetch_source
@@ -62,6 +68,7 @@ def stage_download(ctx: Context) -> dict:
     result = fetch_source(ctx.source, ctx.work_dir)
     db.update_run(ctx.run_id, title=result["title"])
     return result
+
 
 def stage_transcribe(ctx: Context) -> dict:
     from clipyyy.transcribe import transcribe
@@ -72,6 +79,7 @@ def stage_transcribe(ctx: Context) -> dict:
         get_setting("whisper_model") or "base",
         ctx.options["language"],
     )
+
 
 def stage_select(ctx: Context) -> dict:
     from clipyyy.llm import get_llm
@@ -85,10 +93,12 @@ def stage_select(ctx: Context) -> dict:
         get_llm(options.get("model")), ctx.state["download"], ctx.state["transcribe"], options
     )
 
+
 def stage_plan(ctx: Context) -> dict:
     from clipyyy.timeline import plan_timeline
 
     return plan_timeline(ctx.state["select"], ctx.state["transcribe"], ctx.options["broll"])
+
 
 def stage_broll(ctx: Context) -> dict:
     from clipyyy.broll import fill_broll
@@ -97,6 +107,7 @@ def stage_broll(ctx: Context) -> dict:
     return fill_broll(
         json.loads(json.dumps(ctx.state["plan"])), ctx.work_dir, get_setting("pexels_api_key"), orientation
     )
+
 
 def stage_reframe(ctx: Context) -> dict:
     from clipyyy.reframe import prepare_clips
@@ -109,6 +120,7 @@ def stage_reframe(ctx: Context) -> dict:
         ctx.options["face_tracking"],
         ctx.options["broll"],
     )
+
 
 def stage_render(ctx: Context) -> dict:
     from clipyyy.render import render_clips
@@ -163,6 +175,7 @@ STAGE_NAMES = [name for name, _, _ in STAGES]
 
 # ── runner ───────────────────────────────────────────────────────────────────
 
+
 def execute(run: dict[str, Any], on_stage: Callable[[str], None] | None = None) -> None:
     """Run (or resume) every stage for a claimed run. Marks the run completed or failed."""
     run_id = run["id"]
@@ -199,6 +212,7 @@ def execute(run: dict[str, Any], on_stage: Callable[[str], None] | None = None) 
         db.set_stage(run_id, name, "done")
     db.update_run(run_id, status="completed", current_stage=None, error=None)
 
+
 def retry(run_id: str, from_stage: str | None = None) -> None:
     """Queue a run again. With ``from_stage`` that stage and every later one are redone."""
     if from_stage:
@@ -208,9 +222,11 @@ def retry(run_id: str, from_stage: str | None = None) -> None:
             db.set_stage(run_id, name, "pending")
     db.update_run(run_id, status="queued", error=None)
 
+
 def delete(run_id: str) -> None:
     db.delete_run(run_id)
     shutil.rmtree(run_dir(run_id), ignore_errors=True)
+
 
 def run_next() -> str | None:
     run = db.claim_next_run()
