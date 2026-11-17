@@ -124,10 +124,12 @@ def test_long_transcript_is_analysed_in_multiple_windows():
         ],
     }
     options = {**OPTIONS, "clip_count": 2}
-    llm = FakeLLM([
-        {"clips": [raw(0, 20, overall_score=8.5)]},
-        {"clips": [raw(800, 820, overall_score=9.0)]},
-    ])
+    llm = FakeLLM(
+        [
+            {"clips": [raw(0, 20, overall_score=8.5)]},
+            {"clips": [raw(800, 820, overall_score=9.0)]},
+        ]
+    )
 
     result = select_clips(llm, {"title": "Long talk", "duration_seconds": 900}, transcript, options)
 
@@ -154,10 +156,12 @@ def test_local_model_timeout_aborts_all_remaining_windows():
             {"start": 800.0, "end": 810.0, "text": "later window"},
         ],
     }
-    llm = FakeLLM([
-        LLMError("local model timed out", retryable=False),
-        {"clips": [raw(800, 810)]},
-    ])
+    llm = FakeLLM(
+        [
+            LLMError("local model timed out", retryable=False),
+            {"clips": [raw(800, 810)]},
+        ]
+    )
     with pytest.raises(ValueError, match="local model timed out"):
         select_clips(llm, {"title": "Long talk"}, transcript, OPTIONS)
     assert llm.calls == 1
