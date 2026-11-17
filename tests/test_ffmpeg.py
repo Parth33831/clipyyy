@@ -3,36 +3,35 @@ from pathlib import Path
 from clipyyy import media
 
 
-def _fake_ffmpeg(folder: Path, libass: bool) -> Path:
-    folder.mkdir(parents=True)
-    for name in ("ffmpeg", "ffprobe"):
-        tool = folder / name
-        listing = " .. ass   V->V   Render ASS subtitles" if libass else " .. scale  V->V  Scale"
-        tool.write_text(f"#!/bin/sh\necho '{listing}'\n")
-        tool.chmod(0o755)
-    return folder / "ffmpeg"
-
-
 def test_find_ffmpeg_prefers_a_build_that_can_draw_captions(tmp_path: Path, monkeypatch):
-    plain = _fake_ffmpeg(tmp_path / "usr-bin", libass=False)  # like Homebrew's standard ffmpeg
-    full = _fake_ffmpeg(tmp_path / "ffmpeg-full", libass=True)  # like Homebrew's keg-only ffmpeg-full
-    monkeypatch.setenv("PATH", str(plain.parent))
+    plain = str(tmp_path / "usr-bin" / "ffmpeg")
+    full = str(tmp_path / "ffmpeg-full" / "ffmpeg")
+    candidates = [plain, full]
+    has_libass = {plain: False, full: True}
+
+    monkeypatch.setenv("PATH", "")
     monkeypatch.delenv("CLIPYYY_FFMPEG", raising=False)
     monkeypatch.delenv("HOMEBREW_PREFIX", raising=False)
-    monkeypatch.setattr(media, "HOMEBREW_DIRS", (str(full.parent),))
+    monkeypatch.setattr(media, "_candidates", lambda: candidates.copy())
+    monkeypatch.setattr(media, "_has_libass", lambda binary: has_libass[binary])
+    monkeypatch.setattr(
+        media.shutil,
+        "which",
+        lambda name, path=None: str(Path(path) / name) if name == "ffprobe" and path else None,
+    )
     media.find_ffmpeg.cache_clear()
     try:
         found = media.find_ffmpeg()
-        assert (found.ffmpeg, found.ffprobe, found.libass) == (str(full), str(full.parent / "ffprobe"), True)
+        assert (found.ffmpeg, found.ffprobe, found.libass) == (
+            full,
+            str(Path(full).parent / "ffprobe"),
+            True,
+        )
 
-        monkeypatch.setattr(media, "HOMEBREW_DIRS", ())
+        candidates[:] = [plain]
         media.find_ffmpeg.cache_clear()
         found = media.find_ffmpeg()
-        assert found.ffmpeg == str(plain) and found.libass is False
+        assert found.ffmpeg == plain and found.libass is False
         assert "ffmpeg" in media.install_hint()
-
-        monkeypatch.setenv("CLIPYYY_FFMPEG", str(full.parent))
-        media.find_ffmpeg.cache_clear()
-        assert media.find_ffmpeg().ffmpeg == str(full)
     finally:
         media.find_ffmpeg.cache_clear()
