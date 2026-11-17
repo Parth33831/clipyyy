@@ -233,6 +233,7 @@ def snap(start: float, end: float, sentences: list[dict], min_s: float, max_s: f
 def excerpt(start: float, end: float, sentences: list[dict]) -> str:
     return " ".join(s["text"] for s in sentences if s["start"] >= start - 0.01 and s["end"] <= end + 0.01)
 
+
 _LENGTH_MARKER = re.compile(r"\s*\(\d+\s*(?:chars?|characters?|s|secs?|seconds?)\)\s*$", re.IGNORECASE)
 _TRAILING_TAGS = re.compile(r"(?:\s*#[\w\u00C0-\uFFFF]+)+\s*$")
 
