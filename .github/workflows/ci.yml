@@ -44,6 +44,18 @@ jobs:
       - run: uv run python -c "import faster_whisper, importlib.util as u, platform, sys; intel = sys.platform == 'darwin' and platform.machine() == 'x86_64'; found = u.find_spec('mediapipe') is not None; print('mediapipe', found); assert found != intel"
       - run: uv run pytest -q
 
+  # Windows is the primary desktop target; keep a native Windows validation job.
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: choco install ffmpeg -y --no-progress
+      - run: uv sync --python 3.12
+      - run: uv run ruff check src tests
+      - run: uv run ruff format --check src tests
+      - run: uv run pytest -q
+
   frontend:
     runs-on: ubuntu-latest
     defaults:
