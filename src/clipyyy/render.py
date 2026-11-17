@@ -35,11 +35,17 @@ def render_clips(
         output = out_dir / f"clip-{rank:02d}-{slugify(meta['title'])}.mp4"
         clip_dir = work_dir / f"clip-{rank:02d}"
         try:
+            words = clip_words(transcript, clip["start_seconds"], clip["end_seconds"])
+            ass_path = None
+            if options["captions"] and words:
+                ass_path = write_ass(
+                    words, clip_dir / "captions.ass", width, height, options["caption_style"]
+                )
             render_clip(
                 source_video=Path(source["video_path"]),
                 clip=clip,
                 prepared=prepared_by_rank[rank],
-                words=clip_words(transcript, clip["start_seconds"], clip["end_seconds"]),
+                words=words,
                 work_dir=clip_dir,
                 output=output,
                 size=(width, height),
@@ -204,8 +210,6 @@ def render_speaker_only(
     crop = crop_filter(boxes, source_width, source_height, aspect)
     filters = [crop, f"scale={width}:{height}", "setsar=1", f"fps={FPS}", "format=yuv420p"]
     if caption_style:
-        # Caption words are generated in render_clips and passed through the normal
-        # render path; this helper is also directly testable without transcript data.
         ass_path = work_dir / "captions.ass"
         if ass_path.exists():
             filters.append(ass_filter(ass_path))
