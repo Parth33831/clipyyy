@@ -4,7 +4,7 @@ import pytest
 
 from clipyyy.media import find_ffmpeg, has_audio, probe, run_ffmpeg
 from clipyyy.reframe import center_plan
-from clipyyy.render import render_clips
+from clipyyy.render import crop_filter, render_clips
 from clipyyy.timeline import plan_timeline
 
 pytestmark = pytest.mark.skipif(not find_ffmpeg().ffmpeg, reason="needs ffmpeg")
@@ -77,3 +77,19 @@ def test_render_synthetic_clip(tmp_path, transcript, aspect, size):
     assert abs(duration - 17.4) < 0.5
     assert has_audio(tmp_path / "out" / "clip-01-test-clip.mp4")
     assert (tmp_path / "out" / "clip-01-test-clip.jpg").exists()
+
+
+
+def test_crop_filter_interpolates_face_positions():
+    result = crop_filter(
+        [
+            {"t": 0.0, "x": 500, "y": 100, "width": 300, "height": 500},
+            {"t": 1.0, "x": 700, "y": 120, "width": 300, "height": 500},
+        ],
+        1920,
+        1080,
+        9 / 16,
+    )
+    assert result.startswith("crop=280:498:")
+    assert "eval=frame" in result
+    assert "if(lt(t\\\\," in result
