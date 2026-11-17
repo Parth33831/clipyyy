@@ -21,7 +21,6 @@ MODEL_URL = (
 
 
 @dataclass(slots=True)
-
 class Face:
     x: float
     y: float
