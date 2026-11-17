@@ -85,9 +85,7 @@ def render_clip(
     # FFmpeg pass. The old segment/concat path re-encoded every 3-second window and
     # then encoded the whole clip again for captions.
     if all(window["type"] == "speaker" for window in clip["windows"]):
-        render_speaker_only(
-            source_video, clip, prepared, work_dir, output, size, caption_style
-        )
+        render_speaker_only(source_video, clip, prepared, work_dir, output, size, caption_style)
         return
 
     segments_dir = work_dir / "segments"
