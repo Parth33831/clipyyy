@@ -75,7 +75,7 @@ def stage_transcribe(ctx: Context) -> dict:
     return transcribe(
         Path(ctx.state["download"]["video_path"]),
         ctx.work_dir,
-        get_setting("whisper_model") or "small",
+        get_setting("whisper_model") or "base",
         ctx.options["language"],
     )
 
