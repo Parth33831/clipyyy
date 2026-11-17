@@ -46,7 +46,6 @@ class ClipOptions(BaseModel):
 
 @dataclass(slots=True)
 
-
 class Context:
     run_id: str
     source: str
