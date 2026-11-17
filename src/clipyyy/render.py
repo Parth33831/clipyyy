@@ -128,7 +128,9 @@ def render_clip(
 
     if caption_style and words:
         ass_path = write_ass(words, work_dir / "captions.ass", width, height, caption_style)
-        video_args = ["-vf", ass_filter(ass_path), "-c:v", "libx264", "-preset", "medium", "-crf", "20"]
+        # Veryfast keeps caption rendering practical on CPU-only laptops while CRF 20
+        # preserves a clean social-video image.
+        video_args = ["-vf", ass_filter(ass_path), "-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]
     else:
         video_args = ["-c:v", "copy"]
 
