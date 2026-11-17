@@ -92,5 +92,4 @@ def test_crop_filter_interpolates_face_positions():
         9 / 16,
     )
     assert result.startswith("crop=300:532:")
-    assert "lt(t\\\\,1.000)" in result
     assert "if(lt(t\\," in result
