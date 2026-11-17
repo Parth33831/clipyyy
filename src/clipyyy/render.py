@@ -269,7 +269,7 @@ def crop_filter(boxes: list[dict], source_width: int, source_height: int, aspect
         points_y.append((float(box.get("t", 0.0)), max(0.0, min(source_height - crop_h, cy - crop_h / 2))))
     x_expr = _interpolate_expression(points_x)
     y_expr = _interpolate_expression(points_y)
-    return f"crop={crop_w}:{crop_h}:{x_expr}:{y_expr}:eval=frame"
+    return f"crop={crop_w}:{crop_h}:{x_expr}:{y_expr}"
 
 
 def _interpolate_expression(points: list[tuple[float, float]]) -> str:
