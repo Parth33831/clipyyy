@@ -45,7 +45,6 @@ class ClipOptions(BaseModel):
 
 
 @dataclass(slots=True)
-
 class Context:
     run_id: str
     source: str
@@ -160,6 +159,7 @@ def stage_render(ctx: Context) -> dict:
         ],
     )
     return result
+
 
 STAGES: list[tuple[str, str, Callable[[Context], dict]]] = [
     ("download", "Download", stage_download),
