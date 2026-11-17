@@ -9,7 +9,6 @@ from clipyyy.timeline import plan_timeline
 
 pytestmark = pytest.mark.skipif(not find_ffmpeg().ffmpeg, reason="needs ffmpeg")
 
-
 @pytest.mark.parametrize("aspect,size", [("9:16", (1080, 1920)), ("1:1", (1080, 1080))])
 def test_render_synthetic_clip(tmp_path, transcript, aspect, size):
     source = tmp_path / "source.mp4"
@@ -54,8 +53,11 @@ def test_render_synthetic_clip(tmp_path, transcript, aspect, size):
         ]
     )
     aspect_value = size[0] / size[1]
+    crop_boxes = center_plan(1280, 720, aspect_value, None)["crop_boxes"]
+    first_box = crop_boxes[0]
+    moving_box = {**first_box, "t": 10.0, "x": first_box["x"] + 20}
     prepared = {
-        "clips": [{"rank": 1, "speaker_path": str(speaker), **center_plan(1280, 720, aspect_value, None)}]
+        "clips": [{"rank": 1, "speaker_path": str(speaker), "crop_boxes": [first_box, moving_box]}]
     }
     options = {"aspect_ratio": aspect, "captions": True, "caption_style": "bold"}
 
@@ -77,8 +79,6 @@ def test_render_synthetic_clip(tmp_path, transcript, aspect, size):
     assert abs(duration - 17.4) < 0.5
     assert has_audio(tmp_path / "out" / "clip-01-test-clip.mp4")
     assert (tmp_path / "out" / "clip-01-test-clip.jpg").exists()
-
-
 
 def test_crop_filter_interpolates_face_positions():
     result = crop_filter(
