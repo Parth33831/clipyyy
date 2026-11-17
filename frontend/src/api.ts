@@ -38,6 +38,7 @@ export interface Stage {
   error?: string | null
   started_at?: string | null
   finished_at?: string | null
+  duration_seconds?: number
 }
 
 export interface Clip {
