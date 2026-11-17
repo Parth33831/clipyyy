@@ -19,14 +19,12 @@ MODEL_URL = (
     "blaze_face_short_range/float16/latest/blaze_face_short_range.tflite"
 )
 
-
 @dataclass(slots=True)
 class Face:
     x: float
     y: float
     width: float
     height: float
-
 
 def prepare_clips(
     source: dict,
@@ -50,10 +48,19 @@ def prepare_clips(
             speaker_path = clip_dir / "speaker.mp4"
             run_ffmpeg(
                 [
-                    "-ss", str(clip["start_seconds"]),
-                    "-i", str(source_path),
-                    "-t", str(clip["end_seconds"] - clip["start_seconds"]),
-                    "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
+                    "-ss",
+                    str(clip["start_seconds"]),
+                    "-i",
+                    str(source_path),
+                    "-t",
+                    str(clip["end_seconds"] - clip["start_seconds"]),
+                    "-an",
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "veryfast",
+                    "-crf",
+                    "18",
                     str(speaker_path),
                 ]
             )
@@ -69,7 +76,6 @@ def prepare_clips(
             plan = center_plan(width, height, aspect, "face tracking off")
         prepared.append({**item, **plan})
     return {"clips": prepared}
-
 
 def plan_crop(
     clip_path: Path, aspect: float, start_seconds: float = 0.0, end_seconds: float | None = None
@@ -88,7 +94,6 @@ def plan_crop(
     ]
     return {"crop_mode": "face", "crop_boxes": boxes, "note": None}
 
-
 def center_plan(width: int, height: int, aspect: float, note: str | None) -> dict:
     if width / max(height, 1) > aspect:
         crop_h, crop_w = height, round(height * aspect)
@@ -103,7 +108,6 @@ def center_plan(width: int, height: int, aspect: float, note: str | None) -> dic
     }
     return {"crop_mode": "center", "crop_boxes": [box], "note": note}
 
-
 def face_box(face: Face, width: int, height: int, cx: float, cy: float, aspect: float) -> dict:
     crop_h = max(face.height * height * 3.2, height * 0.45)
     crop_w = crop_h * aspect
@@ -114,7 +118,6 @@ def face_box(face: Face, width: int, height: int, cx: float, cy: float, aspect: 
     x = clamp(cx - crop_w / 2, 0.0, width - crop_w)
     y = clamp(cy - crop_h / 2, 0.0, height - crop_h)
     return {"x": round(x), "y": round(y), "width": round(crop_w), "height": round(crop_h)}
-
 
 def sample_faces(
     clip_path: Path,
@@ -186,14 +189,12 @@ def sample_faces(
         detector.close()
     return samples
 
-
 def detection_dimensions(width: int, height: int) -> tuple[int, int]:
     """Downscale frames before face detection; coordinates remain normalized."""
     scale = min(1.0, DETECTION_WIDTH / max(width, 1))
     sample_width = max(2, round(width * scale / 2) * 2)
     sample_height = max(2, round(height * scale / 2) * 2)
     return sample_width, sample_height
-
 
 def dominant(faces: list[Face]) -> Face | None:
     """Largest face, ties broken by closeness to the centre."""
@@ -207,7 +208,6 @@ def dominant(faces: list[Face]) -> Face | None:
         ),
     )
 
-
 def smooth(points: list[tuple[float, float]], window: int = 3) -> list[tuple[float, float]]:
     half = window // 2
     result = []
@@ -216,10 +216,8 @@ def smooth(points: list[tuple[float, float]], window: int = 3) -> list[tuple[flo
         result.append((sum(p[0] for p in chunk) / len(chunk), sum(p[1] for p in chunk) / len(chunk)))
     return result
 
-
 def clamp(value: float, low: float, high: float) -> float:
     return low if low > high else max(low, min(high, value))
-
 
 def _model_path() -> Path:
     path = home() / "models" / "blaze_face_short_range.tflite"
