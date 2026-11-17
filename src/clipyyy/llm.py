@@ -72,7 +72,11 @@ class OpenAICompatibleLLM:
         request_timeout = timeout if timeout is not None else (120.0 if provider.local else 300.0)
         self._client = httpx.Client(
             base_url=provider.base_url,
-            headers={"Authorization": f"Bearer {api_key}", **provider.headers} if api_key else provider.headers,
+            headers=(
+                {"Authorization": f"Bearer {api_key}", **provider.headers}
+                if api_key
+                else provider.headers
+            ),
             timeout=httpx.Timeout(request_timeout, connect=5.0),
             transport=transport,
         )
