@@ -160,7 +160,7 @@ Add keys in the web app under **Settings**, with `clipyyy config set <key> <valu
 |---|---|---|
 | `openrouter_api_key` | `OPENROUTER_API_KEY` | Finding clips (required) |
 | `llm_model` | `CLIPYYY_LLM_MODEL` | Default model, `google/gemini-3.8-flash` |
-| `whisper_model` | `CLIPYYY_WHISPER_MODEL` | `tiny`, `base`, `small` (default), `medium`, `large-v3`, `turbo` |
+| `whisper_model` | `CLIPYYY_WHISPER_MODEL` | `tiny`, `base` (default, faster on CPU), `small`, `medium`, `large-v3`, `turbo` |
 | `ytdlp_cookies_from_browser` | `CLIPYYY_COOKIES_FROM_BROWSER` | Using your browser's YouTube login if YouTube blocks downloads |
 | `pexels_api_key` | `PEXELS_API_KEY` | B-roll |
 | `buffer_api_key` | `BUFFER_API_KEY` | Auto-posting |
