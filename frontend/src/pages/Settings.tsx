@@ -8,8 +8,8 @@ import { Button, Eyebrow, Field, Input, Panel, Select, Textarea, cn } from '../c
 
 const WHISPER_MODELS = [
   ['tiny', 'tiny · fastest'],
-  ['base', 'base · fast'],
-  ['small', 'small · balanced (default)'],
+  ['base', 'base · fast (recommended)'],
+  ['small', 'small · more accurate'],
   ['medium', 'medium · more accurate'],
   ['large-v3', 'large-v3 · best, GPU recommended'],
   ['turbo', 'turbo · near large-v3, faster'],
@@ -149,7 +149,7 @@ export function SettingsPage() {
               />
             </Field>
             <Field label="Transcription model" hint="faster-whisper runs locally and downloads the model on first use.">
-              <Select value={draft.whisper_model ?? 'small'} onChange={(e) => update('whisper_model')(e.target.value)}>
+              <Select value={draft.whisper_model ?? 'base'} onChange={(e) => update('whisper_model')(e.target.value)}>
                 {WHISPER_MODELS.map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
