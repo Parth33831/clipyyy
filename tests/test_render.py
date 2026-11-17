@@ -12,7 +12,6 @@ pytestmark = pytest.mark.skipif(not find_ffmpeg().ffmpeg, reason="needs ffmpeg")
 
 @pytest.mark.parametrize("aspect,size", [("9:16", (1080, 1920)), ("1:1", (1080, 1080))])
 
-
 def test_render_synthetic_clip(tmp_path, transcript, aspect, size):
     source = tmp_path / "source.mp4"
     run_ffmpeg(
@@ -59,9 +58,7 @@ def test_render_synthetic_clip(tmp_path, transcript, aspect, size):
     crop_boxes = center_plan(1280, 720, aspect_value, None)["crop_boxes"]
     first_box = crop_boxes[0]
     moving_box = {**first_box, "t": 10.0, "x": first_box["x"] + 20}
-    prepared = {
-        "clips": [{"rank": 1, "speaker_path": str(speaker), "crop_boxes": [first_box, moving_box]}]
-    }
+    prepared = {"clips": [{"rank": 1, "speaker_path": str(speaker), "crop_boxes": [first_box, moving_box]}]}
     options = {"aspect_ratio": aspect, "captions": True, "caption_style": "bold"}
 
     result = render_clips(
@@ -95,5 +92,5 @@ def test_crop_filter_interpolates_face_positions():
         9 / 16,
     )
     assert result.startswith("crop=300:532:")
-    assert "eval=frame" in result
+    assert "lt(t\\\\,1.000)" in result
     assert "if(lt(t\\," in result
