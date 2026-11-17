@@ -6,6 +6,8 @@ from clipyyy.api import create_app
 
 
 @pytest.fixture
+
+
 def client():
     with TestClient(create_app(start_worker=False)) as c:
         yield c
