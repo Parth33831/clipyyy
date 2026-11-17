@@ -112,8 +112,12 @@ def select_clips(llm: LLM, source: dict, transcript: dict, options: dict) -> dic
     candidates: list[dict] = []
     last_error = "no clips returned"
 
+    # Local CPU inference is expensive. Allow one recovery for malformed/invalid
+    # output, but never let a small local model multiply the wait three times per window.
+    max_attempts = 2 if getattr(getattr(llm, "provider", None), "local", False) else MAX_ATTEMPTS
+
     # Keep the original single-call path for short videos. For long videos, ask for
-    # one strong moment per focused window, then rank all candidates together.
+    # a small shortlist per focused window, then rank all candidates together.
     for window in windows:
         window_transcript = {**transcript, "sentences": window["sentences"]}
         # Ask each focused window for a small shortlist, not just one pick. A single
@@ -122,7 +126,7 @@ def select_clips(llm: LLM, source: dict, transcript: dict, options: dict) -> dic
         window_count = min(2, int(options["clip_count"]))
         window_options = {**options, "clip_count": window_count} if len(windows) > 1 else options
         system, user = build_prompt(source, window_transcript, window_options)
-        for attempt in range(1, MAX_ATTEMPTS + 1):
+        for attempt in range(1, max_attempts + 1):
             try:
                 raw = llm.complete_json(system, user, SCHEMA, "clip_selection").get("clips", [])
             except LLMError as exc:
@@ -135,7 +139,7 @@ def select_clips(llm: LLM, source: dict, transcript: dict, options: dict) -> dic
                     # service, not just this transcript window. Abort the run instead
                     # of waiting through the remaining windows one by one.
                     raise ValueError(f"Clip selection stopped: {last_error}") from exc
-                if attempt == MAX_ATTEMPTS:
+                if attempt == max_attempts:
                     break
                 continue
             valid = validate_clips(raw, window_transcript, window_options)
