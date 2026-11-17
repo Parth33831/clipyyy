@@ -62,7 +62,6 @@ SCHEMA: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-
 def build_prompt(source: dict, transcript: dict, options: dict) -> tuple[str, str]:
     instructions = (options.get("instructions") or "").strip()
     template = Template((PACKAGE_DIR / "prompts" / "clip_selection.md").read_text(encoding="utf-8"))
@@ -82,7 +81,6 @@ def build_prompt(source: dict, transcript: dict, options: dict) -> tuple[str, st
     )
     return system, user
 
-
 def _windows(sentences: list[dict]) -> list[dict]:
     """Split long transcripts into overlapping time windows while keeping original timestamps."""
     if not sentences:
@@ -101,7 +99,6 @@ def _windows(sentences: list[dict]) -> list[dict]:
             windows.append({"sentences": chunk})
         cursor += step
     return windows
-
 
 def select_clips(llm: LLM, source: dict, transcript: dict, options: dict) -> dict:
     sentences = transcript.get("sentences") or []
@@ -163,7 +160,6 @@ def select_clips(llm: LLM, source: dict, transcript: dict, options: dict) -> dic
     clips = validate_clips(candidates, transcript, options)
     return {"model": llm.model, "clips": clips}
 
-
 def validate_clips(raw_clips: list[dict], transcript: dict, options: dict) -> list[dict]:
     """Snap to sentences, drop clips outside the length range or overlapping a better one."""
     min_s, max_s = float(options["min_seconds"]), float(options["max_seconds"])
@@ -206,7 +202,6 @@ def validate_clips(raw_clips: list[dict], transcript: dict, options: dict) -> li
         clip["rank"] = rank
     return accepted
 
-
 def snap(start: float, end: float, sentences: list[dict], min_s: float, max_s: float) -> tuple[float, float]:
     """Move start/end to the nearest sentence boundaries, then grow or trim into range."""
     if not sentences:
@@ -229,21 +224,17 @@ def snap(start: float, end: float, sentences: list[dict], min_s: float, max_s: f
         end = max(fitting) if fitting and max(fitting) - start >= min_s else start + max_s
     return start, end
 
-
 def excerpt(start: float, end: float, sentences: list[dict]) -> str:
     return " ".join(s["text"] for s in sentences if s["start"] >= start - 0.01 and s["end"] <= end + 0.01)
 
-
 _LENGTH_MARKER = re.compile(r"\s*\(\d+\s*(?:chars?|characters?|s|secs?|seconds?)\)\s*$", re.IGNORECASE)
 _TRAILING_TAGS = re.compile(r"(?:\s*#[\w\u00C0-\uFFFF]+)+\s*$")
-
 
 def clean_caption(caption: str) -> str:
     value = caption.strip()
     while (updated := _LENGTH_MARKER.sub("", value).strip()) != value:
         value = updated
     return re.sub(r"\s{2,}", " ", value)
-
 
 def clean_hashtags(tags: Any, caption: str) -> tuple[list[str], str]:
     """Normalise hashtags and move any trailing hashtags out of the caption."""
@@ -257,13 +248,11 @@ def clean_hashtags(tags: Any, caption: str) -> tuple[list[str], str]:
             result.append(cleaned)
     return result[:10], caption
 
-
 def _num(value: Any, default: float) -> float:
     try:
         return float(value)
     except (TypeError, ValueError):
         return default
-
 
 def _fmt(value: float) -> str:
     return f"{float(value):g}"
