@@ -119,22 +119,22 @@ def test_long_transcript_is_analysed_in_multiple_windows():
             {"start": 0.0, "end": 10.0, "text": "opening sentence"},
             {"start": 10.0, "end": 20.0, "text": "first useful point"},
             {"start": 20.0, "end": 30.0, "text": "first payoff"},
-            {"start": 500.0, "end": 510.0, "text": "second opening"},
-            {"start": 510.0, "end": 520.0, "text": "second useful point"},
-            {"start": 520.0, "end": 530.0, "text": "second payoff"},
+            {"start": 800.0, "end": 810.0, "text": "second opening"},
+            {"start": 810.0, "end": 820.0, "text": "second useful point"},
+            {"start": 820.0, "end": 830.0, "text": "second payoff"},
         ],
     }
     options = {**OPTIONS, "clip_count": 2}
     llm = FakeLLM([
         {"clips": [raw(0, 20, overall_score=8.5)]},
-        {"clips": [raw(500, 520, overall_score=9.0)]},
+        {"clips": [raw(800, 820, overall_score=9.0)]},
     ])
 
-    result = select_clips(llm, {"title": "Long talk", "duration_seconds": 600}, transcript, options)
+    result = select_clips(llm, {"title": "Long talk", "duration_seconds": 900}, transcript, options)
 
     assert llm.calls == 2
     assert len(result["clips"]) == 2
-    assert result["clips"][0]["start_seconds"] == 500.0
+    assert result["clips"][0]["start_seconds"] == 800.0
     assert result["clips"][1]["start_seconds"] == 0.0
     assert all("Select up to 2 non-overlapping clips" in system for system, _ in llm.prompts)
 
@@ -153,12 +153,12 @@ def test_local_model_timeout_aborts_all_remaining_windows():
         "language": "en",
         "sentences": [
             {"start": 0.0, "end": 10.0, "text": "first window"},
-            {"start": 600.0, "end": 610.0, "text": "later window"},
+            {"start": 800.0, "end": 810.0, "text": "later window"},
         ],
     }
     llm = FakeLLM([
         LLMError("local model timed out", retryable=False),
-        {"clips": [raw(600, 610)]},
+        {"clips": [raw(800, 810)]},
     ])
     with pytest.raises(ValueError, match="local model timed out"):
         select_clips(llm, {"title": "Long talk"}, transcript, OPTIONS)
