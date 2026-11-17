@@ -67,7 +67,6 @@ def test_get_llm_requires_key_and_uses_settings():
     assert get_llm("override/model").model == "override/model"
 
 
-
 def test_ollama_provider_needs_no_api_key_and_sends_no_auth_header():
     seen = {}
 
@@ -77,9 +76,7 @@ def test_ollama_provider_needs_no_api_key_and_sends_no_auth_header():
         seen["body"] = json.loads(request.content)
         return reply('{"clips": []}')
 
-    llm = OpenAICompatibleLLM(
-        PROVIDERS["ollama"], "", "qwen2.5:1.5b", transport=httpx.MockTransport(handler)
-    )
+    llm = OpenAICompatibleLLM(PROVIDERS["ollama"], "", "qwen2.5:1.5b", transport=httpx.MockTransport(handler))
     assert llm.complete_json("sys", "user", {"type": "object"}, "x") == {"clips": []}
     assert seen["url"] == "http://127.0.0.1:11434/v1/chat/completions"
     assert seen["auth"] is None
