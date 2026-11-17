@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 MAX_ATTEMPTS = 3
 # Small local models produce better results when a long transcript is analysed in focused windows.
-WINDOW_SECONDS = 8 * 60
+WINDOW_SECONDS = 12 * 60
 WINDOW_OVERLAP_SECONDS = 30
 
 SCHEMA: dict[str, Any] = {
