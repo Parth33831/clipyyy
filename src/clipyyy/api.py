@@ -267,7 +267,11 @@ def run_detail(run_id: str) -> dict:
         stage.setdefault("status", "pending")
         if stage.get("started_at"):
             started = datetime.fromisoformat(stage["started_at"])
-            finished = datetime.fromisoformat(stage["finished_at"]) if stage.get("finished_at") else datetime.now(started.tzinfo)
+            finished = (
+                datetime.fromisoformat(stage["finished_at"])
+                if stage.get("finished_at")
+                else datetime.now(started.tzinfo)
+            )
             stage["duration_seconds"] = round(max(0.0, (finished - started).total_seconds()), 1)
     source_file = pipeline.run_dir(run_id) / "work" / "download.json"
     source_duration = None
