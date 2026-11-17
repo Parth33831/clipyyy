@@ -54,7 +54,7 @@ jobs:
       - run: uv sync --python 3.12
       - run: uv run ruff check src tests
       - run: uv run ruff format --check src tests
-      - run: uv run pytest -q
+      - run: uv run pytest -vv --full-trace
 
   frontend:
     runs-on: ubuntu-latest
