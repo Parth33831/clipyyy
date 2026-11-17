@@ -117,6 +117,7 @@ def stage_reframe(ctx: Context) -> dict:
         ctx.work_dir,
         ASPECTS[ctx.options["aspect_ratio"]],
         ctx.options["face_tracking"],
+        ctx.options["broll"],
     )
 
 
