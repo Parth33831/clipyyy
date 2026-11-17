@@ -17,7 +17,8 @@ def checks() -> list[dict]:
     llm_detail = (
         f"Ollama (local) · {get_setting('llm_model') or 'qwen2.5:1.5b'}"
         if provider == "ollama"
-        else f"{provider} · {get_setting('llm_model')}" if llm_key
+        else f"{provider} · {get_setting('llm_model')}"
+        if llm_key
         else "add an OpenRouter API key or select the local Ollama provider"
     )
     runtime = js_runtime()
