@@ -68,3 +68,23 @@ def test_upload_and_health(client):
 
 def test_buffer_without_key(client):
     assert client.get("/api/buffer/channels").status_code == 400
+
+
+
+def test_run_detail_reports_stage_elapsed_time(client):
+    run = db.create_run("local.mp4", {})
+    db.set_stage(run["id"], "transcribe", "running")
+    with db.connect() as conn:
+        conn.execute(
+            "UPDATE stages SET started_at = ?, finished_at = ? WHERE run_id = ? AND name = ?",
+            (
+                "2026-01-01T00:00:00+00:00",
+                "2026-01-01T00:01:05+00:00",
+                run["id"],
+                "transcribe",
+            ),
+        )
+
+    detail = client.get(f"/api/runs/{run['id']}").json()
+    stage = next(item for item in detail["stages"] if item["name"] == "transcribe")
+    assert stage["duration_seconds"] == 65.0
