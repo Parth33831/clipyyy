@@ -164,6 +164,7 @@ def sample_faces(
                 if end_seconds is not None
                 else []
             ),
+            "-an",
             "-vf",
             f"fps={SAMPLE_FPS},scale={sample_width}:{sample_height}",
             "-f",
