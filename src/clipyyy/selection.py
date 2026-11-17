@@ -114,7 +114,7 @@ def select_clips(llm: LLM, source: dict, transcript: dict, options: dict) -> dic
 
     # Local CPU inference is expensive. Allow one recovery for malformed/invalid
     # output, but never let a small local model multiply the wait three times per window.
-    max_attempts = 2 if getattr(getattr(llm, "provider", None), "local", False) else MAX_ATTEMPTS
+    max_attempts = 1 if getattr(getattr(llm, "provider", None), "local", False) else MAX_ATTEMPTS
 
     # Keep the original single-call path for short videos. For long videos, ask for
     # a small shortlist per focused window, then rank all candidates together.
