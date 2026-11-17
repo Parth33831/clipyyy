@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import re
 import shutil
-from statistics import median
 from pathlib import Path
+from statistics import median
 
 from clipyyy.captions import ass_filter, clip_words, write_ass
 from clipyyy.media import has_audio, probe, run_ffmpeg
