@@ -337,11 +337,3 @@ function CopyBlock({ label, text }: { label: string; text: string }) {
   )
 }
 
-
-
-function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${Math.round(seconds)}s`
-  const minutes = Math.floor(seconds / 60)
-  const remainder = Math.round(seconds % 60)
-  return remainder ? `${minutes}m ${remainder}s` : `${minutes}m`
-}
