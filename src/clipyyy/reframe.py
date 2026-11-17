@@ -11,7 +11,8 @@ from pathlib import Path
 from clipyyy.config import home
 from clipyyy.media import ffmpeg_bin, probe, run_ffmpeg
 
-SAMPLE_FPS = 2
+SAMPLE_FPS = 1
+DETECTION_WIDTH = 640
 MIN_FACE_RATIO = 0.5
 MODEL_URL = (
     "https://storage.googleapis.com/mediapipe-models/face_detector/"
@@ -117,7 +118,8 @@ def sample_faces(clip_path: Path, width: int, height: int) -> list[tuple[float, 
             min_detection_confidence=0.5,
         )
     )
-    frame_bytes = width * height * 3
+    sample_width, sample_height = detection_dimensions(width, height)
+    frame_bytes = sample_width * sample_height * 3
     proc = subprocess.Popen(
         [
             ffmpeg_bin(),
@@ -127,7 +129,7 @@ def sample_faces(clip_path: Path, width: int, height: int) -> list[tuple[float, 
             "-i",
             str(clip_path),
             "-vf",
-            f"fps={SAMPLE_FPS}",
+            f"scale={sample_width}:{sample_height},fps={SAMPLE_FPS}",
             "-f",
             "rawvideo",
             "-pix_fmt",
@@ -141,14 +143,14 @@ def sample_faces(clip_path: Path, width: int, height: int) -> list[tuple[float, 
     try:
         assert proc.stdout is not None
         while len(raw := proc.stdout.read(frame_bytes)) == frame_bytes:
-            frame = np.frombuffer(raw, dtype=np.uint8).reshape((height, width, 3))
+            frame = np.frombuffer(raw, dtype=np.uint8).reshape((sample_height, sample_width, 3))
             result = detector.detect(mp.Image(image_format=mp.ImageFormat.SRGB, data=frame))
             faces = [
                 Face(
-                    d.bounding_box.origin_x / width,
-                    d.bounding_box.origin_y / height,
-                    d.bounding_box.width / width,
-                    d.bounding_box.height / height,
+                    d.bounding_box.origin_x / sample_width,
+                    d.bounding_box.origin_y / sample_height,
+                    d.bounding_box.width / sample_width,
+                    d.bounding_box.height / sample_height,
                 )
                 for d in result.detections
             ]
@@ -158,6 +160,14 @@ def sample_faces(clip_path: Path, width: int, height: int) -> list[tuple[float, 
         proc.wait()
         detector.close()
     return samples
+
+
+def detection_dimensions(width: int, height: int) -> tuple[int, int]:
+    """Downscale frames before face detection; coordinates remain normalized."""
+    scale = min(1.0, DETECTION_WIDTH / max(width, 1))
+    sample_width = max(2, round(width * scale / 2) * 2)
+    sample_height = max(2, round(height * scale / 2) * 2)
+    return sample_width, sample_height
 
 
 def dominant(faces: list[Face]) -> Face | None:
