@@ -44,7 +44,12 @@ def _run_whisper(audio, model_size: str, language: str | None, device: str, comp
         model_size, device=device, compute_type=compute_type, download_root=str(home() / "models" / "whisper")
     )
     segments, info = model.transcribe(
-        audio, language=language, word_timestamps=True, vad_filter=True, condition_on_previous_text=False
+        audio,
+        language=language,
+        word_timestamps=True,
+        vad_filter=True,
+        beam_size=1,
+        condition_on_previous_text=False
     )
     words = [
         {"word": w.word.strip(), "start": round(w.start, 3), "end": round(w.end, 3)}
