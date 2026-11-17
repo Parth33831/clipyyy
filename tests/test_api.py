@@ -7,7 +7,6 @@ from clipyyy.api import create_app
 
 @pytest.fixture
 
-
 def client():
     with TestClient(create_app(start_worker=False)) as c:
         yield c
@@ -70,7 +69,6 @@ def test_upload_and_health(client):
 
 def test_buffer_without_key(client):
     assert client.get("/api/buffer/channels").status_code == 400
-
 
 
 def test_run_detail_reports_stage_elapsed_time(client):
