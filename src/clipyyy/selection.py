@@ -198,7 +198,7 @@ def select_clips(llm: LLM, source: dict, transcript: dict, options: dict) -> dic
             refill_options = {**options, "clip_count": min(remaining, 3)}
             system, user = build_prompt(source, refill_transcript, refill_options)
             user += (
-                "\\n\\nFind additional moments only. Do not reuse or overlap these selected intervals: "
+                "\n\nFind additional moments only. Do not reuse or overlap these selected intervals: "
                 + ", ".join(
                     f"{clip['start_seconds']:.1f}-{clip['end_seconds']:.1f}s" for clip in selected
                 )
