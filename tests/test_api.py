@@ -151,8 +151,9 @@ def test_run_download_archive_is_persisted_under_clipyyy_home(client, tmp_path):
 
     response = client.get(f"/api/runs/{run['id']}/download")
     assert response.status_code == 200
-    archive = home() / "exports" / f"clipyyy-local-video-{run['id'][:8]}.zip"
-    assert archive.is_file()
+    archives = list((home() / "exports").glob(f"clipyyy-*-{run['id'][:8]}.zip"))
+    assert len(archives) == 1
+    archive = archives[0]
     import zipfile
 
     with zipfile.ZipFile(archive) as zf:
