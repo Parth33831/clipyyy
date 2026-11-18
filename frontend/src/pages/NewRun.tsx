@@ -207,6 +207,9 @@ export function NewRunPage() {
                 {options.campaign_mode ? 'Create campaign edit' : count > 1 ? `Clip ${count} videos` : 'Find clips'} <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
+            {options.campaign_mode && count > 6 && (
+              <p className="px-6 pb-3 text-xs text-red-300">Campaigns support up to 6 source videos per edit.</p>
+            )}
           </section>
 
           <ol className="grid gap-px border border-line bg-line sm:grid-cols-3">
@@ -332,7 +335,7 @@ export function NewRunPage() {
               checked={options.campaign_mode}
               onChange={(v) => set('campaign_mode', v)}
               label="Use campaign requirements"
-              hint="AI analyses every source, selects moments and assembles a complete campaign montage. Multiple source videos become one edit run."
+              hint="AI samples scenes from every source, selects matching moments and assembles a complete campaign montage. Multiple source videos become one edit run."
             />
             {options.campaign_mode && (
               <>
