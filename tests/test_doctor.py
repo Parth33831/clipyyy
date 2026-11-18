@@ -19,6 +19,14 @@ def test_ollama_is_a_valid_llm_provider_without_api_key(monkeypatch):
     )
     monkeypatch.setattr(doctor, "js_runtime", lambda: "node: test")
     monkeypatch.setattr(doctor, "storage_configured", lambda: False)
+    monkeypatch.setattr(
+        doctor.httpx,
+        "get",
+        lambda *args, **kwargs: SimpleNamespace(
+            raise_for_status=lambda: None,
+            json=lambda: {"data": [{"id": "qwen2.5:1.5b"}]},
+        ),
+    )
 
     llm_check = next(check for check in doctor.checks() if check["name"] == "llm")
 
