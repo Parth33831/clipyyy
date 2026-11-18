@@ -13,7 +13,7 @@ from clipyyy.source import js_runtime
 def checks() -> list[dict]:
     found = find_ffmpeg()
     ffmpeg, libass = found.ffmpeg, found.libass
-    model = get_setting("llm_model") or "qwen2.5vl:3b"
+    model = get_setting("llm_model") or "qwen2.5:1.5b"
     try:
         response = httpx.get("http://127.0.0.1:11434/v1/models", timeout=2.0)
         response.raise_for_status()
