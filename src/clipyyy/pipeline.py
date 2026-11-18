@@ -144,22 +144,38 @@ def stage_select(ctx: Context) -> dict:
         clips = []
         for edit in edits:
             duration = sum(shot["end_seconds"] - shot["start_seconds"] for shot in edit["shots"])
-            clips.append({
-                "rank": edit["rank"], "title": edit["title"], "post_title": edit["title"],
-                "caption": "", "hashtags": [], "rationale": "AI-selected campaign montage",
-                "score": None, "transcript": "", "start_seconds": 0.0,
-                "end_seconds": round(duration, 3), "campaign_shots": edit["shots"],
-            })
+            clips.append(
+                {
+                    "rank": edit["rank"],
+                    "title": edit["title"],
+                    "post_title": edit["title"],
+                    "caption": "",
+                    "hashtags": [],
+                    "rationale": "AI-selected campaign montage",
+                    "score": None,
+                    "transcript": "",
+                    "start_seconds": 0.0,
+                    "end_seconds": round(duration, 3),
+                    "campaign_shots": edit["shots"],
+                }
+            )
         return {"campaign_plan": plan, "campaign_edits": edits, "clips": clips}
     return select_clips(llm, source, ctx.state["transcribe"], options)
 
 def stage_plan(ctx: Context) -> dict:
     if ctx.options.get("campaign_mode"):
-        return {"clips": [
-            {"rank": clip["rank"], "start_seconds": 0.0, "end_seconds": clip["end_seconds"],
-             "duration_seconds": clip["end_seconds"], "windows": []}
-            for clip in ctx.state["select"]["clips"]
-        ]}
+        return {
+            "clips": [
+                {
+                    "rank": clip["rank"],
+                    "start_seconds": 0.0,
+                    "end_seconds": clip["end_seconds"],
+                    "duration_seconds": clip["end_seconds"],
+                    "windows": [],
+                }
+                for clip in ctx.state["select"]["clips"]
+            ]
+        }
     from clipyyy.timeline import plan_timeline
 
     return plan_timeline(ctx.state["select"], ctx.state["transcribe"], ctx.options["broll"])
