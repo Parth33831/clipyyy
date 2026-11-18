@@ -4,6 +4,6 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  build: { outDir: '../src/clipyyy/web', emptyOutDir: true },
-  server: { port: 5173, proxy: { '/api': 'http://127.0.0.1:8000' } },
+  build: { outDir: '../dist/public', emptyOutDir: true },
+  server: { host: '0.0.0.0', port: 3000, allowedHosts: true },
 })
