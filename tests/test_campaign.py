@@ -204,7 +204,9 @@ def test_text_only_campaign_outputs_use_distinct_time_ranges():
 
 
 
-def test_campaign_montage_duration_normalization_pads_or_trims(tmp_path, monkeypatch):
+def test_campaign_montage_duration_normalization_pads_or_trims(
+    tmp_path, monkeypatch
+):
     from clipyyy import render
 
     calls = []
