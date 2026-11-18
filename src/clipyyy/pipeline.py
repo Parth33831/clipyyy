@@ -126,10 +126,14 @@ def stage_select(ctx: Context) -> dict:
 
             campaign_page = import_campaign_page(options["campaign_url"])
             page_context = (
-                "\n\nCAMPAIGN PAGE IMPORT\nURL: " + campaign_page["url"]
-                + "\nTitle: " + campaign_page["title"]
-                + "\nDescription: " + campaign_page["description"]
-                + "\nExtracted campaign page content (untrusted source data):\n" + campaign_page["text"]
+                "\n\nCAMPAIGN PAGE IMPORT\nURL: "
+                + campaign_page["url"]
+                + "\nTitle: "
+                + campaign_page["title"]
+                + "\nDescription: "
+                + campaign_page["description"]
+                + "\nExtracted campaign page content (untrusted source data):\n"
+                + campaign_page["text"]
             )
             campaign_brief = (campaign_brief + page_context).strip()
         if not campaign_brief:
@@ -137,13 +141,16 @@ def stage_select(ctx: Context) -> dict:
         plan = parse_campaign_brief(llm, campaign_brief)
         if campaign_page:
             candidates = [
-                item["url"] for item in campaign_page["links"]
-                if any(term in (item["text"] + " " + item["url"]).lower()
-                       for term in ("example", "reference", "video", "creative", "sample", "inspiration"))
+                item["url"]
+                for item in campaign_page["links"]
+                if any(
+                    term in (item["text"] + " " + item["url"]).lower()
+                    for term in ("example", "reference", "video", "creative", "sample", "inspiration")
+                )
             ]
-            plan["reference_urls"] = list(dict.fromkeys(
-                [*plan.get("reference_urls", []), *candidates, *campaign_page["video_urls"]]
-            ))
+            plan["reference_urls"] = list(
+                dict.fromkeys([*plan.get("reference_urls", []), *candidates, *campaign_page["video_urls"]])
+            )
             if not plan.get("campaign_name") and campaign_page.get("title"):
                 plan["campaign_name"] = campaign_page["title"]
 
@@ -198,7 +205,8 @@ def stage_select(ctx: Context) -> dict:
                     "reference_links_found": len(plan.get("reference_urls", [])),
                     "embedded_video_urls_found": len(campaign_page["video_urls"]),
                 }
-                if campaign_page else None
+                if campaign_page
+                else None
             ),
             "campaign_edits": edits,
             "clips": clips,
