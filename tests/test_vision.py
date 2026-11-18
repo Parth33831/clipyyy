@@ -17,7 +17,9 @@ def test_vision_request_sends_timestamped_image_data(tmp_path):
         return httpx.Response(200, json={"choices": [{"message": {"content": '{"frames": []}'}}]})
 
     llm = OpenAICompatibleLLM(
-        PROVIDERS["gemini"], "test-key", "gemini-2.5-flash",
+        PROVIDERS["gemini"],
+        "test-key",
+        "gemini-2.5-flash",
         transport=httpx.MockTransport(handler),
     )
     result = llm.complete_json_with_images(
