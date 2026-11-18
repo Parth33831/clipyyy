@@ -61,7 +61,7 @@ export function NewRunPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [text, setText] = useState('')
-  const [files, setFiles] = useState<File[]>([])
+  const [files, setFiles] = useState<File[]>([])\n  const [musicFile, setMusicFile] = useState<File | null>(null)
   const [options, setOptions] = useState<ClipOptions>(DEFAULT_OPTIONS)
   const [dragging, setDragging] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -84,11 +84,12 @@ export function NewRunPage() {
     mutationFn: async () => {
       const uploaded = []
       for (const file of files) uploaded.push((await api.upload(file)).source)
-      return api.createRuns([...urls, ...uploaded], options)
+      const music = musicFile ? (await api.upload(musicFile)).source : null
+      return api.createRuns([...urls, ...uploaded], { ...options, campaign_music_path: music })
     },
     onSuccess: (runs) => {
       queryClient.invalidateQueries({ queryKey: ['runs'] })
-      toast.success(runs.length === 1 ? 'Clipping started' : `${runs.length} videos queued`)
+      toast.success(options.campaign_mode ? 'Campaign montage queued' : runs.length === 1 ? 'Clipping started' : `${runs.length} videos queued`)
       navigate(runs.length === 1 ? `/runs/${runs[0].id}` : '/runs')
     },
     onError: (error) => toast.error(error.message),
@@ -146,7 +147,7 @@ export function NewRunPage() {
               rows={Math.min(6, Math.max(2, text.split('\n').length))}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder={'https://www.youtube.com/watch?v=…\nOne link per line to clip a batch.'}
+              placeholder={options.campaign_mode ? 'Paste 1–6 source video links, one per line. They will be combined into one campaign edit.' : 'https://www.youtube.com/watch?v=…\nOne link per line to clip a batch.'}
               className="resize-none bg-transparent px-6 pt-4 font-mono text-[15px] leading-relaxed text-white outline-none placeholder:text-white/30"
             />
 
@@ -198,11 +199,11 @@ export function NewRunPage() {
                 variant="acid"
                 size="lg"
                 className="ml-auto disabled:!bg-ink-3 disabled:!text-white/35 disabled:!opacity-100"
-                disabled={count === 0 || !!needsKey || blockers.length > 0}
+                disabled={count === 0 || !!needsKey || blockers.length > 0 || (options.campaign_mode && (count > 6 || !options.campaign_brief.trim()))}
                 loading={submit.isPending}
                 onClick={() => submit.mutate()}
               >
-                {count > 1 ? `Clip ${count} videos` : 'Find clips'} <ArrowRight className="h-4 w-4" />
+                {options.campaign_mode ? 'Create campaign edit' : count > 1 ? `Clip ${count} videos` : 'Find clips'} <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
           </section>
@@ -330,16 +331,23 @@ export function NewRunPage() {
               checked={options.campaign_mode}
               onChange={(v) => set('campaign_mode', v)}
               label="Use campaign requirements"
-              hint="Tell the AI exactly what a paid clipping campaign requires. This guides moment selection; full music-video montage editing is being built separately."
+              hint="AI analyses every source, selects moments and assembles a complete campaign montage. Multiple source videos become one edit run."
             />
             {options.campaign_mode && (
-              <Field label="Campaign brief" hint="Paste the campaign rules, music name, mood, subject, required lyrics/text, language, platform rules and examples. Visual scene analysis needs a vision-capable hosted model such as Gemini; local text-only models skip that step.">
+              <Field label="Campaign brief" hint="Paste the complete campaign rules, music, mood, subject, text requirements, platform rules and examples. Campaign montage creation requires Gemini vision; it does not use paid APIs beyond your configured provider quota.">
                 <Textarea
                   rows={7}
                   value={options.campaign_brief}
                   onChange={(e) => set('campaign_brief', e.target.value)}
                   placeholder={"Example: Anime edit for Midnight Sunlight by Pyo. Music is the focus. Use emotional anime moments that fit the song's mood. Show a lyric line on screen. English text only. No voice audio."}
                 />
+              </Field>
+              <Field label="Campaign music (optional)" hint="Upload a track you have permission to use. If the campaign requires an official TikTok/Instagram sound, leave this empty and add that sound inside the platform after export.">
+                <input type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] ?? null)} className="block w-full text-sm text-muted file:mr-3 file:border file:border-line file:bg-surface file:px-3 file:py-2 file:text-ink" />
+                {musicFile && <p className="text-xs text-muted">{musicFile.name}</p>}
+              </Field>
+              <Field label="Lyrics / exact on-screen text (optional)" hint="Paste only the lines you are allowed to use. They will be displayed in sequence across the edit.">
+                <Textarea rows={3} value={options.campaign_lyrics} onChange={(e) => set('campaign_lyrics', e.target.value)} placeholder="One line per screen..." />
               </Field>
             )}
           </Section>
