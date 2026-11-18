@@ -108,7 +108,10 @@ def test_campaign_selection_uses_local_ollama_without_cloud_fallback(monkeypatch
     ctx = pipeline.Context(
         run_id="local-campaign-test",
         source="source.mp4",
-        options=pipeline.ClipOptions(campaign_mode=True, campaign_brief="Make a hopeful campaign edit").model_dump(),
+        options=pipeline.ClipOptions(
+            campaign_mode=True,
+            campaign_brief="Make a hopeful campaign edit",
+        ).model_dump(),
         work_dir=tmp_path,
         out_dir=tmp_path / "clips",
         state={"download": {"title": "Source video", "sources": [source]}},
