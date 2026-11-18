@@ -85,7 +85,6 @@ def test_campaign_lyrics_are_timed_and_written(tmp_path):
     assert "Dialogue:" in text
 
 
-
 def test_montage_planner_uses_reference_video_style_without_copying_shots():
     from clipyyy.campaign import build_montage_plan
 
