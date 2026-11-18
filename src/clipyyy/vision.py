@@ -77,7 +77,7 @@ def analyze_campaign_video(source: dict, work_dir: Path, llm, campaign_brief: st
             "frames": [
                 {
                     "timestamp": timestamp,
-                    "description": "Frame sampled; visual content was not interpreted by the installed text-only model.",
+                    "description": "Visual content unavailable: installed model is text-only.",
                     "mood": "unknown",
                     "subjects": "not analyzed",
                 }
