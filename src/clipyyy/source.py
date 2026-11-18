@@ -131,3 +131,24 @@ def _link_or_copy(src: Path, dst: Path) -> None:
         dst.hardlink_to(src)
     except OSError:
         shutil.copy2(src, dst)
+
+
+def fetch_sources(sources: list[str], work_dir: Path) -> dict:
+    """Download or stage up to six videos as one campaign source collection."""
+    if not 1 <= len(sources) <= 6:
+        raise ValueError("A campaign needs between 1 and 6 source videos.")
+    items = []
+    for index, source in enumerate(sources, start=1):
+        item_dir = work_dir / f"source-{index:02d}"
+        item = fetch_source(source, item_dir)
+        item["source_index"] = index - 1
+        items.append(item)
+    return {
+        "source": json.dumps(sources, ensure_ascii=False),
+        "title": items[0]["title"] if len(items) == 1 else f"Campaign montage · {len(items)} sources",
+        "sources": items,
+        "video_path": items[0]["video_path"],
+        "duration_seconds": sum(item["duration_seconds"] for item in items),
+        "width": items[0]["width"],
+        "height": items[0]["height"],
+    }
