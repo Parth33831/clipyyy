@@ -4,7 +4,7 @@
 
 **Free, open-source AI video clipper. Turn long videos and podcasts into viral short clips for TikTok, Instagram Reels and YouTube Shorts.**
 
-An open-source, self-hosted alternative to OpusClip, Vizard and Klap. Runs on your machine, works with any AI model, and adds no watermark.
+An open-source, self-hosted alternative to OpusClip, Vizard and Klap. Runs on your machine with local Ollama AI, no per-request fees or cloud model quotas, and no watermark.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-black.svg)](LICENSE)
 [![Python 3.11–3.12](https://img.shields.io/badge/python-3.11%E2%80%933.12-black.svg)](pyproject.toml)
@@ -21,12 +21,12 @@ An open-source, self-hosted alternative to OpusClip, Vizard and Klap. Runs on yo
 
 clipyyy is an open-source tool that cuts long-form video into short vertical clips automatically. Give it a YouTube link, a podcast episode, an interview or a talk. It transcribes the audio locally with Whisper, asks a large language model to find the moments that work on their own, reframes each one around the speaker for 9:16, and burns in animated word-by-word captions. You get ready-to-post MP4 files with a title, caption and hashtags for each clip.
 
-It has a web app for people and a JSON command line for scripts and AI coding agents. Your videos never leave your computer; only the transcript text is sent to the model you choose.
+It has a web app for people and a JSON command line for scripts and AI coding agents. Video, audio, transcripts and model inference stay on your computer. The app uses local Ollama models and makes no hosted LLM requests.
 
 ## Features
 
 - **AI clip finder.** An LLM reads the whole transcript and ranks the strongest standalone moments by hook, value and clarity. Clips are snapped to sentence boundaries so nothing starts or ends mid-thought.
-- **Bring your own model or run locally.** Use hosted models through [OpenRouter](https://openrouter.ai), or connect to [Ollama](https://ollama.com) for local, no-API-key inference with models such as Qwen 2.5. Local performance depends on your hardware.
+- **Local AI, no API quotas.** [Ollama](https://ollama.com) runs clip selection and campaign analysis on your computer. Use a vision-capable model such as `qwen2.5vl:3b` for campaign edits. Speed and quality depend on your hardware.
 - **Local transcription.** [faster-whisper](https://github.com/SYSTRAN/faster-whisper) with word-level timestamps, on CPU or GPU, in 90+ languages.
 - **Automatic reframing.** Face tracking (MediaPipe) keeps the speaker centred when converting horizontal video to 9:16, 4:5 or 1:1.
 - **Animated captions.** Word-by-word highlighted subtitles in three styles, rendered with ffmpeg.
@@ -35,7 +35,7 @@ It has a web app for people and a JSON command line for scripts and AI coding ag
 - **Batch processing.** Paste many links at once; runs are queued and resume where they stopped if something fails.
 - **Optional B-roll.** Cuts in matching free stock footage from Pexels.
 - **Optional auto-posting.** Publish or schedule clips to TikTok, Instagram, YouTube, Facebook and more through [Buffer](https://buffer.com).
-- **No watermark, no credits, no limits.** MIT licensed.
+- **No watermark or AI credits.** No per-request fees or daily model quotas; your computer's speed and memory are the practical limits. MIT licensed.
 
 ## Quick start
 
@@ -47,7 +47,7 @@ cd clipyyy
 docker compose up -d
 ```
 
-Open http://localhost:8000, choose a model provider in Settings, paste a video link and click **Find clips**. For hosted models, add an [OpenRouter API key](https://openrouter.ai/keys). For local inference, run Ollama and set `llm_provider` to `ollama` and `llm_model` to an installed model (for example `qwen2.5:1.5b`). Clips, runs and settings are saved in `./data`.
+Open http://localhost:8000, make sure Ollama is running, choose an installed local model in Settings, paste a video link and click **Find clips**. For campaign editing, use a vision-capable model such as `qwen2.5vl:3b`. No hosted AI key or billing account is required. Clips, runs and settings are saved in `./data`.
 
 ### From source
 
@@ -81,13 +81,9 @@ brew install ffmpeg-full uv node deno
 Everything in the web app is also available from the command line. Every command accepts `--json`, so scripts and coding agents (Claude Code, Codex, Cursor and others) can use clipyyy directly.
 
 ```bash
-# Hosted model (optional)
-clipyyy config set openrouter_api_key sk-or-...
-
-# Or use a local Ollama model without an API key
-ollama pull qwen2.5:1.5b
-clipyyy config set llm_provider ollama
-clipyyy config set llm_model qwen2.5:1.5b
+# Install a local vision-capable model once (also handles text tasks)
+ollama pull qwen2.5vl:3b
+clipyyy config set llm_model qwen2.5vl:3b
 
 # Find the 5 best clips under 45 seconds and save them to ./shorts
 clipyyy clip "https://www.youtube.com/watch?v=..." --count 5 --max 45 --out ./shorts
@@ -98,7 +94,7 @@ clipyyy clip ~/podcast/episode-12.mp4 --aspect 1:1 --broll --instructions "Only 
 clipyyy runs                            # list runs
 clipyyy show <run-id> --json            # clips with captions, hashtags and file paths
 clipyyy retry <run-id> --from select    # pick new clips without re-transcribing
-clipyyy models gemini                   # search available models
+clipyyy models                           # list locally installed Ollama models
 clipyyy publish <clip-id> --channel <buffer-channel-id> --mode queue
 ```
 
@@ -143,10 +139,10 @@ Every step saves its result, so a failed run resumes from the step that failed.
 
 | | clipyyy | Hosted clipping tools |
 |---|---|---|
-| Price | Free and open source (MIT); you pay only for model usage, about $0.01 per hour of video | Monthly subscriptions or credits |
+| Price | Free and open source (MIT); no per-request AI fees. Local hardware and electricity are yours | Monthly subscriptions or credits |
 | Watermark | Never | Some free plans add one |
 | Where videos are processed | On your computer | Uploaded to the vendor's servers |
-| AI model | Any model on OpenRouter | Fixed by the vendor |
+| AI model | Local Ollama model running on your computer | Fixed by the vendor |
 | Automation | JSON CLI and agent skill | Web app, some offer an API |
 | Customisation | Edit the prompt, caption styles and code | Settings in their UI |
 
@@ -154,12 +150,12 @@ Hosted tools are more polished and need no setup. clipyyy is for people who want
 
 ## Settings
 
-Add keys in the web app under **Settings**, with `clipyyy config set <key> <value>`, or with environment variables. Values saved in the app take priority.
+Choose an installed local Ollama model in **Settings**. `llm_provider` is locked to local Ollama; legacy hosted-provider keys are ignored. Other optional integrations can still use their own keys.
 
 | Setting | Environment variable | Used for |
 |---|---|---|
-| `openrouter_api_key` | `OPENROUTER_API_KEY` | Finding clips (required) |
-| `llm_model` | `CLIPYYY_LLM_MODEL` | Default model, `google/gemini-3.8-flash` |
+| `llm_provider` | `CLIPYYY_LLM_PROVIDER` | Always `ollama` (local-only) |
+| `llm_model` | `CLIPYYY_LLM_MODEL` | Local model, default `qwen2.5vl:3b` |
 | `whisper_model` | `CLIPYYY_WHISPER_MODEL` | `tiny`, `base` (default, faster on CPU), `small`, `medium`, `large-v3`, `turbo` |
 | `ytdlp_cookies_from_browser` | `CLIPYYY_COOKIES_FROM_BROWSER` | Using your browser's YouTube login if YouTube blocks downloads |
 | `pexels_api_key` | `PEXELS_API_KEY` | B-roll |
@@ -176,10 +172,10 @@ Buffer accepts media only by public URL, so clipyyy first uploads the clip to yo
 ## FAQ
 
 **Is clipyyy free?**
-Yes. clipyyy is free and open source under the MIT licence. The only cost is the AI model you choose through OpenRouter, typically about one cent for an hour-long video with a fast model.
+Yes. clipyyy is free and open source under the MIT licence. AI inference runs locally through Ollama, so there are no per-request fees, credits or daily hosted-model quotas. Model downloads use disk space, and processing speed depends on your computer.
 
 **What is the best free OpusClip alternative?**
-clipyyy is a free, open-source OpusClip alternative that runs locally, has no watermark or credit limits, works with any AI model, and includes both a web app and a CLI.
+clipyyy is a free, open-source OpusClip alternative that runs locally, has no watermark or AI credit limits, and includes both a web app and a CLI.
 
 **Can it clip podcasts?**
 Yes, video podcasts. Upload the recording or paste a YouTube or other link. Audio-only files are not supported yet because clips need a picture.
@@ -194,7 +190,7 @@ No. Transcription runs on the CPU; an hour of video takes several minutes. A CUD
 Whisper transcribes 90+ languages and detects the language automatically. Titles and captions are written in the language of the video unless you ask otherwise.
 
 **Which AI model should I use?**
-Fast, cheap models with long context work well, such as Gemini Flash or DeepSeek. Any model on OpenRouter that supports structured output can be used.
+Start with `qwen2.5vl:3b` for both text and campaign frame analysis. Smaller text-only models can be faster for ordinary clipping but cannot inspect campaign video frames.
 
 **YouTube says "Sign in to confirm you're not a bot". What do I do?**
 Wait and retry, or choose your browser under Settings → Downloads so yt-dlp can use your YouTube login.
@@ -204,7 +200,7 @@ Yes. Every CLI command returns JSON, and `skills/clipyyy/SKILL.md` teaches agent
 
 ## Privacy and security
 
-- Videos stay on your machine. The model provider receives the transcript text and video title.
+- Videos, audio, transcripts and AI inference stay on your machine when using the built-in local Ollama workflow.
 - API keys are stored in the local SQLite database. Protect the data folder.
 - The web app has no login and listens on localhost by default. Do not expose it to the internet without authentication in front of it.
 
