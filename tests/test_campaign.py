@@ -128,7 +128,13 @@ def test_montage_planner_uses_reference_video_style_without_copying_shots():
         ],
     }
     edits = build_montage_plan(
-        llm, "Product campaign", {}, [source], [analysis], 1, 6,
+        llm,
+        "Product campaign",
+        {},
+        [source],
+        [analysis],
+        1,
+        6,
         reference_analyses=[reference],
     )
     assert len(edits) == 1
