@@ -39,7 +39,7 @@ def sample_frames(
     """Extract evenly spaced, small JPEG frames without decoding the full video to disk."""
     if duration <= 0:
         return []
-    count = min(limit, max(1, int(duration // 30) + 1))
+    count = min(limit, max(3, int(duration // 8) + 1))
     folder = work_dir / "campaign-frames"
     folder.mkdir(parents=True, exist_ok=True)
     samples: list[tuple[float, str]] = []
