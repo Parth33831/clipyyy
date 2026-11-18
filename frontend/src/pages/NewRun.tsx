@@ -208,7 +208,7 @@ export function NewRunPage() {
                 variant="acid"
                 size="lg"
                 className="ml-auto disabled:!bg-ink-3 disabled:!text-white/35 disabled:!opacity-100"
-                disabled={count === 0 || !!needsKey || blockers.length > 0 || (options.campaign_mode && (count > 6 || (!options.campaign_brief.trim() && !options.campaign_url.trim())))}
+                disabled={count === 0 || !!needsLocalAi || blockers.length > 0 || (options.campaign_mode && (count > 6 || (!options.campaign_brief.trim() && !options.campaign_url.trim())))}
                 loading={submit.isPending}
                 onClick={() => submit.mutate()}
               >
