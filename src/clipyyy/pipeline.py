@@ -44,7 +44,7 @@ class ClipOptions(BaseModel):
 
     @model_validator(mode="after")
     def _check_range(self) -> ClipOptions:
-        if self.max_seconds < self.min_seconds + 5:
+        if not self.campaign_mode and self.max_seconds < self.min_seconds + 5:
             raise ValueError("max_seconds must be at least 5 seconds more than min_seconds")
         return self
 
