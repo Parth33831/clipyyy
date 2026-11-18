@@ -93,6 +93,17 @@ def stage_select(ctx: Context) -> dict:
         options["instructions"] = f"{defaults}\n{options['instructions']}".strip()
     llm = get_llm(options.get("model"))
     source = dict(ctx.state["download"])
+    if options.get("campaign_mode") and options.get("campaign_brief"):
+        from clipyyy.campaign import local_fallback_plan, parse_campaign_brief
+
+        try:
+            if getattr(getattr(llm, "provider", None), "local", False):
+                options["campaign_plan"] = local_fallback_plan(options["campaign_brief"])
+            else:
+                options["campaign_plan"] = parse_campaign_brief(llm, options["campaign_brief"])
+        except Exception:
+            logger.exception("Campaign brief parsing failed; preserving original brief")
+            options["campaign_plan"] = local_fallback_plan(options["campaign_brief"])
     if options.get("campaign_mode") and options.get("campaign_brief") and not getattr(
         getattr(llm, "provider", None), "local", False
     ):
