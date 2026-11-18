@@ -106,7 +106,7 @@ class OpenAICompatibleLLM:
                 "json_schema": {"name": name, "strict": True, "schema": schema},
             },
         }
-        response = self._post(body)
+        response = self._post_with_model_fallback(body)
         if response.status_code == 400 and "response_format" in response.text:
             body.pop("response_format")
             response = self._post(body)
@@ -130,7 +130,7 @@ class OpenAICompatibleLLM:
                 "json_schema": {"name": name, "strict": True, "schema": schema},
             },
         }
-        response = self._post(body)
+        response = self._post_with_model_fallback(body)
         if response.status_code == 400 and "response_format" in response.text:
             # Some local models reject schema mode; the prompt still explicitly requests JSON.
             body.pop("response_format")
@@ -146,6 +146,21 @@ class OpenAICompatibleLLM:
         except (KeyError, IndexError, TypeError) as exc:
             raise LLMError(f"Unexpected response from {self.provider.name}: {payload}") from exc
         return parse_json(content)
+
+    def _post_with_model_fallback(self, body: dict[str, Any]) -> httpx.Response:
+        """Recover from Gemini model IDs retired for newer AI Studio users."""
+        response = self._post(body)
+        if (
+            self.provider.name == "Google Gemini"
+            and response.status_code == 404
+            and "no longer available to new users" in response.text.lower()
+        ):
+            fallback = "gemini-3.8-flash"
+            if self.model != fallback:
+                self.model = fallback
+                body["model"] = fallback
+                response = self._post(body)
+        return response
 
     def _post(self, body: dict[str, Any]) -> httpx.Response:
         # A local model request is expensive; retrying a stalled inference multiplies wait time.
