@@ -90,7 +90,7 @@ def stage_select(ctx: Context) -> dict:
     options = dict(ctx.options)
     defaults = get_setting("default_instructions").strip()
     if defaults:
-        options["instructions"] = f"{defaults}\\n{options['instructions']}".strip()
+        options["instructions"] = f"{defaults}\n{options['instructions']}".strip()
     llm = get_llm(options.get("model"))
     source = dict(ctx.state["download"])
     if options.get("campaign_mode") and options.get("campaign_brief") and not getattr(
