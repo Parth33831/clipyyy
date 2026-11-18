@@ -114,9 +114,11 @@ def analyze_reference_video(source: dict, work_dir: Path, llm) -> dict:
         return {"frames": []}
     system = (
         "You are a visual editing analyst studying a campaign reference video. Describe only visible evidence: "
-        "shot scale, framing, composition, dominant colours, lighting, visible text or graphics, and recurring "
+        "shot scale, framing, composition, dominant colours, lighting, visible text or graphics, "
+        "and recurring "
         "visual motifs. Do not claim to know the soundtrack, exact transitions, or motion from still frames. "
-        "Do not recommend copying the exact footage; extract reusable stylistic patterns only. Return JSON only."
+        "Do not recommend copying exact footage; extract reusable stylistic patterns only. "
+        "Return JSON only."
     )
     user = (
         "Analyse these timestamped reference frames. Describe the visual style and recurring design language "
