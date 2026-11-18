@@ -355,6 +355,8 @@ function CampaignPlanCard({ plan, checks }: { plan: NonNullable<RunDetail['campa
     platform: 'Platform',
     content_type: 'Content type',
     subject_or_theme: 'Subject / theme',
+    source_requirements: 'Source requirements',
+    reference_urls: 'Reference URLs (not auto-opened)',
     mood: 'Mood',
     language: 'Language',
     output_count: 'Output count',
@@ -369,6 +371,7 @@ function CampaignPlanCard({ plan, checks }: { plan: NonNullable<RunDetail['campa
     visual_style_and_pacing: 'Visual style & pacing',
     post_upload_actions: 'After upload (manual actions)',
     performance_eligibility: 'Performance requirements (after publishing)',
+    payout_or_submission_caps: 'Payout / submission caps',
     rights_or_permissions_to_confirm: 'Rights / permissions to confirm',
     unresolved_questions: 'Unresolved questions',
   }
