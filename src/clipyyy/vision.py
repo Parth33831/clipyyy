@@ -68,10 +68,22 @@ def sample_frames(
 
 def analyze_campaign_video(source: dict, work_dir: Path, llm, campaign_brief: str) -> dict:
     """Ask a vision model to describe sampled scenes in relation to the supplied campaign."""
-    if not hasattr(llm, "complete_json_with_images"):
-        logger.info("Selected model has no image-input support; skipping campaign visual analysis")
-        return {"frames": []}
     frames = sample_frames(Path(source["video_path"]), float(source.get("duration_seconds") or 0), work_dir)
+    if not hasattr(llm, "complete_json_with_images"):
+        logger.info(
+            "Selected model has no image-input support; retaining sampled timestamps without inventing visual descriptions"
+        )
+        return {
+            "frames": [
+                {
+                    "timestamp": timestamp,
+                    "description": "Frame sampled; visual content was not interpreted by the installed text-only model.",
+                    "mood": "unknown",
+                    "subjects": "not analyzed",
+                }
+                for timestamp, _ in frames
+            ]
+        }
     if not frames:
         return {"frames": []}
     system = (
