@@ -37,11 +37,11 @@ class SettingSpec:
 
 
 SETTINGS: dict[str, SettingSpec] = {
-    "llm_provider": SettingSpec("CLIPYYY_LLM_PROVIDER", "openrouter", description="LLM provider"),
+    "llm_provider": SettingSpec("CLIPYYY_LLM_PROVIDER", "ollama", description="Local-only LLM provider"),
     "openrouter_api_key": SettingSpec("OPENROUTER_API_KEY", secret=True, description="OpenRouter API key"),
     "gemini_api_key": SettingSpec("GEMINI_API_KEY", secret=True, description="Google Gemini API key"),
     "llm_model": SettingSpec(
-        "CLIPYYY_LLM_MODEL", "google/gemini-3.8-flash", description="Model used to pick clips"
+        "CLIPYYY_LLM_MODEL", "qwen2.5vl:3b", description="Local Ollama model used for clip selection and campaign vision"
     ),
     "whisper_model": SettingSpec("CLIPYYY_WHISPER_MODEL", "base", description="faster-whisper model size"),
     "pexels_api_key": SettingSpec("PEXELS_API_KEY", secret=True, description="Pexels key for B-roll"),
@@ -79,10 +79,14 @@ def get_setting(key: str) -> str:
     from clipyyy import db
 
     spec = SETTINGS[key]
-    value = db.get_setting(key)
-    if value:
-        return value
-    return os.environ.get(spec.env, spec.default)
+    # Clipyyy is deliberately local-first: legacy cloud-provider settings are ignored.
+    if key == "llm_provider":
+        return "ollama"
+    value = db.get_setting(key) or os.environ.get(spec.env, spec.default)
+    # Older installs may still have a saved Gemini model. Never send that model ID to Ollama.
+    if key == "llm_model" and (value.startswith("google/") or value.startswith("gemini-")):
+        return "qwen2.5vl:3b"
+    return value
 
 
 def mask(value: str) -> str:
