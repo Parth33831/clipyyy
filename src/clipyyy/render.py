@@ -282,3 +282,125 @@ def _interpolate_expression(points: list[tuple[float, float]]) -> str:
         segment = f"{v0:.3f}+({v1 - v0:.3f})*(t-{t0:.3f})/{delta:.3f}"
         expression = f"if(lt(t\\,{t1:.3f})\\,{segment}\\,{expression})"
     return expression
+
+
+def render_campaign_montages(
+    source: dict,
+    selection: dict,
+    work_dir: Path,
+    out_dir: Path,
+    options: dict,
+) -> dict:
+    """Render AI-planned multi-source campaign edits as finished, upload-ready MP4s."""
+    width, height = SIZES[options["aspect_ratio"]]
+    sources = source.get("sources") or [source]
+    out_dir.mkdir(parents=True, exist_ok=True)
+    renders = []
+    lyrics = [line.strip() for line in options.get("campaign_lyrics", "").splitlines() if line.strip()]
+    music_path = Path(options["campaign_music_path"]) if options.get("campaign_music_path") else None
+    if music_path and not music_path.is_file():
+        raise FileNotFoundError(f"Campaign music file not found: {music_path}")
+
+    for edit in selection.get("campaign_edits", []):
+        rank = edit["rank"]
+        edit_dir = work_dir / f"campaign-edit-{rank:02d}"
+        edit_dir.mkdir(parents=True, exist_ok=True)
+        output = out_dir / f"campaign-{rank:02d}-{slugify(edit['title'])}.mp4"
+        try:
+            segments = []
+            for shot_index, shot in enumerate(edit["shots"]):
+                source_index = int(shot["source_index"])
+                if not 0 <= source_index < len(sources):
+                    raise ValueError(f"Shot {shot_index + 1} refers to a missing source video.")
+                source_path = Path(sources[source_index]["video_path"])
+                start = max(0.0, float(shot["start_seconds"]))
+                end = min(float(sources[source_index]["duration_seconds"]), float(shot["end_seconds"]))
+                duration = end - start
+                if duration < 1.0:
+                    continue
+                segment = edit_dir / f"shot-{shot_index:03d}.mp4"
+                vf = fill_filter(width, height) + ",eq=contrast=1.06:saturation=1.12"
+                run_ffmpeg([
+                    "-ss", f"{start:.3f}", "-i", str(source_path), "-t", f"{duration:.3f}",
+                    "-vf", vf, "-an", "-c:v", "libx264", "-preset", "veryfast",
+                    "-crf", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(segment),
+                ])
+                if segment.exists() and segment.stat().st_size:
+                    segments.append(segment)
+            if len(segments) < 3:
+                raise RuntimeError("Fewer than three campaign shots could be rendered.")
+            concat_list = edit_dir / "segments.txt"
+            concat_list.write_text(
+                "".join(f"file '{str(path.resolve()).replace(chr(39), chr(92) + chr(39))}'\n" for path in segments),
+                encoding="utf-8",
+            )
+            silent = edit_dir / "montage-silent.mp4"
+            run_ffmpeg([
+                "-f", "concat", "-safe", "0", "-i", str(concat_list),
+                "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "19",
+                "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(silent),
+            ])
+            _, _, duration = probe(silent)
+            visual = silent
+            if lyrics:
+                overlay = edit_dir / "campaign-lyrics.ass"
+                write_campaign_lyrics(lyrics, duration, overlay, width, height)
+                visual = edit_dir / "montage-lyrics.mp4"
+                run_ffmpeg([
+                    "-i", str(silent), "-vf", ass_filter(overlay), "-an",
+                    "-c:v", "libx264", "-preset", "veryfast", "-crf", "19",
+                    "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(visual),
+                ])
+            if music_path:
+                run_ffmpeg([
+                    "-i", str(visual), "-stream_loop", "-1", "-i", str(music_path),
+                    "-map", "0:v:0", "-map", "1:a:0", "-t", f"{duration:.3f}",
+                    "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+                    "-af", "volume=0.9,afade=t=in:st=0:d=0.4",
+                    "-shortest", "-movflags", "+faststart", str(output),
+                ])
+            else:
+                shutil.copy2(visual, output)
+            out_w, out_h, final_duration = probe(output)
+            make_poster(output, min(1.0, final_duration / 2))
+            renders.append({
+                "rank": rank, "status": "ready", "file_path": str(output),
+                "width": out_w, "height": out_h, "duration_seconds": round(final_duration, 2),
+                "audio": "user-provided campaign track" if music_path else "silent; add official campaign sound on the publishing platform if required",
+                "lyrics_overlay": bool(lyrics),
+            })
+        except Exception as exc:
+            renders.append({"rank": rank, "status": "failed", "error": str(exc)})
+    if not any(item["status"] == "ready" for item in renders):
+        raise RuntimeError("Every campaign edit failed to render: " + "; ".join(r.get("error", "") for r in renders))
+    return {
+        "renders": renders,
+        "quality_checks": {
+            "aspect_ratio": options["aspect_ratio"],
+            "resolution": f"{width}x{height}",
+            "lyrics_overlay": bool(lyrics),
+            "music_track_added": bool(music_path),
+            "official_platform_sound": "must be selected in the social app after export; never downloaded or impersonated",
+        },
+    }
+
+
+def write_campaign_lyrics(lines: list[str], duration: float, path: Path, width: int, height: int) -> Path:
+    """Burn only creator-supplied lyric/text lines, timed evenly over the montage."""
+    from clipyyy.captions import _ass_color, _escape, _ts
+
+    font_size = round(height * 0.047)
+    script = [
+        "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {width}", f"PlayResY: {height}",
+        "WrapStyle: 0", "ScaledBorderAndShadow: yes", "", "[V4+ Styles]",
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+        f"Style: Default,Arial,{font_size},{_ass_color('FFFFFF')},&H000000FF,&H00000000,&H64000000,1,0,0,0,100,100,0,0,1,4,2,2,{round(width * 0.07)},{round(width * 0.07)},{round(height * 0.16)},1",
+        "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+    ]
+    interval = duration / max(1, len(lines))
+    for index, line in enumerate(lines):
+        start = index * interval
+        end = duration if index == len(lines) - 1 else (index + 1) * interval
+        script.append(f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,{{\\fad(180,180)}}{_escape(line)}")
+    path.write_text("\n".join(script) + "\n", encoding="utf-8")
+    return path
