@@ -115,7 +115,10 @@ def stage_select(ctx: Context) -> dict:
             )
         except Exception:
             logger.exception("Campaign visual analysis failed; continuing with transcript-only selection")
-    result = select_clips(llm, source, ctx.state["transcribe"], options)\n    if options.get("campaign_plan"):\n        result["campaign_plan"] = options["campaign_plan"]\n    return result
+    result = select_clips(llm, source, ctx.state["transcribe"], options)
+    if options.get("campaign_plan"):
+        result["campaign_plan"] = options["campaign_plan"]
+    return result
 
 def stage_plan(ctx: Context) -> dict:
     from clipyyy.timeline import plan_timeline
