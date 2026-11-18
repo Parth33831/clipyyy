@@ -149,7 +149,9 @@ def build_montage_plan(llm, brief: str, campaign_plan: dict[str, Any], sources: 
                 duration = float(sources[source_index].get("duration_seconds") or 0)
                 start = max(0.0, min(float(shot["start_seconds"]), duration))
                 end = max(start, min(float(shot["end_seconds"]), duration))
-                if end - start < 1.0:
+                if end - start > 5.0:
+                    end = start + 5.0
+                if end - start < 1.5:
                     continue
                 shots.append({
                     "source_index": source_index,
@@ -159,14 +161,29 @@ def build_montage_plan(llm, brief: str, campaign_plan: dict[str, Any], sources: 
                 })
             except (KeyError, TypeError, ValueError):
                 continue
-        if len(shots) >= 3:
+        total = sum(shot["end_seconds"] - shot["start_seconds"] for shot in shots)
+        minimum_duration = max(5.0, target_seconds * 0.65)
+        if len(shots) >= 3 and total >= minimum_duration:
+            if total > target_seconds:
+                excess = total - target_seconds
+                for shot in reversed(shots):
+                    available = shot["end_seconds"] - shot["start_seconds"] - 1.5
+                    trim = min(excess, max(0.0, available))
+                    shot["end_seconds"] = round(shot["end_seconds"] - trim, 3)
+                    excess -= trim
+                    if excess <= 0:
+                        break
+                shots = [shot for shot in shots if shot["end_seconds"] - shot["start_seconds"] >= 1.5]
             valid_edits.append({
                 "rank": rank,
                 "title": str(edit.get("title") or f"Campaign edit {rank}")[:100],
                 "shots": shots,
             })
-    if not valid_edits:
-        raise ValueError("The AI could not build a valid montage from the analysed scenes. Try different source videos.")
+    if len(valid_edits) < output_count:
+        raise ValueError(
+            f"The AI produced {len(valid_edits)} valid edits, but the campaign requests {output_count}. "
+            "Try more source footage or a shorter target duration."
+        )
     return valid_edits
 
 
