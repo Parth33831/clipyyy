@@ -94,7 +94,6 @@ def test_crop_filter_interpolates_face_positions():
     assert "if(lt(t\\," in result
 
 
-
 def test_source_subtitles_disable_generated_caption_overlay(tmp_path, transcript, monkeypatch):
     source = tmp_path / "source.mp4"
     run_ffmpeg(
