@@ -46,10 +46,21 @@ def sample_frames(
     for index in range(count):
         timestamp = min(max(0.5, duration * (index + 0.5) / count), max(0.5, duration - 0.2))
         output = folder / f"frame-{index:02d}.jpg"
-        run_ffmpeg([
-            "-ss", f"{timestamp:.3f}", "-i", str(video_path), "-frames:v", "1",
-            "-vf", "scale=512:-2", "-q:v", "7", str(output),
-        ])
+        run_ffmpeg(
+            [
+                "-ss",
+                f"{timestamp:.3f}",
+                "-i",
+                str(video_path),
+                "-frames:v",
+                "1",
+                "-vf",
+                "scale=512:-2",
+                "-q:v",
+                "7",
+                str(output),
+            ]
+        )
         if output.exists() and output.stat().st_size:
             samples.append((timestamp, str(output)))
     return samples
@@ -60,9 +71,7 @@ def analyze_campaign_video(source: dict, work_dir: Path, llm, campaign_brief: st
     if not hasattr(llm, "complete_json_with_images"):
         logger.info("Selected model has no image-input support; skipping campaign visual analysis")
         return {"frames": []}
-    frames = sample_frames(
-        Path(source["video_path"]), float(source.get("duration_seconds") or 0), work_dir
-    )
+    frames = sample_frames(Path(source["video_path"]), float(source.get("duration_seconds") or 0), work_dir)
     if not frames:
         return {"frames": []}
     system = (
@@ -83,10 +92,12 @@ def analyze_campaign_video(source: dict, work_dir: Path, llm, campaign_brief: st
             timestamp = float(item["timestamp"])
         except (KeyError, TypeError, ValueError):
             continue
-        valid.append({
-            "timestamp": timestamp,
-            "description": str(item.get("description", ""))[:500],
-            "mood": str(item.get("mood", ""))[:100],
-            "subjects": str(item.get("subjects", ""))[:200],
-        })
+        valid.append(
+            {
+                "timestamp": timestamp,
+                "description": str(item.get("description", ""))[:500],
+                "mood": str(item.get("mood", ""))[:100],
+                "subjects": str(item.get("subjects", ""))[:200],
+            }
+        )
     return {"frames": valid}
