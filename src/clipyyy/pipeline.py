@@ -36,6 +36,8 @@ class ClipOptions(BaseModel):
     broll: bool = False
     language: str = Field("auto", description="Spoken language code, or auto")
     instructions: str = Field("", max_length=4000, description="Extra guidance for the AI")
+    campaign_mode: bool = False
+    campaign_brief: str = Field("", max_length=6000, description="Campaign requirements and creative brief")
     model: str | None = Field(None, description="Override the default LLM model")
 
     @model_validator(mode="after")
