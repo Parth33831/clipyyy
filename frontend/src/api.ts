@@ -79,7 +79,12 @@ export interface Post {
   created_at: string
 }
 
+export interface CampaignPlan {
+  [key: string]: string | number | boolean | string[] | null | undefined
+}
+
 export interface RunDetail extends Run {
+  campaign_plan: CampaignPlan | null
   source_duration: number | null
   stages: Stage[]
   clips: Clip[]
