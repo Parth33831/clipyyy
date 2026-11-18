@@ -146,7 +146,11 @@ def test_gemini_retries_with_current_model_when_old_model_is_retired():
         if body["model"] == "gemini-2.5-flash":
             return httpx.Response(
                 404,
-                json={"error": {"message": "This model models/gemini-2.5-flash is no longer available to new users."}},
+                json={
+                    "error": {
+                        "message": "This model models/gemini-2.5-flash is no longer available to new users."
+                    }
+                },
             )
         return reply('{"clips": []}')
 
@@ -182,5 +186,6 @@ def test_gemini_image_request_retries_with_current_model_when_old_model_is_retir
         "gemini-2.5-flash",
         transport=httpx.MockTransport(handler),
     )
-    assert llm.complete_json_with_images("s", "u", {"type": "object"}, "x", [(1.0, image_path)]) == {"ok": True}
+    result = llm.complete_json_with_images("s", "u", {"type": "object"}, "x", [(1.0, image_path)])
+    assert result == {"ok": True}
     assert calls == ["gemini-2.5-flash", "gemini-3.8-flash"]
