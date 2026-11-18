@@ -274,12 +274,17 @@ def run_detail(run_id: str) -> dict:
             )
             stage["duration_seconds"] = round(max(0.0, (finished - started).total_seconds()), 1)
     source_file = pipeline.run_dir(run_id) / "work" / "download.json"
+    select_file = pipeline.run_dir(run_id) / "work" / "select.json"
+    campaign_plan = None
+    if select_file.exists():
+        campaign_plan = json.loads(select_file.read_text(encoding="utf-8")).get("campaign_plan")
     source_duration = None
     if source_file.exists():
         source_duration = json.loads(source_file.read_text(encoding="utf-8")).get("duration_seconds")
     return {
         **run,
         "source_duration": source_duration,
+        "campaign_plan": campaign_plan,
         "stages": stages,
         "clips": [_clip_public(c) for c in db.list_clips(run_id)],
         "posts": db.list_posts(run_id=run_id),
