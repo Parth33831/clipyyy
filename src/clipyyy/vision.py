@@ -71,8 +71,7 @@ def analyze_campaign_video(source: dict, work_dir: Path, llm, campaign_brief: st
     frames = sample_frames(Path(source["video_path"]), float(source.get("duration_seconds") or 0), work_dir)
     if not hasattr(llm, "complete_json_with_images"):
         logger.info(
-            "Selected model has no image-input support; retaining sampled timestamps "
-            "without inventing visual descriptions"
+            "Text-only model; keeping sampled timestamps without visual descriptions"
         )
         return {
             "frames": [
