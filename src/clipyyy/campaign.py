@@ -3,6 +3,7 @@
 The model extracts requirements without assigning fixed niche-specific presets. Unknown
 requirements remain null/empty; the original brief is always preserved separately.
 """
+
 from __future__ import annotations
 
 import json
