@@ -153,7 +153,7 @@ def write_ass(words: list[dict], path: Path, width: int, height: int, style_name
 
 
 def ass_filter(path: Path) -> str:
-    return f"ass={_filter_path(path)}:fontsdir={_filter_path(FONTS_DIR)}"
+    return f"ass='{_filter_path(path)}':fontsdir='{_filter_path(FONTS_DIR)}'"
 
 
 def _display(word: str, case: str) -> str:
