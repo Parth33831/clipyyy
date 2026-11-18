@@ -103,5 +103,5 @@ def test_text_only_campaign_analysis_keeps_timestamps_without_fabricating_visual
         "Campaign brief",
     )
     assert [frame["timestamp"] for frame in result["frames"]] == [3.0, 8.0, 13.0]
-    assert all("not interpreted" in frame["description"] for frame in result["frames"])
+    assert all("Visual content unavailable" in frame["description"] for frame in result["frames"])
     assert all(frame["subjects"] == "not analyzed" for frame in result["frames"])
