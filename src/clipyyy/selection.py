@@ -80,6 +80,15 @@ def build_prompt(source: dict, transcript: dict, options: dict) -> tuple[str, st
         instructions=f"\nInstructions from the user:\n{instructions}\n" if instructions else "",
     )
     lines = "\n".join(f"[{s['start']:.1f}-{s['end']:.1f}] {s['text']}" for s in transcript["sentences"])
+    visual_analysis = source.get("visual_analysis") or {}
+    visual_notes = visual_analysis.get("frames") or []
+    visual_context = ""
+    if visual_notes:
+        visual_context = "\\n\\nVISUAL SCENE ANALYSIS (timestamped observations):\\n" + "\\n".join(
+            f"[{frame['timestamp']:.1f}s] {frame['description']} "
+            f"(mood: {frame.get('mood', 'unspecified')}; subjects: {frame.get('subjects', 'unspecified')})"
+            for frame in visual_notes
+        )
     user = (
         f"Video: {source.get('title') or 'Untitled'}"
         + (f" by {source['uploader']}" if source.get("uploader") else "")
@@ -87,6 +96,7 @@ def build_prompt(source: dict, transcript: dict, options: dict) -> tuple[str, st
         f"Transcript (one sentence per line, [start-end] in seconds):\n{lines}\n\n"
         f"Return exactly {options['clip_count']} strong, non-overlapping clips "
         "if the transcript contains enough; return fewer only if it genuinely does not."
+        + visual_context
     )
     return system, user
 
