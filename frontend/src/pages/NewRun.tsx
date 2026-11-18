@@ -333,7 +333,7 @@ export function NewRunPage() {
               hint="Tell the AI exactly what a paid clipping campaign requires. This guides moment selection; full music-video montage editing is being built separately."
             />
             {options.campaign_mode && (
-              <Field label="Campaign brief" hint="Paste the campaign rules, music name, mood, subject, required lyrics/text, language, platform rules and examples.">
+              <Field label="Campaign brief" hint="Paste the campaign rules, music name, mood, subject, required lyrics/text, language, platform rules and examples. Visual scene analysis needs a vision-capable hosted model such as Gemini; local text-only models skip that step.">
                 <Textarea
                   rows={7}
                   value={options.campaign_brief}
