@@ -71,11 +71,15 @@ def load_wav(path: Path):
     return np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
 
 
-def group_sentences(words: list[dict], max_words: int = 60) -> list[dict]:
-    """Group words into sentences on punctuation, with a cap for unpunctuated speech."""
+def group_sentences(words: list[dict], max_words: int = 40, pause_seconds: float = 0.8) -> list[dict]:
+    """Group words at punctuation or natural pauses, with a cap for unpunctuated speech."""
     sentences: list[dict] = []
     current: list[dict] = []
     for word in words:
+        pause = current and float(word["start"]) - float(current[-1]["end"]) >= pause_seconds
+        if pause:
+            sentences.append(_sentence(current))
+            current = []
         current.append(word)
         if word["word"].endswith(SENTENCE_ENDINGS) or len(current) >= max_words:
             sentences.append(_sentence(current))
