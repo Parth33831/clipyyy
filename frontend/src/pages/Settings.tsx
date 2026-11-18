@@ -138,12 +138,12 @@ export function SettingsPage() {
             </div>
             <Field
               label="Local model"
-              hint="Use a model installed in Ollama. For campaign editing with visual analysis, use a vision-capable model such as qwen2.5vl:3b. CPU inference may take time."
+              hint="Use a model installed in Ollama. Text-only models can plan from the brief and sampled timestamps but cannot understand what appears in frames. A vision-capable local model is needed for true visual matching."
             >
               <ModelInput
                 value={draft.llm_model ?? ''}
                 onChange={update('llm_model')}
-                placeholder="qwen2.5vl:3b"
+                placeholder="qwen2.5:1.5b"
               />
             </Field>
             <Field label="Transcription model" hint="faster-whisper runs locally and downloads the model on first use.">
