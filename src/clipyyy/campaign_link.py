@@ -4,6 +4,7 @@ This fetcher deliberately reads only the supplied public page. It does not log i
 bypass access controls, execute page scripts, or download copyrighted reference media.
 """
 
+
 from __future__ import annotations
 
 import ipaddress
