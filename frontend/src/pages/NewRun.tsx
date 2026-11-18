@@ -233,15 +233,21 @@ export function NewRunPage() {
               <Field label="How many" group>
                 <Stepper label="Number of clips" value={options.clip_count} min={1} max={10} onChange={(v) => set('clip_count', v)} />
               </Field>
-              <Field label="Length (seconds)" group className="flex-1">
-                <div className="flex items-center gap-2">
-                  <Input aria-label="Minimum seconds" type="number" min={5} value={options.min_seconds} onChange={(e) => set('min_seconds', Number(e.target.value))} className="font-mono" />
-                  <span className="text-faint">–</span>
-                  <Input aria-label="Maximum seconds" type="number" max={180} value={options.max_seconds} onChange={(e) => set('max_seconds', Number(e.target.value))} className="font-mono" />
-                </div>
-              </Field>
+              {options.campaign_mode ? (
+                <Field label="Target duration (seconds)" group className="flex-1">
+                  <Input aria-label="Target duration" type="number" min={10} max={180} value={options.max_seconds} onChange={(e) => set('max_seconds', Number(e.target.value))} className="font-mono" />
+                </Field>
+              ) : (
+                <Field label="Length (seconds)" group className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <Input aria-label="Minimum seconds" type="number" min={5} value={options.min_seconds} onChange={(e) => set('min_seconds', Number(e.target.value))} className="font-mono" />
+                    <span className="text-faint">–</span>
+                    <Input aria-label="Maximum seconds" type="number" max={180} value={options.max_seconds} onChange={(e) => set('max_seconds', Number(e.target.value))} className="font-mono" />
+                  </div>
+                </Field>
+              )}
             </div>
-            <div className="flex gap-1.5">
+            {!options.campaign_mode && <div className="flex gap-1.5">
               {LENGTH_PRESETS.map(([min, max]) => {
                 const on = options.min_seconds === min && options.max_seconds === max
                 return (
@@ -255,7 +261,7 @@ export function NewRunPage() {
                   </button>
                 )
               })}
-            </div>
+            </div>}
           </Section>
 
           <Section title="Format">
@@ -284,7 +290,7 @@ export function NewRunPage() {
             </div>
           </Section>
 
-          <Section title="Captions">
+          {!options.campaign_mode && <Section title="Captions">
             <Toggle checked={options.captions} onChange={(v) => set('captions', v)} label="Animated captions" hint="Word by word, burned into the video" />
             <Toggle checked={options.source_has_subtitles} onChange={(v) => set('source_has_subtitles', v)} label="Video already has subtitles" hint="Skip Clipyyy captions to avoid showing two subtitle layers. Use this for subtitles already visible in the source video." />
             <div className="grid grid-cols-3 gap-2">
@@ -308,9 +314,9 @@ export function NewRunPage() {
                 )
               })}
             </div>
-          </Section>
+          </Section>}
 
-          <Section title="Edit">
+          {!options.campaign_mode && <Section title="Edit">
             <Toggle checked={options.face_tracking} onChange={(v) => set('face_tracking', v)} label="Follow the speaker" hint="Keeps the face in frame. Off uses a centre crop" />
             <Toggle
               checked={options.broll}
@@ -328,7 +334,7 @@ export function NewRunPage() {
                 ))}
               </Select>
             </Field>
-          </Section>
+          </Section>}
 
           <Section title="Campaign editor">
             <Toggle
