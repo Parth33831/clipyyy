@@ -61,7 +61,6 @@ def test_import_campaign_page_rejects_localhost():
         campaign_link.validate_public_url("http://localhost:8000/campaign")
 
 
-
 def test_import_campaign_page_uses_onelink_web_fallback(monkeypatch):
     monkeypatch.setattr(campaign_link, "validate_public_url", lambda url: None)
     monkeypatch.setattr(campaign_link.httpx, "Client", FakeClient)
