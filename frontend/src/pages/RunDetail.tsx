@@ -20,6 +20,7 @@ export function RunDetailPage() {
   const canPublish = ['buffer', 'storage'].every((name) => health.data?.checks.find((c) => c.name === name)?.ok)
   const [publishing, setPublishing] = useState<Clip | null>(null)
   const [focused, setFocused] = useState<number | null>(null)
+  const [musicFile, setMusicFile] = useState<File | null>(null)
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -29,6 +30,15 @@ export function RunDetailPage() {
     mutationFn: (fromStage?: string) => api.retry(runId, fromStage),
     onSuccess: () => {
       toast.success('Queued again')
+      refresh()
+    },
+    onError: (e) => toast.error(e.message),
+  })
+  const attachMusic = useMutation({
+    mutationFn: (file: File) => api.attachCampaignMusic(runId, file),
+    onSuccess: (result) => {
+      toast.success(`Attached ${result.name}. Choose Pick again to render the campaign with music.`)
+      setMusicFile(null)
       refresh()
     },
     onError: (e) => toast.error(e.message),
@@ -113,6 +123,31 @@ export function RunDetailPage() {
           </Button>
         </div>
       </header>
+
+      {data.options.campaign_mode && !busy && (
+        <div className="flex flex-wrap items-end gap-3 rounded-xl border border-line bg-surface p-4">
+          <label className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
+            <span className="font-medium">Campaign music</span>
+            <input
+              type="file"
+              accept="audio/*"
+              onChange={(event) => setMusicFile(event.target.files?.[0] ?? null)}
+              className="block w-full text-sm text-muted file:mr-3 file:border file:border-line file:bg-panel file:px-3 file:py-2 file:text-ink"
+            />
+            <span className="text-xs text-muted">
+              {data.options.campaign_music_path ? 'A track is attached. Upload another to replace it.' : 'No track attached. Add your downloaded campaign track here.'}
+            </span>
+          </label>
+          <Button
+            variant="line"
+            disabled={!musicFile}
+            loading={attachMusic.isPending}
+            onClick={() => musicFile && attachMusic.mutate(musicFile)}
+          >
+            Attach music
+          </Button>
+        </div>
+      )}
 
       {(busy || data.status === 'failed') && <Progress run={data} />}
 
