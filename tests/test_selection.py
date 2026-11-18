@@ -118,24 +118,24 @@ def test_long_transcript_is_analysed_in_multiple_windows():
             {"start": 0.0, "end": 10.0, "text": "opening sentence"},
             {"start": 10.0, "end": 20.0, "text": "first useful point"},
             {"start": 20.0, "end": 30.0, "text": "first payoff"},
-            {"start": 800.0, "end": 810.0, "text": "second opening"},
-            {"start": 810.0, "end": 820.0, "text": "second useful point"},
-            {"start": 820.0, "end": 830.0, "text": "second payoff"},
+            {"start": 1100.0, "end": 1110.0, "text": "second opening"},
+            {"start": 1110.0, "end": 1120.0, "text": "second useful point"},
+            {"start": 1120.0, "end": 1130.0, "text": "second payoff"},
         ],
     }
     options = {**OPTIONS, "clip_count": 2}
     llm = FakeLLM(
         [
             {"clips": [raw(0, 20, overall_score=8.5)]},
-            {"clips": [raw(800, 820, overall_score=9.0)]},
+            {"clips": [raw(1100, 1120, overall_score=9.0)]},
         ]
     )
 
-    result = select_clips(llm, {"title": "Long talk", "duration_seconds": 900}, transcript, options)
+    result = select_clips(llm, {"title": "Long talk", "duration_seconds": 1200}, transcript, options)
 
     assert llm.calls == 2
     assert len(result["clips"]) == 2
-    assert result["clips"][0]["start_seconds"] == 800.0
+    assert result["clips"][0]["start_seconds"] == 1100.0
     assert result["clips"][1]["start_seconds"] == 0.0
     assert all("Select up to 1 non-overlapping clips" in system for system, _ in llm.prompts)
 
