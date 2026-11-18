@@ -149,8 +149,7 @@ def build_montage_plan(
     # Text-only local models cannot inspect sampled frames. Never treat placeholder
     # observations as real visual descriptions; use an explicitly generic timestamp spread.
     text_only_frames = all(
-        "Visual content unavailable" in str(item.get("description", ""))
-        for item in candidates
+        "Visual content unavailable" in str(item.get("description", "")) for item in candidates
     )
     if candidates and text_only_frames:
         return _build_text_only_montage(sources, output_count, target_seconds)
@@ -234,7 +233,6 @@ def build_montage_plan(
             "Try more source footage or a shorter target duration."
         )
     return valid_edits
-
 
 
 def _build_text_only_montage(
