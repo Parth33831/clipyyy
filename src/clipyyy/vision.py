@@ -103,6 +103,7 @@ def analyze_campaign_video(source: dict, work_dir: Path, llm, campaign_brief: st
         )
     return {"frames": valid}
 
+
 def analyze_reference_video(source: dict, work_dir: Path, llm) -> dict:
     """Describe the visible editing language of an accessible campaign reference video."""
     if not hasattr(llm, "complete_json_with_images"):
@@ -125,9 +126,7 @@ def analyze_reference_video(source: dict, work_dir: Path, llm) -> dict:
         "Analyse these timestamped reference frames. Describe the visual style and recurring design language "
         "that could be recreated with different source footage. Preserve each supplied timestamp."
     )
-    result = llm.complete_json_with_images(
-        system, user, FRAME_SCHEMA, "campaign_reference_analysis", frames
-    )
+    result = llm.complete_json_with_images(system, user, FRAME_SCHEMA, "campaign_reference_analysis", frames)
     valid = []
     for item in result.get("frames", []):
         try:
