@@ -13,12 +13,13 @@ logger = logging.getLogger(__name__)
 
 def supports_visual_input(llm) -> bool:
     """Return whether the configured model is known to accept image inputs."""
-    if not supports_visual_input(llm):
+    if not hasattr(llm, "complete_json_with_images"):
         return False
     provider = getattr(llm, "provider", None)
     if provider is not None and getattr(provider, "local", False):
         model = str(getattr(llm, "model", "")).lower()
-        return any(tag in model for tag in ("qwen2.5vl", "qwen3-vl", "llava", "moondream", "minicpm-v", "gemma3"))
+        vision_tags = ("qwen2.5vl", "qwen3-vl", "llava", "moondream", "minicpm-v", "gemma3")
+        return any(tag in model for tag in vision_tags)
     return True
 
 FRAME_SCHEMA: dict[str, Any] = {
