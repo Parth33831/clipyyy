@@ -130,7 +130,16 @@ def stage_select(ctx: Context) -> dict:
             )
         count = min(10, plan.get("output_count") or options["clip_count"])
         target = plan.get("target_duration_seconds") or options["max_seconds"]
-        edits = build_montage_plan(llm, options["campaign_brief"], plan, sources, analyses, count, target)
+        edits = build_montage_plan(
+            llm,
+            options["campaign_brief"],
+            plan,
+            sources,
+            analyses,
+            count,
+            target,
+            options.get("instructions", ""),
+        )
         db.update_run(ctx.run_id, title=plan.get("campaign_name") or source.get("title") or "Campaign edit")
         clips = []
         for edit in edits:
@@ -142,13 +151,6 @@ def stage_select(ctx: Context) -> dict:
                 "end_seconds": round(duration, 3), "campaign_shots": edit["shots"],
             })
         return {"campaign_plan": plan, "campaign_edits": edits, "clips": clips}
-    if options.get("campaign_mode") and options.get("campaign_brief"):
-        from clipyyy.vision import analyze_campaign_video
-
-        try:
-            source["visual_analysis"] = analyze_campaign_video(source, ctx.work_dir, llm, options["campaign_brief"])
-        except Exception:
-            logger.exception("Campaign visual analysis failed; continuing with transcript-only selection")
     return select_clips(llm, source, ctx.state["transcribe"], options)
 
 def stage_plan(ctx: Context) -> dict:
