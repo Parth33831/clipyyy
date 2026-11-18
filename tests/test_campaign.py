@@ -201,3 +201,28 @@ def test_text_only_campaign_outputs_use_distinct_time_ranges():
     ranges = [(shot["source_index"], shot["start_seconds"]) for edit in edits for shot in edit["shots"]]
     assert len(edits) == 4
     assert len(ranges) == len(set(ranges))
+
+
+
+def test_campaign_montage_duration_normalization_pads_or_trims(tmp_path, monkeypatch):
+    from clipyyy import render
+
+    calls = []
+
+    def fake_run_ffmpeg(args):
+        calls.append(args)
+
+    monkeypatch.setattr(render, "run_ffmpeg", fake_run_ffmpeg)
+    source = tmp_path / "source.mp4"
+    padded = tmp_path / "padded.mp4"
+    trimmed = tmp_path / "trimmed.mp4"
+
+    render._normalize_montage_duration(source, padded, 14.2, 15.0)
+    render._normalize_montage_duration(source, trimmed, 15.4, 15.0)
+
+    padded_filter = calls[0][calls[0].index("-vf") + 1]
+    trimmed_filter = calls[1][calls[1].index("-vf") + 1]
+    assert "tpad=stop_mode=clone:stop_duration=0.800" in padded_filter
+    assert "trim=duration=15.000" in padded_filter
+    assert "tpad=stop_mode=clone:stop_duration=0.000" in trimmed_filter
+    assert "trim=duration=15.000" in trimmed_filter
