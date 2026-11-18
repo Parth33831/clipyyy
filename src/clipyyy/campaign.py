@@ -58,13 +58,22 @@ def parse_campaign_brief(llm, brief: str) -> dict[str, Any]:
     text = brief.strip()
     if not text:
         return CampaignPlan().model_dump()
-    result = llm.complete_json(
-        PLAN_SYSTEM,
-        "Extract the requirements from this campaign brief. Do not add assumptions.\n\n" + text,
-        PLAN_SCHEMA,
-        "campaign_requirements",
-    )
-    return CampaignPlan.model_validate(result).model_dump()
+    try:
+        result = llm.complete_json(
+            PLAN_SYSTEM,
+            "Extract the requirements from this campaign brief. Do not add assumptions.\n\n" + text,
+            PLAN_SCHEMA,
+            "campaign_requirements",
+        )
+        return CampaignPlan.model_validate(result).model_dump()
+    except Exception:
+        # A small local model may fail to return schema-valid JSON. Keep the original
+        # brief in the pipeline and continue conservatively rather than using a cloud API.
+        fallback = local_fallback_plan(text)
+        fallback["unresolved_questions"].append(
+            "The local model could not structure the brief; the original brief remains the source of truth."
+        )
+        return fallback
 
 
 def local_fallback_plan(brief: str) -> dict[str, Any]:
