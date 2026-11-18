@@ -102,3 +102,22 @@ def test_campaign_run_accepts_public_campaign_url_without_manual_brief(client):
     )
     assert response.status_code == 200
     assert response.json()[0]["options"]["campaign_url"] == "https://campaign.example/details"
+
+
+def test_campaign_music_can_be_attached_to_an_existing_run(client):
+    from pathlib import Path
+
+    run = db.create_run(
+        "local-video.mp4",
+        {"campaign_mode": True, "campaign_music_path": None},
+        status="failed",
+    )
+    response = client.post(
+        f"/api/runs/{run['id']}/campaign-music",
+        files={"file": ("midnight-sunlight.mp3", b"audio-data", "audio/mpeg")},
+    )
+    assert response.status_code == 200
+    updated = client.get(f"/api/runs/{run['id']}").json()
+    music_path = updated["options"]["campaign_music_path"]
+    assert music_path.endswith("midnight-sunlight.mp3")
+    assert Path(music_path).is_file()
