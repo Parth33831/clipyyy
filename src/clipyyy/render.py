@@ -438,7 +438,8 @@ def render_campaign_montages(
                     "height": out_h,
                     "duration_seconds": round(final_duration, 2),
                     "audio": (
-                        "user-provided campaign track included; select the official campaign sound separately in TikTok if required"
+                        "user-provided campaign track included; select the official campaign sound "
+                        "separately in TikTok if required"
                         if music_path and official_sound_required
                         else "user-provided campaign track included"
                         if music_path
