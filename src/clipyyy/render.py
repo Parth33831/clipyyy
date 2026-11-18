@@ -461,7 +461,8 @@ def _crossfade_segments(segments: list[Path], output: Path, fade_seconds: float 
         output_label = f"[v{index}]"
         offset = max(0.0, total - fade_seconds)
         filters.append(
-            f"{previous}[{index}:v]xfade=transition=fade:duration={fade_seconds}:offset={offset:.3f}{output_label}"
+            f"{previous}[{index}:v]xfade=transition=fade:"
+            f"duration={fade_seconds}:offset={offset:.3f}{output_label}"
         )
         previous = output_label
         total += duration - fade_seconds
