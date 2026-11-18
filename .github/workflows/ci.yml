@@ -1,7 +1,7 @@
 name: CI
 
 concurrency:
-  group: clipyyy-ci-${{ github.ref }}
+  group: clipyyy-ci-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: true
 
 on:
