@@ -325,6 +325,24 @@ export function NewRunPage() {
             </Field>
           </Section>
 
+          <Section title="Campaign editor">
+            <Toggle
+              checked={options.campaign_mode}
+              onChange={(v) => set('campaign_mode', v)}
+              label="Use campaign requirements"
+              hint="Tell the AI exactly what a paid clipping campaign requires. This guides moment selection; full music-video montage editing is being built separately."
+            />
+            {options.campaign_mode && (
+              <Field label="Campaign brief" hint="Paste the campaign rules, music name, mood, subject, required lyrics/text, language, platform rules and examples.">
+                <Textarea
+                  rows={7}
+                  value={options.campaign_brief}
+                  onChange={(e) => set('campaign_brief', e.target.value)}
+                  placeholder={"Example: Anime edit for Midnight Sunlight by Pyo. Music is the focus. Use emotional anime moments that fit the song's mood. Show a lyric line on screen. English text only. No voice audio."}
+                />
+              </Field>
+            )}
+          </Section>
           <Section title="AI" last>
             <Field label="Instructions" hint="Optional. e.g. “Only funny moments” or “End captions with: Follow for part 2”">
               <Textarea rows={2} value={options.instructions} onChange={(e) => set('instructions', e.target.value)} />
