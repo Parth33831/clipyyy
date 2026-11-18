@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, FileVideo, KeyRound, Upload, X } from 'lucide-react'
+import { ArrowRight, FileVideo, Upload, X } from 'lucide-react'
 import { useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
@@ -71,7 +71,7 @@ export function NewRunPage() {
 
   const checks = Object.fromEntries((health.data?.checks ?? []).map((c) => [c.name, c]))
   const blockers = (health.data?.checks ?? []).filter((c) => c.required && !c.ok && c.name !== 'llm')
-  const needsKey = health.data && !checks.llm?.ok
+  const needsLocalAi = health.data && !checks.llm?.ok
   const defaultModel = settings.data?.find((s) => s.key === 'llm_model')?.value
   const set = <K extends keyof ClipOptions>(key: K, value: ClipOptions[K]) => setOptions((o) => ({ ...o, [key]: value }))
 
@@ -119,7 +119,15 @@ export function NewRunPage() {
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="flex flex-col gap-6">
-          {needsKey && <ConnectModel onSaved={() => queryClient.invalidateQueries()} />}
+          {needsLocalAi && (
+            <Panel className="flex flex-col gap-2 border-l-4 border-l-acid p-5">
+              <p className="font-semibold">Local AI is not ready yet</p>
+              <p className="text-[13px] leading-relaxed text-muted">{checks.llm?.detail}</p>
+              <p className="text-[13px] leading-relaxed text-muted">
+                Start Ollama and select a model already installed on this computer in Settings. No hosted API key is required.
+              </p>
+            </Panel>
+          )}
           {blockers.map((c) => (
             <Panel key={c.name} className="border-bad/40 bg-bad-soft p-4 text-sm text-bad">
               {c.label}: {c.detail}
@@ -353,7 +361,7 @@ export function NewRunPage() {
                   type="url"
                 />
               </Field>
-              <Field label="Campaign brief (optional)" hint="Add extra instructions or paste the brief if the campaign page cannot be read. Campaign montage creation requires Gemini vision and uses your configured provider quota.">
+              <Field label="Campaign brief (optional)" hint="Add extra instructions or paste the brief if the campaign page cannot be read. Campaign editing uses your local Ollama model. Choose a vision-capable model in Settings for source-frame analysis.">
                 <Textarea
                   rows={7}
                   value={options.campaign_brief}
@@ -394,43 +402,3 @@ function Section({ title, children, last }: { title: string; children: ReactNode
   )
 }
 
-function ConnectModel({ onSaved }: { onSaved: () => void }) {
-  const [key, setKey] = useState('')
-  const save = useMutation({
-    mutationFn: () => api.saveSettings({ openrouter_api_key: key.trim() }),
-    onSuccess: () => {
-      toast.success('Key saved on this machine')
-      onSaved()
-    },
-    onError: (e) => toast.error(e.message),
-  })
-  return (
-    <Panel className="flex flex-col gap-4 border-l-4 border-l-acid p-5 sm:flex-row sm:items-center">
-      <div className="flex flex-1 items-start gap-3">
-        <KeyRound className="mt-0.5 h-5 w-5 shrink-0" />
-        <div>
-          <p className="font-semibold">Connect a model to start</p>
-          <p className="text-[13px] leading-relaxed text-muted">
-            clipyyy picks clips with any model on{' '}
-            <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" className="text-ink underline underline-offset-2">
-              OpenRouter
-            </a>
-            . Your key is stored only on this machine.
-          </p>
-        </div>
-      </div>
-      <form
-        className="flex gap-2 sm:w-[340px]"
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (key.trim()) save.mutate()
-        }}
-      >
-        <Input type="password" placeholder="sk-or-…" value={key} onChange={(e) => setKey(e.target.value)} aria-label="OpenRouter API key" />
-        <Button type="submit" loading={save.isPending} disabled={!key.trim()}>
-          Save
-        </Button>
-      </form>
-    </Panel>
-  )
-}
