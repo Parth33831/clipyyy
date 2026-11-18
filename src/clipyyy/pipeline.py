@@ -167,10 +167,12 @@ def stage_select(ctx: Context) -> dict:
             )
         reference_analyses = []
         if reference_video_urls:
+            from clipyyy.campaign_link import validate_public_url
             from clipyyy.source import fetch_source
 
             for index, reference_url in enumerate(reference_video_urls[:2]):
                 try:
+                    validate_public_url(reference_url)
                     reference = fetch_source(
                         reference_url, ctx.work_dir / f"campaign-reference-{index + 1:02d}"
                     )
