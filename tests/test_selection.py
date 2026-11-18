@@ -252,3 +252,23 @@ def test_hosted_long_selection_refills_missing_clips_from_unused_sentences():
     assert len(result["clips"]) == 2
     assert {clip["start_seconds"] for clip in result["clips"]} == {0.0, 20.0}
     assert llm.calls == 5
+
+
+def test_campaign_brief_is_added_as_high_priority_selection_guidance(transcript):
+    system, _ = build_prompt(
+        {"title": "Anime source", "duration_seconds": 60},
+        transcript,
+        {**OPTIONS, "campaign_mode": True, "campaign_brief": "Use emotional anime scenes. Show English lyrics."},
+    )
+    assert "CAMPAIGN REQUIREMENTS (highest priority)" in system
+    assert "Use emotional anime scenes. Show English lyrics." in system
+    assert "hard creative constraints" in system
+
+
+def test_campaign_brief_is_ignored_when_campaign_mode_is_off(transcript):
+    system, _ = build_prompt(
+        {"title": "Talk", "duration_seconds": 60},
+        transcript,
+        {**OPTIONS, "campaign_mode": False, "campaign_brief": "Use anime scenes."},
+    )
+    assert "CAMPAIGN REQUIREMENTS" not in system
