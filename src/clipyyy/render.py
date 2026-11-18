@@ -329,17 +329,8 @@ def render_campaign_montages(
                     segments.append(segment)
             if len(segments) < 3:
                 raise RuntimeError("Fewer than three campaign shots could be rendered.")
-            concat_list = edit_dir / "segments.txt"
-            concat_list.write_text(
-                "".join(f"file '{path.resolve().as_posix()}'\n" for path in segments),
-                encoding="utf-8",
-            )
             silent = edit_dir / "montage-silent.mp4"
-            run_ffmpeg([
-                "-f", "concat", "-safe", "0", "-i", str(concat_list),
-                "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "19",
-                "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(silent),
-            ])
+            _crossfade_segments(segments, silent)
             _, _, duration = probe(silent)
             visual = silent
             if lyrics:
@@ -404,3 +395,29 @@ def write_campaign_lyrics(lines: list[str], duration: float, path: Path, width: 
         script.append(f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,{{\\fad(180,180)}}{_escape(line)}")
     path.write_text("\n".join(script) + "\n", encoding="utf-8")
     return path
+
+
+def _crossfade_segments(segments: list[Path], output: Path, fade_seconds: float = 0.28) -> None:
+    """Join shots with short visual dissolves instead of abrupt hard cuts."""
+    if len(segments) < 2:
+        raise ValueError("At least two shots are required for a campaign montage.")
+    durations = [probe(segment)[2] for segment in segments]
+    inputs: list[str] = []
+    for segment in segments:
+        inputs.extend(["-i", str(segment)])
+    filters = []
+    previous = "[0:v]"
+    total = durations[0]
+    for index, duration in enumerate(durations[1:], start=1):
+        output_label = f"[v{index}]"
+        offset = max(0.0, total - fade_seconds)
+        filters.append(
+            f"{previous}[{index}:v]xfade=transition=fade:duration={fade_seconds}:offset={offset:.3f}{output_label}"
+        )
+        previous = output_label
+        total += duration - fade_seconds
+    run_ffmpeg([
+        *inputs, "-filter_complex", ";".join(filters), "-map", previous, "-an",
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "19",
+        "-pix_fmt", "yuv420p", "-r", str(FPS), "-movflags", "+faststart", str(output),
+    ])
