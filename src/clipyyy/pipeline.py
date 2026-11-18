@@ -37,7 +37,7 @@ class ClipOptions(BaseModel):
     language: str = Field("auto", description="Spoken language code, or auto")
     instructions: str = Field("", max_length=4000, description="Extra guidance for the AI")
     campaign_mode: bool = False
-    campaign_brief: str = Field("", max_length=6000, description="Campaign requirements and creative brief")
+    campaign_brief: str = Field("", max_length=6000, description="Campaign requirements and creative brief")\n    campaign_music_path: str | None = Field(None, description="Optional user-provided campaign music file")\n    campaign_lyrics: str = Field("", max_length=3000, description="Optional user-provided lyric or on-screen text lines")
     model: str | None = Field(None, description="Override the default LLM model")
 
     @model_validator(mode="after")
@@ -67,7 +67,7 @@ def run_dir(run_id: str) -> Path:
 def stage_download(ctx: Context) -> dict:
     from clipyyy.source import fetch_source
 
-    result = fetch_source(ctx.source, ctx.work_dir)
+    if ctx.options.get("campaign_mode"):\n        sources = json.loads(ctx.source) if ctx.source.lstrip().startswith("[") else [ctx.source]\n        from clipyyy.source import fetch_sources\n\n        result = fetch_sources(sources, ctx.work_dir)\n    else:\n        result = fetch_source(ctx.source, ctx.work_dir)
     db.update_run(ctx.run_id, title=result["title"])
     return result
 
@@ -93,32 +93,45 @@ def stage_select(ctx: Context) -> dict:
         options["instructions"] = f"{defaults}\n{options['instructions']}".strip()
     llm = get_llm(options.get("model"))
     source = dict(ctx.state["download"])
-    if options.get("campaign_mode") and options.get("campaign_brief"):
-        from clipyyy.campaign import local_fallback_plan, parse_campaign_brief
+    if options.get("campaign_mode"):
+        if not options.get("campaign_brief", "").strip():
+            raise ValueError("Add the campaign rules before starting a campaign edit.")
+        if getattr(getattr(llm, "provider", None), "local", False):
+            raise ValueError("Campaign montage editing needs a vision-capable model. Select Gemini in Settings; local text-only Ollama cannot inspect video frames.")
+        from clipyyy.campaign import build_montage_plan, parse_campaign_brief
+        from clipyyy.vision import analyze_campaign_video
 
-        try:
-            if getattr(getattr(llm, "provider", None), "local", False):
-                options["campaign_plan"] = local_fallback_plan(options["campaign_brief"])
-            else:
-                options["campaign_plan"] = parse_campaign_brief(llm, options["campaign_brief"])
-        except Exception:
-            logger.exception("Campaign brief parsing failed; preserving original brief")
-            options["campaign_plan"] = local_fallback_plan(options["campaign_brief"])
-    if options.get("campaign_mode") and options.get("campaign_brief") and not getattr(
-        getattr(llm, "provider", None), "local", False
-    ):
-        try:
-            from clipyyy.vision import analyze_campaign_video
-
-            source["visual_analysis"] = analyze_campaign_video(
-                source, ctx.work_dir, llm, options["campaign_brief"]
+        plan = parse_campaign_brief(llm, options["campaign_brief"])
+        sources = source.get("sources") or [source]
+        analyses = []
+        for index, item in enumerate(sources):
+            analyses.append(
+                analyze_campaign_video(
+                    item, ctx.work_dir / f"campaign-source-{index + 1:02d}", llm, options["campaign_brief"]
+                )
             )
+        count = plan.get("output_count") or options["clip_count"]
+        target = plan.get("target_duration_seconds") or options["max_seconds"]
+        edits = build_montage_plan(llm, options["campaign_brief"], plan, sources, analyses, count, target)
+        db.update_run(ctx.run_id, title=plan.get("campaign_name") or source.get("title") or "Campaign edit")
+        clips = []
+        for edit in edits:
+            duration = sum(shot["end_seconds"] - shot["start_seconds"] for shot in edit["shots"])
+            clips.append({
+                "rank": edit["rank"], "title": edit["title"], "post_title": edit["title"],
+                "caption": "", "hashtags": [], "rationale": "AI-selected campaign montage",
+                "score": None, "transcript": "", "start_seconds": 0.0,
+                "end_seconds": round(duration, 3), "campaign_shots": edit["shots"],
+            })
+        return {"campaign_plan": plan, "campaign_edits": edits, "clips": clips}
+    if options.get("campaign_mode") and options.get("campaign_brief"):
+        from clipyyy.vision import analyze_campaign_video
+
+        try:
+            source["visual_analysis"] = analyze_campaign_video(source, ctx.work_dir, llm, options["campaign_brief"])
         except Exception:
             logger.exception("Campaign visual analysis failed; continuing with transcript-only selection")
-    result = select_clips(llm, source, ctx.state["transcribe"], options)
-    if options.get("campaign_plan"):
-        result["campaign_plan"] = options["campaign_plan"]
-    return result
+    return select_clips(llm, source, ctx.state["transcribe"], options)
 
 def stage_plan(ctx: Context) -> dict:
     from clipyyy.timeline import plan_timeline
