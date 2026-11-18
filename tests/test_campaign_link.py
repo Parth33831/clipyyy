@@ -59,3 +59,14 @@ def test_import_campaign_page_rejects_localhost():
 
     with pytest.raises(ValueError, match="private-network"):
         campaign_link.validate_public_url("http://localhost:8000/campaign")
+
+
+
+def test_import_campaign_page_uses_onelink_web_fallback(monkeypatch):
+    monkeypatch.setattr(campaign_link, "validate_public_url", lambda url: None)
+    monkeypatch.setattr(campaign_link.httpx, "Client", FakeClient)
+
+    result = campaign_link.import_campaign_page(
+        "https://clipster.onelink.me/2HTk/invite?af_web_dp=https%3A%2F%2Fclipster.com%2Fdiscover%3Fcampaign%3D123"
+    )
+    assert result["url"] == "https://clipster.com/discover?campaign=123"
