@@ -107,6 +107,8 @@ export function RunDetailPage() {
 
       {(busy || data.status === 'failed') && <Progress run={data} />}
 
+      {data.campaign_plan && <CampaignPlanCard plan={data.campaign_plan} />}
+
       {data.clips.length > 0 && data.source_duration ? (
         <Timeline run={data} focused={focused} onFocus={setFocused} />
       ) : null}
@@ -337,3 +339,55 @@ function CopyBlock({ label, text }: { label: string; text: string }) {
   )
 }
 
+
+function CampaignPlanCard({ plan }: { plan: NonNullable<RunDetail['campaign_plan']> }) {
+  const labels: Record<string, string> = {
+    campaign_name: 'Campaign',
+    platform: 'Platform',
+    content_type: 'Content type',
+    subject_or_theme: 'Subject / theme',
+    mood: 'Mood',
+    language: 'Language',
+    output_count: 'Output count',
+    target_duration_seconds: 'Target duration',
+    aspect_ratio: 'Aspect ratio',
+    audio_mode: 'Audio mode',
+    track_or_sound: 'Track / sound',
+    official_platform_sound_required: 'Official platform sound required',
+    on_screen_text_requirements: 'On-screen text',
+    mandatory_content: 'Must include',
+    prohibited_content: 'Must avoid',
+    visual_style_and_pacing: 'Visual style & pacing',
+    post_upload_actions: 'After upload (manual actions)',
+    performance_eligibility: 'Performance requirements (after publishing)',
+    rights_or_permissions_to_confirm: 'Rights / permissions to confirm',
+    unresolved_questions: 'Unresolved questions',
+  }
+  const entries = Object.entries(labels).filter(([key]) => {
+    const value = plan[key]
+    return value !== null && value !== undefined && value !== '' && (!Array.isArray(value) || value.length > 0)
+  })
+  if (!entries.length) return null
+  return (
+    <Panel className="flex flex-col gap-4 p-5">
+      <div>
+        <Eyebrow>Campaign intelligence</Eyebrow>
+        <h2 className="display mt-1 text-2xl">What the AI understood</h2>
+        <p className="mt-1 text-[13px] text-muted">Extracted from your brief. Unknown details are left blank rather than guessed.</p>
+      </div>
+      <dl className="grid gap-3 sm:grid-cols-2">
+        {entries.map(([key, label]) => {
+          const value = plan[key]
+          return (
+            <div key={key} className="border-t border-line pt-2">
+              <dt className="label text-muted">{label}</dt>
+              <dd className="mt-1 whitespace-pre-wrap text-sm">
+                {Array.isArray(value) ? value.join(' · ') : typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)}
+              </dd>
+            </div>
+          )
+        })}
+      </dl>
+    </Panel>
+  )
+}
