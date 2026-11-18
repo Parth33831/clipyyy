@@ -190,7 +190,6 @@ def test_gemini_image_request_retries_with_current_model_when_old_model_is_retir
     assert calls == ["gemini-2.5-flash", "gemini-3.8-flash"]
 
 
-
 def test_gemini_retries_transient_503_with_exponential_backoff(monkeypatch):
     from clipyyy import llm as llm_module
 
