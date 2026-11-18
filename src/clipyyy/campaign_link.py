@@ -46,12 +46,16 @@ class _PageParser(HTMLParser):
             href = urljoin(self.base_url, values["href"])
             self.links.append({"url": href, "text": ""})
             self._active_link = len(self.links) - 1
-        if tag in {"video", "source"}:
+        if tag in {"video", "source", "iframe"}:
             src = values.get("src") or values.get("data-src")
             if src:
-                self.video_urls.append(urljoin(self.base_url, src))
+                target = urljoin(self.base_url, src)
+                if urlparse(target).scheme in {"http", "https"}:
+                    self.video_urls.append(target)
             if values.get("poster"):
-                self.video_urls.append(urljoin(self.base_url, values["poster"]))
+                poster = urljoin(self.base_url, values["poster"])
+                if urlparse(poster).scheme in {"http", "https"}:
+                    self.video_urls.append(poster)
 
     def handle_endtag(self, tag: str) -> None:
         if tag == "title":
@@ -74,7 +78,7 @@ class _PageParser(HTMLParser):
                 link["text"] = (link["text"] + " " + text).strip()
 
 
-def _validate_public_url(url: str) -> None:
+def validate_public_url(url: str) -> None:
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise ValueError("Campaign link must be a public http:// or https:// webpage.")
@@ -105,7 +109,7 @@ def import_campaign_page(url: str) -> dict:
     with httpx.Client(timeout=httpx.Timeout(20.0), follow_redirects=False, trust_env=False) as client:
         response = None
         for _ in range(5):
-            _validate_public_url(current)
+            validate_public_url(current)
             response = client.get(current, headers=headers)
             if response.status_code not in {301, 302, 303, 307, 308}:
                 break
