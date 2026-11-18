@@ -83,9 +83,12 @@ def _validate_public_url(url: str) -> None:
     if host in {"localhost", "localhost.localdomain"} or host.endswith(".local"):
         raise ValueError("Local and private-network campaign links are blocked for security.")
     try:
-        addresses = {item[4][0] for item in socket.getaddrinfo(host, parsed.port or (443 if parsed.scheme == "https" else 80))}
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        addresses = {item[4][0] for item in socket.getaddrinfo(host, port)}
     except OSError as exc:
-        raise ValueError("Could not resolve the campaign website. Check the link and internet connection.") from exc
+        raise ValueError(
+            "Could not resolve the campaign website. Check the link and internet connection."
+        ) from exc
     for address in addresses:
         ip = ipaddress.ip_address(address.split("%", 1)[0])
         if not ip.is_global:
