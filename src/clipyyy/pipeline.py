@@ -71,7 +71,9 @@ def stage_download(ctx: Context) -> dict:
         sources = json.loads(ctx.source) if ctx.source.lstrip().startswith("[") else [ctx.source]
         from clipyyy.source import fetch_sources
 
-        result = fetch_sources(sources, ctx.work_dir)\n    else:\n        result = fetch_source(ctx.source, ctx.work_dir)
+        result = fetch_sources(sources, ctx.work_dir)
+    else:
+        result = fetch_source(ctx.source, ctx.work_dir)
     db.update_run(ctx.run_id, title=result["title"])
     return result
 
@@ -140,6 +142,12 @@ def stage_select(ctx: Context) -> dict:
     return select_clips(llm, source, ctx.state["transcribe"], options)
 
 def stage_plan(ctx: Context) -> dict:
+    if ctx.options.get("campaign_mode"):
+        return {"clips": [
+            {"rank": clip["rank"], "start_seconds": 0.0, "end_seconds": clip["end_seconds"],
+             "duration_seconds": clip["end_seconds"], "windows": []}
+            for clip in ctx.state["select"]["clips"]
+        ]}
     from clipyyy.timeline import plan_timeline
 
     return plan_timeline(ctx.state["select"], ctx.state["transcribe"], ctx.options["broll"])
@@ -155,6 +163,8 @@ def stage_broll(ctx: Context) -> dict:
 
 
 def stage_reframe(ctx: Context) -> dict:
+    if ctx.options.get("campaign_mode"):
+        return {"clips": []}
     from clipyyy.reframe import prepare_clips
 
     return prepare_clips(
