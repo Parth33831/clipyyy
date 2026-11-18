@@ -34,7 +34,7 @@ def test_snap_extends_short_clip_to_minimum(transcript):
 
 def test_snap_trims_long_clip_at_sentence_end(transcript):
     start, end = snap(0.0, 59.0, transcript["sentences"], 15, 30)
-    assert end - start <= 30
+    assert end - start <= 38
     assert end in {s["end"] for s in transcript["sentences"]}
 
 
@@ -77,7 +77,7 @@ def test_prompt_includes_options_and_instructions(transcript):
         transcript,
         {**OPTIONS, "instructions": "End captions with 'Follow for more'"},
     )
-    assert "up to 3" in system and "between 15 and 30 seconds" in system
+    assert "exactly 3" in user and "between 15 and 38 seconds" in system
     assert "Follow for more" in system
     assert "[0.0-" in user and "Talk by Ann" in user
 
@@ -193,3 +193,33 @@ def test_local_model_invalid_output_is_not_retried(transcript):
         select_clips(llm, {"title": "x"}, transcript, OPTIONS)
 
     assert llm.calls == 1
+
+
+
+def test_snap_finishes_next_sentence_when_target_is_reached():
+    sentences = [
+        {"start": 0.0, "end": 10.0, "text": "first sentence"},
+        {"start": 10.0, "end": 20.0, "text": "second sentence"},
+        {"start": 20.0, "end": 29.5, "text": "third sentence continues"},
+        {"start": 29.5, "end": 36.0, "text": "final thought completes here."},
+        {"start": 36.0, "end": 42.0, "text": "next topic"},
+    ]
+
+    start, end = snap(0.0, 29.0, sentences, 15.0, 30.0)
+
+    assert start == 0.0
+    assert end == 36.0
+
+
+def test_validate_allows_small_sentence_completion_overrun():
+    transcript = {
+        "sentences": [
+            {"start": 0.0, "end": 18.0, "text": "opening and setup"},
+            {"start": 18.0, "end": 36.0, "text": "complete final thought."},
+        ]
+    }
+
+    clips = validate_clips([raw(0.0, 30.0)], transcript, OPTIONS)
+
+    assert len(clips) == 1
+    assert clips[0]["end_seconds"] == 36.0
