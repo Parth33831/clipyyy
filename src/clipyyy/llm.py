@@ -43,6 +43,11 @@ PROVIDERS: dict[str, Provider] = {
         key_setting="openrouter_api_key",
         headers={"HTTP-Referer": "https://github.com/T3-Venture-Labs-Limited/clipyyy", "X-Title": "clipyyy"},
     ),
+    "gemini": Provider(
+        name="Google Gemini",
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+        key_setting="gemini_api_key",
+    ),
     "ollama": Provider(
         name="Ollama (local)",
         base_url="http://127.0.0.1:11434/v1",
