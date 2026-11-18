@@ -71,10 +71,16 @@ def build_prompt(source: dict, transcript: dict, options: dict) -> tuple[str, st
     instructions = (options.get("instructions") or "").strip()
     campaign_brief = (options.get("campaign_brief") or "").strip()
     if options.get("campaign_mode") and campaign_brief:
+        from clipyyy.campaign import format_campaign_plan
+
+        plan = options.get("campaign_plan") or {}
+        plan_text = format_campaign_plan(plan) if plan else "No structured plan available."
         instructions = (
             instructions
             + "\n\nCAMPAIGN REQUIREMENTS (highest priority):\n"
             + campaign_brief
+            + "\n\nSTRUCTURED CAMPAIGN PLAN (extracted from the brief; unknowns are intentionally omitted):\n"
+            + plan_text
             + "\n\nSelect only moments and visuals that directly serve this campaign. Treat the campaign music, subject, mood, language, on-screen text, and platform rules as hard creative constraints. Do not invent campaign requirements or claim a requirement is satisfied unless the output actually satisfies it."
         ).strip()
     template = Template((PACKAGE_DIR / "prompts" / "clip_selection.md").read_text(encoding="utf-8"))
