@@ -59,7 +59,6 @@ def test_requeue_only_touches_runs_of_dead_processes():
     assert db.get_run(orphan["id"])["status"] == "queued"
 
 
-
 def test_campaign_selection_uses_local_ollama_without_cloud_fallback(monkeypatch, tmp_path):
     from types import SimpleNamespace
 
