@@ -37,7 +37,9 @@ class ClipOptions(BaseModel):
     language: str = Field("auto", description="Spoken language code, or auto")
     instructions: str = Field("", max_length=4000, description="Extra guidance for the AI")
     campaign_mode: bool = False
-    campaign_brief: str = Field("", max_length=6000, description="Campaign requirements and creative brief")\n    campaign_music_path: str | None = Field(None, description="Optional user-provided campaign music file")\n    campaign_lyrics: str = Field("", max_length=3000, description="Optional user-provided lyric or on-screen text lines")
+    campaign_brief: str = Field("", max_length=6000, description="Campaign requirements and creative brief")
+    campaign_music_path: str | None = Field(None, description="Optional user-provided campaign music file")
+    campaign_lyrics: str = Field("", max_length=3000, description="Optional user-provided lyric or on-screen text lines")
     model: str | None = Field(None, description="Override the default LLM model")
 
     @model_validator(mode="after")
@@ -154,6 +156,8 @@ def stage_plan(ctx: Context) -> dict:
 
 
 def stage_broll(ctx: Context) -> dict:
+    if ctx.options.get("campaign_mode"):
+        return {"clips": []}
     from clipyyy.broll import fill_broll
 
     orientation = "square" if ctx.options["aspect_ratio"] == "1:1" else "portrait"
