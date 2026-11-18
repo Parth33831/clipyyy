@@ -148,7 +148,10 @@ def build_montage_plan(
             )
     # Text-only local models cannot inspect sampled frames. Never treat placeholder
     # observations as real visual descriptions; use an explicitly generic timestamp spread.
-    if candidates and all("Visual content unavailable" in str(item.get("description", "")) for item in candidates):
+    text_only_frames = all(
+        "Visual content unavailable" in str(item.get("description", "")) for item in candidates
+    )
+    if candidates and text_only_frames:
         return _build_text_only_montage(sources, output_count, target_seconds)
     if len(candidates) < 3:
         raise ValueError(
@@ -233,10 +236,15 @@ def build_montage_plan(
 
 
 
-def _build_text_only_montage(sources: list[dict], output_count: int, target_seconds: float) -> list[dict[str, Any]]:
+def _build_text_only_montage(
+    sources: list[dict], output_count: int, target_seconds: float
+) -> list[dict[str, Any]]:
     """Create honest timestamp-spread edits when no local vision model is installed."""
-    usable = [(i, float(s.get("duration_seconds") or 0)) for i, s in enumerate(sources)
-              if float(s.get("duration_seconds") or 0) >= 2.0]
+    usable = [
+        (i, float(source.get("duration_seconds") or 0))
+        for i, source in enumerate(sources)
+        if float(source.get("duration_seconds") or 0) >= 2.0
+    ]
     if not usable:
         raise ValueError("No usable source footage is available for a text-only montage.")
     shot_count = max(3, min(24, int((target_seconds + 3.9) // 4)))
@@ -253,12 +261,17 @@ def _build_text_only_montage(sources: list[dict], output_count: int, target_seco
             start = min(start, max(0.0, duration - shot_length))
             end = min(duration, start + shot_length)
             if end - start >= 1.5:
-                shots.append({
+                shots.append(
+                    {
                     "source_index": source_index,
                     "start_seconds": round(start, 3),
                     "end_seconds": round(end, 3),
-                    "reason": "Evenly sampled footage; visual content was not analysed by the installed text-only model.",
-                })
+                    "reason": (
+                        "Evenly sampled footage; visual content was not analysed "
+                        "by the installed text-only model."
+                    ),
+                    }
+                )
         if len(shots) < 3:
             raise ValueError("Source videos are too short for a useful text-only montage.")
         edits.append({"rank": rank, "title": f"Campaign montage {rank}", "shots": shots})
