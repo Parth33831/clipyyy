@@ -39,7 +39,7 @@ def test_sample_frames_extracts_evenly_spaced_frames(tmp_path, monkeypatch):
     calls = []
 
     def fake_ffmpeg(args):
-        output = tmp_path / "frames" / args[-1].split("/")[-1]
+        output = tmp_path / "campaign-frames" / args[-1].split("/")[-1]
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_bytes(b"frame")
         calls.append(args)
