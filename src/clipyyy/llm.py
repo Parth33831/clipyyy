@@ -225,9 +225,9 @@ def parse_json(content: Any) -> dict:
 def get_llm(model: str | None = None) -> LLM:
     """Return the local Ollama client; legacy hosted-provider settings are intentionally ignored."""
     provider = PROVIDERS["ollama"]
-    selected_model = model or get_setting("llm_model") or "qwen2.5vl:3b"
+    selected_model = model or get_setting("llm_model") or "qwen2.5:1.5b"
     if selected_model.startswith("google/") or selected_model.startswith("gemini-"):
-        selected_model = "qwen2.5vl:3b"
+        selected_model = "qwen2.5:1.5b"
     return OpenAICompatibleLLM(provider, "", selected_model)
 
 
