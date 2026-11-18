@@ -356,7 +356,9 @@ def render_campaign_montages(
                     "-i", str(visual), "-stream_loop", "-1", "-i", str(music_path),
                     "-map", "0:v:0", "-map", "1:a:0", "-t", f"{duration:.3f}",
                     "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
-                    "-af", f"volume=0.9,afade=t=in:st=0:d=0.4,afade=t=out:st={max(0.0, duration - 0.8):.3f}:d=0.8",
+                    "-af",
+                    f"volume=0.9,afade=t=in:st=0:d=0.4,"
+                    f"afade=t=out:st={max(0.0, duration - 0.8):.3f}:d=0.8",
                     "-shortest", "-movflags", "+faststart", str(output),
                 ])
             else:
@@ -366,14 +368,19 @@ def render_campaign_montages(
             renders.append({
                 "rank": rank, "status": "ready", "file_path": str(output),
                 "width": out_w, "height": out_h, "duration_seconds": round(final_duration, 2),
-                "audio": "user-provided campaign track" if music_path else "silent; add official campaign sound on the publishing platform if required",
+                "audio": (
+                    "user-provided campaign track"
+                    if music_path
+                    else "silent; add official campaign sound on the publishing platform if required"
+                ),
                 "lyrics_overlay": bool(lyrics),
                 "beat_synced": bool(beat_interval),
             })
         except Exception as exc:
             renders.append({"rank": rank, "status": "failed", "error": str(exc)})
     if not any(item["status"] == "ready" for item in renders):
-        raise RuntimeError("Every campaign edit failed to render: " + "; ".join(r.get("error", "") for r in renders))
+        errors = "; ".join(item.get("error", "") for item in renders)
+        raise RuntimeError("Every campaign edit failed to render: " + errors)
     return {
         "renders": renders,
         "quality_checks": {
@@ -381,8 +388,14 @@ def render_campaign_montages(
             "resolution": f"{width}x{height}",
             "lyrics_overlay": bool(lyrics),
             "music_track_added": bool(music_path),
-            "beat_sync": "approximate beat-grid timing applied" if beat_interval else "not applied (no local track or beat analysis unavailable)",
-            "official_platform_sound": "must be selected in the social app after export; never downloaded or impersonated",
+            "beat_sync": (
+                "approximate beat-grid timing applied"
+                if beat_interval
+                else "not applied (no local track or beat analysis unavailable)"
+            ),
+            "official_platform_sound": (
+                "must be selected in the social app after export; never downloaded or impersonated"
+            ),
         },
     }
 
@@ -395,15 +408,24 @@ def write_campaign_lyrics(lines: list[str], duration: float, path: Path, width: 
     script = [
         "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {width}", f"PlayResY: {height}",
         "WrapStyle: 0", "ScaledBorderAndShadow: yes", "", "[V4+ Styles]",
-        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-        f"Style: Default,Arial,{font_size},{_ass_color('FFFFFF')},&H000000FF,&H00000000,&H64000000,1,0,0,0,100,100,0,0,1,4,2,2,{round(width * 0.07)},{round(width * 0.07)},{round(height * 0.16)},1",
+        (
+            "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
+            "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, "
+            "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding"
+        ),
+        (
+            f"Style: Default,Arial,{font_size},{_ass_color('FFFFFF')},&H000000FF,"
+            f"&H00000000,&H64000000,1,0,0,0,100,100,0,0,1,4,2,2,"
+            f"{round(width * 0.07)},{round(width * 0.07)},{round(height * 0.16)},1"
+        ),
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
     interval = duration / max(1, len(lines))
     for index, line in enumerate(lines):
         start = index * interval
         end = duration if index == len(lines) - 1 else (index + 1) * interval
-        script.append(f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,{{\\fad(180,180)}}{_escape(line)}")
+        dialogue = f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,"
+        script.append(dialogue + f"{{\\fad(180,180)}}{_escape(line)}")
     path.write_text("\n".join(script) + "\n", encoding="utf-8")
     return path
 
@@ -438,7 +460,10 @@ def detect_music_beat_interval(path: Path) -> float | None:
     """Estimate a beat interval from short-window audio energy; return None when uncertain."""
     try:
         result = subprocess.run(
-            [ffmpeg_bin(), "-v", "error", "-i", str(path), "-ac", "1", "-ar", "11025", "-f", "f32le", "pipe:1"],
+            [
+                ffmpeg_bin(), "-v", "error", "-i", str(path),
+                "-ac", "1", "-ar", "11025", "-f", "f32le", "pipe:1",
+            ],
             capture_output=True, timeout=90, check=False,
         )
         if result.returncode or len(result.stdout) < 11025 * 4:
@@ -456,7 +481,11 @@ def detect_music_beat_interval(path: Path) -> float | None:
         threshold = max(baseline * 1.5, 1e-7)
         peaks = []
         for index in range(1, len(energy) - 1):
-            if energy[index] >= threshold and energy[index] >= energy[index - 1] and energy[index] > energy[index + 1]:
+            if (
+                energy[index] >= threshold
+                and energy[index] >= energy[index - 1]
+                and energy[index] > energy[index + 1]
+            ):
                 timestamp = index * window / 11025
                 if not peaks or timestamp - peaks[-1] >= 0.25:
                     peaks.append(timestamp)
