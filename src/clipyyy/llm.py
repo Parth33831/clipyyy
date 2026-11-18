@@ -170,7 +170,6 @@ class OpenAICompatibleLLM:
         return response
 
     def _post(self, body: dict[str, Any]) -> httpx.Response:
-        # A local model request is expensive; retrying a stalled inference multiplies wait time.
         # Gemini can return repeated 503s during regional demand spikes. Give it
         # a longer recovery window than other hosted providers, and respect the
         # provider's Retry-After hint when it supplies one.
@@ -179,6 +178,7 @@ class OpenAICompatibleLLM:
         delay = 3.0 if is_gemini else 2.0
         retryable_statuses = {429, 500, 502, 503, 504}
         for attempt in range(attempts):
+            retry_delay = delay
             try:
                 response = self._client.post("/chat/completions", json=body)
             except httpx.TimeoutException as exc:
@@ -200,10 +200,8 @@ class OpenAICompatibleLLM:
                     retry_after_seconds = min(60.0, max(0.0, float(retry_after or 0)))
                 except ValueError:
                     retry_after_seconds = 0.0
-                time.sleep(max(delay, retry_after_seconds))
-            if attempt < attempts - 1:
-                if "response" not in locals() or response.status_code not in retryable_statuses:
-                    time.sleep(delay)
+                retry_delay = max(delay, retry_after_seconds)
+            time.sleep(retry_delay)
             delay = min(delay * 2, 30.0)
         raise AssertionError("unreachable")
 
