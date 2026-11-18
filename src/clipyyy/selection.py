@@ -18,6 +18,8 @@ MAX_ATTEMPTS = 3
 # Keep overlap modest so a moment near a boundary is still visible in both windows.
 WINDOW_SECONDS = 18 * 60
 WINDOW_OVERLAP_SECONDS = 45
+# A short overrun lets a clip finish its final sentence instead of cutting off at the target.
+MAX_SENTENCE_OVERRUN_SECONDS = 8.0
 
 SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -71,7 +73,7 @@ def build_prompt(source: dict, transcript: dict, options: dict) -> tuple[str, st
     system = template.substitute(
         clip_count=options["clip_count"],
         min_seconds=_fmt(options["min_seconds"]),
-        max_seconds=_fmt(options["max_seconds"]),
+        max_seconds=_fmt(float(options["max_seconds"]) + MAX_SENTENCE_OVERRUN_SECONDS),
         instructions=f"\nInstructions from the user:\n{instructions}\n" if instructions else "",
     )
     lines = "\n".join(f"[{s['start']:.1f}-{s['end']:.1f}] {s['text']}" for s in transcript["sentences"])
@@ -184,7 +186,7 @@ def validate_clips(raw_clips: list[dict], transcript: dict, options: dict) -> li
         if start < float(sentences[0]["start"]) or end > float(sentences[-1]["end"]):
             continue
         start, end = snap(start, end, sentences, min_s, max_s)
-        if not (min_s - 0.5 <= end - start <= max_s + 0.5):
+        if not (min_s - 0.5 <= end - start <= max_s + MAX_SENTENCE_OVERRUN_SECONDS + 0.5):
             continue
         if any(start < c["end_seconds"] and c["start_seconds"] < end for c in accepted):
             continue
@@ -213,10 +215,11 @@ def validate_clips(raw_clips: list[dict], transcript: dict, options: dict) -> li
 
 
 def snap(start: float, end: float, sentences: list[dict], min_s: float, max_s: float) -> tuple[float, float]:
-    """Move start/end to the nearest sentence boundaries, then grow or trim into range."""
+    """Snap to complete sentences, allowing a brief overrun rather than cutting speech."""
     if not sentences:
         return start, min(max(end, start + min_s), start + max_s)
     start = min(sentences, key=lambda s: abs(s["start"] - start))["start"]
+    requested_end = end
     end = min(sentences, key=lambda s: abs(s["end"] - end))["end"]
     if end <= start:
         later = [s["end"] for s in sentences if s["end"] > start]
@@ -229,9 +232,29 @@ def snap(start: float, end: float, sentences: list[dict], min_s: float, max_s: f
             earlier = [s["start"] for s in sentences if s["start"] <= end - min_s]
             if earlier:
                 start = max(earlier)
+    # When the model has chosen an endpoint near the target limit, finish the next
+    # sentence if its boundary is within the small completion allowance.
+    if requested_end - start >= max_s - 3:
+        completion = [
+            s["end"]
+            for s in sentences
+            if start + max_s < s["end"] <= start + max_s + MAX_SENTENCE_OVERRUN_SECONDS
+        ]
+        if completion:
+            return start, min(completion)
     if end - start > max_s:
         fitting = [s["end"] for s in sentences if start < s["end"] <= start + max_s]
-        end = max(fitting) if fitting and max(fitting) - start >= min_s else start + max_s
+        if fitting and max(fitting) - start >= min_s:
+            end = max(fitting)
+        else:
+            # No complete sentence fits the requested range; prefer the first
+            # complete boundary within the allowance. Validation rejects longer clips.
+            completion = [
+                s["end"]
+                for s in sentences
+                if start + max_s < s["end"] <= start + max_s + MAX_SENTENCE_OVERRUN_SECONDS
+            ]
+            end = min(completion) if completion else end
     return start, end
 
 
