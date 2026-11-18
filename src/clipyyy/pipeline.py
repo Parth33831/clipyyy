@@ -193,8 +193,12 @@ def stage_render(ctx: Context) -> dict:
     if ctx.options.get("campaign_mode"):
         from clipyyy.render import render_campaign_montages
 
+        render_options = {
+            **ctx.options,
+            "campaign_plan": ctx.state["select"].get("campaign_plan"),
+        }
         result = render_campaign_montages(
-            ctx.state["download"], ctx.state["select"], ctx.work_dir, ctx.out_dir, ctx.options
+            ctx.state["download"], ctx.state["select"], ctx.work_dir, ctx.out_dir, render_options
         )
     else:
         from clipyyy.render import render_clips
