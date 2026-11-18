@@ -121,3 +121,39 @@ def test_campaign_music_can_be_attached_to_an_existing_run(client):
     music_path = updated["options"]["campaign_music_path"]
     assert music_path.endswith("midnight-sunlight.mp3")
     assert Path(music_path).is_file()
+
+
+def test_run_download_archive_is_persisted_under_clipyyy_home(client, tmp_path):
+    from clipyyy.config import home
+
+    run = db.create_run("local-video.mp4", {}, status="completed")
+    clip_file = tmp_path / "rendered-clip.mp4"
+    clip_file.write_bytes(b"fake-video")
+    db.replace_clips(
+        run["id"],
+        [
+            {
+                "rank": 1,
+                "start_seconds": 0,
+                "end_seconds": 10,
+                "duration_seconds": 10,
+                "title": "Test clip",
+                "post_title": "Test clip",
+                "caption": "",
+                "hashtags": "",
+                "rationale": "",
+                "transcript": "",
+                "file_path": str(clip_file),
+                "status": "ready",
+            }
+        ],
+    )
+
+    response = client.get(f"/api/runs/{run['id']}/download")
+    assert response.status_code == 200
+    archive = home() / "exports" / f"clipyyy-local-video-{run['id'][:8]}.zip"
+    assert archive.is_file()
+    import zipfile
+
+    with zipfile.ZipFile(archive) as zf:
+        assert "rendered-clip.mp4" in zf.namelist()
