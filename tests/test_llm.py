@@ -58,13 +58,19 @@ def test_parse_json_handles_prose():
         parse_json("no json here")
 
 
-def test_get_llm_requires_key_and_uses_settings():
-    with pytest.raises(LLMError, match="No API key"):
-        get_llm()
-    db.set_setting("openrouter_api_key", "sk-test")
-    db.set_setting("llm_model", "x/y")
-    assert get_llm().model == "x/y"
-    assert get_llm("override/model").model == "override/model"
+def test_get_llm_ignores_legacy_cloud_settings_and_uses_local_ollama(monkeypatch):
+    from clipyyy import llm as llm_module
+
+    values = {
+        "llm_provider": "gemini",
+        "llm_model": "gemini-2.5-flash",
+        "gemini_api_key": "legacy-key",
+    }
+    monkeypatch.setattr(llm_module, "get_setting", lambda key: values.get(key, ""))
+    client = get_llm()
+    assert client.provider.name == "Ollama (local)"
+    assert client.model == "qwen2.5vl:3b"
+    assert get_llm("qwen2.5:1.5b").model == "qwen2.5:1.5b"
 
 
 def test_ollama_provider_needs_no_api_key_and_sends_no_auth_header():
@@ -100,7 +106,7 @@ def test_get_llm_uses_local_default_model(monkeypatch):
     monkeypatch.setattr(llm_module, "get_setting", lambda key: values.get(key, ""))
     client = get_llm()
     assert client.provider.name == "Ollama (local)"
-    assert client.model == "qwen2.5:1.5b"
+    assert client.model == "qwen2.5vl:3b"
 
 
 def test_gemini_provider_uses_openai_compatible_endpoint_and_bearer_key():
@@ -122,18 +128,14 @@ def test_gemini_provider_uses_openai_compatible_endpoint_and_bearer_key():
     assert seen["auth"] == "Bearer gemini-test-key"
 
 
-def test_get_llm_uses_gemini_key_setting(monkeypatch):
+def test_get_llm_never_uses_legacy_gemini_key_setting(monkeypatch):
     from clipyyy import llm as llm_module
 
-    values = {
-        "llm_provider": "gemini",
-        "llm_model": "gemini-2.5-flash",
-        "gemini_api_key": "gemini-test-key",
-    }
+    values = {"llm_provider": "gemini", "llm_model": "gemini-3.8-flash", "gemini_api_key": "old-key"}
     monkeypatch.setattr(llm_module, "get_setting", lambda key: values.get(key, ""))
     client = get_llm()
-    assert client.provider.name == "Google Gemini"
-    assert client.model == "gemini-2.5-flash"
+    assert client.provider.name == "Ollama (local)"
+    assert client.model == "qwen2.5vl:3b"
 
 
 def test_gemini_retries_with_current_model_when_old_model_is_retired():
