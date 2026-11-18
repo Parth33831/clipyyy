@@ -135,7 +135,11 @@ export function RunDetailPage() {
               className="block w-full text-sm text-muted file:mr-3 file:border file:border-line file:bg-panel file:px-3 file:py-2 file:text-ink"
             />
             <span className="text-xs text-muted">
-              {data.options.campaign_music_path ? 'A track is attached. Upload another to replace it.' : 'No track attached. Add your downloaded campaign track here.'}
+              {data.options.campaign_music_path
+                ? data.campaign_plan?.official_platform_sound_required
+                  ? 'A track is attached and will be included in the export. TikTok’s official sound must still be selected separately when publishing.'
+                  : 'A track is attached and will be included in the export. Upload another to replace it.'
+                : 'No track attached. Add your downloaded campaign track here.'}
             </span>
           </label>
           <Button
@@ -442,7 +446,15 @@ function CampaignPlanCard({ plan, checks }: { plan: NonNullable<RunDetail['campa
             {Object.entries(checks).map(([key, value]) => (
               <div key={key}>
                 <dt className="label text-muted">{key.replaceAll('_', ' ')}</dt>
-                <dd className="mt-1 text-sm">{typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)}</dd>
+                <dd className="mt-1 text-sm">
+                  {key === 'lyrics_overlay' && value === false
+                    ? 'Not added — no creator-supplied lyric lines were configured.'
+                    : key === 'music_track_added' && value === true
+                      ? 'Yes — attached local track is mixed into the export.'
+                      : typeof value === 'boolean'
+                        ? (value ? 'Yes' : 'No')
+                        : String(value)}
+                </dd>
               </div>
             ))}
           </dl>
