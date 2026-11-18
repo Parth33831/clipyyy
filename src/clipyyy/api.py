@@ -131,7 +131,9 @@ def create_app(start_worker: bool = True) -> FastAPI:
             raise HTTPException(409, "Wait for the campaign run to finish before changing its music.")
         name = Path(file.filename or "campaign-music").name
         allowed_extensions = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac", ".opus", ".wma", ".aiff"}
-        if not (file.content_type or "").startswith("audio/") and Path(name).suffix.lower() not in allowed_extensions:
+        is_audio = (file.content_type or "").startswith("audio/")
+        has_audio_extension = Path(name).suffix.lower() in allowed_extensions
+        if not is_audio and not has_audio_extension:
             raise HTTPException(400, "Choose an audio file for campaign music.")
         target = uploads_dir() / f"{db.new_id()}-{name}"
         target.parent.mkdir(parents=True, exist_ok=True)
