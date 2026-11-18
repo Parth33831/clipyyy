@@ -67,12 +67,18 @@ def run_dir(run_id: str) -> Path:
 def stage_download(ctx: Context) -> dict:
     from clipyyy.source import fetch_source
 
-    if ctx.options.get("campaign_mode"):\n        sources = json.loads(ctx.source) if ctx.source.lstrip().startswith("[") else [ctx.source]\n        from clipyyy.source import fetch_sources\n\n        result = fetch_sources(sources, ctx.work_dir)\n    else:\n        result = fetch_source(ctx.source, ctx.work_dir)
+    if ctx.options.get("campaign_mode"):
+        sources = json.loads(ctx.source) if ctx.source.lstrip().startswith("[") else [ctx.source]
+        from clipyyy.source import fetch_sources
+
+        result = fetch_sources(sources, ctx.work_dir)\n    else:\n        result = fetch_source(ctx.source, ctx.work_dir)
     db.update_run(ctx.run_id, title=result["title"])
     return result
 
 
 def stage_transcribe(ctx: Context) -> dict:
+    if ctx.options.get("campaign_mode"):
+        return {"language": "campaign", "sentences": [], "words": []}
     from clipyyy.transcribe import transcribe
 
     return transcribe(
@@ -162,18 +168,25 @@ def stage_reframe(ctx: Context) -> dict:
 
 
 def stage_render(ctx: Context) -> dict:
-    from clipyyy.render import render_clips
+    if ctx.options.get("campaign_mode"):
+        from clipyyy.render import render_campaign_montages
 
-    result = render_clips(
-        ctx.state["download"],
-        ctx.state["select"],
-        ctx.state["broll"],
-        ctx.state["reframe"],
-        ctx.state["transcribe"],
-        ctx.work_dir,
-        ctx.out_dir,
-        ctx.options,
-    )
+        result = render_campaign_montages(
+            ctx.state["download"], ctx.state["select"], ctx.work_dir, ctx.out_dir, ctx.options
+        )
+    else:
+        from clipyyy.render import render_clips
+
+        result = render_clips(
+            ctx.state["download"],
+            ctx.state["select"],
+            ctx.state["broll"],
+            ctx.state["reframe"],
+            ctx.state["transcribe"],
+            ctx.work_dir,
+            ctx.out_dir,
+            ctx.options,
+        )
     renders = {r["rank"]: r for r in result["renders"]}
     db.replace_clips(
         ctx.run_id,
