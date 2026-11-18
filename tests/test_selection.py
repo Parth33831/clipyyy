@@ -147,13 +147,14 @@ def test_long_local_selection_distributes_candidates_across_windows():
             {"start": float(i * 800), "end": float(i * 800 + 10), "text": f"topic {i}"} for i in range(5)
         ],
     }
-    llm = FakeLLM([{"clips": []} for _ in range(5)])
+    llm = FakeLLM([{"clips": []} for _ in range(4)])
     llm.provider = type("LocalProvider", (), {"local": True})()
 
     with pytest.raises(ValueError, match="Clip selection failed"):
         select_clips(llm, {"title": "Long talk"}, transcript, OPTIONS)
 
-    assert llm.calls == 5
+    # Five sparse transcript points fit into four 18-minute windows with 45s overlap.
+    assert llm.calls == 4
     assert all("Select up to 1 non-overlapping clips" in system for system, _ in llm.prompts)
 
 
@@ -184,11 +185,11 @@ def test_local_model_timeout_aborts_all_remaining_windows():
     assert llm.calls == 1
 
 
-def test_local_model_invalid_output_is_not_retried(transcript):
+def test_local_model_invalid_output_is_not_retried():
     llm = FakeLLM([{"clips": [{"rank": 1}]}])
     llm.provider = type("LocalProvider", (), {"local": True})()
 
     with pytest.raises(ValueError, match="Clip selection failed"):
-        select_clips(llm, {"title": "x"}, transcript, OPTIONS)
+        select_clips(llm, {"title": "x"}, {"sentences": [{"start": 0, "end": 20, "text": "hello"}]}, OPTIONS)
 
     assert llm.calls == 1
