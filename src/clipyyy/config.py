@@ -42,8 +42,8 @@ SETTINGS: dict[str, SettingSpec] = {
     "gemini_api_key": SettingSpec("GEMINI_API_KEY", secret=True, description="Google Gemini API key"),
     "llm_model": SettingSpec(
         "CLIPYYY_LLM_MODEL",
-        "qwen2.5vl:3b",
-        description="Local Ollama model used for clip selection and campaign vision",
+        "qwen2.5:1.5b",
+        description="Local Ollama model used for clip selection and campaign planning",
     ),
     "whisper_model": SettingSpec("CLIPYYY_WHISPER_MODEL", "base", description="faster-whisper model size"),
     "pexels_api_key": SettingSpec("PEXELS_API_KEY", secret=True, description="Pexels key for B-roll"),
@@ -87,7 +87,7 @@ def get_setting(key: str) -> str:
     value = db.get_setting(key) or os.environ.get(spec.env, spec.default)
     # Older installs may still have a saved Gemini model. Never send that model ID to Ollama.
     if key == "llm_model" and (value.startswith("google/") or value.startswith("gemini-")):
-        return "qwen2.5vl:3b"
+        return "qwen2.5:1.5b"
     return value
 
 
