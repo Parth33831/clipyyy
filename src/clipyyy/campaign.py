@@ -238,7 +238,7 @@ def build_montage_plan(
 def _build_text_only_montage(
     sources: list[dict], output_count: int, target_seconds: float
 ) -> list[dict[str, Any]]:
-    """Create honest timestamp-spread edits when no local vision model is installed."""
+    """Create distinct, evenly distributed edits when no local vision model is installed."""
     usable = [
         (i, float(source.get("duration_seconds") or 0))
         for i, source in enumerate(sources)
@@ -248,16 +248,20 @@ def _build_text_only_montage(
         raise ValueError("No usable source footage is available for a text-only montage.")
     shot_count = max(3, min(24, int((target_seconds + 3.9) // 4)))
     shot_length = min(5.0, max(2.0, target_seconds / shot_count))
+    per_source_count = (shot_count + len(usable) - 1) // len(usable)
+    total_slots = max(1, per_source_count * output_count)
     edits = []
     for rank in range(1, output_count + 1):
         shots = []
+        source_slots = [0] * len(usable)
         for index in range(shot_count):
-            source_index, duration = usable[(index + rank - 1) % len(usable)]
-            per_source_count = (shot_count + len(usable) - 1) // len(usable)
-            slot = index // len(usable)
+            usable_index = (index + rank - 1) % len(usable)
+            source_index, duration = usable[usable_index]
+            local_slot = source_slots[usable_index]
+            source_slots[usable_index] += 1
+            global_slot = (rank - 1) * per_source_count + local_slot
             available = max(0.0, duration - shot_length)
-            start = available * slot / max(1, per_source_count - 1)
-            start = min(start, max(0.0, duration - shot_length))
+            start = available * global_slot / max(1, total_slots - 1)
             end = min(duration, start + shot_length)
             if end - start >= 1.5:
                 shots.append(
@@ -266,7 +270,7 @@ def _build_text_only_montage(
                         "start_seconds": round(start, 3),
                         "end_seconds": round(end, 3),
                         "reason": (
-                            "Evenly sampled footage; visual content was not analysed "
+                            "Distinct timestamp sample; visual content was not analysed "
                             "by the installed text-only model."
                         ),
                     }
