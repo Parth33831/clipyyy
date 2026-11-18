@@ -199,11 +199,11 @@ def select_clips(llm: LLM, source: dict, transcript: dict, options: dict) -> dic
         candidate["rank"] = rank
     clips = validate_clips(candidates, transcript, options)
 
-    # Hosted models can cheaply make one focused refill pass when window overlap or
-    # duplicate rejection leaves the requested count short. Never repeat expensive
-    # CPU-only local inference just to fill a quota.
+    # Hosted models can make one focused refill pass whenever validation or overlap
+    # rejection leaves the requested count short, including ordinary single-window
+    # videos. Never repeat expensive CPU-only local inference just to fill a quota.
     is_local = getattr(getattr(llm, "provider", None), "local", False)
-    if len(windows) > 1 and len(clips) < int(options["clip_count"]) and not is_local:
+    if len(clips) < int(options["clip_count"]) and not is_local:
         for window in windows:
             remaining = int(options["clip_count"]) - len(clips)
             if remaining <= 0:
