@@ -134,7 +134,7 @@ def test_get_llm_never_uses_legacy_gemini_key_setting(monkeypatch):
     monkeypatch.setattr(llm_module, "get_setting", lambda key: values.get(key, ""))
     client = get_llm()
     assert client.provider.name == "Ollama (local)"
-    assert client.model == "qwen2.5vl:3b"
+    assert client.model == "qwen2.5:1.5b"
 
 
 def test_gemini_retries_with_current_model_when_old_model_is_retired():
