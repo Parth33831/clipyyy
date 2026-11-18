@@ -425,17 +425,23 @@ def render_campaign_montages(
                 shutil.copy2(visual, output)
             out_w, out_h, final_duration = probe(output)
             make_poster(output, min(1.0, final_duration / 2))
-            renders.append({
-                "rank": rank, "status": "ready", "file_path": str(output),
-                "width": out_w, "height": out_h, "duration_seconds": round(final_duration, 2),
-                "audio": (
-                    "user-provided campaign track"
-                    if music_path
-                    else "silent; add official campaign sound on the publishing platform if required"
-                ),
-                "lyrics_overlay": bool(lyrics),
-                "beat_synced": bool(beat_interval),
-            })
+            renders.append(
+                {
+                    "rank": rank,
+                    "status": "ready",
+                    "file_path": str(output),
+                    "width": out_w,
+                    "height": out_h,
+                    "duration_seconds": round(final_duration, 2),
+                    "audio": (
+                        "user-provided campaign track"
+                        if music_path
+                        else "silent; add official campaign sound on the publishing platform if required"
+                    ),
+                    "lyrics_overlay": bool(lyrics),
+                    "beat_synced": bool(beat_interval),
+                }
+            )
         except Exception as exc:
             renders.append({"rank": rank, "status": "failed", "error": str(exc)})
     failed = [item for item in renders if item["status"] != "ready"]
