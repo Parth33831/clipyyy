@@ -170,12 +170,20 @@ def test_text_only_campaign_builds_timestamp_spread_without_visual_claims():
         "frames": [
             {
                 "timestamp": 10,
-                "description": "Visual content unavailable: installed model is text-only.",
+                "description": (
+                    "Visual content unavailable: installed model is text-only."
+                ),
             }
         ]
     }
     edits = build_montage_plan(
-        TextOnlyModel(), "Campaign brief", {}, sources, [unavailable, unavailable], 2, 30
+        TextOnlyModel(),
+        "Campaign brief",
+        {},
+        sources,
+        [unavailable, unavailable],
+        2,
+        30,
     )
     assert len(edits) == 2
     assert all(len(edit["shots"]) >= 3 for edit in edits)
