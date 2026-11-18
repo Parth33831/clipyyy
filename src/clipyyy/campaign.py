@@ -72,6 +72,104 @@ def local_fallback_plan(brief: str) -> dict[str, Any]:
     }
 
 
+MONTAGE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "edits": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string"},
+                    "shots": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "source_index": {"type": "integer"},
+                                "start_seconds": {"type": "number"},
+                                "end_seconds": {"type": "number"},
+                                "reason": {"type": "string"},
+                            },
+                            "required": ["source_index", "start_seconds", "end_seconds", "reason"],
+                            "additionalProperties": False,
+                        },
+                    },
+                },
+                "required": ["title", "shots"],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["edits"],
+    "additionalProperties": False,
+}
+
+
+def build_montage_plan(llm, brief: str, campaign_plan: dict[str, Any], sources: list[dict], analyses: list[dict], output_count: int, target_seconds: float) -> list[dict[str, Any]]:
+    """Choose an ordered montage from timestamped visual observations across all sources."""
+    if not hasattr(llm, "complete_json"):
+        raise ValueError("The selected AI model cannot create a structured montage plan.")
+    candidates = []
+    for source_index, (source, analysis) in enumerate(zip(sources, analyses, strict=True)):
+        for frame in analysis.get("frames", []):
+            candidates.append({
+                "source_index": source_index,
+                "source_title": source.get("title", f"Source {source_index + 1}"),
+                "source_duration": float(source.get("duration_seconds") or 0),
+                **frame,
+            })
+    if len(candidates) < 3:
+        raise ValueError("Not enough visual scenes could be analysed. Use a vision-capable model and clear source videos.")
+    system = (
+        "You are an expert campaign film editor. Build coherent, emotionally paced short-form video montages "
+        "from the supplied timestamped visual observations. Use only supplied source indexes and actual source "
+        "durations. Select visually relevant, varied moments; order them into a beginning, build and payoff. "
+        "Each shot should be 2 to 5 seconds, avoid repeating the same timestamp, and choose moments whose "
+        "surrounding footage is likely to contain the described scene. Never invent unseen events, dialogue, "
+        "lyrics or rights permissions. Respect the campaign brief and extracted requirements. Return JSON only."
+    )
+    user = (
+        f"Campaign brief:\n{brief}\n\nExtracted requirements:\n{format_campaign_plan(campaign_plan)}"
+        f"\n\nCreate {output_count} distinct edits, each approximately {target_seconds:.1f} seconds. "
+        "Choose enough shots to approach the target duration. Every source_index is zero-based. "
+        "All timestamps must remain inside that source's duration.\n\nVisual observations:\n"
+        + json.dumps(candidates, ensure_ascii=False)
+    )
+    result = llm.complete_json(system, user, MONTAGE_SCHEMA, "campaign_montage_plan")
+    edits = result.get("edits", [])
+    valid_edits = []
+    for rank, edit in enumerate(edits[:output_count], start=1):
+        shots = []
+        for shot in edit.get("shots", []):
+            try:
+                source_index = int(shot["source_index"])
+                if not 0 <= source_index < len(sources):
+                    continue
+                duration = float(sources[source_index].get("duration_seconds") or 0)
+                start = max(0.0, min(float(shot["start_seconds"]), duration))
+                end = max(start, min(float(shot["end_seconds"]), duration))
+                if end - start < 1.0:
+                    continue
+                shots.append({
+                    "source_index": source_index,
+                    "start_seconds": round(start, 3),
+                    "end_seconds": round(end, 3),
+                    "reason": str(shot.get("reason", ""))[:300],
+                })
+            except (KeyError, TypeError, ValueError):
+                continue
+        if len(shots) >= 3:
+            valid_edits.append({
+                "rank": rank,
+                "title": str(edit.get("title") or f"Campaign edit {rank}")[:100],
+                "shots": shots,
+            })
+    if not valid_edits:
+        raise ValueError("The AI could not build a valid montage from the analysed scenes. Try different source videos.")
+    return valid_edits
+
+
 def format_campaign_plan(plan: dict[str, Any]) -> str:
     """Compact, explicit plan for downstream creative selection."""
     labels = {
