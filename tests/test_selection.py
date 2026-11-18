@@ -222,3 +222,33 @@ def test_validate_allows_small_sentence_completion_overrun():
 
     assert len(clips) == 1
     assert clips[0]["end_seconds"] == 36.0
+
+
+def test_hosted_long_selection_refills_missing_clips_from_unused_sentences():
+    transcript = {
+        "language": "en",
+        "sentences": [
+            {"start": 0.0, "end": 10.0, "text": "first opening"},
+            {"start": 10.0, "end": 20.0, "text": "first payoff"},
+            {"start": 20.0, "end": 30.0, "text": "second opening"},
+            {"start": 30.0, "end": 40.0, "text": "second payoff"},
+            {"start": 1100.0, "end": 1110.0, "text": "distant opening"},
+            {"start": 1110.0, "end": 1120.0, "text": "distant payoff"},
+        ],
+    }
+    options = {**OPTIONS, "clip_count": 2}
+    llm = FakeLLM(
+        [
+            {"clips": [raw(0, 20, 1)]},
+            {"clips": []},
+            {"clips": []},
+            {"clips": []},
+            {"clips": [raw(20, 40, 1)]},
+        ]
+    )
+
+    result = select_clips(llm, {"title": "Long talk"}, transcript, options)
+
+    assert len(result["clips"]) == 2
+    assert {clip["start_seconds"] for clip in result["clips"]} == {0.0, 20.0}
+    assert llm.calls == 5
