@@ -90,11 +90,21 @@ def stage_select(ctx: Context) -> dict:
     options = dict(ctx.options)
     defaults = get_setting("default_instructions").strip()
     if defaults:
-        options["instructions"] = f"{defaults}\n{options['instructions']}".strip()
-    return select_clips(
-        get_llm(options.get("model")), ctx.state["download"], ctx.state["transcribe"], options
-    )
+        options["instructions"] = f"{defaults}\\n{options['instructions']}".strip()
+    llm = get_llm(options.get("model"))
+    source = dict(ctx.state["download"])
+    if options.get("campaign_mode") and options.get("campaign_brief") and not getattr(
+        getattr(llm, "provider", None), "local", False
+    ):
+        try:
+            from clipyyy.vision import analyze_campaign_video
 
+            source["visual_analysis"] = analyze_campaign_video(
+                source, ctx.work_dir, llm, options["campaign_brief"]
+            )
+        except Exception:
+            logger.exception("Campaign visual analysis failed; continuing with transcript-only selection")
+    return select_clips(llm, source, ctx.state["transcribe"], options)
 
 def stage_plan(ctx: Context) -> dict:
     from clipyyy.timeline import plan_timeline
