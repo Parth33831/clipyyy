@@ -111,11 +111,8 @@ def stage_select(ctx: Context) -> dict:
             raise ValueError(
                 "Paste a campaign link or add the campaign rules before starting a campaign edit."
             )
-        if getattr(getattr(llm, "provider", None), "local", False):
-            raise ValueError(
-                "Campaign montage editing needs a vision-capable model. Select Gemini in Settings; "
-                "local text-only Ollama cannot inspect video frames."
-            )
+        # Campaign vision analysis also uses the configured local Ollama model.
+        # Choose a vision-capable tag (for example qwen2.5vl:3b) in Settings.
         from clipyyy.campaign import build_montage_plan, parse_campaign_brief
         from clipyyy.vision import analyze_campaign_video, analyze_reference_video
 
