@@ -83,3 +83,54 @@ def test_campaign_lyrics_are_timed_and_written(tmp_path):
     assert "First line" in text
     assert "Second line" in text
     assert "Dialogue:" in text
+
+
+
+def test_montage_planner_uses_reference_video_style_without_copying_shots():
+    from clipyyy.campaign import build_montage_plan
+
+    class CapturingLLM:
+        user = ""
+
+        def complete_json(self, system, user, schema, name):
+            self.user = user
+            return {
+                "edits": [
+                    {
+                        "title": "Campaign cut",
+                        "shots": [
+                            {"source_index": 0, "start_seconds": 1, "end_seconds": 3, "reason": "hook"},
+                            {"source_index": 0, "start_seconds": 4, "end_seconds": 6, "reason": "build"},
+                            {"source_index": 0, "start_seconds": 7, "end_seconds": 9, "reason": "payoff"},
+                        ],
+                    }
+                ]
+            }
+
+    llm = CapturingLLM()
+    source = {"title": "My footage", "duration_seconds": 12}
+    analysis = {
+        "frames": [
+            {"timestamp": 1, "description": "product", "mood": "bright", "subjects": "item"},
+            {"timestamp": 5, "description": "person", "mood": "happy", "subjects": "person"},
+            {"timestamp": 8, "description": "logo", "mood": "bold", "subjects": "logo"},
+        ]
+    }
+    reference = {
+        "title": "Reference example",
+        "frames": [
+            {
+                "timestamp": 2,
+                "description": "Fast close-up cuts with centred kinetic typography",
+                "mood": "energetic",
+                "subjects": "product",
+            }
+        ],
+    }
+    edits = build_montage_plan(
+        llm, "Product campaign", {}, [source], [analysis], 1, 6,
+        reference_analyses=[reference],
+    )
+    assert len(edits) == 1
+    assert "centred kinetic typography" in llm.user
+    assert "never copy reference footage" in llm.user
