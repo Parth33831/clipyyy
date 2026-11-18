@@ -299,7 +299,13 @@ def render_campaign_montages(
     out_dir.mkdir(parents=True, exist_ok=True)
     renders = []
     lyrics = [line.strip() for line in options.get("campaign_lyrics", "").splitlines() if line.strip()]
-    music_path = Path(options["campaign_music_path"]) if options.get("campaign_music_path") else None
+    campaign_plan = options.get("campaign_plan") or {}
+    official_sound_required = campaign_plan.get("official_platform_sound_required") is True
+    music_path = (
+        Path(options["campaign_music_path"])
+        if options.get("campaign_music_path") and not official_sound_required
+        else None
+    )
     if music_path and not music_path.is_file():
         raise FileNotFoundError(f"Campaign music file not found: {music_path}")
     beat_interval = detect_music_beat_interval(music_path) if music_path else None
@@ -388,13 +394,16 @@ def render_campaign_montages(
             "resolution": f"{width}x{height}",
             "lyrics_overlay": bool(lyrics),
             "music_track_added": bool(music_path),
+            "official_sound_required": official_sound_required,
             "beat_sync": (
                 "approximate beat-grid timing applied"
                 if beat_interval
                 else "not applied (no local track or beat analysis unavailable)"
             ),
             "official_platform_sound": (
-                "must be selected in the social app after export; never downloaded or impersonated"
+                "select the campaign's official sound in the social app after export"
+                if official_sound_required
+                else "add manually if the campaign requires it"
             ),
         },
     }
