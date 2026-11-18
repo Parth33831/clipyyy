@@ -162,6 +162,7 @@ def stage_select(ctx: Context) -> dict:
         return {"campaign_plan": plan, "campaign_edits": edits, "clips": clips}
     return select_clips(llm, source, ctx.state["transcribe"], options)
 
+
 def stage_plan(ctx: Context) -> dict:
     if ctx.options.get("campaign_mode"):
         return {
