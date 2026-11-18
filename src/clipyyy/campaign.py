@@ -149,7 +149,8 @@ def build_montage_plan(
     # Text-only local models cannot inspect sampled frames. Never treat placeholder
     # observations as real visual descriptions; use an explicitly generic timestamp spread.
     text_only_frames = all(
-        "Visual content unavailable" in str(item.get("description", "")) for item in candidates
+        "Visual content unavailable" in str(item.get("description", ""))
+        for item in candidates
     )
     if candidates and text_only_frames:
         return _build_text_only_montage(sources, output_count, target_seconds)
@@ -263,19 +264,20 @@ def _build_text_only_montage(
             if end - start >= 1.5:
                 shots.append(
                     {
-                    "source_index": source_index,
-                    "start_seconds": round(start, 3),
-                    "end_seconds": round(end, 3),
-                    "reason": (
-                        "Evenly sampled footage; visual content was not analysed "
-                        "by the installed text-only model."
-                    ),
+                        "source_index": source_index,
+                        "start_seconds": round(start, 3),
+                        "end_seconds": round(end, 3),
+                        "reason": (
+                            "Evenly sampled footage; visual content was not analysed "
+                            "by the installed text-only model."
+                        ),
                     }
                 )
         if len(shots) < 3:
             raise ValueError("Source videos are too short for a useful text-only montage.")
         edits.append({"rank": rank, "title": f"Campaign montage {rank}", "shots": shots})
     return edits
+
 
 def format_campaign_plan(plan: dict[str, Any]) -> str:
     """Compact, explicit plan for downstream creative selection."""
