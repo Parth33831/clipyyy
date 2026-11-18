@@ -122,6 +122,25 @@ def create_app(start_worker: bool = True) -> FastAPI:
             shutil.copyfileobj(file.file, fh, length=1024 * 1024)
         return {"source": str(target), "name": name}
 
+    @app.post("/api/runs/{run_id}/campaign-music")
+    def attach_campaign_music(run_id: str, file: UploadFile) -> dict:
+        run = _run_or_404(run_id)
+        if not run["options"].get("campaign_mode"):
+            raise HTTPException(400, "Campaign music can only be attached to campaign runs.")
+        if run["status"] in {"queued", "running"}:
+            raise HTTPException(409, "Wait for the campaign run to finish before changing its music.")
+        name = Path(file.filename or "campaign-music").name
+        allowed_extensions = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac", ".opus", ".wma", ".aiff"}
+        if not (file.content_type or "").startswith("audio/") and Path(name).suffix.lower() not in allowed_extensions:
+            raise HTTPException(400, "Choose an audio file for campaign music.")
+        target = uploads_dir() / f"{db.new_id()}-{name}"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("wb") as fh:
+            shutil.copyfileobj(file.file, fh, length=1024 * 1024)
+        options = {**run["options"], "campaign_music_path": str(target)}
+        db.update_run(run_id, options=options)
+        return {"name": name, "attached": True}
+
     @app.post("/api/runs")
     def create_runs(body: CreateRuns) -> list[dict]:
         sources = [source.strip() for source in body.sources if source.strip()]
