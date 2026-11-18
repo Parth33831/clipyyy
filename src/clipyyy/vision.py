@@ -70,9 +70,7 @@ def analyze_campaign_video(source: dict, work_dir: Path, llm, campaign_brief: st
     """Ask a vision model to describe sampled scenes in relation to the supplied campaign."""
     frames = sample_frames(Path(source["video_path"]), float(source.get("duration_seconds") or 0), work_dir)
     if not hasattr(llm, "complete_json_with_images"):
-        logger.info(
-            "Text-only model; keeping sampled timestamps without visual descriptions"
-        )
+        logger.info("Text-only model; keeping sampled timestamps without visual descriptions")
         return {
             "frames": [
                 {
