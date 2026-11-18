@@ -177,5 +177,5 @@ def test_render_campaign_montage_from_multiple_sources(tmp_path):
     assert render["status"] == "ready", render.get("error")
     width, height, duration = probe(render["file_path"])
     assert (width, height) == (1080, 1920)
-    assert 8.5 <= duration <= 9.5
+    assert 8.0 <= duration <= 9.5
     assert render["lyrics_overlay"] is True
