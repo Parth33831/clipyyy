@@ -113,7 +113,8 @@ def analyze_reference_video(source: dict, work_dir: Path, llm) -> dict:
     if not frames:
         return {"frames": []}
     system = (
-        "You are a visual editing analyst studying a campaign reference video. Describe only visible evidence: "
+        "You are a visual editing analyst studying a campaign reference video. "
+        "Describe only visible evidence: "
         "shot scale, framing, composition, dominant colours, lighting, visible text or graphics, "
         "and recurring "
         "visual motifs. Do not claim to know the soundtrack, exact transitions, or motion from still frames. "
