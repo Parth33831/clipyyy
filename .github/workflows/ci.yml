@@ -54,6 +54,16 @@ jobs:
       - run: uv sync --python 3.12
       - run: uv run ruff check src tests
       - run: uv run ruff format --check src tests
+      - name: Validate Windows startup PowerShell scripts
+        shell: pwsh
+        run: |
+          $files = @('scripts/windows/Install-Startup.ps1', 'scripts/windows/Uninstall-Startup.ps1')
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD $file), [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) { $errors | Format-List | Out-String | Write-Error }
+          }
       - run: uv run pytest -vv --full-trace
 
   frontend:
