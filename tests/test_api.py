@@ -87,3 +87,19 @@ def test_run_detail_reports_stage_elapsed_time(client):
     detail = client.get(f"/api/runs/{run['id']}").json()
     stage = next(item for item in detail["stages"] if item["name"] == "transcribe")
     assert stage["duration_seconds"] == 65.0
+
+
+
+def test_campaign_run_accepts_public_campaign_url_without_manual_brief(client):
+    response = client.post(
+        "/api/runs",
+        json={
+            "sources": ["local-video.mp4"],
+            "options": {
+                "campaign_mode": True,
+                "campaign_url": "https://campaign.example/details",
+            },
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()[0]["options"]["campaign_url"] == "https://campaign.example/details"
