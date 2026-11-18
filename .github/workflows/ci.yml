@@ -85,7 +85,7 @@ jobs:
       - name: Validate Windows startup PowerShell scripts
         shell: pwsh
         run: |
-          $files = @('scripts/windows/Install-Startup.ps1', 'scripts/windows/Uninstall-Startup.ps1')
+          $files = @('scripts/windows/Install-Startup.ps1', 'scripts/windows/Uninstall-Startup.ps1', 'scripts/windows/Update-Clipyyy.ps1')
           foreach ($file in $files) {
             $tokens = $null
             $errors = $null
