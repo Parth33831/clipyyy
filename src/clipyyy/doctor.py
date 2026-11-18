@@ -12,14 +12,15 @@ def checks() -> list[dict]:
     found = find_ffmpeg()
     ffmpeg, libass = found.ffmpeg, found.libass
     provider = get_setting("llm_provider") or "openrouter"
-    llm_key = bool(get_setting("openrouter_api_key"))
-    llm_ready = provider == "ollama" or llm_key
+    key_setting = {"openrouter": "openrouter_api_key", "gemini": "gemini_api_key"}.get(provider, "")
+    llm_key = bool(get_setting(key_setting)) if key_setting else False
+    llm_ready = provider == "ollama" or (bool(key_setting) and llm_key)
     llm_detail = (
         f"Ollama (local) · {get_setting('llm_model') or 'qwen2.5:1.5b'}"
         if provider == "ollama"
         else f"{provider} · {get_setting('llm_model')}"
-        if llm_key
-        else "add an OpenRouter API key or select the local Ollama provider"
+        if llm_ready
+        else f"add a {provider} API key or select the local Ollama provider"
     )
     runtime = js_runtime()
     return [
