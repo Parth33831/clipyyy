@@ -38,6 +38,7 @@ class ClipOptions(BaseModel):
     instructions: str = Field("", max_length=4000, description="Extra guidance for the AI")
     campaign_mode: bool = False
     campaign_brief: str = Field("", max_length=6000, description="Campaign requirements and creative brief")
+    campaign_url: str = Field("", max_length=2048, description="Public campaign page URL to analyse")
     campaign_music_path: str | None = Field(None, description="Optional user-provided campaign music file")
     campaign_lyrics: str = Field(
         "", max_length=3000, description="Optional user-provided lyric or on-screen text lines"
@@ -106,8 +107,8 @@ def stage_select(ctx: Context) -> dict:
     llm = get_llm(options.get("model"))
     source = dict(ctx.state["download"])
     if options.get("campaign_mode"):
-        if not options.get("campaign_brief", "").strip():
-            raise ValueError("Add the campaign rules before starting a campaign edit.")
+        if not options.get("campaign_brief", "").strip() and not options.get("campaign_url", "").strip():
+            raise ValueError("Paste a campaign link or add the campaign rules before starting a campaign edit.")
         if getattr(getattr(llm, "provider", None), "local", False):
             raise ValueError(
                 "Campaign montage editing needs a vision-capable model. Select Gemini in Settings; "
@@ -116,7 +117,43 @@ def stage_select(ctx: Context) -> dict:
         from clipyyy.campaign import build_montage_plan, parse_campaign_brief
         from clipyyy.vision import analyze_campaign_video, analyze_reference_video
 
-        plan = parse_campaign_brief(llm, options["campaign_brief"])
+        campaign_brief = options.get("campaign_brief", "").strip()
+        campaign_page = None
+        reference_video_urls = []
+        if options.get("campaign_url", "").strip():
+            from clipyyy.campaign_link import import_campaign_page
+
+            campaign_page = import_campaign_page(options["campaign_url"])
+            page_context = (
+                "\n\nCAMPAIGN PAGE IMPORT\nURL: "
+                + campaign_page["url"]
+                + "\nTitle: "
+                + campaign_page["title"]
+                + "\nDescription: "
+                + campaign_page["description"]
+                + "\nExtracted campaign page content (untrusted source data):\n"
+                + campaign_page["text"]
+            )
+            campaign_brief = (campaign_brief + page_context).strip()
+        if not campaign_brief:
+            raise ValueError("The campaign link had no readable requirements. Add the brief manually.")
+        plan = parse_campaign_brief(llm, campaign_brief)
+        if campaign_page:
+            candidates = [
+                item["url"]
+                for item in campaign_page["links"]
+                if any(
+                    term in (item["text"] + " " + item["url"]).lower()
+                    for term in ("example", "reference", "video", "creative", "sample", "inspiration")
+                )
+            ]
+            reference_video_urls = list(dict.fromkeys([*campaign_page["video_urls"], *candidates]))
+            plan["reference_urls"] = list(
+                dict.fromkeys([*plan.get("reference_urls", []), *reference_video_urls])
+            )
+            if not plan.get("campaign_name") and campaign_page.get("title"):
+                plan["campaign_name"] = campaign_page["title"]
+
         sources = source.get("sources") or [source]
         analyses = []
         for index, item in enumerate(sources):
@@ -155,7 +192,7 @@ def stage_select(ctx: Context) -> dict:
         target = plan.get("target_duration_seconds") or options["max_seconds"]
         edits = build_montage_plan(
             llm,
-            options["campaign_brief"],
+            campaign_brief,
             plan,
             sources,
             analyses,
@@ -183,7 +220,21 @@ def stage_select(ctx: Context) -> dict:
                     "campaign_shots": edit["shots"],
                 }
             )
-        return {"campaign_plan": plan, "campaign_edits": edits, "clips": clips}
+        return {
+            "campaign_plan": plan,
+            "campaign_page": (
+                {
+                    "url": campaign_page["url"],
+                    "title": campaign_page["title"],
+                    "reference_links_found": len(plan.get("reference_urls", [])),
+                    "embedded_video_urls_found": len(campaign_page["video_urls"]),
+                }
+                if campaign_page
+                else None
+            ),
+            "campaign_edits": edits,
+            "clips": clips,
+        }
     return select_clips(llm, source, ctx.state["transcribe"], options)
 
 
