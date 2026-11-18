@@ -33,7 +33,7 @@ class FakeClient:
 
 
 def test_import_campaign_page_extracts_rules_and_reference_links(monkeypatch):
-    monkeypatch.setattr(campaign_link, "_validate_public_url", lambda url: None)
+    monkeypatch.setattr(campaign_link, "validate_public_url", lambda url: None)
     monkeypatch.setattr(campaign_link.httpx, "Client", FakeClient)
 
     result = campaign_link.import_campaign_page("https://campaign.example/details")
@@ -58,4 +58,4 @@ def test_import_campaign_page_rejects_localhost():
     import pytest
 
     with pytest.raises(ValueError, match="private-network"):
-        campaign_link._validate_public_url("http://localhost:8000/campaign")
+        campaign_link.validate_public_url("http://localhost:8000/campaign")
