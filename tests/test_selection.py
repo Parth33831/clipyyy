@@ -137,15 +137,14 @@ def test_long_transcript_is_analysed_in_multiple_windows():
     assert len(result["clips"]) == 2
     assert result["clips"][0]["start_seconds"] == 800.0
     assert result["clips"][1]["start_seconds"] == 0.0
-    assert all("Select up to 2 non-overlapping clips" in system for system, _ in llm.prompts)
+    assert all("Select up to 1 non-overlapping clips" in system for system, _ in llm.prompts)
 
 
 def test_long_local_selection_distributes_candidates_across_windows():
     transcript = {
         "language": "en",
         "sentences": [
-            {"start": float(i * 800), "end": float(i * 800 + 10), "text": f"topic {i}"}
-            for i in range(5)
+            {"start": float(i * 800), "end": float(i * 800 + 10), "text": f"topic {i}"} for i in range(5)
         ],
     }
     llm = FakeLLM([{"clips": []} for _ in range(5)])
