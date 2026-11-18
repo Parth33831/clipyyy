@@ -108,7 +108,9 @@ def stage_select(ctx: Context) -> dict:
     source = dict(ctx.state["download"])
     if options.get("campaign_mode"):
         if not options.get("campaign_brief", "").strip() and not options.get("campaign_url", "").strip():
-            raise ValueError("Paste a campaign link or add the campaign rules before starting a campaign edit.")
+            raise ValueError(
+                "Paste a campaign link or add the campaign rules before starting a campaign edit."
+            )
         if getattr(getattr(llm, "provider", None), "local", False):
             raise ValueError(
                 "Campaign montage editing needs a vision-capable model. Select Gemini in Settings; "
