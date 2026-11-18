@@ -142,3 +142,40 @@ def test_source_subtitles_disable_generated_caption_overlay(tmp_path, transcript
 
     assert result["renders"][0]["status"] == "ready"
     assert not (work_dir / "clip-01" / "captions.ass").exists()
+
+
+def test_render_campaign_montage_from_multiple_sources(tmp_path):
+    from clipyyy.render import render_campaign_montages
+
+    sources = []
+    for index, colour in enumerate(("red", "blue")):
+        source = tmp_path / f"source-{index}.mp4"
+        run_ffmpeg([
+            "-f", "lavfi", "-i", f"color=c={colour}:s=640x360:r=24:d=12",
+            "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", str(source),
+        ])
+        sources.append({"video_path": str(source), "duration_seconds": 12, "title": f"Source {index}"})
+    selection = {
+        "campaign_edits": [{
+            "rank": 1,
+            "title": "Multi source test",
+            "shots": [
+                {"source_index": 0, "start_seconds": 1, "end_seconds": 4, "reason": "opening"},
+                {"source_index": 1, "start_seconds": 2, "end_seconds": 5, "reason": "build"},
+                {"source_index": 0, "start_seconds": 6, "end_seconds": 9, "reason": "payoff"},
+            ],
+        }]
+    }
+    result = render_campaign_montages(
+        {"sources": sources},
+        selection,
+        tmp_path / "work",
+        tmp_path / "out",
+        {"aspect_ratio": "9:16", "campaign_lyrics": "First line\\nSecond line", "campaign_music_path": None},
+    )
+    render = result["renders"][0]
+    assert render["status"] == "ready", render.get("error")
+    width, height, duration = probe(render["file_path"])
+    assert (width, height) == (1080, 1920)
+    assert 8.5 <= duration <= 9.5
+    assert render["lyrics_overlay"] is True
