@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import re
 import shutil
+import subprocess
+from array import array
 from pathlib import Path
 from statistics import median
 
 from clipyyy.captions import ass_filter, clip_words, write_ass
-from clipyyy.media import has_audio, probe, run_ffmpeg
+from clipyyy.media import ffmpeg_bin, has_audio, probe, run_ffmpeg
 
 FPS = 30
 SIZES = {"9:16": (1080, 1920), "4:5": (1080, 1350), "1:1": (1080, 1080)}
@@ -300,6 +302,7 @@ def render_campaign_montages(
     music_path = Path(options["campaign_music_path"]) if options.get("campaign_music_path") else None
     if music_path and not music_path.is_file():
         raise FileNotFoundError(f"Campaign music file not found: {music_path}")
+    beat_interval = detect_music_beat_interval(music_path) if music_path else None
 
     for edit in selection.get("campaign_edits", []):
         rank = edit["rank"]
@@ -316,6 +319,12 @@ def render_campaign_montages(
                 start = max(0.0, float(shot["start_seconds"]))
                 end = min(float(sources[source_index]["duration_seconds"]), float(shot["end_seconds"]))
                 duration = end - start
+                if beat_interval and duration >= 1.5:
+                    beat_count = max(3, round(duration / beat_interval))
+                    aligned_duration = beat_count * beat_interval
+                    if 1.5 <= aligned_duration <= 5.0:
+                        end = min(float(sources[source_index]["duration_seconds"]), start + aligned_duration)
+                        duration = end - start
                 if duration < 1.0:
                     continue
                 segment = edit_dir / f"shot-{shot_index:03d}.mp4"
@@ -347,7 +356,7 @@ def render_campaign_montages(
                     "-i", str(visual), "-stream_loop", "-1", "-i", str(music_path),
                     "-map", "0:v:0", "-map", "1:a:0", "-t", f"{duration:.3f}",
                     "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
-                    "-af", "volume=0.9,afade=t=in:st=0:d=0.4",
+                    "-af", f"volume=0.9,afade=t=in:st=0:d=0.4,afade=t=out:st={max(0.0, duration - 0.8):.3f}:d=0.8",
                     "-shortest", "-movflags", "+faststart", str(output),
                 ])
             else:
@@ -359,6 +368,7 @@ def render_campaign_montages(
                 "width": out_w, "height": out_h, "duration_seconds": round(final_duration, 2),
                 "audio": "user-provided campaign track" if music_path else "silent; add official campaign sound on the publishing platform if required",
                 "lyrics_overlay": bool(lyrics),
+                "beat_synced": bool(beat_interval),
             })
         except Exception as exc:
             renders.append({"rank": rank, "status": "failed", "error": str(exc)})
@@ -371,6 +381,7 @@ def render_campaign_montages(
             "resolution": f"{width}x{height}",
             "lyrics_overlay": bool(lyrics),
             "music_track_added": bool(music_path),
+            "beat_sync": "approximate beat-grid timing applied" if beat_interval else "not applied (no local track or beat analysis unavailable)",
             "official_platform_sound": "must be selected in the social app after export; never downloaded or impersonated",
         },
     }
@@ -421,3 +432,38 @@ def _crossfade_segments(segments: list[Path], output: Path, fade_seconds: float 
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "19",
         "-pix_fmt", "yuv420p", "-r", str(FPS), "-movflags", "+faststart", str(output),
     ])
+
+
+def detect_music_beat_interval(path: Path) -> float | None:
+    """Estimate a beat interval from short-window audio energy; return None when uncertain."""
+    try:
+        result = subprocess.run(
+            [ffmpeg_bin(), "-v", "error", "-i", str(path), "-ac", "1", "-ar", "11025", "-f", "f32le", "pipe:1"],
+            capture_output=True, timeout=90, check=False,
+        )
+        if result.returncode or len(result.stdout) < 11025 * 4:
+            return None
+        samples = array("f")
+        samples.frombytes(result.stdout[: len(result.stdout) - (len(result.stdout) % 4)])
+        window = 551
+        energy = []
+        for offset in range(0, len(samples) - window, window):
+            chunk = samples[offset : offset + window]
+            energy.append(sum(value * value for value in chunk) / window)
+        if len(energy) < 20:
+            return None
+        baseline = median(energy)
+        threshold = max(baseline * 1.5, 1e-7)
+        peaks = []
+        for index in range(1, len(energy) - 1):
+            if energy[index] >= threshold and energy[index] >= energy[index - 1] and energy[index] > energy[index + 1]:
+                timestamp = index * window / 11025
+                if not peaks or timestamp - peaks[-1] >= 0.25:
+                    peaks.append(timestamp)
+        intervals = [b - a for a, b in zip(peaks, peaks[1:], strict=False) if 0.30 <= b - a <= 1.20]
+        if len(intervals) < 4:
+            return None
+        estimate = median(intervals)
+        return round(estimate, 4) if 0.30 <= estimate <= 1.20 else None
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
