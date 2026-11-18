@@ -124,34 +124,26 @@ export function SettingsPage() {
         </aside>
 
         <div className="flex flex-col gap-6">
-          <Section id="ai" title="AI" description="Choose Google Gemini, another hosted model, or run inference privately on your own computer with Ollama.">
-            <Field label="AI provider" hint="Ollama runs locally and does not need an API key or paid credits.">
-              <Select value={draft.llm_provider ?? 'openrouter'} onChange={(e) => update('llm_provider')(e.target.value)}>
-                <option value="ollama">Ollama · local and free</option>
-                <option value="gemini">Google Gemini · AI Studio API</option>
-                <option value="openrouter">OpenRouter · hosted models</option>
-              </Select>
-            </Field>
-            {(draft.llm_provider ?? 'openrouter') === 'gemini' && (
-              <Field label="Google Gemini API key" hint={<Ext href="https://aistudio.google.com/apikey">Create a key in Google AI Studio</Ext>}>
-                {secret('gemini_api_key', 'Gemini API key')}
-              </Field>
-            )}
-            {(draft.llm_provider ?? 'openrouter') === 'openrouter' && (
-              <Field label="OpenRouter API key" hint={<Ext href="https://openrouter.ai/keys">Create a key</Ext>}>
-                {secret('openrouter_api_key', 'sk-or-…')}
-              </Field>
-            )}
+          <Section
+            id="ai"
+            title="AI"
+            description="Clipyyy uses local Ollama models on this computer. Video analysis and clip selection do not send requests to Gemini, OpenRouter or other hosted AI APIs."
+          >
+            <div className="border border-line bg-sunk p-4">
+              <p className="label text-ink">AI engine</p>
+              <p className="mt-2 text-sm font-semibold text-ink">Ollama · local and free</p>
+              <p className="mt-1 text-[13px] leading-relaxed text-muted">
+                No API keys, credits, subscriptions or daily request quotas. Ollama must be running on this computer.
+              </p>
+            </div>
             <Field
-              label="Default model"
-              hint={(draft.llm_provider ?? 'openrouter') === 'ollama'
-                ? 'Enter an installed Ollama model name, for example qwen2.5:1.5b. Make sure Ollama is running.'
-                : (draft.llm_provider ?? 'openrouter') === 'gemini' ? 'Choose a Gemini model available to your AI Studio project. Check your free-tier quota before processing long videos.' : 'Type to search. Fast, cheap long-context models work well; a one-hour video is about 15k tokens.'}
+              label="Local model"
+              hint="Use a model installed in Ollama. For campaign editing with visual analysis, use a vision-capable model such as qwen2.5vl:3b. CPU inference may take time."
             >
               <ModelInput
                 value={draft.llm_model ?? ''}
                 onChange={update('llm_model')}
-                placeholder={(draft.llm_provider ?? 'openrouter') === 'ollama' ? 'qwen2.5:1.5b' : (draft.llm_provider ?? 'openrouter') === 'gemini' ? 'gemini-3.8-flash' : 'google/gemini-3.8-flash'}
+                placeholder="qwen2.5vl:3b"
               />
             </Field>
             <Field label="Transcription model" hint="faster-whisper runs locally and downloads the model on first use.">
