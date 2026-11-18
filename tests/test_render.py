@@ -150,21 +150,34 @@ def test_render_campaign_montage_from_multiple_sources(tmp_path):
     sources = []
     for index, colour in enumerate(("red", "blue")):
         source = tmp_path / f"source-{index}.mp4"
-        run_ffmpeg([
-            "-f", "lavfi", "-i", f"color=c={colour}:s=640x360:r=24:d=12",
-            "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", str(source),
-        ])
+        run_ffmpeg(
+            [
+                "-f",
+                "lavfi",
+                "-i",
+                f"color=c={colour}:s=640x360:r=24:d=12",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "ultrafast",
+                "-pix_fmt",
+                "yuv420p",
+                str(source),
+            ]
+        )
         sources.append({"video_path": str(source), "duration_seconds": 12, "title": f"Source {index}"})
     selection = {
-        "campaign_edits": [{
-            "rank": 1,
-            "title": "Multi source test",
-            "shots": [
-                {"source_index": 0, "start_seconds": 1, "end_seconds": 4, "reason": "opening"},
-                {"source_index": 1, "start_seconds": 2, "end_seconds": 5, "reason": "build"},
-                {"source_index": 0, "start_seconds": 6, "end_seconds": 9, "reason": "payoff"},
-            ],
-        }]
+        "campaign_edits": [
+            {
+                "rank": 1,
+                "title": "Multi source test",
+                "shots": [
+                    {"source_index": 0, "start_seconds": 1, "end_seconds": 4, "reason": "opening"},
+                    {"source_index": 1, "start_seconds": 2, "end_seconds": 5, "reason": "build"},
+                    {"source_index": 0, "start_seconds": 6, "end_seconds": 9, "reason": "payoff"},
+                ],
+            }
+        ]
     }
     result = render_campaign_montages(
         {"sources": sources},
