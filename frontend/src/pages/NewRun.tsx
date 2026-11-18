@@ -334,6 +334,7 @@ export function NewRunPage() {
               hint="AI analyses every source, selects moments and assembles a complete campaign montage. Multiple source videos become one edit run."
             />
             {options.campaign_mode && (
+              <>
               <Field label="Campaign brief" hint="Paste the complete campaign rules, music, mood, subject, text requirements, platform rules and examples. Campaign montage creation requires Gemini vision; it does not use paid APIs beyond your configured provider quota.">
                 <Textarea
                   rows={7}
@@ -349,6 +350,7 @@ export function NewRunPage() {
               <Field label="Lyrics / exact on-screen text (optional)" hint="Paste only the lines you are allowed to use. They will be displayed in sequence across the edit.">
                 <Textarea rows={3} value={options.campaign_lyrics} onChange={(e) => set('campaign_lyrics', e.target.value)} placeholder="One line per screen..." />
               </Field>
+              </>
             )}
           </Section>
           <Section title="AI" last>
