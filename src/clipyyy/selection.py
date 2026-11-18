@@ -71,7 +71,7 @@ def build_prompt(source: dict, transcript: dict, options: dict) -> tuple[str, st
     instructions = (options.get("instructions") or "").strip()
     campaign_brief = (options.get("campaign_brief") or "").strip()
     if options.get("campaign_mode") and campaign_brief:
-        instructions = (instructions + "\\n\\nCAMPAIGN REQUIREMENTS (highest priority):\\n" + campaign_brief + "\\n\\nSelect only moments and visuals that directly serve this campaign. Treat the campaign music, subject, mood, language, on-screen text, and platform rules as hard creative constraints. Do not invent campaign requirements or claim a requirement is satisfied unless the output actually satisfies it.").strip()
+        instructions = (instructions + "\n\nCAMPAIGN REQUIREMENTS (highest priority):\n" + campaign_brief + "\n\nSelect only moments and visuals that directly serve this campaign. Treat the campaign music, subject, mood, language, on-screen text, and platform rules as hard creative constraints. Do not invent campaign requirements or claim a requirement is satisfied unless the output actually satisfies it.").strip()
     template = Template((PACKAGE_DIR / "prompts" / "clip_selection.md").read_text(encoding="utf-8"))
     system = template.substitute(
         clip_count=options["clip_count"],
@@ -84,7 +84,7 @@ def build_prompt(source: dict, transcript: dict, options: dict) -> tuple[str, st
     visual_notes = visual_analysis.get("frames") or []
     visual_context = ""
     if visual_notes:
-        visual_context = "\\n\\nVISUAL SCENE ANALYSIS (timestamped observations):\\n" + "\\n".join(
+        visual_context = "\n\nVISUAL SCENE ANALYSIS (timestamped observations):\n" + "\n".join(
             f"[{frame['timestamp']:.1f}s] {frame['description']} "
             f"(mood: {frame.get('mood', 'unspecified')}; subjects: {frame.get('subjects', 'unspecified')})"
             for frame in visual_notes
