@@ -57,3 +57,65 @@ def test_requeue_only_touches_runs_of_dead_processes():
     db.requeue_interrupted_runs()
     assert db.get_run(mine["id"])["status"] == "running"
     assert db.get_run(orphan["id"])["status"] == "queued"
+
+
+
+def test_campaign_selection_uses_local_ollama_without_cloud_fallback(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    from clipyyy import campaign, llm, vision
+
+    local_llm = SimpleNamespace(provider=SimpleNamespace(local=True), model="qwen2.5vl:3b")
+    monkeypatch.setattr(llm, "get_llm", lambda model=None: local_llm)
+    monkeypatch.setattr(pipeline, "get_setting", lambda key: "")
+    monkeypatch.setattr(
+        campaign,
+        "parse_campaign_brief",
+        lambda client, brief: {
+            "campaign_name": "Local campaign",
+            "output_count": 1,
+            "target_duration_seconds": 8,
+        },
+    )
+    monkeypatch.setattr(
+        vision,
+        "analyze_campaign_video",
+        lambda *args: {
+            "frames": [
+                {"timestamp": 1.0, "description": "opening scene", "mood": "calm", "subjects": "person"},
+                {"timestamp": 5.0, "description": "action scene", "mood": "energetic", "subjects": "person"},
+                {"timestamp": 9.0, "description": "closing scene", "mood": "hopeful", "subjects": "person"},
+            ]
+        },
+    )
+    monkeypatch.setattr(
+        campaign,
+        "build_montage_plan",
+        lambda *args, **kwargs: [
+            {
+                "rank": 1,
+                "title": "Local edit",
+                "shots": [{"source_index": 0, "start_seconds": 1.0, "end_seconds": 3.0}],
+            }
+        ],
+    )
+
+    source = {
+        "title": "Source video",
+        "duration_seconds": 12.0,
+        "video_path": str(tmp_path / "source.mp4"),
+    }
+    ctx = pipeline.Context(
+        run_id="local-campaign-test",
+        source="source.mp4",
+        options=pipeline.ClipOptions(campaign_mode=True, campaign_brief="Make a hopeful campaign edit").model_dump(),
+        work_dir=tmp_path,
+        out_dir=tmp_path / "clips",
+        state={"download": {"title": "Source video", "sources": [source]}},
+    )
+
+    result = pipeline.stage_select(ctx)
+
+    assert result["campaign_plan"]["campaign_name"] == "Local campaign"
+    assert result["clips"][0]["title"] == "Local edit"
+    assert result["clips"][0]["campaign_shots"][0]["source_index"] == 0
