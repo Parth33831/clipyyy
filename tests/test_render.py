@@ -92,3 +92,54 @@ def test_crop_filter_interpolates_face_positions():
     )
     assert result.startswith("crop=300:532:")
     assert "if(lt(t\\," in result
+
+
+
+def test_source_subtitles_disable_generated_caption_overlay(tmp_path, transcript, monkeypatch):
+    source = tmp_path / "source.mp4"
+    run_ffmpeg(
+        [
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=1280x720:rate=30:duration=40",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=40",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast",
+            "-c:a",
+            "aac",
+            "-shortest",
+            str(source),
+        ]
+    )
+    selection = {"clips": [{"rank": 1, "start_seconds": 6.0, "end_seconds": 23.4, "title": "No duplicate"}]}
+    timeline = plan_timeline(selection, transcript, broll=False)
+    speaker = tmp_path / "work" / "clip-01" / "speaker.mp4"
+    speaker.parent.mkdir(parents=True)
+    run_ffmpeg(["-ss", "6", "-to", "23.4", "-i", str(source), "-an", "-c:v", "libx264", str(speaker)])
+    crop_boxes = center_plan(1280, 720, 9 / 16, None)["crop_boxes"]
+    prepared = {"clips": [{"rank": 1, "speaker_path": str(speaker), "crop_boxes": crop_boxes}]}
+    work_dir = tmp_path / "work"
+    result = render_clips(
+        {"video_path": str(source)},
+        selection,
+        timeline,
+        prepared,
+        transcript,
+        work_dir,
+        tmp_path / "out",
+        {
+            "aspect_ratio": "9:16",
+            "captions": True,
+            "source_has_subtitles": True,
+            "caption_style": "bold",
+        },
+    )
+
+    assert result["renders"][0]["status"] == "ready"
+    assert not (work_dir / "clip-01" / "captions.ass").exists()
