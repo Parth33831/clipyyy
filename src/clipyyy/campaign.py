@@ -5,6 +5,7 @@ requirements remain null/empty; the original brief is always preserved separatel
 """
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -67,7 +68,8 @@ def local_fallback_plan(brief: str) -> dict[str, Any]:
     return {
         **CampaignPlan().model_dump(),
         "unresolved_questions": [
-            "Structured AI interpretation was skipped for the local text-only model. The full brief will still guide clip selection."
+            "Structured AI interpretation was skipped for the local text-only model. "
+            "The full brief will still guide clip selection."
         ],
     }
 
@@ -106,7 +108,15 @@ MONTAGE_SCHEMA: dict[str, Any] = {
 }
 
 
-def build_montage_plan(llm, brief: str, campaign_plan: dict[str, Any], sources: list[dict], analyses: list[dict], output_count: int, target_seconds: float) -> list[dict[str, Any]]:
+def build_montage_plan(
+    llm,
+    brief: str,
+    campaign_plan: dict[str, Any],
+    sources: list[dict],
+    analyses: list[dict],
+    output_count: int,
+    target_seconds: float,
+) -> list[dict[str, Any]]:
     """Choose an ordered montage from timestamped visual observations across all sources."""
     if not hasattr(llm, "complete_json"):
         raise ValueError("The selected AI model cannot create a structured montage plan.")
@@ -120,7 +130,9 @@ def build_montage_plan(llm, brief: str, campaign_plan: dict[str, Any], sources: 
                 **frame,
             })
     if len(candidates) < 3:
-        raise ValueError("Not enough visual scenes could be analysed. Use a vision-capable model and clear source videos.")
+        raise ValueError(
+            "Not enough visual scenes could be analysed. Use a vision-capable model and clear source videos."
+        )
     system = (
         "You are an expert campaign film editor. Build coherent, emotionally paced short-form video montages "
         "from the supplied timestamped visual observations. Use only supplied source indexes and actual source "
@@ -130,8 +142,10 @@ def build_montage_plan(llm, brief: str, campaign_plan: dict[str, Any], sources: 
         "lyrics or rights permissions. Respect the campaign brief and extracted requirements. Return JSON only."
     )
     user = (
-        f"Campaign brief:\n{brief}\n\nExtracted requirements:\n{format_campaign_plan(campaign_plan)}"
-        f"\n\nCreate {output_count} distinct edits, each approximately {target_seconds:.1f} seconds. "
+        f"Campaign brief:\n{brief}\n\nExtracted requirements:\n"
+        f"{format_campaign_plan(campaign_plan)}"
+        f"\n\nCreate {output_count} distinct edits, each approximately "
+        f"{target_seconds:.1f} seconds. "
         "Choose enough shots to approach the target duration. Every source_index is zero-based. "
         "All timestamps must remain inside that source's duration.\n\nVisual observations:\n"
         + json.dumps(candidates, ensure_ascii=False)
@@ -215,5 +229,8 @@ def format_campaign_plan(plan: dict[str, Any]) -> str:
     for key, label in labels.items():
         value = plan.get(key)
         if value is not None and value != []:
-            lines.append(f"- {label}: {', '.join(map(str, value)) if isinstance(value, list) else value}")
-    return "\n".join(lines) if lines else "- No structured requirements extracted; follow the original brief exactly."
+            display = ", ".join(map(str, value)) if isinstance(value, list) else value
+            lines.append(f"- {label}: {display}")
+    if lines:
+        return "\n".join(lines)
+    return "- No structured requirements extracted; follow the original brief exactly."
