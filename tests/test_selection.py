@@ -254,6 +254,29 @@ def test_hosted_long_selection_refills_missing_clips_from_unused_sentences():
     assert llm.calls == 5
 
 
+def test_hosted_single_window_selection_refills_missing_clips():
+    transcript = {
+        "language": "en",
+        "sentences": [
+            {"start": float(i * 10), "end": float((i + 1) * 10), "text": f"topic sentence {i}"}
+            for i in range(12)
+        ],
+    }
+    llm = FakeLLM(
+        [
+            {"clips": [raw(0, 20, 1), raw(30, 50, 2)]},
+            {"clips": [raw(60, 80, 1)]},
+        ]
+    )
+
+    result = select_clips(llm, {"title": "Podcast", "duration_seconds": 120}, transcript, OPTIONS)
+
+    assert len(result["clips"]) == 3
+    assert {clip["start_seconds"] for clip in result["clips"]} == {0.0, 30.0, 60.0}
+    assert llm.calls == 2
+    assert "Find additional moments only" in llm.prompts[1][1]
+
+
 def test_campaign_brief_is_added_as_high_priority_selection_guidance(transcript):
     system, _ = build_prompt(
         {"title": "Anime source", "duration_seconds": 60},
