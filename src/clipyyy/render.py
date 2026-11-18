@@ -29,6 +29,7 @@ def render_clips(
     prepared_by_rank = {c["rank"]: c for c in prepared["clips"]}
     selected_by_rank = {c["rank"]: c for c in selection["clips"]}
     renders = []
+    add_captions = options["captions"] and not options.get("source_has_subtitles", False)
     for clip in timeline["clips"]:
         rank = clip["rank"]
         meta = selected_by_rank[rank]
@@ -37,7 +38,7 @@ def render_clips(
         try:
             clip_dir.mkdir(parents=True, exist_ok=True)
             words = clip_words(transcript, clip["start_seconds"], clip["end_seconds"])
-            if options["captions"] and words:
+            if add_captions and words:
                 write_ass(words, clip_dir / "captions.ass", width, height, options["caption_style"])
             render_clip(
                 source_video=Path(source["video_path"]),
@@ -47,7 +48,7 @@ def render_clips(
                 work_dir=clip_dir,
                 output=output,
                 size=(width, height),
-                caption_style=options["caption_style"] if options["captions"] else None,
+                caption_style=options["caption_style"] if add_captions else None,
             )
             out_w, out_h, duration = probe(output)
             make_poster(output, min(1.0, duration / 2))
