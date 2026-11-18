@@ -41,7 +41,9 @@ SETTINGS: dict[str, SettingSpec] = {
     "openrouter_api_key": SettingSpec("OPENROUTER_API_KEY", secret=True, description="OpenRouter API key"),
     "gemini_api_key": SettingSpec("GEMINI_API_KEY", secret=True, description="Google Gemini API key"),
     "llm_model": SettingSpec(
-        "CLIPYYY_LLM_MODEL", "qwen2.5vl:3b", description="Local Ollama model used for clip selection and campaign vision"
+        "CLIPYYY_LLM_MODEL",
+        "qwen2.5vl:3b",
+        description="Local Ollama model used for clip selection and campaign vision",
     ),
     "whisper_model": SettingSpec("CLIPYYY_WHISPER_MODEL", "base", description="faster-whisper model size"),
     "pexels_api_key": SettingSpec("PEXELS_API_KEY", secret=True, description="Pexels key for B-roll"),
