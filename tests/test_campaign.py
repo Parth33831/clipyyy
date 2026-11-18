@@ -153,3 +153,21 @@ def test_campaign_brief_falls_back_when_local_model_cannot_return_json():
     assert plan["campaign_name"] is None
     assert plan["unresolved_questions"]
     assert "original brief remains the source of truth" in plan["unresolved_questions"][-1]
+
+
+def test_text_only_campaign_builds_timestamp_spread_without_visual_claims():
+    from clipyyy.campaign import build_montage_plan
+
+    class TextOnlyModel:
+        def complete_json(self, *args, **kwargs):
+            raise AssertionError("text-only fallback must not infer unseen visuals")
+
+    sources = [
+        {"title": "A", "duration_seconds": 240},
+        {"title": "B", "duration_seconds": 242},
+    ]
+    unavailable = {"frames": [{"timestamp": 10, "description": "Visual content unavailable: installed model is text-only."}]}
+    edits = build_montage_plan(TextOnlyModel(), "Campaign brief", {}, sources, [unavailable, unavailable], 2, 30)
+    assert len(edits) == 2
+    assert all(len(edit["shots"]) >= 3 for edit in edits)
+    assert all(shot["reason"].startswith("Evenly sampled footage") for edit in edits for shot in edit["shots"])
