@@ -127,12 +127,14 @@ def build_montage_plan(
     candidates = []
     for source_index, (source, analysis) in enumerate(zip(sources, analyses, strict=True)):
         for frame in analysis.get("frames", []):
-            candidates.append({
-                "source_index": source_index,
-                "source_title": source.get("title", f"Source {source_index + 1}"),
-                "source_duration": float(source.get("duration_seconds") or 0),
-                **frame,
-            })
+            candidates.append(
+                {
+                    "source_index": source_index,
+                    "source_title": source.get("title", f"Source {source_index + 1}"),
+                    "source_duration": float(source.get("duration_seconds") or 0),
+                    **frame,
+                }
+            )
     if len(candidates) < 3:
         raise ValueError(
             "Not enough visual scenes could be analysed. Use a vision-capable model and clear source videos."
@@ -173,12 +175,14 @@ def build_montage_plan(
                     end = start + 5.0
                 if end - start < 1.5:
                     continue
-                shots.append({
-                    "source_index": source_index,
-                    "start_seconds": round(start, 3),
-                    "end_seconds": round(end, 3),
-                    "reason": str(shot.get("reason", ""))[:300],
-                })
+                shots.append(
+                    {
+                        "source_index": source_index,
+                        "start_seconds": round(start, 3),
+                        "end_seconds": round(end, 3),
+                        "reason": str(shot.get("reason", ""))[:300],
+                    }
+                )
             except (KeyError, TypeError, ValueError):
                 continue
         total = sum(shot["end_seconds"] - shot["start_seconds"] for shot in shots)
@@ -194,11 +198,13 @@ def build_montage_plan(
                     if excess <= 0:
                         break
                 shots = [shot for shot in shots if shot["end_seconds"] - shot["start_seconds"] >= 1.5]
-            valid_edits.append({
-                "rank": rank,
-                "title": str(edit.get("title") or f"Campaign edit {rank}")[:100],
-                "shots": shots,
-            })
+            valid_edits.append(
+                {
+                    "rank": rank,
+                    "title": str(edit.get("title") or f"Campaign edit {rank}")[:100],
+                    "shots": shots,
+                }
+            )
     if len(valid_edits) < output_count:
         raise ValueError(
             f"The AI produced {len(valid_edits)} valid edits, but the campaign requests {output_count}. "
