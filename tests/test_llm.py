@@ -101,3 +101,37 @@ def test_get_llm_uses_local_default_model(monkeypatch):
     client = get_llm()
     assert client.provider.name == "Ollama (local)"
     assert client.model == "qwen2.5:1.5b"
+
+
+
+def test_gemini_provider_uses_openai_compatible_endpoint_and_bearer_key():
+    seen = {}
+
+    def handler(request):
+        seen["url"] = str(request.url)
+        seen["auth"] = request.headers["authorization"]
+        return reply('{"clips": []}')
+
+    llm = OpenAICompatibleLLM(
+        PROVIDERS["gemini"], "gemini-test-key", "gemini-2.5-flash",
+        transport=httpx.MockTransport(handler),
+    )
+    assert llm.complete_json("sys", "user", {"type": "object"}, "x") == {"clips": []}
+    assert seen["url"] == (
+        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+    )
+    assert seen["auth"] == "Bearer gemini-test-key"
+
+
+def test_get_llm_uses_gemini_key_setting(monkeypatch):
+    from clipyyy import llm as llm_module
+
+    values = {
+        "llm_provider": "gemini",
+        "llm_model": "gemini-2.5-flash",
+        "gemini_api_key": "gemini-test-key",
+    }
+    monkeypatch.setattr(llm_module, "get_setting", lambda key: values.get(key, ""))
+    client = get_llm()
+    assert client.provider.name == "Google Gemini"
+    assert client.model == "gemini-2.5-flash"
