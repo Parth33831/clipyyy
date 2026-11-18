@@ -68,7 +68,7 @@ def test_get_llm_ignores_legacy_cloud_settings_and_uses_local_ollama(monkeypatch
     monkeypatch.setattr(llm_module, "get_setting", lambda key: values.get(key, ""))
     client = get_llm()
     assert client.provider.name == "Ollama (local)"
-    assert client.model == "qwen2.5vl:3b"
+    assert client.model == "qwen2.5:1.5b"
     assert get_llm("qwen2.5:1.5b").model == "qwen2.5:1.5b"
 
 
@@ -105,7 +105,7 @@ def test_get_llm_uses_local_default_model(monkeypatch):
     monkeypatch.setattr(llm_module, "get_setting", lambda key: values.get(key, ""))
     client = get_llm()
     assert client.provider.name == "Ollama (local)"
-    assert client.model == "qwen2.5vl:3b"
+    assert client.model == "qwen2.5:1.5b"
 
 
 def test_gemini_provider_uses_openai_compatible_endpoint_and_bearer_key():
