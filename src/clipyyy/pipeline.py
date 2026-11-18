@@ -120,7 +120,7 @@ def stage_select(ctx: Context) -> dict:
                     item, ctx.work_dir / f"campaign-source-{index + 1:02d}", llm, options["campaign_brief"]
                 )
             )
-        count = plan.get("output_count") or options["clip_count"]
+        count = min(10, plan.get("output_count") or options["clip_count"])
         target = plan.get("target_duration_seconds") or options["max_seconds"]
         edits = build_montage_plan(llm, options["campaign_brief"], plan, sources, analyses, count, target)
         db.update_run(ctx.run_id, title=plan.get("campaign_name") or source.get("title") or "Campaign edit")
