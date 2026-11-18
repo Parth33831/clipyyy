@@ -38,6 +38,7 @@ class ClipOptions(BaseModel):
     instructions: str = Field("", max_length=4000, description="Extra guidance for the AI")
     campaign_mode: bool = False
     campaign_brief: str = Field("", max_length=6000, description="Campaign requirements and creative brief")
+    campaign_url: str = Field("", max_length=2048, description="Public campaign page URL to analyse")
     campaign_music_path: str | None = Field(None, description="Optional user-provided campaign music file")
     campaign_lyrics: str = Field(
         "", max_length=3000, description="Optional user-provided lyric or on-screen text lines"
