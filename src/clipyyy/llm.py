@@ -5,8 +5,10 @@ Supports hosted OpenRouter and a zero-cost local Ollama server.
 
 from __future__ import annotations
 
+import base64
 import json
 import time
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -84,6 +86,32 @@ class OpenAICompatibleLLM:
             transport=transport,
         )
 
+    def complete_json_with_images(self, system, user, schema, name, images):
+        """Send timestamped local frames to a vision-capable OpenAI-compatible model."""
+        content = [{"type": "text", "text": user}]
+        for timestamp, image_path in images:
+            encoded = base64.b64encode(Path(image_path).read_bytes()).decode("ascii")
+            content.append({"type": "text", "text": f"Video frame at {timestamp:.1f} seconds:"})
+            content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded}", "detail": "low"}})
+        body = {
+            "model": self.model,
+            "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}],
+            "response_format": {"type": "json_schema", "json_schema": {"name": name, "strict": True, "schema": schema}},
+        }
+        response = self._post(body)
+        if response.status_code == 400 and "response_format" in response.text:
+            body.pop("response_format")
+            response = self._post(body)
+        if response.status_code >= 400:
+            raise LLMError(f"{self.provider.name} error {response.status_code}: {response.text[:500]}")
+        payload = response.json()
+        if "error" in payload:
+            raise LLMError(f"{self.provider.name} error: {payload['error']}")
+        try:
+            result = payload["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise LLMError(f"Unexpected response from {self.provider.name}: {payload}") from exc
+        return parse_json(result)
     def complete_json(self, system: str, user: str, schema: dict[str, Any], name: str) -> dict:
         body: dict[str, Any] = {
             "model": self.model,
