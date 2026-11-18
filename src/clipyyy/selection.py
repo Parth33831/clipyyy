@@ -82,7 +82,7 @@ def build_prompt(source: dict, transcript: dict, options: dict) -> tuple[str, st
         + (f" by {source['uploader']}" if source.get("uploader") else "")
         + f" ({source.get('duration_seconds', 0):.0f}s, language: {transcript.get('language')})\n\n"
         f"Transcript (one sentence per line, [start-end] in seconds):\n{lines}\n\n"
-        f"Return up to {options['clip_count']} clips as JSON."
+        f"Return exactly {options['clip_count']} strong, non-overlapping clips if the transcript contains enough; return fewer only if it genuinely does not."
     )
     return system, user
 
