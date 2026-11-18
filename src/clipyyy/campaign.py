@@ -139,11 +139,12 @@ def build_montage_plan(
         )
     system = (
         "You are an expert campaign film editor. Build coherent, emotionally paced short-form video montages "
-        "from the supplied timestamped visual observations. Use only supplied source indexes and actual source "
-        "durations. Select visually relevant, varied moments; order them into a beginning, build and payoff. "
-        "Each shot should be 2 to 5 seconds, avoid repeating the same timestamp, and choose moments whose "
-        "surrounding footage is likely to contain the described scene. Never invent unseen events, dialogue, "
-        "lyrics or rights permissions. Respect the campaign brief and extracted requirements. Return JSON only."
+        "from the supplied timestamped visual observations. Use only supplied source indexes and actual "
+        "source durations. Select visually relevant, varied moments; order them into a beginning, build and "
+        "payoff. Each shot should be 2 to 5 seconds, avoid repeating the same timestamp, and choose moments "
+        "whose surrounding footage is likely to contain the described scene. Never invent unseen events, "
+        "dialogue, lyrics or rights permissions. Respect the campaign brief and extracted requirements. "
+        "Return JSON only."
     )
     user = (
         f"Campaign brief:\n{brief}\n\nExtracted requirements:\n"
