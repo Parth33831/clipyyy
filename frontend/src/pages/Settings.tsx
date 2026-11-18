@@ -151,7 +151,7 @@ export function SettingsPage() {
               <ModelInput
                 value={draft.llm_model ?? ''}
                 onChange={update('llm_model')}
-                placeholder={(draft.llm_provider ?? 'openrouter') === 'ollama' ? 'qwen2.5:1.5b' : (draft.llm_provider ?? 'openrouter') === 'gemini' ? 'gemini-2.5-flash' : 'google/gemini-3.8-flash'}
+                placeholder={(draft.llm_provider ?? 'openrouter') === 'ollama' ? 'qwen2.5:1.5b' : (draft.llm_provider ?? 'openrouter') === 'gemini' ? 'gemini-3.8-flash' : 'google/gemini-3.8-flash'}
               />
             </Field>
             <Field label="Transcription model" hint="faster-whisper runs locally and downloads the model on first use.">
