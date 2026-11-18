@@ -39,7 +39,7 @@ export function SettingsPage() {
     const values: Record<string, string | null> = {}
     for (const s of settings.data ?? []) {
       const next = draft[s.key] ?? ''
-      if (s.secret ? next : next !== s.value) values[s.key] = next || null
+      if (s.secret ? Boolean(next.trim()) : next !== s.value) values[s.key] = next || null
     }
     return values
   }
