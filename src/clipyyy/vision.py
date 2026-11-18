@@ -10,6 +10,17 @@ from clipyyy.media import run_ffmpeg
 
 logger = logging.getLogger(__name__)
 
+
+def supports_visual_input(llm) -> bool:
+    """Return whether the configured model is known to accept image inputs."""
+    if not supports_visual_input(llm):
+        return False
+    provider = getattr(llm, "provider", None)
+    if provider is not None and getattr(provider, "local", False):
+        model = str(getattr(llm, "model", "")).lower()
+        return any(tag in model for tag in ("qwen2.5vl", "qwen3-vl", "llava", "moondream", "minicpm-v", "gemma3"))
+    return True
+
 FRAME_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -69,7 +80,7 @@ def sample_frames(
 def analyze_campaign_video(source: dict, work_dir: Path, llm, campaign_brief: str) -> dict:
     """Ask a vision model to describe sampled scenes in relation to the supplied campaign."""
     frames = sample_frames(Path(source["video_path"]), float(source.get("duration_seconds") or 0), work_dir)
-    if not hasattr(llm, "complete_json_with_images"):
+    if not supports_visual_input(llm):
         logger.info("Text-only model; keeping sampled timestamps without visual descriptions")
         return {
             "frames": [
@@ -116,7 +127,7 @@ def analyze_campaign_video(source: dict, work_dir: Path, llm, campaign_brief: st
 
 def analyze_reference_video(source: dict, work_dir: Path, llm) -> dict:
     """Describe the visible editing language of an accessible campaign reference video."""
-    if not hasattr(llm, "complete_json_with_images"):
+    if not supports_visual_input(llm):
         return {"frames": []}
     frames = sample_frames(
         Path(source["video_path"]), float(source.get("duration_seconds") or 0), work_dir, limit=8
