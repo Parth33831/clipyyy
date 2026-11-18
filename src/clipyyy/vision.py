@@ -82,7 +82,8 @@ def analyze_campaign_video(source: dict, work_dir: Path, llm, campaign_brief: st
         "relevant footage. Return JSON only."
     )
     user = (
-        "Campaign brief:\n" + campaign_brief
+        "Campaign brief:\n"
+        + campaign_brief
         + "\n\nAnalyse these timestamped frames. Return one observation per frame, preserving each timestamp."
     )
     result = llm.complete_json_with_images(system, user, FRAME_SCHEMA, "campaign_visual_analysis", frames)
