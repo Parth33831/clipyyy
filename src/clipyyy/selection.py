@@ -82,8 +82,9 @@ def build_prompt(source: dict, transcript: dict, options: dict) -> tuple[str, st
             + "\n\nSTRUCTURED CAMPAIGN PLAN (extracted from the brief; unknowns are intentionally omitted):\n"
             + plan_text
             + "\n\nSelect only moments and visuals that directly serve this campaign. "
-            "Treat music, subject, mood, language, on-screen text and platform rules as hard constraints. "
-            "Do not invent requirements or claim compliance unless the output actually satisfies them."
+            "Treat the campaign music, subject, mood, language, on-screen text, and platform rules as "
+            "hard creative constraints. Do not invent requirements or claim compliance unless the output "
+            "actually satisfies them."
         ).strip()
     template = Template((PACKAGE_DIR / "prompts" / "clip_selection.md").read_text(encoding="utf-8"))
     system = template.substitute(
