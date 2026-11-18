@@ -191,7 +191,7 @@ export function NewRunPage() {
             <div className="mt-6 flex flex-wrap items-center gap-4 border-t border-white/10 px-6 py-4">
               <p className="label text-white/45">
                 {options.clip_count} clips · {options.min_seconds}–{options.max_seconds}s · {options.aspect_ratio}
-                {options.captions ? ` · ${options.caption_style} captions` : ''}
+                {options.captions && !options.source_has_subtitles ? ` · ${options.caption_style} captions` : options.source_has_subtitles ? ' · original subtitles' : ''}
                 {options.broll ? ' · b-roll' : ''}
               </p>
               <Button
@@ -281,6 +281,7 @@ export function NewRunPage() {
 
           <Section title="Captions">
             <Toggle checked={options.captions} onChange={(v) => set('captions', v)} label="Animated captions" hint="Word by word, burned into the video" />
+            <Toggle checked={options.source_has_subtitles} onChange={(v) => set('source_has_subtitles', v)} label="Video already has subtitles" hint="Skip Clipyyy captions to avoid showing two subtitle layers. Use this for subtitles already visible in the source video." />
             <div className="grid grid-cols-3 gap-2">
               {STYLES.map((style) => {
                 const on = options.caption_style === style.value
@@ -289,7 +290,7 @@ export function NewRunPage() {
                     key={style.value}
                     type="button"
                     aria-pressed={on}
-                    disabled={!options.captions}
+                    disabled={!options.captions || options.source_has_subtitles}
                     onClick={() => set('caption_style', style.value)}
                     className={cn(
                       'flex cursor-pointer flex-col gap-1.5 border p-1.5 transition disabled:cursor-not-allowed disabled:opacity-35',
