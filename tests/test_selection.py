@@ -77,7 +77,7 @@ def test_prompt_includes_options_and_instructions(transcript):
         transcript,
         {**OPTIONS, "instructions": "End captions with 'Follow for more'"},
     )
-    assert "exactly 3" in user and "between 15 and 38 seconds" in system
+    assert "exactly 3" in user and "target 15–38 seconds" in system
     assert "Follow for more" in system
     assert "[0.0-" in user and "Talk by Ann" in user
 
@@ -137,7 +137,7 @@ def test_long_transcript_is_analysed_in_multiple_windows():
     assert len(result["clips"]) == 2
     assert result["clips"][0]["start_seconds"] == 1100.0
     assert result["clips"][1]["start_seconds"] == 0.0
-    assert all("Select up to 1 non-overlapping clips" in system for system, _ in llm.prompts)
+    assert all("Select exactly 1 non-overlapping clips" in system for system, _ in llm.prompts)
 
 
 def test_long_local_selection_distributes_candidates_across_windows():
@@ -155,7 +155,7 @@ def test_long_local_selection_distributes_candidates_across_windows():
 
     # Five sparse transcript points fit into four 18-minute windows with 45s overlap.
     assert llm.calls == 4
-    assert all("Select up to 1 non-overlapping clips" in system for system, _ in llm.prompts)
+    assert all("Select exactly 1 non-overlapping clips" in system for system, _ in llm.prompts)
 
 
 def test_selection_does_not_retry_non_retryable_llm_failure(transcript):
