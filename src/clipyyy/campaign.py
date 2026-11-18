@@ -35,7 +35,9 @@ class CampaignPlan(BaseModel):
     unresolved_questions: list[str] = Field(default_factory=list)
 
 
-PLAN_SCHEMA: dict[str, Any] = CampaignPlan.model_json_schema()\nPLAN_SCHEMA["required"] = list(PLAN_SCHEMA["properties"])\nPLAN_SCHEMA["additionalProperties"] = False
+PLAN_SCHEMA: dict[str, Any] = CampaignPlan.model_json_schema()
+PLAN_SCHEMA["required"] = list(PLAN_SCHEMA["properties"])
+PLAN_SCHEMA["additionalProperties"] = False
 PLAN_SYSTEM = """You are a universal short-form campaign strategist. Read the supplied campaign
 brief and extract its actual requirements into the schema. Do not assume a niche or use fixed
 campaign presets. Infer the subject and creative approach from the brief itself. Preserve exact
