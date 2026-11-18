@@ -121,6 +121,7 @@ def build_montage_plan(
     output_count: int,
     target_seconds: float,
     additional_instructions: str = "",
+    reference_analyses: list[dict] | None = None,
 ) -> list[dict[str, Any]]:
     """Choose an ordered montage from timestamped visual observations across all sources."""
     if not hasattr(llm, "complete_json"):
@@ -156,8 +157,12 @@ def build_montage_plan(
         f"\n\nCreate {output_count} distinct edits, each approximately "
         f"{target_seconds:.1f} seconds. "
         "Choose enough shots to approach the target duration. Every source_index is zero-based. "
-        "All timestamps must remain inside that source's duration.\n\nVisual observations:\n"
+        "All timestamps must remain inside the source duration. Use reference observations only "
+        "to guide style, pacing, framing and text treatment; never copy reference footage.\n\n"
+        "Visual observations from supplied source footage:\n"
         + json.dumps(candidates, ensure_ascii=False)
+        + "\n\nVisual observations from reference videos (style guidance only):\n"
+        + json.dumps(reference_analyses or [], ensure_ascii=False)
     )
     result = llm.complete_json(system, user, MONTAGE_SCHEMA, "campaign_montage_plan")
     edits = result.get("edits", [])
@@ -222,7 +227,7 @@ def format_campaign_plan(plan: dict[str, Any]) -> str:
         "content_type": "Content type",
         "subject_or_theme": "Subject/theme",
         "source_requirements": "Source requirements",
-        "reference_urls": "Reference URLs (not automatically opened)",
+        "reference_urls": "Discovered reference URLs",
         "mood": "Mood",
         "language": "Language",
         "output_count": "Output count",
