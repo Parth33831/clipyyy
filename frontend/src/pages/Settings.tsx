@@ -124,13 +124,19 @@ export function SettingsPage() {
         </aside>
 
         <div className="flex flex-col gap-6">
-          <Section id="ai" title="AI" description="Choose a hosted model or run inference privately on your own computer with Ollama.">
+          <Section id="ai" title="AI" description="Choose Google Gemini, another hosted model, or run inference privately on your own computer with Ollama.">
             <Field label="AI provider" hint="Ollama runs locally and does not need an API key or paid credits.">
               <Select value={draft.llm_provider ?? 'openrouter'} onChange={(e) => update('llm_provider')(e.target.value)}>
                 <option value="ollama">Ollama · local and free</option>
+                <option value="gemini">Google Gemini · AI Studio API</option>
                 <option value="openrouter">OpenRouter · hosted models</option>
               </Select>
             </Field>
+            {(draft.llm_provider ?? 'openrouter') === 'gemini' && (
+              <Field label="Google Gemini API key" hint={<Ext href="https://aistudio.google.com/apikey">Create a key in Google AI Studio</Ext>}>
+                {secret('gemini_api_key', 'Gemini API key')}
+              </Field>
+            )}
             {(draft.llm_provider ?? 'openrouter') === 'openrouter' && (
               <Field label="OpenRouter API key" hint={<Ext href="https://openrouter.ai/keys">Create a key</Ext>}>
                 {secret('openrouter_api_key', 'sk-or-…')}
@@ -140,12 +146,12 @@ export function SettingsPage() {
               label="Default model"
               hint={(draft.llm_provider ?? 'openrouter') === 'ollama'
                 ? 'Enter an installed Ollama model name, for example qwen2.5:1.5b. Make sure Ollama is running.'
-                : 'Type to search. Fast, cheap long-context models work well; a one-hour video is about 15k tokens.'}
+                : (draft.llm_provider ?? 'openrouter') === 'gemini' ? 'Choose a Gemini model available to your AI Studio project. Check your free-tier quota before processing long videos.' : 'Type to search. Fast, cheap long-context models work well; a one-hour video is about 15k tokens.'}
             >
               <ModelInput
                 value={draft.llm_model ?? ''}
                 onChange={update('llm_model')}
-                placeholder={(draft.llm_provider ?? 'openrouter') === 'ollama' ? 'qwen2.5:1.5b' : 'google/gemini-3.8-flash'}
+                placeholder={(draft.llm_provider ?? 'openrouter') === 'ollama' ? 'qwen2.5:1.5b' : (draft.llm_provider ?? 'openrouter') === 'gemini' ? 'gemini-2.5-flash' : 'google/gemini-3.8-flash'}
               />
             </Field>
             <Field label="Transcription model" hint="faster-whisper runs locally and downloads the model on first use.">
