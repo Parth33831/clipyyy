@@ -200,7 +200,7 @@ export function NewRunPage() {
                 variant="acid"
                 size="lg"
                 className="ml-auto disabled:!bg-ink-3 disabled:!text-white/35 disabled:!opacity-100"
-                disabled={count === 0 || !!needsKey || blockers.length > 0 || (options.campaign_mode && (count > 6 || !options.campaign_brief.trim()))}
+                disabled={count === 0 || !!needsKey || blockers.length > 0 || (options.campaign_mode && (count > 6 || (!options.campaign_brief.trim() && !options.campaign_url.trim())))}
                 loading={submit.isPending}
                 onClick={() => submit.mutate()}
               >
@@ -345,7 +345,15 @@ export function NewRunPage() {
             />
             {options.campaign_mode && (
               <>
-              <Field label="Campaign brief" hint="Paste the complete campaign rules, music, mood, subject, text requirements, platform rules and examples. Campaign montage creation requires Gemini vision; it does not use paid APIs beyond your configured provider quota.">
+              <Field label="Campaign link" hint="Paste the public campaign page. Clipyyy will try to read its rules, requirements and linked reference material. Pages requiring login or app-only access may need a manual brief.">
+                <Input
+                  value={options.campaign_url}
+                  onChange={(e) => set('campaign_url', e.target.value)}
+                  placeholder="https://..."
+                  type="url"
+                />
+              </Field>
+              <Field label="Campaign brief (optional)" hint="Add any extra instructions or paste the brief if the campaign page cannot be read. Campaign montage creation requires Gemini vision and uses your configured provider quota.">
                 <Textarea
                   rows={7}
                   value={options.campaign_brief}
