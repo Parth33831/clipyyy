@@ -16,6 +16,8 @@ export interface ClipOptions {
   broll: boolean
   language: string
   instructions: string
+  campaign_mode: boolean
+  campaign_brief: string
   model: string | null
 }
 
@@ -186,5 +188,7 @@ export const DEFAULT_OPTIONS: ClipOptions = {
   broll: false,
   language: 'auto',
   instructions: '',
+  campaign_mode: false,
+  campaign_brief: '',
   model: null,
 }
