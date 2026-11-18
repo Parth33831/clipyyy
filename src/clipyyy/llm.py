@@ -79,7 +79,8 @@ class OpenAICompatibleLLM:
         request_timeout = timeout
         if request_timeout is None:
             if provider.local:
-                request_timeout = 120.0
+                # CPU-only vision models can take several minutes per request.
+                request_timeout = 600.0
             elif provider.name == "Google Gemini":
                 request_timeout = 600.0
             else:
@@ -222,24 +223,18 @@ def parse_json(content: Any) -> dict:
 
 
 def get_llm(model: str | None = None) -> LLM:
-    provider_key = get_setting("llm_provider") or "openrouter"
-    provider = PROVIDERS.get(provider_key)
-    if provider is None:
-        raise LLMError(f"Unknown LLM provider '{provider_key}'. Available: {', '.join(PROVIDERS)}")
-    selected_model = model or get_setting("llm_model")
-    if provider.local and (not selected_model or selected_model == "google/gemini-3.8-flash"):
-        # The config's hosted-provider default is not a valid Ollama model name.
-        selected_model = "qwen2.5:1.5b"
-    return OpenAICompatibleLLM(
-        provider,
-        get_setting(provider.key_setting) if provider.key_setting else "",
-        selected_model,
-    )
+    """Return the local Ollama client; legacy hosted-provider settings are intentionally ignored."""
+    provider = PROVIDERS["ollama"]
+    selected_model = model or get_setting("llm_model") or "qwen2.5vl:3b"
+    if selected_model.startswith("google/") or selected_model.startswith("gemini-"):
+        selected_model = "qwen2.5vl:3b"
+    return OpenAICompatibleLLM(provider, "", selected_model)
 
 
 def list_models() -> list[dict[str, Any]]:
     """List models exposed by the selected provider (including local Ollama models)."""
-    provider = PROVIDERS[get_setting("llm_provider") or "openrouter"]
+    # Model discovery is local-only too; never query a hosted provider.
+    provider = PROVIDERS["ollama"]
     response = httpx.get(f"{provider.base_url}/models", timeout=10 if provider.local else 30)
     response.raise_for_status()
     models = []
