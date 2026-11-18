@@ -58,7 +58,12 @@ def test_montage_plan_uses_multiple_sources_and_clamps_timestamps():
     ]
     analyses = [
         {"frames": [{"timestamp": 3, "description": "sunset", "mood": "calm", "subjects": "sky"}]},
-        {"frames": [{"timestamp": 9, "description": "runner", "mood": "hopeful", "subjects": "person"}, {"timestamp": 17, "description": "finish", "mood": "joy", "subjects": "runner"}]},
+        {
+            "frames": [
+                {"timestamp": 9, "description": "runner", "mood": "hopeful", "subjects": "person"},
+                {"timestamp": 17, "description": "finish", "mood": "joy", "subjects": "runner"},
+            ]
+        },
     ]
     plan = build_montage_plan(FakeMontageLLM(), "Hopeful sports campaign", {}, sources, analyses, 1, 12)
     assert len(plan) == 1
