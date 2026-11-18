@@ -139,3 +139,17 @@ def test_montage_planner_uses_reference_video_style_without_copying_shots():
     assert len(edits) == 1
     assert "centred kinetic typography" in llm.user
     assert "never copy reference footage" in llm.user
+
+
+def test_campaign_brief_falls_back_when_local_model_cannot_return_json():
+    from clipyyy.campaign import parse_campaign_brief
+
+    class BrokenLocalLLM:
+        def complete_json(self, *args, **kwargs):
+            raise RuntimeError("local model returned invalid JSON")
+
+    brief = "Show the product in use. Use the supplied campaign music."
+    plan = parse_campaign_brief(BrokenLocalLLM(), brief)
+    assert plan["campaign_name"] is None
+    assert plan["unresolved_questions"]
+    assert "original brief remains the source of truth" in plan["unresolved_questions"][-1]
