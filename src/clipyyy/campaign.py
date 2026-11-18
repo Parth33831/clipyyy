@@ -18,9 +18,11 @@ class CampaignPlan(BaseModel):
     platform: list[str] = Field(default_factory=list)
     content_type: str | None = None
     subject_or_theme: str | None = None
+    source_requirements: list[str] = Field(default_factory=list)
+    reference_urls: list[str] = Field(default_factory=list)
     mood: list[str] = Field(default_factory=list)
     language: str | None = None
-    output_count: int | None = Field(default=None, ge=1, le=50)
+    output_count: int | None = Field(default=None, ge=1, le=10)
     target_duration_seconds: float | None = Field(default=None, ge=1, le=3600)
     aspect_ratio: str | None = None
     audio_mode: str | None = None
@@ -32,6 +34,7 @@ class CampaignPlan(BaseModel):
     visual_style_and_pacing: list[str] = Field(default_factory=list)
     post_upload_actions: list[str] = Field(default_factory=list)
     performance_eligibility: list[str] = Field(default_factory=list)
+    payout_or_submission_caps: list[str] = Field(default_factory=list)
     rights_or_permissions_to_confirm: list[str] = Field(default_factory=list)
     unresolved_questions: list[str] = Field(default_factory=list)
 
@@ -116,6 +119,7 @@ def build_montage_plan(
     analyses: list[dict],
     output_count: int,
     target_seconds: float,
+    additional_instructions: str = "",
 ) -> list[dict[str, Any]]:
     """Choose an ordered montage from timestamped visual observations across all sources."""
     if not hasattr(llm, "complete_json"):
@@ -144,6 +148,7 @@ def build_montage_plan(
     user = (
         f"Campaign brief:\n{brief}\n\nExtracted requirements:\n"
         f"{format_campaign_plan(campaign_plan)}"
+        f"\n\nAdditional creator instructions:\n{additional_instructions or 'None'}"
         f"\n\nCreate {output_count} distinct edits, each approximately "
         f"{target_seconds:.1f} seconds. "
         "Choose enough shots to approach the target duration. Every source_index is zero-based. "
@@ -208,6 +213,8 @@ def format_campaign_plan(plan: dict[str, Any]) -> str:
         "platform": "Platform",
         "content_type": "Content type",
         "subject_or_theme": "Subject/theme",
+        "source_requirements": "Source requirements",
+        "reference_urls": "Reference URLs (not automatically opened)",
         "mood": "Mood",
         "language": "Language",
         "output_count": "Output count",
@@ -222,6 +229,7 @@ def format_campaign_plan(plan: dict[str, Any]) -> str:
         "visual_style_and_pacing": "Visual style and pacing",
         "post_upload_actions": "Post-upload actions (manual)",
         "performance_eligibility": "Post-publication eligibility",
+        "payout_or_submission_caps": "Payout/submission caps",
         "rights_or_permissions_to_confirm": "Rights/permissions to confirm",
         "unresolved_questions": "Unresolved",
     }
