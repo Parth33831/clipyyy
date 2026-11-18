@@ -2,6 +2,7 @@ import json
 
 import httpx
 import pytest
+
 from clipyyy.llm import PROVIDERS, LLMError, OpenAICompatibleLLM, get_llm, parse_json
 
 
