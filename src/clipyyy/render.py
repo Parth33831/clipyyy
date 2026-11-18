@@ -384,14 +384,21 @@ def render_campaign_montages(
             })
         except Exception as exc:
             renders.append({"rank": rank, "status": "failed", "error": str(exc)})
-    if not any(item["status"] == "ready" for item in renders):
-        errors = "; ".join(item.get("error", "") for item in renders)
-        raise RuntimeError("Every campaign edit failed to render: " + errors)
+    failed = [item for item in renders if item["status"] != "ready"]
+    if failed:
+        errors = "; ".join(item.get("error", "") for item in failed)
+        raise RuntimeError("Campaign export incomplete; retry after fixing: " + errors)
     return {
         "renders": renders,
         "quality_checks": {
             "aspect_ratio": options["aspect_ratio"],
             "resolution": f"{width}x{height}",
+            "output_count": len(renders),
+            "all_outputs_rendered": all(item["status"] == "ready" for item in renders),
+            "rendered_duration_range": (
+                f"{min(item['duration_seconds'] for item in renders):.1f}–"
+                f"{max(item['duration_seconds'] for item in renders):.1f} seconds"
+            ),
             "lyrics_overlay": bool(lyrics),
             "music_track_added": bool(music_path),
             "official_sound_required": official_sound_required,
