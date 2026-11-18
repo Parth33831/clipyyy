@@ -335,11 +335,30 @@ def render_campaign_montages(
                     continue
                 segment = edit_dir / f"shot-{shot_index:03d}.mp4"
                 vf = fill_filter(width, height) + ",eq=contrast=1.06:saturation=1.12"
-                run_ffmpeg([
-                    "-ss", f"{start:.3f}", "-i", str(source_path), "-t", f"{duration:.3f}",
-                    "-vf", vf, "-an", "-c:v", "libx264", "-preset", "veryfast",
-                    "-crf", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(segment),
-                ])
+                run_ffmpeg(
+                    [
+                        "-ss",
+                        f"{start:.3f}",
+                        "-i",
+                        str(source_path),
+                        "-t",
+                        f"{duration:.3f}",
+                        "-vf",
+                        vf,
+                        "-an",
+                        "-c:v",
+                        "libx264",
+                        "-preset",
+                        "veryfast",
+                        "-crf",
+                        "20",
+                        "-pix_fmt",
+                        "yuv420p",
+                        "-movflags",
+                        "+faststart",
+                        str(segment),
+                    ]
+                )
                 if segment.exists() and segment.stat().st_size:
                     segments.append(segment)
             if len(segments) < 3:
@@ -352,21 +371,56 @@ def render_campaign_montages(
                 overlay = edit_dir / "campaign-lyrics.ass"
                 write_campaign_lyrics(lyrics, duration, overlay, width, height)
                 visual = edit_dir / "montage-lyrics.mp4"
-                run_ffmpeg([
-                    "-i", str(silent), "-vf", ass_filter(overlay), "-an",
-                    "-c:v", "libx264", "-preset", "veryfast", "-crf", "19",
-                    "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(visual),
-                ])
+                run_ffmpeg(
+                    [
+                        "-i",
+                        str(silent),
+                        "-vf",
+                        ass_filter(overlay),
+                        "-an",
+                        "-c:v",
+                        "libx264",
+                        "-preset",
+                        "veryfast",
+                        "-crf",
+                        "19",
+                        "-pix_fmt",
+                        "yuv420p",
+                        "-movflags",
+                        "+faststart",
+                        str(visual),
+                    ]
+                )
             if music_path:
-                run_ffmpeg([
-                    "-i", str(visual), "-stream_loop", "-1", "-i", str(music_path),
-                    "-map", "0:v:0", "-map", "1:a:0", "-t", f"{duration:.3f}",
-                    "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
-                    "-af",
-                    f"volume=0.9,afade=t=in:st=0:d=0.4,"
-                    f"afade=t=out:st={max(0.0, duration - 0.8):.3f}:d=0.8",
-                    "-shortest", "-movflags", "+faststart", str(output),
-                ])
+                run_ffmpeg(
+                    [
+                        "-i",
+                        str(visual),
+                        "-stream_loop",
+                        "-1",
+                        "-i",
+                        str(music_path),
+                        "-map",
+                        "0:v:0",
+                        "-map",
+                        "1:a:0",
+                        "-t",
+                        f"{duration:.3f}",
+                        "-c:v",
+                        "copy",
+                        "-c:a",
+                        "aac",
+                        "-b:a",
+                        "192k",
+                        "-af",
+                        f"volume=0.9,afade=t=in:st=0:d=0.4,"
+                        f"afade=t=out:st={max(0.0, duration - 0.8):.3f}:d=0.8",
+                        "-shortest",
+                        "-movflags",
+                        "+faststart",
+                        str(output),
+                    ]
+                )
             else:
                 shutil.copy2(visual, output)
             out_w, out_h, final_duration = probe(output)
