@@ -62,7 +62,7 @@ jobs:
             $tokens = $null
             $errors = $null
             [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD $file), [ref]$tokens, [ref]$errors) | Out-Null
-            if ($errors.Count -gt 0) { $errors | Format-List | Out-String | Write-Error }
+            if ($errors.Count -gt 0) { throw ($errors | Format-List | Out-String) }
           }
       - run: uv run pytest -vv --full-trace
 
