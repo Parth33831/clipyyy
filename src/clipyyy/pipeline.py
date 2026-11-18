@@ -114,7 +114,7 @@ def stage_select(ctx: Context) -> dict:
                 "local text-only Ollama cannot inspect video frames."
             )
         from clipyyy.campaign import build_montage_plan, parse_campaign_brief
-        from clipyyy.vision import analyze_campaign_video
+        from clipyyy.vision import analyze_campaign_video, analyze_reference_video
 
         plan = parse_campaign_brief(llm, options["campaign_brief"])
         sources = source.get("sources") or [source]
@@ -125,9 +125,32 @@ def stage_select(ctx: Context) -> dict:
                     item,
                     ctx.work_dir / f"campaign-source-{index + 1:02d}",
                     llm,
-                    options["campaign_brief"],
+                    campaign_brief,
                 )
             )
+        reference_analyses = []
+        if reference_video_urls:
+            from clipyyy.source import fetch_source
+
+            for index, reference_url in enumerate(reference_video_urls[:2]):
+                try:
+                    reference = fetch_source(
+                        reference_url, ctx.work_dir / f"campaign-reference-{index + 1:02d}"
+                    )
+                    reference_analysis = analyze_reference_video(
+                        reference,
+                        ctx.work_dir / f"campaign-reference-analysis-{index + 1:02d}",
+                        llm,
+                    )
+                    if reference_analysis.get("frames"):
+                        reference_analyses.append(
+                            {
+                                "title": reference.get("title", f"Reference {index + 1}"),
+                                "frames": reference_analysis["frames"],
+                            }
+                        )
+                except Exception as exc:
+                    logger.info("Could not analyse campaign reference %s: %s", reference_url, exc)
         count = min(10, plan.get("output_count") or options["clip_count"])
         target = plan.get("target_duration_seconds") or options["max_seconds"]
         edits = build_montage_plan(
@@ -139,6 +162,7 @@ def stage_select(ctx: Context) -> dict:
             count,
             target,
             options.get("instructions", ""),
+            reference_analyses=reference_analyses,
         )
         db.update_run(ctx.run_id, title=plan.get("campaign_name") or source.get("title") or "Campaign edit")
         clips = []
