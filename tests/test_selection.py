@@ -101,7 +101,7 @@ class FakeLLM:
 
 def test_select_clips_retries_until_valid(transcript):
     llm = FakeLLM([LLMError("boom"), {"clips": [{"rank": 1}]}, {"clips": [raw(0, 20)]}])
-    result = select_clips(llm, {"title": "x"}, transcript, OPTIONS)
+    result = select_clips(llm, {"title": "x"}, transcript, {**OPTIONS, "clip_count": 1})
     assert llm.calls == 3
     assert result["model"] == "fake" and len(result["clips"]) == 1
 
