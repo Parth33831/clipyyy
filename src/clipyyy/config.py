@@ -39,6 +39,7 @@ class SettingSpec:
 SETTINGS: dict[str, SettingSpec] = {
     "llm_provider": SettingSpec("CLIPYYY_LLM_PROVIDER", "openrouter", description="LLM provider"),
     "openrouter_api_key": SettingSpec("OPENROUTER_API_KEY", secret=True, description="OpenRouter API key"),
+    "gemini_api_key": SettingSpec("GEMINI_API_KEY", secret=True, description="Google Gemini API key"),
     "llm_model": SettingSpec(
         "CLIPYYY_LLM_MODEL", "google/gemini-3.8-flash", description="Model used to pick clips"
     ),
