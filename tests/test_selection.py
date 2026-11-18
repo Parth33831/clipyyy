@@ -195,7 +195,6 @@ def test_local_model_invalid_output_is_not_retried(transcript):
     assert llm.calls == 1
 
 
-
 def test_snap_finishes_next_sentence_when_target_is_reached():
     sentences = [
         {"start": 0.0, "end": 10.0, "text": "first sentence"},
