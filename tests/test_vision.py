@@ -49,3 +49,36 @@ def test_sample_frames_extracts_evenly_spaced_frames(tmp_path, monkeypatch):
     assert len(frames) == 4
     assert [round(item[0], 1) for item in frames] == [15.0, 45.0, 75.0, 105.0]
     assert len(calls) == 4
+
+
+def test_reference_video_analysis_extracts_visual_style(tmp_path, monkeypatch):
+    from clipyyy import vision
+
+    monkeypatch.setattr(
+        vision,
+        "sample_frames",
+        lambda *args, **kwargs: [(2.0, str(tmp_path / "reference.jpg"))],
+    )
+
+    class FakeVisionLLM:
+        def complete_json_with_images(self, system, user, schema, name, frames):
+            assert "visual editing analyst" in system
+            assert "recreated with different source footage" in user
+            assert name == "campaign_reference_analysis"
+            return {
+                "frames": [
+                    {
+                        "timestamp": 2.0,
+                        "description": "Close-up product shot with bold centred title",
+                        "mood": "energetic",
+                        "subjects": "product",
+                    }
+                ]
+            }
+
+    result = vision.analyze_reference_video(
+        {"video_path": str(tmp_path / "reference.mp4"), "duration_seconds": 10},
+        tmp_path,
+        FakeVisionLLM(),
+    )
+    assert result["frames"][0]["description"].startswith("Close-up product")
