@@ -188,3 +188,56 @@ def test_gemini_image_request_retries_with_current_model_when_old_model_is_retir
     result = llm.complete_json_with_images("s", "u", {"type": "object"}, "x", [(1.0, image_path)])
     assert result == {"ok": True}
     assert calls == ["gemini-2.5-flash", "gemini-3.8-flash"]
+
+
+
+def test_gemini_retries_transient_503_with_exponential_backoff(monkeypatch):
+    from clipyyy import llm as llm_module
+
+    calls = []
+    sleeps = []
+
+    def handler(request):
+        calls.append(1)
+        if len(calls) < 4:
+            return httpx.Response(
+                503,
+                json={"error": {"message": "This model is currently experiencing high demand."}},
+            )
+        return reply('{"clips": []}')
+
+    monkeypatch.setattr(llm_module.time, "sleep", sleeps.append)
+    llm = OpenAICompatibleLLM(
+        PROVIDERS["gemini"],
+        "gemini-test-key",
+        "gemini-3.8-flash",
+        transport=httpx.MockTransport(handler),
+    )
+
+    assert llm.complete_json("s", "u", {"type": "object"}, "x") == {"clips": []}
+    assert len(calls) == 4
+    assert sleeps == [3.0, 6.0, 12.0]
+
+
+def test_gemini_honours_retry_after_header(monkeypatch):
+    from clipyyy import llm as llm_module
+
+    calls = []
+    sleeps = []
+
+    def handler(request):
+        calls.append(1)
+        if len(calls) == 1:
+            return httpx.Response(503, headers={"Retry-After": "9"}, text="busy")
+        return reply('{"clips": []}')
+
+    monkeypatch.setattr(llm_module.time, "sleep", sleeps.append)
+    llm = OpenAICompatibleLLM(
+        PROVIDERS["gemini"],
+        "gemini-test-key",
+        "gemini-3.8-flash",
+        transport=httpx.MockTransport(handler),
+    )
+
+    assert llm.complete_json("s", "u", {"type": "object"}, "x") == {"clips": []}
+    assert sleeps == [9.0]
