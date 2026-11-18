@@ -9,7 +9,7 @@ from __future__ import annotations
 import ipaddress
 import socket
 from html.parser import HTMLParser
-from urllib.parse import urljoin, urlparse
+from urllib.parse import parse_qs, urljoin, urlparse
 
 import httpx
 
@@ -105,6 +105,11 @@ def import_campaign_page(url: str) -> dict:
     current = url.strip()
     if len(current) > 2048:
         raise ValueError("Campaign URL is too long.")
+    initial = urlparse(current)
+    if initial.hostname and initial.hostname.lower().endswith("onelink.me"):
+        web_fallback = parse_qs(initial.query).get("af_web_dp", [])
+        if web_fallback:
+            current = web_fallback[0]
     headers = {"User-Agent": USER_AGENT, "Accept": "text/html,application/xhtml+xml"}
     with httpx.Client(timeout=httpx.Timeout(20.0), follow_redirects=False, trust_env=False) as client:
         response = None
