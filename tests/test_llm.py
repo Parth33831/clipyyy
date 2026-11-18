@@ -136,7 +136,6 @@ def test_get_llm_uses_gemini_key_setting(monkeypatch):
     assert client.model == "gemini-2.5-flash"
 
 
-
 def test_gemini_retries_with_current_model_when_old_model_is_retired():
     calls = []
 
