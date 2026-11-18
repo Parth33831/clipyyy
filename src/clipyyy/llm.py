@@ -76,7 +76,14 @@ class OpenAICompatibleLLM:
         self.provider = provider
         self.model = model
         # Local inference can be slower, but must not leave a pipeline hanging indefinitely.
-        request_timeout = timeout if timeout is not None else (120.0 if provider.local else 600.0 if provider.name == "Google Gemini" else 300.0)
+        request_timeout = timeout
+        if request_timeout is None:
+            if provider.local:
+                request_timeout = 120.0
+            elif provider.name == "Google Gemini":
+                request_timeout = 600.0
+            else:
+                request_timeout = 300.0
         self._client = httpx.Client(
             base_url=provider.base_url,
             headers=(
