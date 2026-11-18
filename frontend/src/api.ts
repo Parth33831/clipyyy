@@ -171,6 +171,11 @@ export const api = {
     form.append('file', file)
     return request<{ source: string; name: string }>('/api/uploads', { method: 'POST', body: form })
   },
+  attachCampaignMusic: (id: string, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<{ name: string; attached: boolean }>(`/api/runs/${id}/campaign-music`, { method: 'POST', body: form })
+  },
   retry: (id: string, fromStage?: string) =>
     request<RunDetail>(`/api/runs/${id}/retry`, {
       method: 'POST',
