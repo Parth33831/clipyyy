@@ -198,10 +198,6 @@ def test_text_only_campaign_outputs_use_distinct_time_ranges():
         {"duration_seconds": 556.0},
     ]
     edits = _build_text_only_montage(sources, output_count=4, target_seconds=35.0)
-    ranges = [
-        (shot["source_index"], shot["start_seconds"])
-        for edit in edits
-        for shot in edit["shots"]
-    ]
+    ranges = [(shot["source_index"], shot["start_seconds"]) for edit in edits for shot in edit["shots"]]
     assert len(edits) == 4
     assert len(ranges) == len(set(ranges))
