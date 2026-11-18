@@ -66,7 +66,16 @@ export function RunDetailPage() {
           <h1 className="display line-clamp-2 text-4xl">{sourceLabel(data)}</h1>
           <div className="label flex flex-wrap items-center gap-x-3 gap-y-1 text-muted">
             <StatusChip status={data.status} />
-            {/^https?:\/\//.test(data.source) ? (
+            {data.options.campaign_mode ? (
+              <span>{(() => {
+                try {
+                  const parsed = JSON.parse(data.source)
+                  return `Campaign montage · ${Array.isArray(parsed) ? parsed.length : 1} source videos`
+                } catch {
+                  return 'Campaign montage'
+                }
+              })()}</span>
+            ) : /^https?:\/\//.test(data.source) ? (
               <a href={data.source} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-ink">
                 {sourceHost(data.source)} <ArrowUpRight className="h-3 w-3" />
               </a>
@@ -109,7 +118,7 @@ export function RunDetailPage() {
 
       {data.campaign_plan && <CampaignPlanCard plan={data.campaign_plan} />}
 
-      {data.clips.length > 0 && data.source_duration ? (
+      {data.clips.length > 0 && data.source_duration && !data.options.campaign_mode ? (
         <Timeline run={data} focused={focused} onFocus={setFocused} />
       ) : null}
 
