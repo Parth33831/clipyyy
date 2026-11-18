@@ -258,7 +258,11 @@ def test_campaign_brief_is_added_as_high_priority_selection_guidance(transcript)
     system, _ = build_prompt(
         {"title": "Anime source", "duration_seconds": 60},
         transcript,
-        {**OPTIONS, "campaign_mode": True, "campaign_brief": "Use emotional anime scenes. Show English lyrics."},
+        {
+            **OPTIONS,
+            "campaign_mode": True,
+            "campaign_brief": "Use emotional anime scenes. Show English lyrics.",
+        },
     )
     assert "CAMPAIGN REQUIREMENTS (highest priority)" in system
     assert "Use emotional anime scenes. Show English lyrics." in system
