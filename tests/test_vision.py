@@ -105,3 +105,35 @@ def test_text_only_campaign_analysis_keeps_timestamps_without_fabricating_visual
     assert [frame["timestamp"] for frame in result["frames"]] == [3.0, 8.0, 13.0]
     assert all("Visual content unavailable" in frame["description"] for frame in result["frames"])
     assert all(frame["subjects"] == "not analyzed" for frame in result["frames"])
+
+
+def test_text_only_ollama_model_is_not_treated_as_vision_capable():
+    from clipyyy.vision import supports_visual_input
+
+    class Provider:
+        local = True
+
+    class TextOnlyModel:
+        provider = Provider()
+        model = "qwen2.5:1.5b"
+
+        def complete_json_with_images(self, *args, **kwargs):
+            raise AssertionError("must not send image input to a text-only model")
+
+    assert supports_visual_input(TextOnlyModel()) is False
+
+
+def test_local_vision_model_is_recognized():
+    from clipyyy.vision import supports_visual_input
+
+    class Provider:
+        local = True
+
+    class VisionModel:
+        provider = Provider()
+        model = "qwen2.5vl:3b"
+
+        def complete_json_with_images(self, *args, **kwargs):
+            return {}
+
+    assert supports_visual_input(VisionModel()) is True
