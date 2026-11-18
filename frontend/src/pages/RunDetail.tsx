@@ -116,7 +116,7 @@ export function RunDetailPage() {
 
       {(busy || data.status === 'failed') && <Progress run={data} />}
 
-      {data.campaign_plan && <CampaignPlanCard plan={data.campaign_plan} />}
+      {data.campaign_plan && <CampaignPlanCard plan={data.campaign_plan} checks={data.campaign_quality_checks} />}
 
       {data.clips.length > 0 && data.source_duration && !data.options.campaign_mode ? (
         <Timeline run={data} focused={focused} onFocus={setFocused} />
@@ -349,7 +349,7 @@ function CopyBlock({ label, text }: { label: string; text: string }) {
 }
 
 
-function CampaignPlanCard({ plan }: { plan: NonNullable<RunDetail['campaign_plan']> }) {
+function CampaignPlanCard({ plan, checks }: { plan: NonNullable<RunDetail['campaign_plan']>; checks: RunDetail['campaign_quality_checks'] }) {
   const labels: Record<string, string> = {
     campaign_name: 'Campaign',
     platform: 'Platform',
@@ -376,7 +376,7 @@ function CampaignPlanCard({ plan }: { plan: NonNullable<RunDetail['campaign_plan
     const value = plan[key]
     return value !== null && value !== undefined && value !== '' && (!Array.isArray(value) || value.length > 0)
   })
-  if (!entries.length) return null
+  if (!entries.length && !checks) return null
   return (
     <Panel className="flex flex-col gap-4 p-5">
       <div>
@@ -397,6 +397,19 @@ function CampaignPlanCard({ plan }: { plan: NonNullable<RunDetail['campaign_plan
           )
         })}
       </dl>
+      {checks && (
+        <div className="border-t border-line pt-3">
+          <h3 className="label mb-3">Export checks</h3>
+          <dl className="grid gap-3 sm:grid-cols-2">
+            {Object.entries(checks).map(([key, value]) => (
+              <div key={key}>
+                <dt className="label text-muted">{key.replaceAll('_', ' ')}</dt>
+                <dd className="mt-1 text-sm">{typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
     </Panel>
   )
 }
