@@ -172,6 +172,52 @@ def select_clips(llm: LLM, source: dict, transcript: dict, options: dict) -> dic
     for rank, candidate in enumerate(candidates, start=1):
         candidate["rank"] = rank
     clips = validate_clips(candidates, transcript, options)
+
+    # Hosted models can cheaply make one focused refill pass when window overlap or
+    # duplicate rejection leaves the requested count short. Never repeat expensive
+    # CPU-only local inference just to fill a quota.
+    is_local = getattr(getattr(llm, "provider", None), "local", False)
+    if len(windows) > 1 and len(clips) < int(options["clip_count"]) and not is_local:
+        for window in windows:
+            remaining = int(options["clip_count"]) - len(clips)
+            if remaining <= 0:
+                break
+            selected = clips
+            available = [
+                sentence
+                for sentence in window["sentences"]
+                if not any(
+                    float(sentence["start"]) < clip["end_seconds"]
+                    and clip["start_seconds"] < float(sentence["end"])
+                    for clip in selected
+                )
+            ]
+            if len(available) < 2:
+                continue
+            refill_transcript = {**transcript, "sentences": available}
+            refill_options = {**options, "clip_count": min(remaining, 3)}
+            system, user = build_prompt(source, refill_transcript, refill_options)
+            user += (
+                "\\n\\nFind additional moments only. Do not reuse or overlap these selected intervals: "
+                + ", ".join(
+                    f"{clip['start_seconds']:.1f}-{clip['end_seconds']:.1f}s" for clip in selected
+                )
+            )
+            try:
+                raw = llm.complete_json(system, user, SCHEMA, "clip_selection").get("clips", [])
+            except LLMError as exc:
+                logger.warning("clip selection refill skipped: %s", exc)
+                break
+            refill = validate_clips(raw, refill_transcript, refill_options)
+            for candidate in refill:
+                candidate["overall_score"] = candidate.pop("score", 0.0)
+            candidates.extend(refill)
+            candidates.sort(
+                key=lambda item: _num(item.get("overall_score", item.get("score")), 0.0),
+                reverse=True,
+            )
+            clips = validate_clips(candidates, transcript, options)
+
     return {"model": llm.model, "clips": clips}
 
 
