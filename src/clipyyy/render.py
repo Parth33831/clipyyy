@@ -476,8 +476,14 @@ def write_campaign_lyrics(lines: list[str], duration: float, path: Path, width: 
 
     font_size = round(height * 0.047)
     script = [
-        "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {width}", f"PlayResY: {height}",
-        "WrapStyle: 0", "ScaledBorderAndShadow: yes", "", "[V4+ Styles]",
+        "[Script Info]",
+        "ScriptType: v4.00+",
+        f"PlayResX: {width}",
+        f"PlayResY: {height}",
+        "WrapStyle: 0",
+        "ScaledBorderAndShadow: yes",
+        "",
+        "[V4+ Styles]",
         (
             "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
             "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, "
@@ -488,7 +494,9 @@ def write_campaign_lyrics(lines: list[str], duration: float, path: Path, width: 
             f"&H00000000,&H64000000,1,0,0,0,100,100,0,0,1,4,2,2,"
             f"{round(width * 0.07)},{round(width * 0.07)},{round(height * 0.16)},1"
         ),
-        "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+        "",
+        "[Events]",
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
     interval = duration / max(1, len(lines))
     for index, line in enumerate(lines):
@@ -520,11 +528,29 @@ def _crossfade_segments(segments: list[Path], output: Path, fade_seconds: float 
         )
         previous = output_label
         total += duration - fade_seconds
-    run_ffmpeg([
-        *inputs, "-filter_complex", ";".join(filters), "-map", previous, "-an",
-        "-c:v", "libx264", "-preset", "veryfast", "-crf", "19",
-        "-pix_fmt", "yuv420p", "-r", str(FPS), "-movflags", "+faststart", str(output),
-    ])
+    run_ffmpeg(
+        [
+            *inputs,
+            "-filter_complex",
+            ";".join(filters),
+            "-map",
+            previous,
+            "-an",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "19",
+            "-pix_fmt",
+            "yuv420p",
+            "-r",
+            str(FPS),
+            "-movflags",
+            "+faststart",
+            str(output),
+        ]
+    )
 
 
 def detect_music_beat_interval(path: Path) -> float | None:
@@ -532,10 +558,22 @@ def detect_music_beat_interval(path: Path) -> float | None:
     try:
         result = subprocess.run(
             [
-                ffmpeg_bin(), "-v", "error", "-i", str(path),
-                "-ac", "1", "-ar", "11025", "-f", "f32le", "pipe:1",
+                ffmpeg_bin(),
+                "-v",
+                "error",
+                "-i",
+                str(path),
+                "-ac",
+                "1",
+                "-ar",
+                "11025",
+                "-f",
+                "f32le",
+                "pipe:1",
             ],
-            capture_output=True, timeout=90, check=False,
+            capture_output=True,
+            timeout=90,
+            check=False,
         )
         if result.returncode or len(result.stdout) < 11025 * 4:
             return None
