@@ -137,7 +137,7 @@ def test_long_transcript_is_analysed_in_multiple_windows():
     assert len(result["clips"]) == 2
     assert result["clips"][0]["start_seconds"] == 1100.0
     assert result["clips"][1]["start_seconds"] == 0.0
-    assert all("Select exactly 1 non-overlapping clips" in system for system, _ in llm.prompts)
+    assert all("Select exactly 2 non-overlapping clips" in system for system, _ in llm.prompts)
 
 
 def test_long_local_selection_distributes_candidates_across_windows():
@@ -155,7 +155,7 @@ def test_long_local_selection_distributes_candidates_across_windows():
 
     # Five sparse transcript points fit into four 18-minute windows with 45s overlap.
     assert llm.calls == 4
-    assert all("Select exactly 1 non-overlapping clips" in system for system, _ in llm.prompts)
+    assert all("Select exactly 2 non-overlapping clips" in system for system, _ in llm.prompts)
 
 
 def test_selection_does_not_retry_non_retryable_llm_failure(transcript):
