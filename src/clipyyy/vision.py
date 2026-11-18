@@ -33,7 +33,9 @@ FRAME_SCHEMA: dict[str, Any] = {
 }
 
 
-def sample_frames(video_path: Path, duration: float, work_dir: Path, limit: int = 12) -> list[tuple[float, str]]:
+def sample_frames(
+    video_path: Path, duration: float, work_dir: Path, limit: int = 12
+) -> list[tuple[float, str]]:
     """Extract evenly spaced, small JPEG frames without decoding the full video to disk."""
     if duration <= 0:
         return []
