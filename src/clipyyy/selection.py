@@ -14,8 +14,10 @@ logger = logging.getLogger(__name__)
 
 MAX_ATTEMPTS = 3
 # Small local models produce better results when a long transcript is analysed in focused windows.
-WINDOW_SECONDS = 12 * 60
-WINDOW_OVERLAP_SECONDS = 30
+# Larger windows reduce the number of serial Ollama calls on CPU-only desktops.
+# Keep overlap modest so a moment near a boundary is still visible in both windows.
+WINDOW_SECONDS = 18 * 60
+WINDOW_OVERLAP_SECONDS = 45
 
 SCHEMA: dict[str, Any] = {
     "type": "object",
