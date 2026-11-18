@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import httpx
+
 from clipyyy.config import get_setting
 from clipyyy.media import find_ffmpeg, install_hint
 from clipyyy.publish import storage_configured
@@ -11,17 +13,20 @@ from clipyyy.source import js_runtime
 def checks() -> list[dict]:
     found = find_ffmpeg()
     ffmpeg, libass = found.ffmpeg, found.libass
-    provider = get_setting("llm_provider") or "openrouter"
-    key_setting = {"openrouter": "openrouter_api_key", "gemini": "gemini_api_key"}.get(provider, "")
-    llm_key = bool(get_setting(key_setting)) if key_setting else False
-    llm_ready = provider == "ollama" or (bool(key_setting) and llm_key)
-    llm_detail = (
-        f"Ollama (local) · {get_setting('llm_model') or 'qwen2.5:1.5b'}"
-        if provider == "ollama"
-        else f"{provider} · {get_setting('llm_model')}"
-        if llm_ready
-        else f"add a {provider} API key or select the local Ollama provider"
-    )
+    model = get_setting("llm_model") or "qwen2.5vl:3b"
+    try:
+        response = httpx.get("http://127.0.0.1:11434/v1/models", timeout=2.0)
+        response.raise_for_status()
+        installed = {item.get("id") for item in response.json().get("data", [])}
+        llm_ready = model in installed
+        llm_detail = (
+            f"Ollama (local) · {model}"
+            if llm_ready
+            else f"Ollama is running, but '{model}' is not installed. Choose an installed model in Settings."
+        )
+    except (httpx.HTTPError, ValueError):
+        llm_ready = False
+        llm_detail = "Ollama is not responding at 127.0.0.1:11434. Start the local Ollama service."
     runtime = js_runtime()
     return [
         _check(
