@@ -39,7 +39,9 @@ class ClipOptions(BaseModel):
     campaign_mode: bool = False
     campaign_brief: str = Field("", max_length=6000, description="Campaign requirements and creative brief")
     campaign_music_path: str | None = Field(None, description="Optional user-provided campaign music file")
-    campaign_lyrics: str = Field("", max_length=3000, description="Optional user-provided lyric or on-screen text lines")
+    campaign_lyrics: str = Field(
+        "", max_length=3000, description="Optional user-provided lyric or on-screen text lines"
+    )
     model: str | None = Field(None, description="Override the default LLM model")
 
     @model_validator(mode="after")
@@ -107,7 +109,10 @@ def stage_select(ctx: Context) -> dict:
         if not options.get("campaign_brief", "").strip():
             raise ValueError("Add the campaign rules before starting a campaign edit.")
         if getattr(getattr(llm, "provider", None), "local", False):
-            raise ValueError("Campaign montage editing needs a vision-capable model. Select Gemini in Settings; local text-only Ollama cannot inspect video frames.")
+            raise ValueError(
+                "Campaign montage editing needs a vision-capable model. Select Gemini in Settings; "
+                "local text-only Ollama cannot inspect video frames."
+            )
         from clipyyy.campaign import build_montage_plan, parse_campaign_brief
         from clipyyy.vision import analyze_campaign_video
 
@@ -117,7 +122,10 @@ def stage_select(ctx: Context) -> dict:
         for index, item in enumerate(sources):
             analyses.append(
                 analyze_campaign_video(
-                    item, ctx.work_dir / f"campaign-source-{index + 1:02d}", llm, options["campaign_brief"]
+                    item,
+                    ctx.work_dir / f"campaign-source-{index + 1:02d}",
+                    llm,
+                    options["campaign_brief"],
                 )
             )
         count = min(10, plan.get("output_count") or options["clip_count"])
