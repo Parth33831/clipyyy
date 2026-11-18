@@ -89,7 +89,6 @@ def test_run_detail_reports_stage_elapsed_time(client):
     assert stage["duration_seconds"] == 65.0
 
 
-
 def test_campaign_run_accepts_public_campaign_url_without_manual_brief(client):
     response = client.post(
         "/api/runs",
