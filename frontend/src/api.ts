@@ -18,7 +18,6 @@ export interface ClipOptions {
   instructions: string
   campaign_mode: boolean
   campaign_brief: string
-  campaign_url: string
   campaign_music_path: string | null
   campaign_lyrics: string
   model: string | null
@@ -199,7 +198,6 @@ export const DEFAULT_OPTIONS: ClipOptions = {
   instructions: '',
   campaign_mode: false,
   campaign_brief: '',
-  campaign_url: '',
   campaign_music_path: null,
   campaign_lyrics: '',
   model: null,
