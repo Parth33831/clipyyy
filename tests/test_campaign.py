@@ -27,3 +27,47 @@ def test_local_fallback_does_not_guess_campaign_category():
     assert plan["content_type"] is None
     assert plan["subject_or_theme"] is None
     assert plan["unresolved_questions"]
+
+
+class FakeMontageLLM:
+    def complete_json(self, system, user, schema, name):
+        return {
+            "edits": [
+                {
+                    "title": "Emotional campaign cut",
+                    "shots": [
+                        {"source_index": 0, "start_seconds": 2, "end_seconds": 5, "reason": "opening"},
+                        {"source_index": 1, "start_seconds": 8, "end_seconds": 12, "reason": "build"},
+                        {"source_index": 0, "start_seconds": 999, "end_seconds": 1005, "reason": "clamped out"},
+                        {"source_index": 1, "start_seconds": 15, "end_seconds": 19, "reason": "payoff"},
+                    ],
+                }
+            ]
+        }
+
+
+def test_montage_plan_uses_multiple_sources_and_clamps_timestamps():
+    from clipyyy.campaign import build_montage_plan
+
+    sources = [
+        {"title": "A", "duration_seconds": 20},
+        {"title": "B", "duration_seconds": 30},
+    ]
+    analyses = [
+        {"frames": [{"timestamp": 3, "description": "sunset", "mood": "calm", "subjects": "sky"}]},
+        {"frames": [{"timestamp": 9, "description": "runner", "mood": "hopeful", "subjects": "person"}]},
+    ]
+    plan = build_montage_plan(FakeMontageLLM(), "Hopeful sports campaign", {}, sources, analyses, 1, 12)
+    assert len(plan) == 1
+    assert [shot["source_index"] for shot in plan[0]["shots"]] == [0, 1, 1]
+    assert all(shot["end_seconds"] <= sources[shot["source_index"]]["duration_seconds"] for shot in plan[0]["shots"])
+
+
+def test_campaign_lyrics_are_timed_and_written(tmp_path):
+    from clipyyy.render import write_campaign_lyrics
+
+    path = write_campaign_lyrics(["First line", "Second line"], 10, tmp_path / "lyrics.ass", 1080, 1920)
+    text = path.read_text(encoding="utf-8")
+    assert "First line" in text
+    assert "Second line" in text
+    assert "Dialogue:" in text
