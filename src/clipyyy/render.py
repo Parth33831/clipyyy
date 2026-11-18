@@ -301,11 +301,9 @@ def render_campaign_montages(
     lyrics = [line.strip() for line in options.get("campaign_lyrics", "").splitlines() if line.strip()]
     campaign_plan = options.get("campaign_plan") or {}
     official_sound_required = campaign_plan.get("official_platform_sound_required") is True
-    music_path = (
-        Path(options["campaign_music_path"])
-        if options.get("campaign_music_path") and not official_sound_required
-        else None
-    )
+    # A creator-attached track is mixed into the preview/export even when the
+    # campaign also requires selecting the official sound in TikTok at publish time.
+    music_path = Path(options["campaign_music_path"]) if options.get("campaign_music_path") else None
     if music_path and not music_path.is_file():
         raise FileNotFoundError(f"Campaign music file not found: {music_path}")
     beat_interval = detect_music_beat_interval(music_path) if music_path else None
@@ -366,6 +364,12 @@ def render_campaign_montages(
             silent = edit_dir / "montage-silent.mp4"
             _crossfade_segments(segments, silent)
             _, _, duration = probe(silent)
+            target_duration = float(campaign_plan.get("target_duration_seconds") or 0)
+            if target_duration > 0 and abs(duration - target_duration) > 0.05:
+                normalized = edit_dir / "montage-timed.mp4"
+                _normalize_montage_duration(silent, normalized, duration, target_duration)
+                silent = normalized
+                _, _, duration = probe(silent)
             visual = silent
             if lyrics:
                 overlay = edit_dir / "campaign-lyrics.ass"
@@ -434,7 +438,9 @@ def render_campaign_montages(
                     "height": out_h,
                     "duration_seconds": round(final_duration, 2),
                     "audio": (
-                        "user-provided campaign track"
+                        "user-provided campaign track included; select the official campaign sound separately in TikTok if required"
+                        if music_path and official_sound_required
+                        else "user-provided campaign track included"
                         if music_path
                         else "silent; add official campaign sound on the publishing platform if required"
                     ),
@@ -474,6 +480,42 @@ def render_campaign_montages(
             ),
         },
     }
+
+
+def _normalize_montage_duration(
+    source: Path, output: Path, current_duration: float, target_duration: float
+) -> Path:
+    """Trim or freeze the final frame so a montage matches its requested duration."""
+    if target_duration <= 0:
+        raise ValueError("Target montage duration must be positive.")
+    padding = max(0.0, target_duration - current_duration)
+    video_filter = (
+        f"tpad=stop_mode=clone:stop_duration={padding:.3f},"
+        f"trim=duration={target_duration:.3f},setpts=PTS-STARTPTS"
+    )
+    run_ffmpeg(
+        [
+            "-i",
+            str(source),
+            "-vf",
+            video_filter,
+            "-an",
+            "-t",
+            f"{target_duration:.3f}",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "19",
+            "-pix_fmt",
+            "yuv420p",
+            "-movflags",
+            "+faststart",
+            str(output),
+        ]
+    )
+    return output
 
 
 def write_campaign_lyrics(lines: list[str], duration: float, path: Path, width: int, height: int) -> Path:
