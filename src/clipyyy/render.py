@@ -331,7 +331,7 @@ def render_campaign_montages(
                 raise RuntimeError("Fewer than three campaign shots could be rendered.")
             concat_list = edit_dir / "segments.txt"
             concat_list.write_text(
-                "".join(f"file '{str(path.resolve()).replace(chr(39), chr(92) + chr(39))}'\n" for path in segments),
+                "".join(f"file '{path.resolve().as_posix()}'\n" for path in segments),
                 encoding="utf-8",
             )
             silent = edit_dir / "montage-silent.mp4"
