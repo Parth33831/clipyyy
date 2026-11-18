@@ -28,6 +28,7 @@ class _PageParser(HTMLParser):
         self.meta: dict[str, str] = {}
         self._in_title = False
         self._skip_depth = 0
+        self._active_link: int | None = None
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = {key.lower(): value or "" for key, value in attrs}
@@ -43,6 +44,7 @@ class _PageParser(HTMLParser):
         if tag == "a" and values.get("href"):
             href = urljoin(self.base_url, values["href"])
             self.links.append({"url": href, "text": ""})
+            self._active_link = len(self.links) - 1
         if tag in {"video", "source"}:
             src = values.get("src") or values.get("data-src")
             if src:
@@ -53,6 +55,8 @@ class _PageParser(HTMLParser):
     def handle_endtag(self, tag: str) -> None:
         if tag == "title":
             self._in_title = False
+        if tag == "a":
+            self._active_link = None
         if tag in {"script", "style", "noscript", "svg"} and self._skip_depth:
             self._skip_depth -= 1
 
@@ -64,8 +68,9 @@ class _PageParser(HTMLParser):
             self.title_parts.append(text)
         if not self._skip_depth:
             self.text_parts.append(text)
-            if self.links and len(self.links[-1]["text"]) < 500:
-                self.links[-1]["text"] = (self.links[-1]["text"] + " " + text).strip()
+            if self._active_link is not None and len(self.links[self._active_link]["text"]) < 500:
+                link = self.links[self._active_link]
+                link["text"] = (link["text"] + " " + text).strip()
 
 
 def _validate_public_url(url: str) -> None:
