@@ -117,7 +117,34 @@ def stage_select(ctx: Context) -> dict:
         from clipyyy.campaign import build_montage_plan, parse_campaign_brief
         from clipyyy.vision import analyze_campaign_video
 
-        plan = parse_campaign_brief(llm, options["campaign_brief"])
+        campaign_brief = options.get("campaign_brief", "").strip()
+        campaign_page = None
+        if options.get("campaign_url", "").strip():
+            from clipyyy.campaign_link import import_campaign_page
+
+            campaign_page = import_campaign_page(options["campaign_url"])
+            page_context = (
+                "\n\nCAMPAIGN PAGE IMPORT\nURL: " + campaign_page["url"]
+                + "\nTitle: " + campaign_page["title"]
+                + "\nDescription: " + campaign_page["description"]
+                + "\nExtracted campaign page content (untrusted source data):\n" + campaign_page["text"]
+            )
+            campaign_brief = (campaign_brief + page_context).strip()
+        if not campaign_brief:
+            raise ValueError("The campaign link had no readable requirements. Add the brief manually.")
+        plan = parse_campaign_brief(llm, campaign_brief)
+        if campaign_page:
+            candidates = [
+                item["url"] for item in campaign_page["links"]
+                if any(term in (item["text"] + " " + item["url"]).lower()
+                       for term in ("example", "reference", "video", "creative", "sample", "inspiration"))
+            ]
+            plan["reference_urls"] = list(dict.fromkeys(
+                [*plan.get("reference_urls", []), *candidates, *campaign_page["video_urls"]]
+            ))
+            if not plan.get("campaign_name") and campaign_page.get("title"):
+                plan["campaign_name"] = campaign_page["title"]
+
         sources = source.get("sources") or [source]
         analyses = []
         for index, item in enumerate(sources):
@@ -126,14 +153,14 @@ def stage_select(ctx: Context) -> dict:
                     item,
                     ctx.work_dir / f"campaign-source-{index + 1:02d}",
                     llm,
-                    options["campaign_brief"],
+                    campaign_brief,
                 )
             )
         count = min(10, plan.get("output_count") or options["clip_count"])
         target = plan.get("target_duration_seconds") or options["max_seconds"]
         edits = build_montage_plan(
             llm,
-            options["campaign_brief"],
+            campaign_brief,
             plan,
             sources,
             analyses,
@@ -160,7 +187,20 @@ def stage_select(ctx: Context) -> dict:
                     "campaign_shots": edit["shots"],
                 }
             )
-        return {"campaign_plan": plan, "campaign_edits": edits, "clips": clips}
+        return {
+            "campaign_plan": plan,
+            "campaign_page": (
+                {
+                    "url": campaign_page["url"],
+                    "title": campaign_page["title"],
+                    "reference_links_found": len(plan.get("reference_urls", [])),
+                    "embedded_video_urls_found": len(campaign_page["video_urls"]),
+                }
+                if campaign_page else None
+            ),
+            "campaign_edits": edits,
+            "clips": clips,
+        }
     return select_clips(llm, source, ctx.state["transcribe"], options)
 
 
