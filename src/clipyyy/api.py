@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import tempfile
 import zipfile
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -16,10 +15,9 @@ from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from starlette.background import BackgroundTask
 
 from clipyyy import __version__, db, pipeline
-from clipyyy.config import PACKAGE_DIR, SETTINGS, get_setting, mask, uploads_dir
+from clipyyy.config import PACKAGE_DIR, SETTINGS, get_setting, home, mask, uploads_dir
 from clipyyy.doctor import checks
 from clipyyy.publish import BufferClient, PublishError, PublishMode, publish_clip
 from clipyyy.worker import Worker
@@ -195,18 +193,17 @@ def create_app(start_worker: bool = True) -> FastAPI:
         clips = [c for c in db.list_clips(run_id) if c["status"] == "ready" and c["file_path"]]
         if not clips:
             raise HTTPException(404, "No clips to download yet")
-        fd, tmp = tempfile.mkstemp(suffix=".zip")
-        os.close(fd)
-        with zipfile.ZipFile(tmp, "w", zipfile.ZIP_STORED) as zf:
+        export_dir = home() / "exports"
+        export_dir.mkdir(parents=True, exist_ok=True)
+        name = f"clipyyy-{_safe(run['title'] or run_id)}-{run_id[:8]}.zip"
+        archive_path = export_dir / name
+        with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_STORED) as zf:
             for clip in clips:
                 zf.write(clip["file_path"], Path(clip["file_path"]).name)
             zf.writestr(
                 "clips.json", json.dumps([_clip_public(c) for c in clips], indent=2, ensure_ascii=False)
             )
-        name = f"clipyyy-{_safe(run['title'] or run_id)}.zip"
-        return FileResponse(
-            tmp, filename=name, media_type="application/zip", background=BackgroundTask(os.unlink, tmp)
-        )
+        return FileResponse(archive_path, filename=name, media_type="application/zip")
 
     # ── clips & publishing ───────────────────────────────────────────────────
 
