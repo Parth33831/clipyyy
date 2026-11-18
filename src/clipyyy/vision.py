@@ -22,6 +22,7 @@ def supports_visual_input(llm) -> bool:
         return any(tag in model for tag in vision_tags)
     return True
 
+
 FRAME_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
