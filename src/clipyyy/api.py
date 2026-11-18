@@ -124,11 +124,15 @@ def create_app(start_worker: bool = True) -> FastAPI:
 
     @app.post("/api/runs")
     def create_runs(body: CreateRuns) -> list[dict]:
-        runs = [
-            db.create_run(source.strip(), body.options.model_dump())
-            for source in body.sources
-            if source.strip()
-        ]
+        sources = [source.strip() for source in body.sources if source.strip()]
+        if body.options.campaign_mode:
+            if not body.options.campaign_brief.strip():
+                raise HTTPException(400, "Paste the campaign brief before starting the campaign editor.")
+            if not 1 <= len(sources) <= 6:
+                raise HTTPException(400, "A campaign edit needs between 1 and 6 source videos.")
+            runs = [db.create_run(json.dumps(sources, ensure_ascii=False), body.options.model_dump())]
+        else:
+            runs = [db.create_run(source, body.options.model_dump()) for source in sources]
         if worker:
             worker.wake()
         return runs
