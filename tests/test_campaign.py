@@ -225,3 +225,46 @@ def test_campaign_montage_duration_normalization_pads_or_trims(tmp_path, monkeyp
     assert "trim=duration=15.000" in padded_filter
     assert "tpad=stop_mode=clone:stop_duration=0.000" in trimmed_filter
     assert "trim=duration=15.000" in trimmed_filter
+
+
+
+def test_text_only_montage_uses_detected_scene_boundaries():
+    from clipyyy.campaign import _build_text_only_montage
+
+    source = {"duration_seconds": 180.0}
+    analysis = {
+        "frames": [
+            {
+                "timestamp": float(timestamp),
+                "description": "Visual content unavailable: installed model is text-only.",
+            }
+            for timestamp in range(5, 170, 4)
+        ]
+    }
+    edits = _build_text_only_montage([source], 1, 20, [analysis])
+    assert len(edits) == 1
+    assert len(edits[0]["shots"]) >= 5
+    scene_times = {float(timestamp) for timestamp in range(5, 170, 4)}
+    assert all(
+        any(abs(shot["start_seconds"] - (timestamp + 0.06)) < 0.01 for timestamp in scene_times)
+        or shot["start_seconds"] < 1.0
+        for shot in edits[0]["shots"]
+    )
+    assert all("FFmpeg-detected scene change" in shot["reason"] for shot in edits[0]["shots"])
+
+
+def test_detect_scene_changes_extracts_and_limits_ffmpeg_timestamps(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from clipyyy import vision
+
+    stderr = "\n".join(f"[Parsed_showinfo] n:{i} pts_time:{i * 2}.000" for i in range(1, 15))
+    monkeypatch.setattr(
+        vision.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(stderr=stderr, returncode=0),
+    )
+    timestamps = vision.detect_scene_changes(tmp_path / "source.mp4", 40, limit=5)
+    assert len(timestamps) == 5
+    assert timestamps[0] == 2.0
+    assert timestamps[-1] == 28.0
