@@ -614,8 +614,16 @@ def write_campaign_word_lyrics(
     script = [
         "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {width}", f"PlayResY: {height}",
         "WrapStyle: 0", "ScaledBorderAndShadow: yes", "", "[V4+ Styles]",
-        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-        f"Style: Default,Arial,{font_size},{_ass_color('FFFFFF')},&H000000FF,&H00000000,&H64000000,1,0,0,0,100,100,0,0,1,4,2,2,{round(width * 0.07)},{round(width * 0.07)},{round(height * 0.16)},1",
+        (
+            "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
+            "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, "
+            "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding"
+        ),
+        (
+            f"Style: Default,Arial,{font_size},{_ass_color('FFFFFF')},&H000000FF,&H00000000,"
+            f"&H64000000,1,0,0,0,100,100,0,0,1,4,2,2,{round(width * 0.07)},"
+            f"{round(width * 0.07)},{round(height * 0.16)},1"
+        ),
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
     for index, group in enumerate(groups):
@@ -627,7 +635,9 @@ def write_campaign_word_lyrics(
         if style == "karaoke":
             pieces = []
             for word_index, item in enumerate(group):
-                next_word_start = group[word_index + 1]["start"] if word_index + 1 < len(group) else item["end"]
+                next_word_start = (
+                    group[word_index + 1]["start"] if word_index + 1 < len(group) else item["end"]
+                )
                 word_end = min(end, max(item["end"], next_word_start))
                 centiseconds = max(1, round((word_end - item["start"]) * 100))
                 pieces.append(f"{{\\k{centiseconds}}}{_escape(item['word'])}")
