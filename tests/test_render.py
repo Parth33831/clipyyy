@@ -382,6 +382,7 @@ def test_campaign_word_lyrics_show_configurable_rolling_word_window(tmp_path):
     assert "One" in two_events[0] and "Two" in two_events[0]
     assert "Three" not in two_events[0]
 
+
 def test_remove_timed_intervals_keeps_audio_and_video_synchronized(tmp_path):
     from clipyyy.render import remove_timed_intervals
 
