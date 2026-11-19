@@ -22,7 +22,7 @@ export function RunDetailPage() {
   const [focused, setFocused] = useState<number | null>(null)
   const [musicFile, setMusicFile] = useState<File | null>(null)
   const [lyricsText, setLyricsText] = useState('')
-  const [lyricsStyle, setLyricsStyle] = useState<'dynamic' | 'cinematic' | 'minimal'>('dynamic')
+  const [lyricsStyle, setLyricsStyle] = useState<'dynamic' | 'cinematic' | 'minimal' | 'karaoke'>('dynamic')
   const [hookText, setHookText] = useState('')
   const [includeHook, setIncludeHook] = useState(false)
   useEffect(() => {
