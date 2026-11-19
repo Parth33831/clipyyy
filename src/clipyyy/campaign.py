@@ -292,7 +292,11 @@ def _build_text_only_montage(
         shots = []
         used: set[tuple[int, int]] = set()
         segment_start = (rank - 1) * segment_size
-        segment_end = len(candidates) if rank == output_count else min(len(candidates), segment_start + segment_size)
+        segment_end = (
+            len(candidates)
+            if rank == output_count
+            else min(len(candidates), segment_start + segment_size)
+        )
         segment_candidates = candidates[segment_start:segment_end]
         for index, shot_length in enumerate(shot_lengths):
             candidate_index = min(
@@ -311,14 +315,18 @@ def _build_text_only_montage(
                     alt_key = (alt_source, round(alt_start / 1.5))
                     if alt_key not in used:
                         source_index, duration, start = alt_source, alt_duration, alt_start
-                        end, key, is_scene_change = min(alt_duration, alt_start + shot_length), alt_key, alt_is_scene_change
+                        end = min(alt_duration, alt_start + shot_length)
+                        key, is_scene_change = alt_key, alt_is_scene_change
                         break
             if end - start >= 1.25 and key not in used:
                 used.add(key)
                 reason = (
                     "Selected near an FFmpeg-detected scene change; semantic anime content was not analysed."
                     if is_scene_change
-                    else "Fallback time sample; scene/character semantics were not analysed by the text-only model."
+                    else (
+                        "Fallback time sample; scene/character semantics were not analysed "
+                        "by the text-only model."
+                    )
                 )
                 shots.append(
                     {
