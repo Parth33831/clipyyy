@@ -858,8 +858,14 @@ def write_campaign_hook(text: str, duration: float, path: Path, width: int, heig
 
     font_size = round(height * 0.065)
     script = [
-        "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {width}", f"PlayResY: {height}",
-        "WrapStyle: 2", "ScaledBorderAndShadow: yes", "", "[V4+ Styles]",
+        "[Script Info]",
+        "ScriptType: v4.00+",
+        f"PlayResX: {width}",
+        f"PlayResY: {height}",
+        "WrapStyle: 2",
+        "ScaledBorderAndShadow: yes",
+        "",
+        "[V4+ Styles]",
         (
             "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
             "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, "
@@ -870,7 +876,9 @@ def write_campaign_hook(text: str, duration: float, path: Path, width: int, heig
             f"&H64000000,1,0,0,0,100,100,0,0,1,5,2,5,{round(width * 0.08)},"
             f"{round(width * 0.08)},{round(height * 0.24)},1"
         ),
-        "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+        "",
+        "[Events]",
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
         f"Dialogue: 0,0:00:00.00,{_ts(duration)},Default,,0,0,0,,{{\\fad(120,180)}}{_escape(text)}",
     ]
     path.write_text("\n".join(script) + "\n", encoding="utf-8")
