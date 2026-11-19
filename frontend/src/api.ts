@@ -25,6 +25,7 @@ export interface ClipOptions {
   campaign_lyrics_style?: 'dynamic' | 'cinematic' | 'minimal'
   campaign_hook_text?: string
   include_campaign_hook?: boolean
+  selected_campaign_dialogue_id?: string | null
   model: string | null
 }
 
@@ -201,10 +202,11 @@ export const api = {
     lyricsStyle: 'dynamic' | 'cinematic' | 'minimal',
     hookText: string,
     includeHook: boolean,
+    selectedDialogueId: string | null,
   ) =>
     request<{ saved: boolean; characters: number }>(`/api/runs/${id}/campaign-lyrics`, {
       method: 'PUT',
-      body: JSON.stringify({ lyrics, lyrics_style: lyricsStyle, hook_text: hookText, include_hook: includeHook }),
+      body: JSON.stringify({ lyrics, lyrics_style: lyricsStyle, hook_text: hookText, include_hook: includeHook, selected_dialogue_id: selectedDialogueId }),
     }),
   retry: (id: string, fromStage?: string) =>
     request<RunDetail>(`/api/runs/${id}/retry`, {
