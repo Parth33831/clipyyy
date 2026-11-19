@@ -420,7 +420,11 @@ def render_campaign_montages(
             if lyrics:
                 overlay = edit_dir / "campaign-lyrics.ass"
                 write_campaign_lyrics(
-                    lyrics, duration, overlay, width, height,
+                    lyrics,
+                    duration,
+                    overlay,
+                    width,
+                    height,
                     offset_seconds=music_start,
                     style=options.get("campaign_lyrics_style", "dynamic"),
                 )
@@ -644,9 +648,10 @@ def write_campaign_lyrics(
             end = min(duration, max(start + 0.2, min(end, duration)))
             dialogue = f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,"
             treatment = (
-                ("{\\fad(90,120)\\fscx72\\fscy72\\t(0,170,\\fscx100\\fscy100)\\c&H00D7FF&\\bord4\\shad2}",
-                 "{\\fad(90,120)\\fscx82\\fscy82\\t(0,150,\\fscx100\\fscy100)\\c&H66E6FF&\\bord4\\shad2}",
-                 "{\\fad(90,120)\\fscx76\\fscy76\\t(0,190,\\fscx100\\fscy100)\\c&H99CCFF&\\bord4\\shad2}",
+                (
+                    "{\\fad(90,120)\\fscx72\\fscy72\\t(0,170,\\fscx100\\fscy100)\\c&H00D7FF&\\bord4\\shad2}",
+                    "{\\fad(90,120)\\fscx82\\fscy82\\t(0,150,\\fscx100\\fscy100)\\c&H66E6FF&\\bord4\\shad2}",
+                    "{\\fad(90,120)\\fscx76\\fscy76\\t(0,190,\\fscx100\\fscy100)\\c&H99CCFF&\\bord4\\shad2}",
                 )[index % 3]
                 if style == "dynamic"
                 else "{\\fad(220,220)\\c&HFFFFFF&\\bord2\\shad3\\fsp1}"
