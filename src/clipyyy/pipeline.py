@@ -136,9 +136,30 @@ def stage_transcribe(ctx: Context) -> dict:
 def _campaign_dialogue_candidates(transcription: dict, limit: int = 12) -> list[dict]:
     """Rank complete, short spoken lines for a possible dialogue-first opening."""
     emotional_terms = {
-        "love", "sorry", "goodbye", "please", "stay", "never", "remember", "alone",
-        "afraid", "hate", "heart", "die", "promise", "miss", "why", "wait", "help",
-        "truth", "lost", "friend", "family", "believe", "together", "leave",
+        "love",
+        "sorry",
+        "goodbye",
+        "please",
+        "stay",
+        "never",
+        "remember",
+        "alone",
+        "afraid",
+        "hate",
+        "heart",
+        "die",
+        "promise",
+        "miss",
+        "why",
+        "wait",
+        "help",
+        "truth",
+        "lost",
+        "friend",
+        "family",
+        "believe",
+        "together",
+        "leave",
     }
     candidates = []
     for source in transcription.get("sources", []):
