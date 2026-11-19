@@ -151,6 +151,7 @@ def test_campaign_transcribe_skips_source_videos_for_manual_dialogue():
 
     assert result == {"language": "campaign", "sources": []}
 
+
 def test_filler_removal_option_is_off_by_default_and_preserved():
     options = pipeline.ClipOptions().model_dump()
     assert options["remove_filler_words"] is False
