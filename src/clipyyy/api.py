@@ -138,6 +138,8 @@ def create_app(start_worker: bool = True) -> FastAPI:
             **run["options"],
             "campaign_lyrics": body.lyrics,
             "campaign_lyrics_source": "Creator-edited",
+            # Creator edits replace the automatic transcript; do not render stale word timings.
+            "campaign_lyric_words": [],
             "campaign_lyrics_style": body.lyrics_style,
             "campaign_hook_text": body.hook_text.strip(),
             "include_campaign_hook": body.include_hook,
