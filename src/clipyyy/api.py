@@ -196,9 +196,7 @@ def create_app(start_worker: bool = True) -> FastAPI:
         if run["status"] in {"queued", "running"}:
             raise HTTPException(409, "Wait for the campaign run to finish before editing its shots.")
         try:
-            result = pipeline.update_campaign_montage(
-                run_id, [edit.model_dump() for edit in body.edits]
-            )
+            result = pipeline.update_campaign_montage(run_id, [edit.model_dump() for edit in body.edits])
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
         except Exception as exc:
