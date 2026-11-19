@@ -121,3 +121,37 @@ def test_campaign_selection_uses_local_ollama_without_cloud_fallback(monkeypatch
     assert result["campaign_plan"]["campaign_name"] == "Local campaign"
     assert result["clips"][0]["title"] == "Local edit"
     assert result["clips"][0]["campaign_shots"][0]["source_index"] == 0
+
+
+def test_campaign_dialogue_candidates_rank_short_emotional_lines():
+    candidates = pipeline._campaign_dialogue_candidates(
+        {
+            "sources": [
+                {
+                    "source_index": 0,
+                    "title": "Episode one",
+                    "sentences": [
+                        {"text": "Please don't leave me alone!", "start": 12.0, "end": 14.1},
+                        {"text": "The weather is nice today.", "start": 20.0, "end": 22.0},
+                        {"text": "Hi.", "start": 25.0, "end": 25.4},
+                    ],
+                }
+            ]
+        }
+    )
+    assert len(candidates) == 2
+    assert candidates[0]["text"] == "Please don't leave me alone!"
+    assert candidates[0]["source_index"] == 0
+    assert candidates[0]["start_seconds"] == 12.0
+
+
+def test_campaign_options_preserve_creative_settings():
+    options = pipeline.ClipOptions(
+        campaign_mode=True,
+        campaign_lyrics_style="cinematic",
+        campaign_hook_text="Stay until the end",
+        include_campaign_hook=True,
+    ).model_dump()
+    assert options["campaign_lyrics_style"] == "cinematic"
+    assert options["campaign_hook_text"] == "Stay until the end"
+    assert options["include_campaign_hook"] is True
