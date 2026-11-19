@@ -429,6 +429,8 @@ def render_campaign_montages(
                         height,
                         offset_seconds=music_start,
                         style=options.get("campaign_lyrics_style", "dynamic"),
+                        text_color=options.get("campaign_lyrics_color", "#FFFFFF"),
+                        highlight_color=options.get("campaign_lyrics_highlight_color", "#00D7FF"),
                     )
                 else:
                     write_campaign_lyrics(
@@ -439,6 +441,8 @@ def render_campaign_montages(
                         height,
                         offset_seconds=music_start,
                         style=options.get("campaign_lyrics_style", "dynamic"),
+                        text_color=options.get("campaign_lyrics_color", "#FFFFFF"),
+                        highlight_color=options.get("campaign_lyrics_highlight_color", "#00D7FF"),
                     )
                 captioned = edit_dir / "montage-lyrics.mp4"
                 run_ffmpeg(
@@ -579,9 +583,14 @@ def write_campaign_word_lyrics(
     height: int,
     offset_seconds: float = 0.0,
     style: str = "dynamic",
+    text_color: str = "#FFFFFF",
+    highlight_color: str = "#00D7FF",
 ) -> Path:
     """Render phrase captions using Whisper's actual per-word singing timestamps."""
     from clipyyy.captions import _ass_color, _escape, _ts
+
+    primary = _ass_color(text_color)
+    accent = _ass_color(highlight_color)
 
     usable = [
         {
@@ -596,7 +605,7 @@ def write_campaign_word_lyrics(
     ]
     usable = [item for item in usable if item["end"] > item["start"]]
     if not usable:
-        return write_campaign_lyrics([], duration, path, width, height, style=style)
+        return write_campaign_lyrics([], duration, path, width, height, style=style, text_color=text_color, highlight_color=highlight_color)
 
     groups: list[list[dict]] = []
     current: list[dict] = []
@@ -710,6 +719,7 @@ def write_campaign_word_lyrics(
             )
             text = _escape(phrase)
         script.append(f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,{treatment}{text}")
+    script = [line.replace("&H00FFFFFF&", primary).replace("&H0000D7FF&", accent).replace("&H00D7FF&", accent).replace("&H66E6FF&", accent).replace("&H99CCFF&", accent) for line in script]
     path.write_text("\n".join(script) + "\n", encoding="utf-8")
     return path
 
@@ -758,9 +768,14 @@ def write_campaign_lyrics(
     height: int,
     offset_seconds: float = 0.0,
     style: str = "dynamic",
+    text_color: str = "#FFFFFF",
+    highlight_color: str = "#00D7FF",
 ) -> Path:
     """Burn timed lyrics with dynamic, cinematic, or minimal styling."""
     from clipyyy.captions import _ass_color, _escape, _ts
+
+    primary = _ass_color(text_color)
+    accent = _ass_color(highlight_color)
 
     font_size = round(height * 0.047)
     script = [
@@ -868,6 +883,7 @@ def write_campaign_lyrics(
                 )
                 caption_text = treatment + _escape(line)
             script.append(dialogue + caption_text)
+    script = [line.replace("&H00FFFFFF&", primary).replace("&H0000D7FF&", accent).replace("&H00D7FF&", accent).replace("&H66E6FF&", accent).replace("&H99CCFF&", accent) for line in script]
     path.write_text("\n".join(script) + "\n", encoding="utf-8")
     return path
 
