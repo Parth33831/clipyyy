@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from clipyyy.media import run_ffmpeg
+from clipyyy.media import ffmpeg_bin, run_ffmpeg
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +88,7 @@ def detect_scene_changes(video_path: Path, duration: float, limit: int = 48) -> 
     try:
         result = subprocess.run(
             [
-                "ffmpeg", "-hide_banner", "-loglevel", "info", "-i", str(video_path),
+                ffmpeg_bin(), "-hide_banner", "-loglevel", "info", "-i", str(video_path),
                 "-vf", "select='gt(scene,0.20)',showinfo", "-an", "-f", "null", "-",
             ],
             capture_output=True, text=True, timeout=180, check=False,
