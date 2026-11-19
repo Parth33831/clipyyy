@@ -119,8 +119,8 @@ def generate_campaign_hook(llm, brief: str, campaign_plan: dict[str, Any]) -> st
             HOOK_SCHEMA,
             "campaign_opening_hook",
         )
-        hook = " ".join(str(result.get("hook", "")).split()).strip(" \\t\\r\\n.!?")
-        return hook[:72] or None
+        hook_words = " ".join(str(result.get("hook", "")).split()).strip(" \\t\\r\\n.!?").split()
+        return " ".join(hook_words[:8])[:72] or None
     except Exception:
         return None
 
