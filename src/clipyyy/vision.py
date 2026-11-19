@@ -88,10 +88,23 @@ def detect_scene_changes(video_path: Path, duration: float, limit: int = 48) -> 
     try:
         result = subprocess.run(
             [
-                ffmpeg_bin(), "-hide_banner", "-loglevel", "info", "-i", str(video_path),
-                "-vf", "fps=2,select='gt(scene,0.20)',showinfo", "-an", "-f", "null", "-",
+                ffmpeg_bin(),
+                "-hide_banner",
+                "-loglevel",
+                "info",
+                "-i",
+                str(video_path),
+                "-vf",
+                "fps=2,select='gt(scene,0.20)',showinfo",
+                "-an",
+                "-f",
+                "null",
+                "-",
             ],
-            capture_output=True, text=True, timeout=180, check=False,
+            capture_output=True,
+            text=True,
+            timeout=180,
+            check=False,
         )
     except (OSError, subprocess.SubprocessError):
         logger.exception("FFmpeg scene detection failed for %s", video_path)
