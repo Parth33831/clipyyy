@@ -405,7 +405,7 @@ def render_campaign_montages(
                 run_ffmpeg(
                     [
                         "-i",
-                        str(silent),
+                        str(visual),
                         "-vf",
                         ass_filter(overlay),
                         "-an",
