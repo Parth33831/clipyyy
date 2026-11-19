@@ -646,7 +646,7 @@ def write_campaign_word_lyrics(
         script.append(
             f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,{treatment}{text}"
         )
-    path.write_text("\\n".join(script) + "\\n", encoding="utf-8")
+    path.write_text("\n".join(script) + "\n", encoding="utf-8")
     return path
 
 
