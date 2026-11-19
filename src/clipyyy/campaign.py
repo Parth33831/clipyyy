@@ -293,9 +293,7 @@ def _build_text_only_montage(
         used: set[tuple[int, int]] = set()
         segment_start = (rank - 1) * segment_size
         segment_end = (
-            len(candidates)
-            if rank == output_count
-            else min(len(candidates), segment_start + segment_size)
+            len(candidates) if rank == output_count else min(len(candidates), segment_start + segment_size)
         )
         segment_candidates = candidates[segment_start:segment_end]
         for index, shot_length in enumerate(shot_lengths):
