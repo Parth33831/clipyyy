@@ -471,7 +471,7 @@ function CampaignStoryboardEditor({
               )
             })}
           </ol>
-          {edit.shots.length < 3 && <p className="text-xs text-bad">Add or restore shots so this output has at least 3. You cannot save it yet.</p>}
+          {edit.shots.length < 3 && <p className="text-xs text-bad">Restore the AI plan or keep at least 3 shots in this output.</p>}
         </section>
       ))}
     </Panel>
