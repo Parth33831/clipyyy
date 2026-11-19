@@ -290,3 +290,22 @@ def test_campaign_word_lyrics_use_recognized_word_timestamps(tmp_path):
     assert "{\\k50}Stay" in script
     assert "{\\k30}with" in script
     assert "0:00:00.50" in script
+
+
+def test_campaign_word_lyrics_respect_custom_text_and_highlight_colors(tmp_path):
+    from clipyyy.render import write_campaign_word_lyrics
+
+    path = tmp_path / "lyrics.ass"
+    write_campaign_word_lyrics(
+        [{"word": "Hello", "start": 0.0, "end": 0.5}],
+        2.0,
+        path,
+        1080,
+        1920,
+        style="karaoke",
+        text_color="#FF0000",
+        highlight_color="#0000FF",
+    )
+    content = path.read_text(encoding="utf-8")
+    assert "&H000000FF" in content
+    assert "&H00FF0000" in content
