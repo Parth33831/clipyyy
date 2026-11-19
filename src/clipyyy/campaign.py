@@ -295,6 +295,10 @@ def _build_text_only_montage(
         for i, source in enumerate(sources)
         if float(source.get("duration_seconds") or 0) >= 2.0
     ]
+    creator_indexes = {
+        index for index, source in enumerate(sources) if source.get("source_kind") != "pexels"
+    }
+    stock_indexes = {index for index, source in enumerate(sources) if source.get("source_kind") == "pexels"}
     if not usable:
         raise ValueError("No usable source footage is available for a text-only montage.")
 
@@ -345,17 +349,26 @@ def _build_text_only_montage(
         )
         segment_candidates = candidates[segment_start:segment_end]
         for index, shot_length in enumerate(shot_lengths):
+            preferred_indexes = stock_indexes if stock_indexes and index % 4 == 2 else creator_indexes
+            preferred_candidates = [
+                candidate for candidate in segment_candidates if candidate[0] in preferred_indexes
+            ]
+            if not preferred_candidates:
+                preferred_candidates = [
+                    candidate for candidate in candidates if candidate[0] in preferred_indexes
+                ]
+            candidate_pool = preferred_candidates or segment_candidates
             candidate_index = min(
-                len(segment_candidates) - 1,
-                int((index + 0.5) * len(segment_candidates) / shot_count),
+                len(candidate_pool) - 1,
+                int((index + 0.5) * len(candidate_pool) / shot_count),
             )
-            source_index, timestamp, is_scene_change = segment_candidates[candidate_index]
+            source_index, timestamp, is_scene_change = candidate_pool[candidate_index]
             duration = float(sources[source_index].get("duration_seconds") or 0)
             start = min(max(0.0, timestamp + 0.06), max(0.0, duration - shot_length))
             end = min(duration, start + shot_length)
             key = (source_index, round(start / 1.5))
             if key in used:
-                for alt_source, alt_timestamp, alt_is_scene_change in segment_candidates:
+                for alt_source, alt_timestamp, alt_is_scene_change in candidate_pool:
                     alt_duration = float(sources[alt_source].get("duration_seconds") or 0)
                     alt_start = min(max(0.0, alt_timestamp + 0.06), max(0.0, alt_duration - shot_length))
                     alt_key = (alt_source, round(alt_start / 1.5))
@@ -366,14 +379,21 @@ def _build_text_only_montage(
                         break
             if end - start >= 1.25 and key not in used:
                 used.add(key)
-                reason = (
-                    "Selected near an FFmpeg-detected scene change; semantic anime content was not analysed."
-                    if is_scene_change
-                    else (
-                        "Fallback time sample; scene/character semantics were not analysed "
-                        "by the text-only model."
+                if sources[source_index].get("source_kind") == "pexels":
+                    query = str(sources[source_index].get("search_query") or "campaign")
+                    reason = (
+                        f"Supporting Pexels footage returned for campaign search '{query}'; "
+                        "the text-only model did not inspect the scene."
                     )
-                )
+                else:
+                    reason = (
+                        "Selected near an FFmpeg-detected scene change; semantic scene content was not analysed."
+                        if is_scene_change
+                        else (
+                            "Fallback time sample; scene semantics were not analysed "
+                            "by the text-only model."
+                        )
+                    )
                 shots.append(
                     {
                         "source_index": source_index,
