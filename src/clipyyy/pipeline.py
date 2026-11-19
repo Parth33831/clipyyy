@@ -481,6 +481,7 @@ def update_campaign_montage(run_id: str, edits: list[dict[str, Any]]) -> dict:
     selection = json.loads(select_file.read_text(encoding="utf-8"))
     sources = source_data.get("sources") or [source_data]
     original = selection.get("campaign_original_edits") or selection.get("campaign_edits") or []
+    selection.setdefault("campaign_original_edits", json.loads(json.dumps(original)))
     expected_ranks = {int(edit["rank"]) for edit in original}
     submitted_ranks = [int(edit["rank"]) for edit in edits]
     if len(submitted_ranks) != len(set(submitted_ranks)) or set(submitted_ranks) != expected_ranks:
