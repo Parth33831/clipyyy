@@ -376,7 +376,7 @@ def render_campaign_montages(
                 raise RuntimeError("Fewer than three campaign shots could be rendered.")
             silent = edit_dir / "montage-silent.mp4"
             # Hard cuts preserve the musical transient at each selected beat.
-            _crossfade_segments(segments, silent, fade_seconds=0.0)
+            _crossfade_segments(segments, silent, fade_seconds=0.0 if beat_times else 0.28)
             _, _, duration = probe(silent)
             target_duration = float(campaign_plan.get("target_duration_seconds") or 0)
             if target_duration > 0 and abs(duration - target_duration) > 0.05:
