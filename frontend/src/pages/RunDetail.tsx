@@ -3,7 +3,7 @@ import { ArrowUpRight, Check, ChevronDown, Copy, Download, RotateCcw, Send, Tras
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
-import { api, type CampaignDialogueCandidate, type Clip, type Post, type RunDetail } from '../api'
+import { api, type Clip, type Post, type RunDetail } from '../api'
 import { PublishDialog } from '../components/PublishDialog'
 import { Button, Eyebrow, Panel, Squares, StatusChip, cn, formatDuration, sourceHost, sourceLabel, timeAgo } from '../components/ui'
 
@@ -22,17 +22,15 @@ export function RunDetailPage() {
   const [focused, setFocused] = useState<number | null>(null)
   const [musicFile, setMusicFile] = useState<File | null>(null)
   const [lyricsText, setLyricsText] = useState('')
-  const [lyricsStyle, setLyricsStyle] = useState<'dynamic' | 'cinematic' | 'minimal'>('dynamic')
+  const [lyricsStyle, setLyricsStyle] = useState<'dynamic' | 'cinematic' | 'minimal' | 'karaoke'>('dynamic')
   const [hookText, setHookText] = useState('')
   const [includeHook, setIncludeHook] = useState(false)
-  const [selectedDialogueId, setSelectedDialogueId] = useState<string | null>(null)
   useEffect(() => {
     setLyricsText(run.data?.options.campaign_lyrics ?? '')
     setLyricsStyle(run.data?.options.campaign_lyrics_style ?? 'dynamic')
     setHookText(run.data?.options.campaign_hook_text ?? String(run.data?.campaign_plan?.generated_hook ?? ''))
     setIncludeHook(Boolean(run.data?.options.include_campaign_hook))
-    setSelectedDialogueId(run.data?.options.selected_campaign_dialogue_id ?? null)
-  }, [runId, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.selected_campaign_dialogue_id, run.data?.campaign_plan?.generated_hook])
+  }, [runId, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.campaign_plan?.generated_hook])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -56,7 +54,7 @@ export function RunDetailPage() {
     onError: (e) => toast.error(e.message),
   })
   const saveLyrics = useMutation({
-    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook, selectedDialogueId),
+    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook),
     onSuccess: () => {
       toast.success('Creative settings saved. Choose Pick again to rebuild the montage.')
       refresh()
@@ -128,7 +126,7 @@ export function RunDetailPage() {
             </a>
           )}
           {!busy && (
-            <Button variant="line" loading={retry.isPending} onClick={() => retry.mutate(data.status === 'completed' ? (data.options.campaign_mode ? ((data.campaign_plan?.dialogue_candidates?.length ?? 0) > 0 ? 'select' : 'transcribe') : 'select') : undefined)}>
+            <Button variant="line" loading={retry.isPending} onClick={() => retry.mutate(data.status === 'completed' ? 'select' : undefined)}>
               <RotateCcw className="h-4 w-4" /> {data.status === 'completed' ? 'Pick again' : 'Retry'}
             </Button>
           )}
@@ -162,30 +160,6 @@ export function RunDetailPage() {
               className="w-full rounded-lg border border-line bg-panel p-3 text-sm text-ink placeholder:text-muted" />
             <span className="text-xs text-muted">Off by default. Your edit does not need campaign branding or AI-generated text.</span>
           </div>
-          {(data.campaign_plan?.dialogue_candidates?.length ?? 0) > 0 && (
-            <div className="flex flex-col gap-2 border-b border-line pb-4">
-              <span className="font-medium">Dialogue detected from your source videos</span>
-              <p className="text-xs text-muted">Local Whisper transcript candidates, ranked by simple text cues. Listen to the source before using a line; the ranking does not understand acting, emotion or scene context yet.</p>
-              <label className="flex items-center gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
-                <input type="radio" name="campaign-dialogue" checked={selectedDialogueId === null}
-                  onChange={() => setSelectedDialogueId(null)} />
-                <span><strong>No dialogue intro</strong><span className="block text-xs text-muted">Start directly with the music montage.</span></span>
-              </label>
-              <div className="grid gap-2">
-                {(data.campaign_plan?.dialogue_candidates ?? []).map((candidate: CampaignDialogueCandidate) => (
-                  <label key={candidate.id} className={cn("flex cursor-pointer items-start gap-3 rounded-lg border p-3", selectedDialogueId === candidate.id ? "border-ink bg-paper" : "border-line bg-panel")}>
-                    <input type="radio" name="campaign-dialogue" checked={selectedDialogueId === candidate.id}
-                      onChange={() => setSelectedDialogueId(candidate.id)} className="mt-1" />
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium">{candidate.text}</span>
-                      <span className="mt-1 block text-xs text-muted">{candidate.source_title} · {formatDuration(candidate.start_seconds ?? 0)}–{formatDuration(candidate.end_seconds ?? 0)}</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-              <p className="text-xs text-muted">The chosen line keeps its original source audio. The attached song begins after the spoken intro.</p>
-            </div>
-          )}
           <div className="flex flex-wrap items-end gap-3">
           <label className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
             <span className="font-medium">Campaign music</span>
@@ -214,9 +188,10 @@ export function RunDetailPage() {
           </div>
           <label className="flex flex-col gap-2 text-sm">
             <span className="font-medium">Lyrics animation style</span>
-            <select value={lyricsStyle} onChange={(event) => setLyricsStyle(event.target.value as 'dynamic' | 'cinematic' | 'minimal')}
+            <select value={lyricsStyle} onChange={(event) => setLyricsStyle(event.target.value as 'dynamic' | 'cinematic' | 'minimal' | 'karaoke')}
               className="w-full rounded-lg border border-line bg-panel p-2.5 text-sm text-ink">
-              <option value="dynamic">Dynamic pop — alternating colour and scale</option>
+              <option value="dynamic">Dynamic pop — colour + scale punch</option>
+              <option value="karaoke">Karaoke sweep — highlight each word</option>
               <option value="cinematic">Cinematic — soft fade, clean white</option>
               <option value="minimal">Minimal — simple readable captions</option>
             </select>
