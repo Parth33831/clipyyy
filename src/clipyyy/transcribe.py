@@ -56,7 +56,9 @@ def transcribe_music(audio_path: Path, work_dir: Path, model_size: str, language
     return {"language": detected, "model": model_size, "words": words, "sentences": group_sentences(words)}
 
 
-def _run_whisper(audio, model_size: str, language: str | None, device: str, compute_type: str, music: bool = False):
+def _run_whisper(
+    audio, model_size: str, language: str | None, device: str, compute_type: str, music: bool = False
+):
     import warnings
 
     from faster_whisper import WhisperModel
