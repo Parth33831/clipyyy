@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from clipyyy import db, pipeline
@@ -156,3 +157,124 @@ def test_filler_removal_option_is_off_by_default_and_preserved():
     options = pipeline.ClipOptions().model_dump()
     assert options["remove_filler_words"] is False
     assert pipeline.ClipOptions(remove_filler_words=True).model_dump()["remove_filler_words"] is True
+
+
+def _campaign_edit_fixture(tmp_path, run_id):
+    run_root = tmp_path / run_id
+    work_dir = run_root / "work"
+    work_dir.mkdir(parents=True)
+    shots = [
+        {"source_index": 0, "start_seconds": 0.0, "end_seconds": 2.5, "reason": "opening"},
+        {"source_index": 0, "start_seconds": 3.0, "end_seconds": 5.5, "reason": "build"},
+        {"source_index": 0, "start_seconds": 6.0, "end_seconds": 8.5, "reason": "payoff"},
+    ]
+    source_data = {
+        "sources": [
+            {
+                "title": "Campaign footage",
+                "duration_seconds": 40.0,
+                "video_path": str(tmp_path / "source.mp4"),
+            }
+        ]
+    }
+    edit = {"rank": 1, "title": "Campaign cut", "shots": shots}
+    selection = {
+        "campaign_plan": {"target_duration_seconds": 10.0},
+        "campaign_edits": [edit],
+        "campaign_original_edits": [edit],
+        "clips": [
+            {
+                "rank": 1,
+                "start_seconds": 0.0,
+                "end_seconds": 7.5,
+                "duration_seconds": 7.5,
+                "campaign_shots": shots,
+            }
+        ],
+    }
+    (work_dir / "download.json").write_text(json.dumps(source_data), encoding="utf-8")
+    (work_dir / "select.json").write_text(json.dumps(selection), encoding="utf-8")
+    return run_root, selection, edit
+
+
+def test_campaign_shot_edits_rebuild_cached_montage_and_keep_ai_reset(tmp_path, monkeypatch):
+    run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
+    run_root, original_selection, original_edit = _campaign_edit_fixture(tmp_path, run["id"])
+    monkeypatch.setattr(pipeline, "run_dir", lambda run_id: run_root)
+    calls = []
+
+    def fake_render(source, selection, work_dir, out_dir, options):
+        calls.append((selection, options["reuse_campaign_montage"]))
+        return {
+            "renders": [
+                {
+                    "rank": 1,
+                    "status": "ready",
+                    "file_path": str(tmp_path / "campaign.mp4"),
+                    "width": 1080,
+                    "height": 1920,
+                    "duration_seconds": 10.0,
+                }
+            ]
+        }
+
+    from clipyyy import render
+
+    monkeypatch.setattr(render, "render_campaign_montages", fake_render)
+    edited = {
+        "rank": 1,
+        "title": "Campaign cut",
+        "shots": [
+            original_edit["shots"][1],
+            original_edit["shots"][0],
+            original_edit["shots"][2],
+        ],
+    }
+
+    result = pipeline.update_campaign_montage(run["id"], [edited])
+
+    saved = json.loads((run_root / "work" / "select.json").read_text(encoding="utf-8"))
+    assert result["renders"][0]["status"] == "ready"
+    assert [shot["start_seconds"] for shot in saved["campaign_edits"][0]["shots"]] == [3.0, 0.0, 6.0]
+    assert saved["campaign_original_edits"] == original_selection["campaign_original_edits"]
+    assert calls[0][1] is False
+    assert db.get_run(run["id"])["status"] == "completed"
+
+    pipeline.rerender_campaign(run["id"])
+    assert calls[1][1] is True
+
+
+def test_campaign_shot_edit_rejects_invalid_ranges_without_overwriting_plan(tmp_path, monkeypatch):
+    run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
+    run_root, original_selection, original_edit = _campaign_edit_fixture(tmp_path, run["id"])
+    monkeypatch.setattr(pipeline, "run_dir", lambda run_id: run_root)
+    invalid = {
+        "rank": 1,
+        "title": "Campaign cut",
+        "shots": [
+            {**original_edit["shots"][0], "source_index": 4},
+            original_edit["shots"][1],
+            original_edit["shots"][2],
+        ],
+    }
+
+    import pytest
+
+    with pytest.raises(ValueError, match="unknown source"):
+        pipeline.update_campaign_montage(run["id"], [invalid])
+
+    saved = json.loads((run_root / "work" / "select.json").read_text(encoding="utf-8"))
+    assert saved["campaign_edits"] == original_selection["campaign_edits"]
+    assert db.get_run(run["id"])["status"] == "completed"
+
+
+def test_campaign_shot_edit_requires_three_valid_shots(tmp_path, monkeypatch):
+    run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
+    run_root, _, original_edit = _campaign_edit_fixture(tmp_path, run["id"])
+    monkeypatch.setattr(pipeline, "run_dir", lambda run_id: run_root)
+    invalid = {"rank": 1, "title": "Campaign cut", "shots": original_edit["shots"][:2]}
+
+    import pytest
+
+    with pytest.raises(ValueError, match="at least 3 shots"):
+        pipeline.update_campaign_montage(run["id"], [invalid])
