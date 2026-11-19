@@ -303,7 +303,13 @@ def stage_render(ctx: Context) -> dict:
             "campaign_plan": ctx.state["select"].get("campaign_plan"),
         }
         music_path = render_options.get("campaign_music_path")
-        if music_path and not render_options.get("campaign_lyrics", "").strip():
+        campaign_plan = render_options.get("campaign_plan") or {}
+        lyric_requirements = " ".join(
+            str(campaign_plan.get(key) or "")
+            for key in ("audio_mode", "on_screen_text_requirements", "mandatory_content")
+        ).lower()
+        lyrics_requested = "lyric" in lyric_requirements
+        if music_path and lyrics_requested and not render_options.get("campaign_lyrics", "").strip():
             # Draft lyric captions locally from the supplied music. Singing recognition is
             # imperfect, so the result is explicitly labelled as an editable Whisper draft.
             try:
