@@ -662,13 +662,25 @@ def write_campaign_word_lyrics(
                 if style == "cinematic"
                 else "{\\fad(100,120)\\c&HFFFFFF&\\bord2\\shad1}"
                 if style == "minimal"
-                else "{\\fad(50,100)\\fscx65\\fscy65\\t(0,120,\\fscx112\\fscy112)\\t(120,240,\\fscx100\\fscy100)\\c&H00D7FF&\\bord4\\shad3}"
+                else (
+                    "{\\fad(50,100)\\fscx65\\fscy65\\t(0,120,\\fscx112\\fscy112)"
+                    "\\t(120,240,\\fscx100\\fscy100)\\c&H00D7FF&\\bord4\\shad3}"
+                )
                 if style == "zoom"
-                else "{\\fad(60,100)\\fscx90\\fscy125\\t(0,110,\\fscx105\\fscy95)\\t(110,220,\\fscx100\\fscy100)\\c&H66E6FF&\\bord4\\shad3}"
+                else (
+                    "{\\fad(60,100)\\fscx90\\fscy125\\t(0,110,\\fscx105\\fscy95)"
+                    "\\t(110,220,\\fscx100\\fscy100)\\c&H66E6FF&\\bord4\\shad3}"
+                )
                 if style == "bounce"
-                else "{\\fad(60,100)\\fscx100\\fscy100\\t(0,180,\\fscx112\\fscy112)\\t(180,360,\\fscx100\\fscy100)\\c&HFFFFFF&\\bord4\\shad3}"
+                else (
+                    "{\\fad(60,100)\\fscx100\\fscy100\\t(0,180,\\fscx112\\fscy112)"
+                    "\\t(180,360,\\fscx100\\fscy100)\\c&HFFFFFF&\\bord4\\shad3}"
+                )
                 if style == "pulse"
-                else "{\\fad(35,90)\\fscx88\\fscy110\\frz-2\\t(0,90,\\fscx108\\fscy92\\frz2)\\t(90,180,\\fscx100\\fscy100\\frz0)\\c&H00D7FF&\\bord4\\shad3}"
+                else (
+                    "{\\fad(35,90)\\fscx88\\fscy110\\frz-2\\t(0,90,\\fscx108\\fscy92\\frz2)"
+                    "\\t(90,180,\\fscx100\\fscy100\\frz0)\\c&H00D7FF&\\bord4\\shad3}"
+                )
             )
             text = _escape(phrase)
         script.append(f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,{treatment}{text}")
