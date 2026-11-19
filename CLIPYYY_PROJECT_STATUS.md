@@ -23,7 +23,7 @@
 ## Repository baseline (inspected 2026-11-19)
 
 - **Default branch:** `main`
-- **Latest main commit:** `e32b05896f161fc1a50f95547a69711d4f8c2d50` — Add 1–3 word lyric caption layout (#22).
+- **Latest main commit:** `f6004eecccf5a676e34b2c8fa6fa35c9d2732000` — Add conservative filler-word removal (#23).
 - Recent completed main work includes lyric animation previews, multi-colour lyric captions, configurable lyric colours, word-accurate song transcription and campaign dialogue/montage editing.
 - **Open PR search:** no open PRs were returned for this repository at inspection time.
 - **Branches observed:** `automatic-word-timed-lyrics`, `campaign-dialogue-transcription`, `creative-anime-editing`, `fix/campaign-export-audio-duration`, `fix/campaign-scene-selection-ci-final`, `fix/campaign-scene-selection-final-ci`, `fix/campaign-scene-selection-pacing`, `fix/campaign-scene-selection-pacing-ci`, `fix/campaign-scene-selection-release-check`, `fix/campaign-scene-selection-tested`, `fix/campaign-scene-selection-validated`, `improve-multi-clip-selection`, `instant-lyrics-style-editor`, `instant-lyrics-style-editor-ci`, `instant-lyrics-style-editor-verified`, `lyric-style-previews-multicolor`, `lyric-words-on-screen`, `lyrics-captions-animation`, `lyrics-color-controls`, `main`, `music-intelligence-hooks`, `refresh-legacy-lyric-timings`, `reuse-campaign-transcript-on-dialogue-rebuild`.
@@ -41,7 +41,7 @@
 | Campaign montage / music / lyrics | Existing implementation | Feature Development | Recent campaign and lyric work is on main; avoid overlapping changes. |
 | Virality scoring improvements | Not yet assessed | Unassigned | Existing selection already has hook, value, clarity and overall scores; assess before expanding. |
 | Advanced subject tracking | Not yet assessed | Unassigned | Avoid duplicating existing MediaPipe face tracking. |
-| Text-based editing / filler removal | Planned | Feature Development / `feature/transcript-filler-removal` | Assigned below; v1 is conservative English filler-word removal, not a full transcript editor. |
+| Text-based editing / filler removal | V1 implemented | PR #23 / `main` | Conservative English filler-word removal is merged; full transcript editing remains a later feature. |
 | Advanced timeline editor | Not yet assessed | Unassigned | Requires separate UX and data-model planning. |
 | Audio enhancement / voiceover | Not yet assessed | Unassigned | Assess local/offline options and dependencies. |
 | AI B-roll improvements | Existing optional B-roll; enhancements not assessed | Unassigned | Inspect current Pexels workflow before implementing alternatives. |
@@ -50,7 +50,7 @@
 
 | Task | Owner chat | Branch / PR | Status | Last update |
 |---|---|---|---|---|
-| Conservative filler-word removal for spoken clips | Feature Development | `feature/transcript-filler-removal` / [PR #23](https://github.com/Parth33831/clipyyy/pull/23) | Implemented; latest CI passed; awaiting Architecture review (not merged) | 2026-11-19 |
+| Conservative filler-word removal for spoken clips | Feature Development + Architecture review | `feature/transcript-filler-removal` / [PR #23](https://github.com/Parth33831/clipyyy/pull/23) | Merged into `main` as `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`; post-merge CI running | 2026-11-19 |
 
 ### Assignment: Conservative filler-word removal
 
@@ -134,4 +134,4 @@ STATUS: In progress / Ready for review / Merged
 - 2026-11-19: Established separate architecture, feature-development and testing/integration responsibilities across ChatGPT conversations.
 - 2026-11-19: Created the coordination document on `docs/project-coordination`; application code was not changed.
 - 2026-11-19: Assigned conservative English filler-word removal to Feature Development on `feature/transcript-filler-removal`, based on existing word-level transcription. Full transcript/timeline editing remains a later, separate feature.
-- 2026-11-19: Feature Development opened PR #23 for the opt-in filler-removal v1. Latest head `1f73f61c1f6ff74d568db7441df466db662d6364` passed CI: Ruff lint/format, frontend build, 82 passed / 15 skipped in the fast backend suite. Windows, macOS and full-backend jobs were skipped. Awaiting Architecture review; not merged.
+- 2026-11-19: PR #23 was reviewed and squash-merged into `main` as `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`. Pre-merge CI passed Ruff lint/format, frontend build and the fast backend test suite. Post-merge CI is running; verify its result before closing the task.
