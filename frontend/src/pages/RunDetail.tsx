@@ -490,7 +490,7 @@ function CampaignPlanCard({ plan, checks }: { plan: NonNullable<RunDetail['campa
                 <dt className="label text-muted">{key.replaceAll('_', ' ')}</dt>
                 <dd className="mt-1 text-sm">
                   {key === 'lyrics_overlay' && value === false
-                    ? 'Not added — no creator-supplied lyric lines were configured.'
+                    ? 'Not added — no lyric lines were available or configured.'
                     : key === 'music_track_added' && value === true
                       ? 'Yes — attached local track is mixed into the export.'
                       : typeof value === 'boolean'
