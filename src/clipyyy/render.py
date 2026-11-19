@@ -327,58 +327,58 @@ def render_campaign_montages(
             if not silent.exists():
                 segments = []
                 for shot_index, shot in enumerate(edit["shots"]):
-                source_index = int(shot["source_index"])
-                if not 0 <= source_index < len(sources):
-                    raise ValueError(f"Shot {shot_index + 1} refers to a missing source video.")
-                source_path = Path(sources[source_index]["video_path"])
-                start = max(0.0, float(shot["start_seconds"]))
-                end = min(float(sources[source_index]["duration_seconds"]), float(shot["end_seconds"]))
-                duration = end - start
-                if beat_times and duration >= 1.5:
-                    elapsed = sum(probe(item)[2] for item in segments) if segments else 0.0
-                    desired_cut = elapsed + duration
-                    candidates = [
-                        beat - music_start
-                        for beat in beat_times
-                        if 1.5 <= beat - music_start - elapsed <= 5.0
-                    ]
-                    if candidates:
-                        aligned_cut = min(candidates, key=lambda beat: abs(beat - desired_cut))
-                        aligned_duration = aligned_cut - elapsed
-                        if 1.5 <= aligned_duration <= 5.0:
-                            end = min(
-                                float(sources[source_index]["duration_seconds"]),
-                                start + aligned_duration,
-                            )
-                            duration = end - start
-                if duration < 1.0:
-                    continue
-                segment = edit_dir / f"shot-{shot_index:03d}.mp4"
-                vf = fill_filter(width, height) + ",eq=contrast=1.06:saturation=1.12"
-                run_ffmpeg(
-                    [
-                        "-ss",
-                        f"{start:.3f}",
-                        "-i",
-                        str(source_path),
-                        "-t",
-                        f"{duration:.3f}",
-                        "-vf",
-                        vf,
-                        "-an",
-                        "-c:v",
-                        "libx264",
-                        "-preset",
-                        "veryfast",
-                        "-crf",
-                        "20",
-                        "-pix_fmt",
-                        "yuv420p",
-                        "-movflags",
-                        "+faststart",
-                        str(segment),
-                    ]
-                )
+                    source_index = int(shot["source_index"])
+                    if not 0 <= source_index < len(sources):
+                        raise ValueError(f"Shot {shot_index + 1} refers to a missing source video.")
+                    source_path = Path(sources[source_index]["video_path"])
+                    start = max(0.0, float(shot["start_seconds"]))
+                    end = min(float(sources[source_index]["duration_seconds"]), float(shot["end_seconds"]))
+                    duration = end - start
+                    if beat_times and duration >= 1.5:
+                        elapsed = sum(probe(item)[2] for item in segments) if segments else 0.0
+                        desired_cut = elapsed + duration
+                        candidates = [
+                            beat - music_start
+                            for beat in beat_times
+                            if 1.5 <= beat - music_start - elapsed <= 5.0
+                        ]
+                        if candidates:
+                            aligned_cut = min(candidates, key=lambda beat: abs(beat - desired_cut))
+                            aligned_duration = aligned_cut - elapsed
+                            if 1.5 <= aligned_duration <= 5.0:
+                                end = min(
+                                    float(sources[source_index]["duration_seconds"]),
+                                    start + aligned_duration,
+                                )
+                                duration = end - start
+                    if duration < 1.0:
+                        continue
+                    segment = edit_dir / f"shot-{shot_index:03d}.mp4"
+                    vf = fill_filter(width, height) + ",eq=contrast=1.06:saturation=1.12"
+                    run_ffmpeg(
+                        [
+                            "-ss",
+                            f"{start:.3f}",
+                            "-i",
+                            str(source_path),
+                            "-t",
+                            f"{duration:.3f}",
+                            "-vf",
+                            vf,
+                            "-an",
+                            "-c:v",
+                            "libx264",
+                            "-preset",
+                            "veryfast",
+                            "-crf",
+                            "20",
+                            "-pix_fmt",
+                            "yuv420p",
+                            "-movflags",
+                            "+faststart",
+                            str(segment),
+                        ]
+                    )
                     if segment.exists() and segment.stat().st_size:
                         segments.append(segment)
                 if len(segments) < 3:
