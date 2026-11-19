@@ -267,3 +267,26 @@ def test_campaign_lyrics_karaoke_style_highlights_words(tmp_path):
     script = path.read_text(encoding="utf-8")
     assert "{\\k" in script
     assert "Stay" in script and "tonight" in script
+
+
+def test_campaign_word_lyrics_use_recognized_word_timestamps(tmp_path):
+    from clipyyy.render import write_campaign_word_lyrics
+
+    path = write_campaign_word_lyrics(
+        [
+            {"word": "Stay", "start": 2.5, "end": 2.9},
+            {"word": "with", "start": 3.0, "end": 3.2},
+            {"word": "me", "start": 3.3, "end": 3.8},
+        ],
+        4.0,
+        tmp_path / "word-timed.ass",
+        1080,
+        1920,
+        offset_seconds=2.0,
+        style="karaoke",
+    )
+    script = path.read_text(encoding="utf-8")
+    assert "Stay" in script and "with" in script and "me" in script
+    assert "{\\k50}Stay" in script
+    assert "{\\k30}with" in script
+    assert "0:00:00.50" in script
