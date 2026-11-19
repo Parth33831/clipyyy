@@ -646,7 +646,7 @@ def write_campaign_word_lyrics(
             "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding"
         ),
         (
-            f"Style: Default,Arial,{font_size},{_ass_color('FFFFFF')},&H000000FF,&H00000000,"
+            f"Style: Default,Arial,{font_size},{primary},{accent},&H00000000,"
             f"&H64000000,1,0,0,0,100,100,0,0,1,4,2,2,{round(width * 0.07)},"
             f"{round(width * 0.07)},{round(height * 0.16)},1"
         ),
@@ -681,6 +681,11 @@ def write_campaign_word_lyrics(
                     "\\t(0,90,\\fscx110\\fscy92\\frz3)\\t(90,180,\\fscx100\\fscy100\\frz0)"
                     "\\c&H00D7FF&\\bord4\\shad3}"
                 )
+                # Animated word events alternate the selected main and highlight colors.
+                # This keeps both chosen colors visible instead of hard-coding a cyan accent.
+                word_color = primary if word_index % 2 == 0 else accent
+                for legacy_color in ("&H00D7FF&", "&H66E6FF&", "&HFFFFFF&"):
+                    animation = animation.replace(f"\\c{legacy_color}", f"\\c{word_color}")
                 script.append(
                     f"Dialogue: 0,{_ts(word_start)},{_ts(word_end)},Default,,0,0,0,,"
                     f"{animation}{_escape(item['word'])}"
@@ -695,7 +700,7 @@ def write_campaign_word_lyrics(
                 word_end = min(end, max(item["end"], next_word_start))
                 centiseconds = max(1, round((word_end - item["start"]) * 100))
                 pieces.append(f"{{\\k{centiseconds}}}{_escape(item['word'])}")
-            treatment = "{\\fad(60,100)\\c&HFFFFFF&\\2c&H00D7FF&\\bord3\\shad2}"
+            treatment = f"{{\\fad(60,100)\\c{primary}\\2c{accent}\\bord3\\shad2}}"
             text = " ".join(pieces)
         else:
             phrase = " ".join(item["word"] for item in group)
