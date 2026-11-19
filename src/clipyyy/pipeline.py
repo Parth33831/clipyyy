@@ -138,7 +138,6 @@ def stage_select(ctx: Context) -> dict:
         if not campaign_brief:
             raise ValueError("The campaign link had no readable requirements. Add the brief manually.")
         plan = parse_campaign_brief(llm, campaign_brief)
-        plan["generated_hook"] = generate_campaign_hook(llm, campaign_brief, plan)
         if campaign_page:
             candidates = [
                 item["url"]
@@ -191,6 +190,9 @@ def stage_select(ctx: Context) -> dict:
                         )
                 except Exception as exc:
                     logger.info("Could not analyse campaign reference %s: %s", reference_url, exc)
+        plan["generated_hook"] = generate_campaign_hook(
+            llm, campaign_brief, plan, reference_analyses=reference_analyses
+        )
         count = min(10, plan.get("output_count") or options["clip_count"])
         requested_target = float(plan.get("target_duration_seconds") or options["max_seconds"])
         # The editor's explicit duration range is a hard constraint. A brief extraction
