@@ -123,71 +123,28 @@ def test_campaign_selection_uses_local_ollama_without_cloud_fallback(monkeypatch
     assert result["clips"][0]["campaign_shots"][0]["source_index"] == 0
 
 
-def test_campaign_dialogue_candidates_rank_short_emotional_lines():
-    candidates = pipeline._campaign_dialogue_candidates(
-        {
-            "sources": [
-                {
-                    "source_index": 0,
-                    "title": "Episode one",
-                    "sentences": [
-                        {"text": "Please don't leave me alone!", "start": 12.0, "end": 14.1},
-                        {"text": "The weather is nice today.", "start": 20.0, "end": 22.0},
-                        {"text": "Hi.", "start": 25.0, "end": 25.4},
-                    ],
-                }
-            ]
-        }
-    )
-    assert len(candidates) == 2
-    assert candidates[0]["text"] == "Please don't leave me alone!"
-    assert candidates[0]["source_index"] == 0
-    assert candidates[0]["start_seconds"] == 12.0
-
-
 def test_campaign_options_preserve_creative_settings():
     options = pipeline.ClipOptions(
         campaign_mode=True,
-        campaign_lyrics_style="cinematic",
+        campaign_lyrics_style="karaoke",
         campaign_hook_text="Stay until the end",
         include_campaign_hook=True,
     ).model_dump()
-    assert options["campaign_lyrics_style"] == "cinematic"
+    assert options["campaign_lyrics_style"] == "karaoke"
     assert options["campaign_hook_text"] == "Stay until the end"
     assert options["include_campaign_hook"] is True
 
 
-def test_campaign_transcribe_processes_each_source_locally(monkeypatch, tmp_path):
-    from clipyyy import transcribe as transcribe_module
-
-    calls = []
-
-    def fake_transcribe(path, work_dir, model_size, language):
-        calls.append((path.name, model_size, language, work_dir.name))
-        return {
-            "language": "en",
-            "sentences": [{"text": "Please stay with me.", "start": 1.0, "end": 2.5}],
-        }
-
-    monkeypatch.setattr(transcribe_module, "transcribe", fake_transcribe)
-    monkeypatch.setattr(pipeline, "get_setting", lambda key: "tiny" if key == "whisper_model" else "")
-    sources = [
-        {"video_path": str(tmp_path / "one.mp4"), "title": "One"},
-        {"video_path": str(tmp_path / "two.mp4"), "title": "Two"},
-    ]
+def test_campaign_transcribe_skips_source_videos_for_manual_dialogue():
     ctx = pipeline.Context(
-        run_id="campaign-transcribe-test",
+        run_id="campaign-manual-dialogue-test",
         source="[]",
         options=pipeline.ClipOptions(campaign_mode=True).model_dump(),
-        work_dir=tmp_path / "work",
-        out_dir=tmp_path / "out",
-        state={"download": {"sources": sources}},
+        work_dir=Path("unused-work"),
+        out_dir=Path("unused-out"),
+        state={"download": {"sources": [{"video_path": "unused.mp4"}]}},
     )
-    ctx.work_dir.mkdir()
 
     result = pipeline.stage_transcribe(ctx)
 
-    assert [call[0] for call in calls] == ["one.mp4", "two.mp4"]
-    assert all(call[1] == "tiny" and call[2] == "auto" for call in calls)
-    assert result["language"] == "campaign-sources"
-    assert result["sources"][1]["sentences"][0]["text"] == "Please stay with me."
+    assert result == {"language": "campaign", "sources": []}
