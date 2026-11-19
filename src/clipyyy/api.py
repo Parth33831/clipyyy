@@ -355,8 +355,15 @@ def run_detail(run_id: str) -> dict:
     campaign_quality_checks = None
     if select_file.exists():
         campaign_plan = json.loads(select_file.read_text(encoding="utf-8")).get("campaign_plan")
+    render_data = {}
     if render_file.exists():
-        campaign_quality_checks = json.loads(render_file.read_text(encoding="utf-8")).get("quality_checks")
+        render_data = json.loads(render_file.read_text(encoding="utf-8"))
+        campaign_quality_checks = render_data.get("quality_checks")
+    filler_counts = {
+        int(item["rank"]): int(item.get("filler_words_removed", 0))
+        for item in render_data.get("renders", [])
+        if item.get("rank") is not None
+    }
     source_duration = None
     if source_file.exists():
         source_duration = json.loads(source_file.read_text(encoding="utf-8")).get("duration_seconds")
@@ -366,7 +373,10 @@ def run_detail(run_id: str) -> dict:
         "campaign_plan": campaign_plan,
         "campaign_quality_checks": campaign_quality_checks,
         "stages": stages,
-        "clips": [_clip_public(c) for c in db.list_clips(run_id)],
+        "clips": [
+            {**_clip_public(c), "filler_words_removed": filler_counts.get(int(c["rank"]), 0)}
+            for c in db.list_clips(run_id)
+        ],
         "posts": db.list_posts(run_id=run_id),
     }
 
