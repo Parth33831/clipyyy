@@ -95,7 +95,15 @@ def discover_campaign_assets(
                     logger.warning("Campaign Pexels search failed for %r: %s", query, exc)
                     continue
 
-                for item in response.json().get("videos", []):
+                try:
+                    videos = response.json().get("videos", [])
+                except (AttributeError, ValueError):
+                    failures += 1
+                    logger.warning("Pexels returned an invalid video-search response for %r", query)
+                    continue
+                for item in videos:
+                    if not isinstance(item, dict):
+                        continue
                     try:
                         video_id = int(item["id"])
                         duration = float(item.get("duration") or 0)
@@ -122,6 +130,9 @@ def discover_campaign_assets(
 
                     author = str((item.get("user") or {}).get("name") or "Pexels creator")
                     page = str(item.get("url") or "")
+                    if not page:
+                        target.unlink(missing_ok=True)
+                        continue
                     assets.append(
                         {
                             "source": page,
@@ -168,8 +179,16 @@ def _best_video_file(files: list[dict[str, Any]], orientation: str) -> dict[str,
 
 
 def _download_video(url: str, path: Path) -> None:
+    max_bytes = 80 * 1024 * 1024
     with httpx.stream("GET", url, follow_redirects=True, timeout=120) as response:
         response.raise_for_status()
+        content_length = response.headers.get("content-length")
+        if content_length and int(content_length) > max_bytes:
+            raise ValueError("Pexels video exceeds the 80 MB per-asset limit.")
+        downloaded = 0
         with path.open("wb") as handle:
             for chunk in response.iter_bytes():
+                downloaded += len(chunk)
+                if downloaded > max_bytes:
+                    raise ValueError("Pexels video exceeds the 80 MB per-asset limit.")
                 handle.write(chunk)
