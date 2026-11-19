@@ -10,6 +10,7 @@ export interface ClipOptions {
   max_seconds: number
   aspect_ratio: AspectRatio
   captions: boolean
+  remove_filler_words: boolean
   source_has_subtitles: boolean
   caption_style: CaptionStyle
   face_tracking: boolean
@@ -220,6 +221,7 @@ export const DEFAULT_OPTIONS: ClipOptions = {
   max_seconds: 60,
   aspect_ratio: '9:16',
   captions: true,
+  remove_filler_words: false,
   source_has_subtitles: false,
   caption_style: 'bold',
   face_tracking: true,
