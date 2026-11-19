@@ -388,10 +388,22 @@ def test_remove_timed_intervals_keeps_audio_and_video_synchronized(tmp_path):
     source = tmp_path / "source.mp4"
     run_ffmpeg(
         [
-            "-f", "lavfi", "-i", "testsrc2=size=320x240:rate=30:duration=6",
-            "-f", "lavfi", "-i", "sine=frequency=440:duration=6",
-            "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac",
-            "-shortest", str(source),
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=320x240:rate=30:duration=6",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=6",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast",
+            "-c:a",
+            "aac",
+            "-shortest",
+            str(source),
         ]
     )
     remove_timed_intervals(source, [(2.0, 3.0)])
