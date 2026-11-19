@@ -160,12 +160,12 @@ export function RunDetailPage() {
               className="w-full rounded-lg border border-line bg-panel p-3 text-sm text-ink placeholder:text-muted" />
             <span className="text-xs text-muted">Off by default. Your edit does not need campaign branding or AI-generated text.</span>
           </div>
-          {Array.isArray(data.campaign_plan?.dialogue_candidates) && data.campaign_plan.dialogue_candidates.length > 0 && (
+          {(data.campaign_plan?.dialogue_candidates?.length ?? 0) > 0 && (
             <div className="flex flex-col gap-2 border-b border-line pb-4">
               <span className="font-medium">Dialogue detected from your source videos</span>
               <p className="text-xs text-muted">Local Whisper transcript candidates, ranked by simple text cues. Listen to the source before using a line; the ranking does not understand acting, emotion or scene context yet.</p>
               <div className="grid gap-2">
-                {(data.campaign_plan.dialogue_candidates as Array<{source_title?: string; start_seconds?: number; end_seconds?: number; text?: string}>).map((candidate, index) => (
+                {(data.campaign_plan?.dialogue_candidates ?? []).map((candidate, index) => (
                   <div key={index} className="rounded-lg border border-line bg-panel p-3">
                     <p className="text-sm font-medium">{candidate.text}</p>
                     <p className="mt-1 text-xs text-muted">{candidate.source_title} · {formatDuration(candidate.start_seconds ?? 0)}–{formatDuration(candidate.end_seconds ?? 0)}</p>
