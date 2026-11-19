@@ -11,6 +11,7 @@ from pathlib import Path
 from statistics import median
 
 from clipyyy.captions import ass_filter, clip_words, write_ass
+from clipyyy.filler_words import filler_intervals
 from clipyyy.media import ffmpeg_bin, has_audio, probe, run_ffmpeg
 
 FPS = 30
@@ -53,6 +54,21 @@ def render_clips(
                 size=(width, height),
                 caption_style=options["caption_style"] if add_captions else None,
             )
+            removed_fillers = 0
+            if options.get("remove_filler_words") and transcript.get("language") == "en":
+                source_intervals = filler_intervals(
+                    transcript,
+                    float(clip["start_seconds"]),
+                    float(clip["end_seconds"]),
+                    language=transcript.get("language", ""),
+                )
+                local_intervals = [
+                    (start - float(clip["start_seconds"]), end - float(clip["start_seconds"]))
+                    for start, end in source_intervals
+                ]
+                if local_intervals:
+                    remove_timed_intervals(output, local_intervals)
+                    removed_fillers = len(local_intervals)
             out_w, out_h, duration = probe(output)
             make_poster(output, min(1.0, duration / 2))
             renders.append(
@@ -63,6 +79,7 @@ def render_clips(
                     "width": out_w,
                     "height": out_h,
                     "duration_seconds": round(duration, 2),
+                    "filler_words_removed": removed_fillers,
                 }
             )
         except Exception as exc:  # one bad clip should not sink the others
@@ -151,6 +168,58 @@ def render_clip(
         video_args = ["-c:v", "copy"]
 
     run_ffmpeg([*inputs, *maps, *video_args, "-shortest", "-movflags", "+faststart", str(output)])
+
+
+
+def remove_timed_intervals(video: Path, intervals: list[tuple[float, float]]) -> None:
+    """Remove matching time ranges from both streams in an already-rendered clip."""
+    _, _, duration = probe(video)
+    cuts = sorted(
+        (max(0.0, start), min(duration, end))
+        for start, end in intervals
+        if end > start and start < duration and end > 0
+    )
+    if not cuts:
+        return
+    merged: list[list[float]] = []
+    for start, end in cuts:
+        if merged and start <= merged[-1][1] + 0.01:
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+    keep: list[tuple[float, float]] = []
+    cursor = 0.0
+    for start, end in merged:
+        if start - cursor >= 0.04:
+            keep.append((cursor, start))
+        cursor = max(cursor, end)
+    if duration - cursor >= 0.04:
+        keep.append((cursor, duration))
+    if not keep:
+        return
+
+    audio = has_audio(video)
+    filters = []
+    video_labels = []
+    audio_labels = []
+    for index, (start, end) in enumerate(keep):
+        filters.append(f"[0:v]trim=start={start:.3f}:end={end:.3f},setpts=PTS-STARTPTS[v{index}]")
+        video_labels.append(f"[v{index}]")
+        if audio:
+            filters.append(f"[0:a]atrim=start={start:.3f}:end={end:.3f},asetpts=PTS-STARTPTS[a{index}]")
+            audio_labels.append(f"[a{index}]")
+    if audio:
+        filters.append("".join(video_labels + audio_labels) + f"concat=n={len(keep)}:v=1:a=1[vout][aout]")
+    else:
+        filters.append("".join(video_labels) + f"concat=n={len(keep)}:v=1:a=0[vout]")
+
+    temporary = video.with_name(f"{video.stem}-filler-cleaned{video.suffix}")
+    args = ["-i", str(video), "-filter_complex", ";".join(filters), "-map", "[vout]"]
+    if audio:
+        args += ["-map", "[aout]", "-c:a", "aac", "-b:a", "160k"]
+    args += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(temporary)]
+    run_ffmpeg(args)
+    temporary.replace(video)
 
 
 def poster_path(video: Path) -> Path:
