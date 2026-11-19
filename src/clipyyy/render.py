@@ -466,7 +466,8 @@ def render_campaign_montages(
                         "-c:a", "aac",
                         "-b:a", "192k",
                         "-af",
-                        f"volume=0.9,afade=t=in:st=0:d=0.4,afade=t=out:st={max(0.0, duration - 0.8):.3f}:d=0.8",
+                        f"volume=0.9,afade=t=in:st=0:d=0.4,"
+                        f"afade=t=out:st={max(0.0, duration - 0.8):.3f}:d=0.8",
                         "-shortest",
                         "-movflags", "+faststart",
                         str(output),
