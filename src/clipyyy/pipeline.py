@@ -311,7 +311,10 @@ def stage_render(ctx: Context) -> dict:
         music_path = render_options.get("campaign_music_path")
         # A supplied song is enough to offer a timed local lyric draft; do not make
         # this depend on whether the campaign brief happened to contain the word lyric.
-        if music_path and not render_options.get("campaign_lyrics", "").strip():
+        has_lyrics = bool(render_options.get("campaign_lyrics", "").strip())
+        has_word_timings = bool(render_options.get("campaign_lyric_words"))
+        creator_edited = render_options.get("campaign_lyrics_source") == "Creator-edited"
+        if music_path and (not has_lyrics or (not has_word_timings and not creator_edited)):
             # Draft lyric captions locally from the supplied music. Singing recognition is
             # imperfect, so the result is explicitly labelled as an editable Whisper draft.
             try:
