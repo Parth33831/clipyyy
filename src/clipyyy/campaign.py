@@ -320,6 +320,7 @@ def _build_text_only_montage(
         edits.append({"rank": rank, "title": f"Campaign montage {rank}", "shots": shots})
     return edits
 
+
 def format_campaign_plan(plan: dict[str, Any]) -> str:
     """Compact, explicit plan for downstream creative selection."""
     labels = {
