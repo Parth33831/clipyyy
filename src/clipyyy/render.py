@@ -612,8 +612,14 @@ def write_campaign_word_lyrics(
 
     font_size = round(height * 0.047)
     script = [
-        "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {width}", f"PlayResY: {height}",
-        "WrapStyle: 0", "ScaledBorderAndShadow: yes", "", "[V4+ Styles]",
+        "[Script Info]",
+        "ScriptType: v4.00+",
+        f"PlayResX: {width}",
+        f"PlayResY: {height}",
+        "WrapStyle: 0",
+        "ScaledBorderAndShadow: yes",
+        "",
+        "[V4+ Styles]",
         (
             "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
             "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, "
@@ -624,7 +630,9 @@ def write_campaign_word_lyrics(
             f"&H64000000,1,0,0,0,100,100,0,0,1,4,2,2,{round(width * 0.07)},"
             f"{round(width * 0.07)},{round(height * 0.16)},1"
         ),
-        "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+        "",
+        "[Events]",
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
     for index, group in enumerate(groups):
         start = max(0.0, group[0]["start"])
@@ -653,9 +661,7 @@ def write_campaign_word_lyrics(
                 else "{\\fad(100,120)\\c&HFFFFFF&\\bord2\\shad1}"
             )
             text = _escape(phrase)
-        script.append(
-            f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,{treatment}{text}"
-        )
+        script.append(f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,{treatment}{text}")
     path.write_text("\n".join(script) + "\n", encoding="utf-8")
     return path
 
