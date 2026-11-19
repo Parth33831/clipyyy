@@ -455,16 +455,25 @@ def render_campaign_montages(
                     music_input = ["-stream_loop", "-1"]
                 run_ffmpeg(
                     [
-                        "-i", str(visual),
+                        "-i",
+                        str(visual),
                         *music_input,
-                        "-ss", f"{music_start:.3f}",
-                        "-i", str(music_path),
-                        "-map", "0:v:0",
-                        "-map", "1:a:0",
-                        "-t", f"{duration:.3f}",
-                        "-c:v", "copy",
-                        "-c:a", "aac",
-                        "-b:a", "192k",
+                        "-ss",
+                        f"{music_start:.3f}",
+                        "-i",
+                        str(music_path),
+                        "-map",
+                        "0:v:0",
+                        "-map",
+                        "1:a:0",
+                        "-t",
+                        f"{duration:.3f}",
+                        "-c:v",
+                        "copy",
+                        "-c:a",
+                        "aac",
+                        "-b:a",
+                        "192k",
                         "-af",
                         f"volume=0.9,afade=t=in:st=0:d=0.4,"
                         f"afade=t=out:st={max(0.0, duration - 0.8):.3f}:d=0.8",
@@ -644,13 +653,16 @@ def write_campaign_lyrics(
                 remaining_cs = available_cs
                 karaoke_text = []
                 for word_index, word in enumerate(words):
-                    word_cs = remaining_cs if word_index == len(words) - 1 else max(
-                        1, round(available_cs * weights[word_index] / total_weight)
+                    word_cs = (
+                        remaining_cs
+                        if word_index == len(words) - 1
+                        else max(1, round(available_cs * weights[word_index] / total_weight))
                     )
                     remaining_cs -= word_cs
                     karaoke_text.append(f"{{\\k{word_cs}}}{_escape(word)}")
                 script.append(
-                    dialogue + "{\\fad(80,120)\\c&HFFFFFF&\\2c&H00D7FF&\\bord3\\shad2}"
+                    dialogue
+                    + "{\\fad(80,120)\\c&HFFFFFF&\\2c&H00D7FF&\\bord3\\shad2}"
                     + " ".join(karaoke_text)
                 )
                 continue
