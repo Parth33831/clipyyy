@@ -400,7 +400,7 @@ def render_campaign_montages(
             if lyrics:
                 overlay = edit_dir / "campaign-lyrics.ass"
                 write_campaign_lyrics(lyrics, duration, overlay, width, height, offset_seconds=music_start)
-                visual = edit_dir / "montage-lyrics.mp4"
+                captioned = edit_dir / "montage-lyrics.mp4"
                 run_ffmpeg(
                     [
                         "-i",
@@ -418,9 +418,10 @@ def render_campaign_montages(
                         "yuv420p",
                         "-movflags",
                         "+faststart",
-                        str(visual),
+                        str(captioned),
                     ]
                 )
+                visual = captioned
             if music_path:
                 music_input = []
                 if music_analysis and music_analysis["duration_seconds"] - music_start < duration:
