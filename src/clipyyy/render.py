@@ -698,8 +698,7 @@ def write_campaign_word_lyrics(
                 # Keep the selected words visible together; the window advances on each
                 # recognized word boundary, while the current word keeps its own timing.
                 script.append(
-                    f"Dialogue: 0,{_ts(word_start)},{_ts(word_end)},Default,,0,0,0,,"
-                    f"{animation}{visible_text}"
+                    f"Dialogue: 0,{_ts(word_start)},{_ts(word_end)},Default,,0,0,0,,{animation}{visible_text}"
                 )
             continue
         if style == "karaoke":
