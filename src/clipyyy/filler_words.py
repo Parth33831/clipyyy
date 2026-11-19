@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 
 FILLERS = frozenset({"um", "uh", "erm", "er"})
+SAFETY_PADDING = 0.025
+MIN_NEIGHBOUR_GAP = 0.015
 _TOKEN = re.compile(r"^[^\\w]*([a-z]+)[^\\w]*$", re.IGNORECASE)
 
 
@@ -33,14 +35,14 @@ def filler_intervals(
         if start < clip_start or end > clip_end or end <= start:
             continue
 
-        # Only remove clearly isolated hesitation tokens. Preserve overlapping
-        # speech and leave a small safety margin around adjacent recognized words.
+        # Only remove clearly isolated hesitation tokens. Extend slightly into
+        # surrounding silence, but never overlap a neighbouring recognized word.
         previous_end = float(words[index - 1]["end"]) if index else start
         next_start = float(words[index + 1]["start"]) if index + 1 < len(words) else end
         if previous_end > start or next_start < end:
             continue
-        cut_start = max(start, (previous_end + start) / 2)
-        cut_end = min(end, (end + next_start) / 2)
+        cut_start = max(start - SAFETY_PADDING, previous_end + MIN_NEIGHBOUR_GAP)
+        cut_end = min(end + SAFETY_PADDING, next_start - MIN_NEIGHBOUR_GAP)
         if cut_end - cut_start >= 0.06:
             intervals.append((round(cut_start, 3), round(cut_end, 3)))
     return intervals
