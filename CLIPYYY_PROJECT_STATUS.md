@@ -50,7 +50,7 @@
 
 | Task | Owner chat | Branch / PR | Status | Last update |
 |---|---|---|---|---|
-| Conservative filler-word removal for spoken clips | Feature Development + Architecture review | `feature/transcript-filler-removal` / [PR #23](https://github.com/Parth33831/clipyyy/pull/23) | Merged into `main` as `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`; post-merge CI running | 2026-11-19 |
+| Conservative filler-word removal for spoken clips | Feature Development + Architecture review | `feature/transcript-filler-removal` / [PR #23](https://github.com/Parth33831/clipyyy/pull/23) | Merged into `main` as `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`; post-merge CI passed | 2026-11-19 |
 
 ### Assignment: Conservative filler-word removal
 
@@ -134,4 +134,4 @@ STATUS: In progress / Ready for review / Merged
 - 2026-11-19: Established separate architecture, feature-development and testing/integration responsibilities across ChatGPT conversations.
 - 2026-11-19: Created the coordination document on `docs/project-coordination`; application code was not changed.
 - 2026-11-19: Assigned conservative English filler-word removal to Feature Development on `feature/transcript-filler-removal`, based on existing word-level transcription. Full transcript/timeline editing remains a later, separate feature.
-- 2026-11-19: PR #23 was reviewed and squash-merged into `main` as `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`. Pre-merge CI passed Ruff lint/format, frontend build and the fast backend test suite. Post-merge CI is running; verify its result before closing the task.
+- 2026-11-19: PR #23 was reviewed and squash-merged into `main` as `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`. Post-merge CI passed: Ruff lint, Ruff format, frontend build, and fast backend tests (82 passed, 15 skipped). Windows, macOS and full-backend jobs were skipped because they are manual-only.
