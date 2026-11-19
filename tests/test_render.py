@@ -259,23 +259,37 @@ def test_campaign_dialogue_is_rendered_before_montage_with_original_audio(tmp_pa
     source = tmp_path / "dialogue-source.mp4"
     run_ffmpeg(
         [
-            "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=30:duration=12",
-            "-f", "lavfi", "-i", "sine=frequency=440:duration=12",
-            "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac",
-            "-shortest", str(source),
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=640x360:rate=30:duration=12",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=12",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast",
+            "-c:a",
+            "aac",
+            "-shortest",
+            str(source),
         ]
     )
     sources = [{"video_path": str(source), "duration_seconds": 12, "title": "Dialogue source"}]
     selection = {
-        "campaign_edits": [{
-            "rank": 1,
-            "title": "Dialogue first",
-            "shots": [
-                {"source_index": 0, "start_seconds": 1, "end_seconds": 4},
-                {"source_index": 0, "start_seconds": 4, "end_seconds": 7},
-                {"source_index": 0, "start_seconds": 7, "end_seconds": 10},
-            ],
-        }]
+        "campaign_edits": [
+            {
+                "rank": 1,
+                "title": "Dialogue first",
+                "shots": [
+                    {"source_index": 0, "start_seconds": 1, "end_seconds": 4},
+                    {"source_index": 0, "start_seconds": 4, "end_seconds": 7},
+                    {"source_index": 0, "start_seconds": 7, "end_seconds": 10},
+                ],
+            }
+        ]
     }
     candidate = {
         "id": "0:2.00:3.50",
