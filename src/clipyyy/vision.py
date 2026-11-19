@@ -113,7 +113,8 @@ def analyze_campaign_video(source: dict, work_dir: Path, llm, campaign_brief: st
     frames = sample_frames(Path(source["video_path"]), float(source.get("duration_seconds") or 0), work_dir)
     if not supports_visual_input(llm):
         logger.info("Text-only model; using FFmpeg scene boundaries without visual descriptions")
-        scene_times = detect_scene_changes(Path(source["video_path"]), float(source.get("duration_seconds") or 0))
+        duration = float(source.get("duration_seconds") or 0)
+        scene_times = detect_scene_changes(Path(source["video_path"]), duration)
         timestamps = scene_times or [timestamp for timestamp, _ in frames]
         return {
             "frames": [
