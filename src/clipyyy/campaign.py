@@ -95,7 +95,12 @@ HOOK_SCHEMA: dict[str, Any] = {
 }
 
 
-def generate_campaign_hook(llm, brief: str, campaign_plan: dict[str, Any]) -> str | None:
+def generate_campaign_hook(
+    llm,
+    brief: str,
+    campaign_plan: dict[str, Any],
+    reference_analyses: list[dict[str, Any]] | None = None,
+) -> str | None:
     """Suggest one truthful opening hook using the local text model and campaign context."""
     try:
         result = llm.complete_json(
@@ -115,7 +120,9 @@ def generate_campaign_hook(llm, brief: str, campaign_plan: dict[str, Any]) -> st
                     "music": campaign_plan.get("track_or_sound"),
                 },
                 ensure_ascii=False,
-            ),
+            )
+            + "\n\nReference-video style observations (use only broad patterns; never copy wording):\n"
+            + json.dumps(reference_analyses or [], ensure_ascii=False)[:3000],
             HOOK_SCHEMA,
             "campaign_opening_hook",
         )
