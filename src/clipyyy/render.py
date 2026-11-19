@@ -340,7 +340,10 @@ def render_campaign_montages(
                         aligned_cut = min(candidates, key=lambda beat: abs(beat - desired_cut))
                         aligned_duration = aligned_cut - elapsed
                         if 1.5 <= aligned_duration <= 5.0:
-                            end = min(float(sources[source_index]["duration_seconds"]), start + aligned_duration)
+                            end = min(
+                                float(sources[source_index]["duration_seconds"]),
+                                start + aligned_duration,
+                            )
                             duration = end - start
                 if duration < 1.0:
                     continue
@@ -821,8 +824,16 @@ def write_campaign_hook(text: str, duration: float, path: Path, width: int, heig
     script = [
         "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {width}", f"PlayResY: {height}",
         "WrapStyle: 2", "ScaledBorderAndShadow: yes", "", "[V4+ Styles]",
-        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-        f"Style: Default,Arial,{font_size},{_ass_color('FFFFFF')},&H000000FF,&H00000000,&H64000000,1,0,0,0,100,100,0,0,1,5,2,5,{round(width * 0.08)},{round(width * 0.08)},{round(height * 0.24)},1",
+        (
+            "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
+            "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, "
+            "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding"
+        ),
+        (
+            f"Style: Default,Arial,{font_size},{_ass_color('FFFFFF')},&H000000FF,&H00000000,"
+            f"&H64000000,1,0,0,0,100,100,0,0,1,5,2,5,{round(width * 0.08)},"
+            f"{round(width * 0.08)},{round(height * 0.24)},1"
+        ),
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
         f"Dialogue: 0,0:00:00.00,{_ts(duration)},Default,,0,0,0,,{{\\fad(120,180)}}{_escape(text)}",
     ]
