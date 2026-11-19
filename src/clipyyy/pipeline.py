@@ -479,7 +479,7 @@ def update_campaign_montage(run_id: str, edits: list[dict[str, Any]]) -> dict:
 
     source_data = json.loads(download_file.read_text(encoding="utf-8"))
     selection = json.loads(select_file.read_text(encoding="utf-8"))
-    sources = source_data.get("sources") or [source_data]
+    sources = selection.get("campaign_sources") or source_data.get("sources") or [source_data]
     original = selection.get("campaign_original_edits") or selection.get("campaign_edits") or []
     selection.setdefault("campaign_original_edits", json.loads(json.dumps(original)))
     expected_ranks = {int(edit["rank"]) for edit in original}
@@ -572,6 +572,8 @@ def rerender_campaign(run_id: str, rebuild_montage: bool = False) -> dict:
         raise ValueError("The saved campaign footage and edit plan are not available.")
     source = json.loads(download_file.read_text(encoding="utf-8"))
     selection = json.loads(select_file.read_text(encoding="utf-8"))
+    if selection.get("campaign_sources"):
+        source["sources"] = selection["campaign_sources"]
     options = dict(run["options"])
     options["campaign_plan"] = selection.get("campaign_plan")
     options["reuse_campaign_montage"] = not rebuild_montage
