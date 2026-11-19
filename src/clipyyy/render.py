@@ -748,8 +748,18 @@ def analyze_campaign_music(path: Path, target_duration: float) -> dict:
     """Analyse the complete local track and choose its most energetic usable section."""
     result = subprocess.run(
         [
-            ffmpeg_bin(), "-v", "error", "-i", str(path), "-ac", "1", "-ar", "11025",
-            "-f", "f32le", "pipe:1",
+            ffmpeg_bin(),
+            "-v",
+            "error",
+            "-i",
+            str(path),
+            "-ac",
+            "1",
+            "-ar",
+            "11025",
+            "-f",
+            "f32le",
+            "pipe:1",
         ],
         capture_output=True,
         timeout=180,
