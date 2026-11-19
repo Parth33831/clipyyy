@@ -47,6 +47,7 @@ class ClipOptions(BaseModel):
     campaign_lyrics_style: Literal["dynamic", "cinematic", "minimal"] = "dynamic"
     campaign_hook_text: str = Field("", max_length=160)
     include_campaign_hook: bool = False
+    selected_campaign_dialogue_id: str | None = None
     model: str | None = Field(None, description="Override the default LLM model")
 
     @model_validator(mode="after")
@@ -377,7 +378,6 @@ def stage_render(ctx: Context) -> dict:
             "campaign_plan": ctx.state["select"].get("campaign_plan"),
         }
         music_path = render_options.get("campaign_music_path")
-        campaign_plan = render_options.get("campaign_plan") or {}
         # A supplied song is enough to offer a timed local lyric draft; do not make
         # this depend on whether the campaign brief happened to contain the word lyric.
         if music_path and not render_options.get("campaign_lyrics", "").strip():
