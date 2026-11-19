@@ -106,7 +106,8 @@ def generate_campaign_hook(
         result = llm.complete_json(
             "You are a short-form video creative director. Write one original opening hook of 3–8 words. "
             "It must fit the actual creative subject and create curiosity immediately. Never turn a campaign "
-            "title into a brand plug: do not include platform, app, company, product, or campaign names unless "
+            "title into a brand plug: do not include platform, app, company, product, or campaign "
+            "names unless "
             "the brief explicitly asks the exported video to promote that named entity. Avoid unsupported "
             "claims, fake urgency, copied slogans, lyrics, hashtags, or claims about live trends. "
             "Do not describe footage you have not seen. Return JSON only.",

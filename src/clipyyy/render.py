@@ -646,7 +646,8 @@ def write_campaign_lyrics(
             treatment = (
                 ("{\\fad(90,120)\\fscx72\\fscy72\\t(0,170,\\fscx100\\fscy100)\\c&H00D7FF&\\bord4\\shad2}",
                  "{\\fad(90,120)\\fscx82\\fscy82\\t(0,150,\\fscx100\\fscy100)\\c&H66E6FF&\\bord4\\shad2}",
-                 "{\\fad(90,120)\\fscx76\\fscy76\\t(0,190,\\fscx100\\fscy100)\\c&H99CCFF&\\bord4\\shad2}")[index % 3]
+                 "{\\fad(90,120)\\fscx76\\fscy76\\t(0,190,\\fscx100\\fscy100)\\c&H99CCFF&\\bord4\\shad2}",
+                )[index % 3]
                 if style == "dynamic"
                 else "{\\fad(220,220)\\c&HFFFFFF&\\bord2\\shad3\\fsp1}"
                 if style == "cinematic"
