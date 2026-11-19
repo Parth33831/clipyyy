@@ -87,6 +87,51 @@ def local_fallback_plan(brief: str) -> dict[str, Any]:
     }
 
 
+HOOK_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {"hook": {"type": "string"}},
+    "required": ["hook"],
+    "additionalProperties": False,
+}
+
+
+def generate_campaign_hook(
+    llm,
+    brief: str,
+    campaign_plan: dict[str, Any],
+    reference_analyses: list[dict[str, Any]] | None = None,
+) -> str | None:
+    """Suggest one truthful opening hook using the local text model and campaign context."""
+    try:
+        result = llm.complete_json(
+            "You are a short-form video creative director. Write one original opening hook of 3–8 words. "
+            "It must fit the actual campaign brief, create curiosity immediately, and avoid unsupported "
+            "claims, fake urgency, copied slogans, lyrics, hashtags, or claims about live trends. "
+            "Do not describe footage you have not seen. Return JSON only.",
+            "Campaign brief:\n"
+            + brief[:5000]
+            + "\n\nCampaign context:\n"
+            + json.dumps(
+                {
+                    "name": campaign_plan.get("campaign_name"),
+                    "subject": campaign_plan.get("subject_or_theme"),
+                    "mood": campaign_plan.get("mood"),
+                    "style": campaign_plan.get("visual_style_and_pacing"),
+                    "music": campaign_plan.get("track_or_sound"),
+                },
+                ensure_ascii=False,
+            )
+            + "\n\nReference-video style observations (use only broad patterns; never copy wording):\n"
+            + json.dumps(reference_analyses or [], ensure_ascii=False)[:3000],
+            HOOK_SCHEMA,
+            "campaign_opening_hook",
+        )
+        hook_words = " ".join(str(result.get("hook", "")).split()).strip(" \t\r\n.!?").split()
+        return " ".join(hook_words[:8])[:72] or None
+    except Exception:
+        return None
+
+
 MONTAGE_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {

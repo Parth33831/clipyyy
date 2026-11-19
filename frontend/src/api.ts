@@ -21,6 +21,7 @@ export interface ClipOptions {
   campaign_url: string
   campaign_music_path: string | null
   campaign_lyrics: string
+  campaign_lyrics_source?: string | null
   model: string | null
 }
 
@@ -88,7 +89,10 @@ export interface CampaignPlan {
 
 export interface RunDetail extends Run {
   campaign_plan: CampaignPlan | null
-  campaign_quality_checks: Record<string, string | boolean | number | null> | null
+  campaign_quality_checks: Record<
+    string,
+    string | boolean | number | null | Record<string, string | number | null>
+  > | null
   source_duration: number | null
   stages: Stage[]
   clips: Clip[]
@@ -176,6 +180,11 @@ export const api = {
     form.append('file', file)
     return request<{ name: string; attached: boolean }>(`/api/runs/${id}/campaign-music`, { method: 'POST', body: form })
   },
+  saveCampaignLyrics: (id: string, lyrics: string) =>
+    request<{ saved: boolean; characters: number }>(`/api/runs/${id}/campaign-lyrics`, {
+      method: 'PUT',
+      body: JSON.stringify({ lyrics }),
+    }),
   retry: (id: string, fromStage?: string) =>
     request<RunDetail>(`/api/runs/${id}/retry`, {
       method: 'POST',

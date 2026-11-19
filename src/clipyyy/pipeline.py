@@ -41,8 +41,9 @@ class ClipOptions(BaseModel):
     campaign_url: str = Field("", max_length=2048, description="Public campaign page URL to analyse")
     campaign_music_path: str | None = Field(None, description="Optional user-provided campaign music file")
     campaign_lyrics: str = Field(
-        "", max_length=3000, description="Optional user-provided lyric or on-screen text lines"
+        "", max_length=12000, description="Optional creator-provided or locally transcribed lyric lines"
     )
+    campaign_lyrics_source: str | None = Field(None, description="Origin of the campaign lyric draft")
     model: str | None = Field(None, description="Override the default LLM model")
 
     @model_validator(mode="after")
@@ -113,7 +114,7 @@ def stage_select(ctx: Context) -> dict:
             )
         # Campaign vision analysis also uses the configured local Ollama model.
         # Choose a vision-capable tag (for example qwen2.5vl:3b) in Settings.
-        from clipyyy.campaign import build_montage_plan, parse_campaign_brief
+        from clipyyy.campaign import build_montage_plan, generate_campaign_hook, parse_campaign_brief
         from clipyyy.vision import analyze_campaign_video, analyze_reference_video
 
         campaign_brief = options.get("campaign_brief", "").strip()
@@ -189,6 +190,9 @@ def stage_select(ctx: Context) -> dict:
                         )
                 except Exception as exc:
                     logger.info("Could not analyse campaign reference %s: %s", reference_url, exc)
+        plan["generated_hook"] = generate_campaign_hook(
+            llm, campaign_brief, plan, reference_analyses=reference_analyses
+        )
         count = min(10, plan.get("output_count") or options["clip_count"])
         requested_target = float(plan.get("target_duration_seconds") or options["max_seconds"])
         # The editor's explicit duration range is a hard constraint. A brief extraction
@@ -298,6 +302,54 @@ def stage_render(ctx: Context) -> dict:
             **ctx.options,
             "campaign_plan": ctx.state["select"].get("campaign_plan"),
         }
+        music_path = render_options.get("campaign_music_path")
+        campaign_plan = render_options.get("campaign_plan") or {}
+        lyric_requirements = " ".join(
+            str(campaign_plan.get(key) or "")
+            for key in ("audio_mode", "on_screen_text_requirements", "mandatory_content")
+        ).lower()
+        lyrics_requested = "lyric" in lyric_requirements
+        if music_path and lyrics_requested and not render_options.get("campaign_lyrics", "").strip():
+            # Draft lyric captions locally from the supplied music. Singing recognition is
+            # imperfect, so the result is explicitly labelled as an editable Whisper draft.
+            try:
+                from clipyyy.transcribe import transcribe
+
+                lyric_work = ctx.work_dir / "campaign-music-lyrics"
+                lyric_work.mkdir(parents=True, exist_ok=True)
+                lyric_result = transcribe(
+                    Path(music_path), lyric_work, get_setting("whisper_model") or "tiny", "auto"
+                )
+                words = lyric_result.get("words", [])
+                groups = []
+                current = []
+                for word in words:
+                    if current and (
+                        float(word["start"]) - float(current[-1]["end"]) > 0.55 or len(current) >= 7
+                    ):
+                        groups.append(current)
+                        current = []
+                    current.append(word)
+                if current:
+                    groups.append(current)
+                lyric_lines = []
+                for group in groups:
+                    start = float(group[0]["start"])
+                    stamp = f"[{int(start // 60):02d}:{start % 60:05.2f}]"
+                    lyric_lines.append(stamp + " " + " ".join(item["word"] for item in group))
+                if lyric_lines:
+                    render_options["campaign_lyrics"] = "\n".join(lyric_lines)
+                    render_options["campaign_lyrics_source"] = (
+                        "Local Whisper draft — review for singing-recognition errors"
+                    )
+                    updated_options = {
+                        **ctx.options,
+                        "campaign_lyrics": render_options["campaign_lyrics"],
+                        "campaign_lyrics_source": render_options["campaign_lyrics_source"],
+                    }
+                    db.update_run(ctx.run_id, options=updated_options)
+            except Exception as exc:
+                logger.warning("Local campaign lyric transcription was unavailable: %s", exc)
         result = render_campaign_montages(
             ctx.state["download"], ctx.state["select"], ctx.work_dir, ctx.out_dir, render_options
         )

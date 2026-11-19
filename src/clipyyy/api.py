@@ -34,6 +34,10 @@ class RetryRun(BaseModel):
     from_stage: str | None = None
 
 
+class CampaignLyricsUpdate(BaseModel):
+    lyrics: str = Field("", max_length=12000)
+
+
 class UpdateSettings(BaseModel):
     values: dict[str, str | None]
 
@@ -119,6 +123,21 @@ def create_app(start_worker: bool = True) -> FastAPI:
         with target.open("wb") as fh:
             shutil.copyfileobj(file.file, fh, length=1024 * 1024)
         return {"source": str(target), "name": name}
+
+    @app.put("/api/runs/{run_id}/campaign-lyrics")
+    def update_campaign_lyrics(run_id: str, body: CampaignLyricsUpdate) -> dict:
+        run = _run_or_404(run_id)
+        if not run["options"].get("campaign_mode"):
+            raise HTTPException(400, "Lyrics can only be edited on campaign runs.")
+        if run["status"] in {"queued", "running"}:
+            raise HTTPException(409, "Wait for the campaign run to finish before editing lyrics.")
+        options = {
+            **run["options"],
+            "campaign_lyrics": body.lyrics,
+            "campaign_lyrics_source": "Creator-edited",
+        }
+        db.update_run(run_id, options=options)
+        return {"saved": True, "characters": len(body.lyrics)}
 
     @app.post("/api/runs/{run_id}/campaign-music")
     def attach_campaign_music(run_id: str, file: UploadFile) -> dict:

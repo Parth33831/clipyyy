@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 import shutil
 import subprocess
@@ -306,7 +307,11 @@ def render_campaign_montages(
     music_path = Path(options["campaign_music_path"]) if options.get("campaign_music_path") else None
     if music_path and not music_path.is_file():
         raise FileNotFoundError(f"Campaign music file not found: {music_path}")
-    beat_interval = detect_music_beat_interval(music_path) if music_path else None
+    target_duration = float(campaign_plan.get("target_duration_seconds") or 30.0)
+    music_analysis = analyze_campaign_music(music_path, target_duration) if music_path else None
+    beat_times = music_analysis["beat_times"] if music_analysis else []
+    music_start = float(music_analysis["best_start_seconds"]) if music_analysis else 0.0
+    hook = str(campaign_plan.get("generated_hook") or "").strip()
 
     for edit in selection.get("campaign_edits", []):
         rank = edit["rank"]
@@ -323,12 +328,23 @@ def render_campaign_montages(
                 start = max(0.0, float(shot["start_seconds"]))
                 end = min(float(sources[source_index]["duration_seconds"]), float(shot["end_seconds"]))
                 duration = end - start
-                if beat_interval and duration >= 1.5:
-                    beat_count = max(3, round(duration / beat_interval))
-                    aligned_duration = beat_count * beat_interval
-                    if 1.5 <= aligned_duration <= 5.0:
-                        end = min(float(sources[source_index]["duration_seconds"]), start + aligned_duration)
-                        duration = end - start
+                if beat_times and duration >= 1.5:
+                    elapsed = sum(probe(item)[2] for item in segments) if segments else 0.0
+                    desired_cut = elapsed + duration
+                    candidates = [
+                        beat - music_start
+                        for beat in beat_times
+                        if 1.5 <= beat - music_start - elapsed <= 5.0
+                    ]
+                    if candidates:
+                        aligned_cut = min(candidates, key=lambda beat: abs(beat - desired_cut))
+                        aligned_duration = aligned_cut - elapsed
+                        if 1.5 <= aligned_duration <= 5.0:
+                            end = min(
+                                float(sources[source_index]["duration_seconds"]),
+                                start + aligned_duration,
+                            )
+                            duration = end - start
                 if duration < 1.0:
                     continue
                 segment = edit_dir / f"shot-{shot_index:03d}.mp4"
@@ -362,7 +378,8 @@ def render_campaign_montages(
             if len(segments) < 3:
                 raise RuntimeError("Fewer than three campaign shots could be rendered.")
             silent = edit_dir / "montage-silent.mp4"
-            _crossfade_segments(segments, silent)
+            # Hard cuts preserve the musical transient at each selected beat.
+            _crossfade_segments(segments, silent, fade_seconds=0.0 if beat_times else 0.28)
             _, _, duration = probe(silent)
             target_duration = float(campaign_plan.get("target_duration_seconds") or 0)
             if target_duration > 0 and abs(duration - target_duration) > 0.05:
@@ -371,14 +388,39 @@ def render_campaign_montages(
                 silent = normalized
                 _, _, duration = probe(silent)
             visual = silent
-            if lyrics:
-                overlay = edit_dir / "campaign-lyrics.ass"
-                write_campaign_lyrics(lyrics, duration, overlay, width, height)
-                visual = edit_dir / "montage-lyrics.mp4"
+            if hook:
+                hook_overlay = edit_dir / "campaign-hook.ass"
+                write_campaign_hook(hook, min(2.6, duration), hook_overlay, width, height)
+                hooked = edit_dir / "montage-hook.mp4"
                 run_ffmpeg(
                     [
                         "-i",
-                        str(silent),
+                        str(visual),
+                        "-vf",
+                        ass_filter(hook_overlay),
+                        "-an",
+                        "-c:v",
+                        "libx264",
+                        "-preset",
+                        "veryfast",
+                        "-crf",
+                        "19",
+                        "-pix_fmt",
+                        "yuv420p",
+                        "-movflags",
+                        "+faststart",
+                        str(hooked),
+                    ]
+                )
+                visual = hooked
+            if lyrics:
+                overlay = edit_dir / "campaign-lyrics.ass"
+                write_campaign_lyrics(lyrics, duration, overlay, width, height, offset_seconds=music_start)
+                captioned = edit_dir / "montage-lyrics.mp4"
+                run_ffmpeg(
+                    [
+                        "-i",
+                        str(visual),
                         "-vf",
                         ass_filter(overlay),
                         "-an",
@@ -392,16 +434,21 @@ def render_campaign_montages(
                         "yuv420p",
                         "-movflags",
                         "+faststart",
-                        str(visual),
+                        str(captioned),
                     ]
                 )
+                visual = captioned
             if music_path:
+                music_input = []
+                if music_analysis and music_analysis["duration_seconds"] - music_start < duration:
+                    music_input = ["-stream_loop", "-1"]
                 run_ffmpeg(
                     [
                         "-i",
                         str(visual),
-                        "-stream_loop",
-                        "-1",
+                        *music_input,
+                        "-ss",
+                        f"{music_start:.3f}",
                         "-i",
                         str(music_path),
                         "-map",
@@ -446,7 +493,9 @@ def render_campaign_montages(
                         else "silent; add official campaign sound on the publishing platform if required"
                     ),
                     "lyrics_overlay": bool(lyrics),
-                    "beat_synced": bool(beat_interval),
+                    "beat_synced": bool(beat_times),
+                    "music_start_seconds": round(music_start, 2),
+                    "music_bpm_estimate": music_analysis.get("bpm") if music_analysis else None,
                 }
             )
         except Exception as exc:
@@ -470,10 +519,24 @@ def render_campaign_montages(
             "music_track_added": bool(music_path),
             "official_sound_required": official_sound_required,
             "beat_sync": (
-                "approximate beat-grid timing applied"
-                if beat_interval
-                else "not applied (no local track or beat analysis unavailable)"
+                f"cuts aligned to detected musical transients; estimated {music_analysis['bpm']} BPM"
+                if music_analysis and beat_times and music_analysis.get("bpm")
+                else "track analysed, but reliable beat transients were not detected"
+                if music_analysis
+                else "not applied (no local track attached)"
             ),
+            "music_analysis": (
+                {
+                    "duration_seconds": music_analysis["duration_seconds"],
+                    "selected_start_seconds": round(music_start, 2),
+                    "selected_section": music_analysis["selected_section"],
+                    "estimated_bpm": music_analysis.get("bpm"),
+                    "detected_beats": len(beat_times),
+                }
+                if music_analysis
+                else None
+            ),
+            "opening_hook": hook or None,
             "official_platform_sound": (
                 "select the campaign's official sound in the social app after export"
                 if official_sound_required
@@ -519,7 +582,14 @@ def _normalize_montage_duration(
     return output
 
 
-def write_campaign_lyrics(lines: list[str], duration: float, path: Path, width: int, height: int) -> Path:
+def write_campaign_lyrics(
+    lines: list[str],
+    duration: float,
+    path: Path,
+    width: int,
+    height: int,
+    offset_seconds: float = 0.0,
+) -> Path:
     """Burn only creator-supplied lyric/text lines, timed evenly over the montage."""
     from clipyyy.captions import _ass_color, _escape, _ts
 
@@ -547,12 +617,30 @@ def write_campaign_lyrics(lines: list[str], duration: float, path: Path, width: 
         "[Events]",
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
-    interval = duration / max(1, len(lines))
-    for index, line in enumerate(lines):
-        start = index * interval
-        end = duration if index == len(lines) - 1 else (index + 1) * interval
-        dialogue = f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,"
-        script.append(dialogue + f"{{\\fad(180,180)}}{_escape(line)}")
+    timed_lines = []
+    for line in lines:
+        match = re.match(r"^\[(\d{1,2}):(\d{2})(?:\.(\d{1,2}))?\]\s*(.+)$", line)
+        if match:
+            minutes, seconds, fraction, text = match.groups()
+            centiseconds = int((fraction or "0").ljust(2, "0")[:2])
+            relative_start = int(minutes) * 60 + int(seconds) + centiseconds / 100 - offset_seconds
+            if 0 <= relative_start < duration:
+                timed_lines.append((relative_start, text))
+    has_lrc_timestamps = any(re.match(r"^\[\d{1,2}:\d{2}(?:\.\d{1,2})?\]", line) for line in lines)
+    if timed_lines:
+        for index, (start, line) in enumerate(timed_lines):
+            end = timed_lines[index + 1][0] if index + 1 < len(timed_lines) else duration
+            start = max(0.0, min(start, duration))
+            end = min(duration, max(start + 0.2, min(end, duration)))
+            dialogue = f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,"
+            script.append(dialogue + f"{{\\fad(100,120)}}{_escape(line)}")
+    elif not has_lrc_timestamps:
+        interval = duration / max(1, len(lines))
+        for index, line in enumerate(lines):
+            start = index * interval
+            end = duration if index == len(lines) - 1 else (index + 1) * interval
+            dialogue = f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,"
+            script.append(dialogue + f"{{\\fad(180,180)}}{_escape(line)}")
     path.write_text("\n".join(script) + "\n", encoding="utf-8")
     return path
 
@@ -565,6 +653,32 @@ def _crossfade_segments(segments: list[Path], output: Path, fade_seconds: float 
     inputs: list[str] = []
     for segment in segments:
         inputs.extend(["-i", str(segment)])
+    if fade_seconds <= 0:
+        concat_inputs = "".join(f"[{index}:v]" for index in range(len(segments)))
+        run_ffmpeg(
+            [
+                *inputs,
+                "-filter_complex",
+                f"{concat_inputs}concat=n={len(segments)}:v=1:a=0[outv]",
+                "-map",
+                "[outv]",
+                "-an",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "veryfast",
+                "-crf",
+                "19",
+                "-pix_fmt",
+                "yuv420p",
+                "-r",
+                str(FPS),
+                "-movflags",
+                "+faststart",
+                str(output),
+            ]
+        )
+        return
     filters = []
     previous = "[0:v]"
     total = durations[0]
@@ -654,3 +768,118 @@ def detect_music_beat_interval(path: Path) -> float | None:
         return round(estimate, 4) if 0.30 <= estimate <= 1.20 else None
     except (OSError, subprocess.SubprocessError, ValueError):
         return None
+
+
+def analyze_campaign_music(path: Path, target_duration: float) -> dict:
+    """Analyse the complete local track and choose its most energetic usable section."""
+    result = subprocess.run(
+        [
+            ffmpeg_bin(),
+            "-v",
+            "error",
+            "-i",
+            str(path),
+            "-ac",
+            "1",
+            "-ar",
+            "11025",
+            "-f",
+            "f32le",
+            "pipe:1",
+        ],
+        capture_output=True,
+        timeout=180,
+        check=False,
+    )
+    if result.returncode or len(result.stdout) < 11025 * 4:
+        raise RuntimeError("Could not decode the attached campaign music for analysis.")
+    samples = array("f")
+    samples.frombytes(result.stdout[: len(result.stdout) - (len(result.stdout) % 4)])
+    sample_rate = 11025
+    window = 551
+    energy = []
+    for offset in range(0, len(samples) - window, window):
+        chunk = samples[offset : offset + window]
+        energy.append(math.sqrt(sum(value * value for value in chunk) / window))
+    frame_seconds = window / sample_rate
+    track_duration = len(samples) / sample_rate
+    if not energy:
+        raise RuntimeError("The attached campaign music contains no analysable audio.")
+    target = min(max(1.0, float(target_duration)), track_duration)
+    frame_count = max(1, round(target / frame_seconds))
+    stride = max(1, round(0.5 / frame_seconds))
+    if len(energy) <= frame_count:
+        best_frame = 0
+    else:
+        best_frame = max(
+            range(0, len(energy) - frame_count + 1, stride),
+            key=lambda start: sum(energy[start : start + frame_count]) / frame_count,
+        )
+    best_start = best_frame * frame_seconds
+    best_end = min(track_duration, best_start + target)
+
+    novelty = [max(0.0, energy[index] - energy[index - 1]) for index in range(1, len(energy))]
+    baseline = median(novelty) if novelty else 0.0
+    threshold = max(baseline * 2.2, max(novelty, default=0.0) * 0.10)
+    beats = []
+    last = -1.0
+    for index in range(1, len(novelty) - 1):
+        value = novelty[index]
+        timestamp = (index + 1) * frame_seconds
+        if (
+            value >= threshold
+            and value >= novelty[index - 1]
+            and value > novelty[index + 1]
+            and timestamp - last >= 0.24
+        ):
+            if best_start <= timestamp <= best_end:
+                beats.append(round(timestamp, 3))
+                last = timestamp
+    intervals = [
+        second - first
+        for first, second in zip(beats, beats[1:], strict=False)
+        if 0.25 <= second - first <= 1.2
+    ]
+    beat_interval = median(intervals) if len(intervals) >= 4 else None
+    bpm = round(60 / beat_interval) if beat_interval else None
+    return {
+        "duration_seconds": round(track_duration, 2),
+        "best_start_seconds": round(best_start, 3),
+        "selected_section": f"{best_start:.1f}–{best_end:.1f}s",
+        "beat_times": beats,
+        "beat_interval_seconds": round(beat_interval, 4) if beat_interval else None,
+        "bpm": bpm,
+    }
+
+
+def write_campaign_hook(text: str, duration: float, path: Path, width: int, height: int) -> Path:
+    """Create a bold, short opening hook overlay."""
+    from clipyyy.captions import _ass_color, _escape, _ts
+
+    font_size = round(height * 0.065)
+    script = [
+        "[Script Info]",
+        "ScriptType: v4.00+",
+        f"PlayResX: {width}",
+        f"PlayResY: {height}",
+        "WrapStyle: 2",
+        "ScaledBorderAndShadow: yes",
+        "",
+        "[V4+ Styles]",
+        (
+            "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
+            "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, "
+            "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding"
+        ),
+        (
+            f"Style: Default,Arial,{font_size},{_ass_color('FFFFFF')},&H000000FF,&H00000000,"
+            f"&H64000000,1,0,0,0,100,100,0,0,1,5,2,5,{round(width * 0.08)},"
+            f"{round(width * 0.08)},{round(height * 0.24)},1"
+        ),
+        "",
+        "[Events]",
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+        f"Dialogue: 0,0:00:00.00,{_ts(duration)},Default,,0,0,0,,{{\\fad(120,180)}}{_escape(text)}",
+    ]
+    path.write_text("\n".join(script) + "\n", encoding="utf-8")
+    return path
