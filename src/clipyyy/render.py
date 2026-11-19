@@ -454,7 +454,8 @@ def render_campaign_montages(
     )
     selected_dialogue = next(
         (
-            item for item in campaign_plan.get("dialogue_candidates", [])
+            item
+            for item in campaign_plan.get("dialogue_candidates", [])
             if item.get("id") == options.get("selected_campaign_dialogue_id")
         ),
         None,
