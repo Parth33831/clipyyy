@@ -368,8 +368,7 @@ def test_campaign_word_lyrics_show_configurable_rolling_word_window(tmp_path):
     three_path = tmp_path / "three-words.ass"
     write_campaign_word_lyrics(words, 2.0, three_path, 1080, 1920, style="dynamic", words_on_screen=3)
     three_events = [
-        line for line in three_path.read_text(encoding="utf-8").splitlines()
-        if line.startswith("Dialogue:")
+        line for line in three_path.read_text(encoding="utf-8").splitlines() if line.startswith("Dialogue:")
     ]
     assert "One" in three_events[0] and "Two" in three_events[0] and "Three" in three_events[0]
     assert "Four" not in three_events[0]
@@ -378,8 +377,7 @@ def test_campaign_word_lyrics_show_configurable_rolling_word_window(tmp_path):
     two_path = tmp_path / "two-words.ass"
     write_campaign_word_lyrics(words, 2.0, two_path, 1080, 1920, style="dynamic", words_on_screen=2)
     two_events = [
-        line for line in two_path.read_text(encoding="utf-8").splitlines()
-        if line.startswith("Dialogue:")
+        line for line in two_path.read_text(encoding="utf-8").splitlines() if line.startswith("Dialogue:")
     ]
     assert "One" in two_events[0] and "Two" in two_events[0]
     assert "Three" not in two_events[0]
