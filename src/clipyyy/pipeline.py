@@ -472,6 +472,7 @@ def rerender_campaign(run_id: str) -> dict:
     selection = json.loads(select_file.read_text(encoding="utf-8"))
     options = dict(run["options"])
     options["campaign_plan"] = selection.get("campaign_plan")
+    options["reuse_campaign_montage"] = True
     from clipyyy.render import render_campaign_montages
 
     result = render_campaign_montages(source, selection, work_dir, out_dir, options)
