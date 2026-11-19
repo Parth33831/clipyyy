@@ -103,9 +103,9 @@ def generate_campaign_hook(llm, brief: str, campaign_plan: dict[str, Any]) -> st
             "It must fit the actual campaign brief, create curiosity immediately, and avoid unsupported "
             "claims, fake urgency, copied slogans, lyrics, hashtags, or claims about live trends. "
             "Do not describe footage you have not seen. Return JSON only.",
-            "Campaign brief:\\n"
+            "Campaign brief:\n"
             + brief[:5000]
-            + "\\n\\nCampaign context:\\n"
+            + "\n\nCampaign context:\n"
             + json.dumps(
                 {
                     "name": campaign_plan.get("campaign_name"),
@@ -119,7 +119,7 @@ def generate_campaign_hook(llm, brief: str, campaign_plan: dict[str, Any]) -> st
             HOOK_SCHEMA,
             "campaign_opening_hook",
         )
-        hook_words = " ".join(str(result.get("hook", "")).split()).strip(" \\t\\r\\n.!?").split()
+        hook_words = " ".join(str(result.get("hook", "")).split()).strip(" \t\r\n.!?").split()
         return " ".join(hook_words[:8])[:72] or None
     except Exception:
         return None
