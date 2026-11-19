@@ -432,6 +432,7 @@ function CopyBlock({ label, text }: { label: string; text: string }) {
 function CampaignPlanCard({ plan, checks }: { plan: NonNullable<RunDetail['campaign_plan']>; checks: RunDetail['campaign_quality_checks'] }) {
   const labels: Record<string, string> = {
     campaign_name: 'Campaign',
+    generated_hook: 'Suggested opening hook',
     platform: 'Platform',
     content_type: 'Content type',
     subject_or_theme: 'Subject / theme',
@@ -494,7 +495,9 @@ function CampaignPlanCard({ plan, checks }: { plan: NonNullable<RunDetail['campa
                       ? 'Yes — attached local track is mixed into the export.'
                       : typeof value === 'boolean'
                         ? (value ? 'Yes' : 'No')
-                        : String(value)}
+                        : typeof value === 'object' && value !== null
+                          ? Object.entries(value).map(([name, detail]) => `${name.replaceAll('_', ' ')}: ${detail}`).join(' · ')
+                          : String(value)}
                 </dd>
               </div>
             ))}
