@@ -431,13 +431,13 @@ def render_campaign_montages(
                 else:
                     write_campaign_lyrics(
                         lyrics,
-                    duration,
-                    overlay,
-                    width,
-                    height,
-                    offset_seconds=music_start,
-                    style=options.get("campaign_lyrics_style", "dynamic"),
-                )
+                        duration,
+                        overlay,
+                        width,
+                        height,
+                        offset_seconds=music_start,
+                        style=options.get("campaign_lyrics_style", "dynamic"),
+                    )
                 captioned = edit_dir / "montage-lyrics.mp4"
                 run_ffmpeg(
                     [
