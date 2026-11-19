@@ -47,7 +47,6 @@ class ClipOptions(BaseModel):
     campaign_lyrics_style: Literal["dynamic", "cinematic", "minimal"] = "dynamic"
     campaign_hook_text: str = Field("", max_length=160)
     include_campaign_hook: bool = False
-    selected_campaign_dialogue_id: str | None = None
     model: str | None = Field(None, description="Override the default LLM model")
 
     @model_validator(mode="after")
@@ -89,107 +88,19 @@ def stage_download(ctx: Context) -> dict:
 
 
 def stage_transcribe(ctx: Context) -> dict:
+    if ctx.options.get("campaign_mode"):
+        # Dialogue selection is creator-led/manual. Avoid transcribing every source;
+        # only the attached music is transcribed when an editable lyric draft is needed.
+        return {"language": "campaign", "sources": []}
     from clipyyy.transcribe import transcribe
 
     model_size = get_setting("whisper_model") or "base"
-    if ctx.options.get("campaign_mode"):
-        sources = ctx.state["download"].get("sources") or [ctx.state["download"]]
-        transcripts = []
-        for index, source in enumerate(sources):
-            source_work = ctx.work_dir / f"campaign-dialogue-{index + 1:02d}"
-            source_work.mkdir(parents=True, exist_ok=True)
-            try:
-                result = transcribe(
-                    Path(source["video_path"]),
-                    source_work,
-                    model_size,
-                    ctx.options.get("language", "auto"),
-                )
-                transcripts.append(
-                    {
-                        "source_index": index,
-                        "title": source.get("title") or f"Source {index + 1}",
-                        "language": result.get("language"),
-                        "sentences": result.get("sentences", []),
-                    }
-                )
-            except Exception as exc:
-                logger.warning("Could not transcribe campaign source %s: %s", index, exc)
-                transcripts.append(
-                    {
-                        "source_index": index,
-                        "title": source.get("title") or f"Source {index + 1}",
-                        "language": None,
-                        "sentences": [],
-                        "error": str(exc),
-                    }
-                )
-        return {"language": "campaign-sources", "sources": transcripts}
     return transcribe(
         Path(ctx.state["download"]["video_path"]),
         ctx.work_dir,
         model_size,
         ctx.options["language"],
     )
-
-
-def _campaign_dialogue_candidates(transcription: dict, limit: int = 12) -> list[dict]:
-    """Rank complete, short spoken lines for a possible dialogue-first opening."""
-    emotional_terms = {
-        "love",
-        "sorry",
-        "goodbye",
-        "please",
-        "stay",
-        "never",
-        "remember",
-        "alone",
-        "afraid",
-        "hate",
-        "heart",
-        "die",
-        "promise",
-        "miss",
-        "why",
-        "wait",
-        "help",
-        "truth",
-        "lost",
-        "friend",
-        "family",
-        "believe",
-        "together",
-        "leave",
-    }
-    candidates = []
-    for source in transcription.get("sources", []):
-        for sentence in source.get("sentences", []):
-            text = str(sentence.get("text") or "").strip()
-            words = text.split()
-            start = float(sentence.get("start") or 0)
-            end = float(sentence.get("end") or start)
-            duration = end - start
-            if not 3 <= len(words) <= 22 or not 0.7 <= duration <= 6.0:
-                continue
-            lowered = text.lower()
-            score = sum(2 for word in emotional_terms if word in lowered)
-            score += 1 if text.endswith(("?", "!", "…", "...")) else 0
-            score += 1 if 4 <= len(words) <= 14 else 0
-            score -= 1 if len(words) > 18 else 0
-            candidates.append(
-                {
-                    "id": f"{int(source['source_index'])}:{start:.2f}:{end:.2f}",
-                    "source_index": int(source["source_index"]),
-                    "source_title": source.get("title") or "Source video",
-                    "start_seconds": round(start, 2),
-                    "end_seconds": round(end, 2),
-                    "duration_seconds": round(duration, 2),
-                    "text": text,
-                    "score": score,
-                }
-            )
-    candidates.sort(key=lambda item: (item["score"], -item["duration_seconds"]), reverse=True)
-    return candidates[:limit]
 
 
 def stage_select(ctx: Context) -> dict:
@@ -288,7 +199,6 @@ def stage_select(ctx: Context) -> dict:
         plan["generated_hook"] = generate_campaign_hook(
             llm, campaign_brief, plan, reference_analyses=reference_analyses
         )
-        plan["dialogue_candidates"] = _campaign_dialogue_candidates(ctx.state.get("transcribe") or {})
         count = min(10, plan.get("output_count") or options["clip_count"])
         requested_target = float(plan.get("target_duration_seconds") or options["max_seconds"])
         # The editor's explicit duration range is a hard constraint. A brief extraction
