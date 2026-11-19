@@ -315,14 +315,16 @@ def stage_render(ctx: Context) -> dict:
             # Draft lyric captions locally from the supplied music. Singing recognition is
             # imperfect, so the result is explicitly labelled as an editable Whisper draft.
             try:
-                from clipyyy.transcribe import transcribe
+                from clipyyy.transcribe import transcribe_music
 
                 lyric_work = ctx.work_dir / "campaign-music-lyrics"
                 lyric_work.mkdir(parents=True, exist_ok=True)
-                lyric_result = transcribe(
+                lyric_result = transcribe_music(
                     Path(music_path), lyric_work, get_setting("whisper_model") or "tiny", "auto"
                 )
                 words = lyric_result.get("words", [])
+                # Preserve the recognizer's actual word boundaries for karaoke timing.
+                render_options["campaign_lyric_words"] = words
                 groups = []
                 current = []
                 for word in words:
@@ -348,6 +350,7 @@ def stage_render(ctx: Context) -> dict:
                         **ctx.options,
                         "campaign_lyrics": render_options["campaign_lyrics"],
                         "campaign_lyrics_source": render_options["campaign_lyrics_source"],
+                        "campaign_lyric_words": words,
                     }
                     db.update_run(ctx.run_id, options=updated_options)
             except Exception as exc:
