@@ -381,3 +381,21 @@ def test_campaign_word_lyrics_show_configurable_rolling_word_window(tmp_path):
     ]
     assert "One" in two_events[0] and "Two" in two_events[0]
     assert "Three" not in two_events[0]
+
+def test_remove_timed_intervals_keeps_audio_and_video_synchronized(tmp_path):
+    from clipyyy.render import remove_timed_intervals
+
+    source = tmp_path / "source.mp4"
+    run_ffmpeg(
+        [
+            "-f", "lavfi", "-i", "testsrc2=size=320x240:rate=30:duration=6",
+            "-f", "lavfi", "-i", "sine=frequency=440:duration=6",
+            "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac",
+            "-shortest", str(source),
+        ]
+    )
+    remove_timed_intervals(source, [(2.0, 3.0)])
+    width, height, duration = probe(source)
+    assert (width, height) == (320, 240)
+    assert duration == pytest.approx(5.0, abs=0.15)
+    assert has_audio(source)
