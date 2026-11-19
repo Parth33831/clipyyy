@@ -333,7 +333,9 @@ def stage_render(ctx: Context) -> dict:
                     lyric_lines.append(stamp + " " + " ".join(item["word"] for item in group))
                 if lyric_lines:
                     render_options["campaign_lyrics"] = "\n".join(lyric_lines)
-                    render_options["campaign_lyrics_source"] = "Local Whisper draft — review for singing-recognition errors"
+                    render_options["campaign_lyrics_source"] = (
+                        "Local Whisper draft — review for singing-recognition errors"
+                    )
                     updated_options = {
                         **ctx.options,
                         "campaign_lyrics": render_options["campaign_lyrics"],
