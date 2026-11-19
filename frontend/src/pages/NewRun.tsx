@@ -379,6 +379,15 @@ export function NewRunPage() {
                 <input type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] ?? null)} className="block w-full text-sm text-muted file:mr-3 file:border file:border-line file:bg-surface file:px-3 file:py-2 file:text-ink" />
                 {musicFile && <p className="text-xs text-muted">{musicFile.name}</p>}
               </Field>
+              <Toggle
+                checked={options.campaign_auto_broll}
+                onChange={(v) => set('campaign_auto_broll', v)}
+                disabled={!checks.broll?.ok}
+                label="Find matching stock footage automatically"
+                hint={checks.broll?.ok
+                  ? 'Searches Pexels for supporting clips based on the campaign brief. Your own videos remain the primary sources.'
+                  : 'Add a free Pexels API key in Settings to enable. Your supplied source videos work without it.'}
+              />
               <Field label="Lyrics / exact on-screen text (optional)" hint="Paste only the lines you are allowed to use. They will be displayed in sequence across the edit.">
                 <Textarea rows={3} value={options.campaign_lyrics} onChange={(e) => set('campaign_lyrics', e.target.value)} placeholder="One line per screen..." />
               </Field>

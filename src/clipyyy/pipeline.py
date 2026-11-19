@@ -41,6 +41,9 @@ class ClipOptions(BaseModel):
     campaign_brief: str = Field("", max_length=6000, description="Campaign requirements and creative brief")
     campaign_url: str = Field("", max_length=2048, description="Public campaign page URL to analyse")
     campaign_music_path: str | None = Field(None, description="Optional user-provided campaign music file")
+    campaign_auto_broll: bool = Field(
+        False, description="Discover supporting campaign footage from Pexels when a key is configured"
+    )
     campaign_lyrics: str = Field(
         "", max_length=12000, description="Optional creator-provided or locally transcribed lyric lines"
     )
@@ -166,7 +169,29 @@ def stage_select(ctx: Context) -> dict:
             if not plan.get("campaign_name") and campaign_page.get("title"):
                 plan["campaign_name"] = campaign_page["title"]
 
-        sources = source.get("sources") or [source]
+        sources = list(source.get("sources") or [source])
+        if options.get("campaign_auto_broll"):
+            from clipyyy.campaign_assets import discover_campaign_assets
+
+            orientation = "square" if options.get("aspect_ratio") == "1:1" else "portrait"
+            discovered_assets, asset_status = discover_campaign_assets(
+                plan,
+                ctx.work_dir,
+                get_setting("pexels_api_key"),
+                orientation=orientation,
+                brief=campaign_brief,
+            )
+            for asset in discovered_assets:
+                asset["source_index"] = len(sources)
+                sources.append(asset)
+            plan["campaign_asset_discovery"] = asset_status["status"]
+            plan["discovered_assets"] = [
+                f"{asset['credit']} — {asset['credit_url']} (search: {asset['search_query']})"
+                for asset in discovered_assets
+            ]
+        else:
+            plan["campaign_asset_discovery"] = "disabled"
+            plan["discovered_assets"] = []
         analyses = []
         for index, item in enumerate(sources):
             analyses.append(
@@ -256,6 +281,7 @@ def stage_select(ctx: Context) -> dict:
                 else None
             ),
             "campaign_edits": edits,
+            "campaign_sources": sources,
             "clips": clips,
         }
     return select_clips(llm, source, ctx.state["transcribe"], options)
@@ -364,8 +390,11 @@ def stage_render(ctx: Context) -> dict:
                     db.update_run(ctx.run_id, options=updated_options)
             except Exception as exc:
                 logger.warning("Local campaign lyric transcription was unavailable: %s", exc)
+        render_source = dict(ctx.state["download"])
+        if ctx.state["select"].get("campaign_sources"):
+            render_source["sources"] = ctx.state["select"]["campaign_sources"]
         result = render_campaign_montages(
-            ctx.state["download"], ctx.state["select"], ctx.work_dir, ctx.out_dir, render_options
+            render_source, ctx.state["select"], ctx.work_dir, ctx.out_dir, render_options
         )
     else:
         from clipyyy.render import render_clips

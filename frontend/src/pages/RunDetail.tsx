@@ -555,6 +555,8 @@ function CampaignPlanCard({ plan, checks }: { plan: NonNullable<RunDetail['campa
     performance_eligibility: 'Performance requirements (after publishing)',
     payout_or_submission_caps: 'Payout / submission caps',
     rights_or_permissions_to_confirm: 'Rights / permissions to confirm',
+    campaign_asset_discovery: 'Automatic footage discovery',
+    discovered_assets: 'Discovered stock footage credits',
     unresolved_questions: 'Unresolved questions',
   }
   const entries = Object.entries(labels).filter(([key]) => {
