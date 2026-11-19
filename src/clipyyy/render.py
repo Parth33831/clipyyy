@@ -322,8 +322,11 @@ def render_campaign_montages(
         edit_dir.mkdir(parents=True, exist_ok=True)
         output = out_dir / f"campaign-{rank:02d}-{slugify(edit['title'])}.mp4"
         try:
-            segments = []
-            for shot_index, shot in enumerate(edit["shots"]):
+            silent = edit_dir / "montage-silent.mp4"
+            # Reuse the assembled montage for instant style-only changes.
+            if not silent.exists():
+                segments = []
+                for shot_index, shot in enumerate(edit["shots"]):
                 source_index = int(shot["source_index"])
                 if not 0 <= source_index < len(sources):
                     raise ValueError(f"Shot {shot_index + 1} refers to a missing source video.")
@@ -376,13 +379,12 @@ def render_campaign_montages(
                         str(segment),
                     ]
                 )
-                if segment.exists() and segment.stat().st_size:
-                    segments.append(segment)
-            if len(segments) < 3:
-                raise RuntimeError("Fewer than three campaign shots could be rendered.")
-            silent = edit_dir / "montage-silent.mp4"
-            # Hard cuts preserve the musical transient at each selected beat.
-            _crossfade_segments(segments, silent, fade_seconds=0.0 if beat_times else 0.28)
+                    if segment.exists() and segment.stat().st_size:
+                        segments.append(segment)
+                if len(segments) < 3:
+                    raise RuntimeError("Fewer than three campaign shots could be rendered.")
+                # Hard cuts preserve the musical transient at each selected beat.
+                _crossfade_segments(segments, silent, fade_seconds=0.0 if beat_times else 0.28)
             _, _, duration = probe(silent)
             target_duration = float(campaign_plan.get("target_duration_seconds") or 0)
             if target_duration > 0 and abs(duration - target_duration) > 0.05:
@@ -659,6 +661,14 @@ def write_campaign_word_lyrics(
                 else "{\\fad(180,180)\\c&HFFFFFF&\\bord2\\shad3}"
                 if style == "cinematic"
                 else "{\\fad(100,120)\\c&HFFFFFF&\\bord2\\shad1}"
+                if style == "minimal"
+                else "{\\fad(50,100)\\fscx65\\fscy65\\t(0,120,\\fscx112\\fscy112)\\t(120,240,\\fscx100\\fscy100)\\c&H00D7FF&\\bord4\\shad3}"
+                if style == "zoom"
+                else "{\\fad(60,100)\\fscx90\\fscy125\\t(0,110,\\fscx105\\fscy95)\\t(110,220,\\fscx100\\fscy100)\\c&H66E6FF&\\bord4\\shad3}"
+                if style == "bounce"
+                else "{\\fad(60,100)\\fscx100\\fscy100\\t(0,180,\\fscx112\\fscy112)\\t(180,360,\\fscx100\\fscy100)\\c&HFFFFFF&\\bord4\\shad3}"
+                if style == "pulse"
+                else "{\\fad(35,90)\\fscx88\\fscy110\\frz-2\\t(0,90,\\fscx108\\fscy92\\frz2)\\t(90,180,\\fscx100\\fscy100\\frz0)\\c&H00D7FF&\\bord4\\shad3}"
             )
             text = _escape(phrase)
         script.append(f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,{treatment}{text}")
