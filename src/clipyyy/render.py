@@ -170,7 +170,6 @@ def render_clip(
     run_ffmpeg([*inputs, *maps, *video_args, "-shortest", "-movflags", "+faststart", str(output)])
 
 
-
 def remove_timed_intervals(video: Path, intervals: list[tuple[float, float]]) -> None:
     """Remove matching time ranges from both streams in an already-rendered clip."""
     _, _, duration = probe(video)
