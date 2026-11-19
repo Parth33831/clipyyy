@@ -121,7 +121,9 @@ def test_text_only_campaign_keeps_creator_footage_primary_with_stock_inserts():
             for timestamp in range(5, 115, 5)
         ]
     }
-    edits = _build_text_only_montage(sources, output_count=1, target_seconds=20, analyses=[unavailable, unavailable])
+    edits = _build_text_only_montage(
+        sources, output_count=1, target_seconds=20, analyses=[unavailable, unavailable]
+    )
     shots = edits[0]["shots"]
     stock_shots = [shot for shot in shots if shot["source_index"] == 1]
     creator_shots = [shot for shot in shots if shot["source_index"] == 0]
