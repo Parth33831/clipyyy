@@ -506,7 +506,8 @@ def update_campaign_montage(run_id: str, edits: list[dict[str, Any]]) -> dict:
                 start = float(shot["start_seconds"])
                 end = float(shot["end_seconds"])
             except (KeyError, TypeError, ValueError) as exc:
-                raise ValueError(f"Campaign edit {rank}, shot {shot_number} has invalid timing data.") from exc
+                message = f"Campaign edit {rank}, shot {shot_number} has invalid timing data."
+                raise ValueError(message) from exc
             if not 0 <= source_index < len(sources):
                 raise ValueError(f"Campaign edit {rank}, shot {shot_number} refers to an unknown source.")
             source_duration = float(sources[source_index].get("duration_seconds") or 0.0)
