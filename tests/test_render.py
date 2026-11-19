@@ -354,3 +354,30 @@ def test_campaign_word_lyrics_karaoke_uses_selected_primary_and_highlight_colors
     content = path.read_text(encoding="utf-8")
     assert "\\c&H000000FF&" in content
     assert "\\2c&H00FFFFFF&" in content
+
+
+def test_campaign_word_lyrics_show_configurable_rolling_word_window(tmp_path):
+    from clipyyy.render import write_campaign_word_lyrics
+
+    words = [
+        {"word": "One", "start": 0.0, "end": 0.3},
+        {"word": "Two", "start": 0.3, "end": 0.6},
+        {"word": "Three", "start": 0.6, "end": 0.9},
+        {"word": "Four", "start": 0.9, "end": 1.2},
+    ]
+    three_path = tmp_path / "three-words.ass"
+    write_campaign_word_lyrics(words, 2.0, three_path, 1080, 1920, style="dynamic", words_on_screen=3)
+    three_events = [
+        line for line in three_path.read_text(encoding="utf-8").splitlines() if line.startswith("Dialogue:")
+    ]
+    assert "One" in three_events[0] and "Two" in three_events[0] and "Three" in three_events[0]
+    assert "Four" not in three_events[0]
+    assert "Two" in three_events[1] and "Three" in three_events[1] and "Four" in three_events[1]
+
+    two_path = tmp_path / "two-words.ass"
+    write_campaign_word_lyrics(words, 2.0, two_path, 1080, 1920, style="dynamic", words_on_screen=2)
+    two_events = [
+        line for line in two_path.read_text(encoding="utf-8").splitlines() if line.startswith("Dialogue:")
+    ]
+    assert "One" in two_events[0] and "Two" in two_events[0]
+    assert "Three" not in two_events[0]

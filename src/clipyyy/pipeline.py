@@ -49,6 +49,7 @@ class ClipOptions(BaseModel):
     ] = "dynamic"
     campaign_lyrics_color: str = Field("#FFFFFF", pattern=r"^#[0-9A-Fa-f]{6}$")
     campaign_lyrics_highlight_color: str = Field("#00D7FF", pattern=r"^#[0-9A-Fa-f]{6}$")
+    campaign_lyrics_words_on_screen: Literal[1, 2, 3] = 3
     campaign_hook_text: str = Field("", max_length=160)
     include_campaign_hook: bool = False
     model: str | None = Field(None, description="Override the default LLM model")

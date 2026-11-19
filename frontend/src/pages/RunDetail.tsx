@@ -29,6 +29,7 @@ export function RunDetailPage() {
   const [includeHook, setIncludeHook] = useState(false)
   const [lyricsColor, setLyricsColor] = useState('#FFFFFF')
   const [lyricsHighlightColor, setLyricsHighlightColor] = useState('#00D7FF')
+  const [lyricsWordsOnScreen, setLyricsWordsOnScreen] = useState<1 | 2 | 3>(3)
   useEffect(() => {
     setLyricsText(run.data?.options.campaign_lyrics ?? '')
     setLyricsStyle(run.data?.options.campaign_lyrics_style ?? 'dynamic')
@@ -36,7 +37,8 @@ export function RunDetailPage() {
     setIncludeHook(Boolean(run.data?.options.include_campaign_hook))
     setLyricsColor(run.data?.options.campaign_lyrics_color ?? '#FFFFFF')
     setLyricsHighlightColor(run.data?.options.campaign_lyrics_highlight_color ?? '#00D7FF')
-  }, [runId, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.campaign_plan?.generated_hook])
+    setLyricsWordsOnScreen(run.data?.options.campaign_lyrics_words_on_screen ?? 3)
+  }, [runId, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.campaign_plan?.generated_hook])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -60,7 +62,7 @@ export function RunDetailPage() {
     onError: (e) => toast.error(e.message),
   })
   const saveLyrics = useMutation({
-    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook, lyricsColor, lyricsHighlightColor),
+    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook, lyricsColor, lyricsHighlightColor, lyricsWordsOnScreen),
     onSuccess: (result) => {
       toast.success(`Applied to ${result.outputs} existing edit(s) — no re-picking or lyric transcription.`)
       refresh()
@@ -222,6 +224,20 @@ export function RunDetailPage() {
               ))}
             </div>
             <span className="text-xs text-muted">Each tile previews the motion. Change the preset or lyrics, then apply it to the existing montage; saved shots and Whisper word timings are reused.</span>
+          </div>
+          <div className="flex flex-col gap-2 rounded-lg border border-line bg-panel p-3 text-sm">
+            <span className="font-medium">Words on screen at once</span>
+            <div className="flex gap-2">
+              {([1, 2, 3] as const).map((count) => (
+                <button key={count} type="button" onClick={() => setLyricsWordsOnScreen(count)}
+                  aria-pressed={lyricsWordsOnScreen === count}
+                  className={cn('flex-1 rounded-lg border px-3 py-2 font-semibold transition-colors',
+                    lyricsWordsOnScreen === count ? 'border-ink bg-sunk text-ink' : 'border-line bg-panel text-muted hover:border-line-strong')}>
+                  {count} {count === 1 ? 'word' : 'words'}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-muted">Shows a rolling group of 1, 2, or 3 words as the song progresses. Default: 3.</span>
           </div>
           <div className="grid gap-4 rounded-lg border border-line bg-panel p-3 sm:grid-cols-2">
             <label className="flex items-center justify-between gap-3 text-sm">

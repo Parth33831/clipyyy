@@ -431,6 +431,7 @@ def render_campaign_montages(
                         style=options.get("campaign_lyrics_style", "dynamic"),
                         text_color=options.get("campaign_lyrics_color", "#FFFFFF"),
                         highlight_color=options.get("campaign_lyrics_highlight_color", "#00D7FF"),
+                        words_on_screen=options.get("campaign_lyrics_words_on_screen", 3),
                     )
                 else:
                     write_campaign_lyrics(
@@ -585,12 +586,14 @@ def write_campaign_word_lyrics(
     style: str = "dynamic",
     text_color: str = "#FFFFFF",
     highlight_color: str = "#00D7FF",
+    words_on_screen: int = 3,
 ) -> Path:
-    """Render phrase captions using Whisper's actual per-word singing timestamps."""
+    """Render rolling 1–3 word captions using Whisper's actual per-word timings."""
     from clipyyy.captions import _ass_color, _escape, _ts
 
     primary = _ass_color(text_color)
     accent = _ass_color(highlight_color)
+    words_on_screen = max(1, min(3, int(words_on_screen)))
 
     usable = [
         {
@@ -621,7 +624,7 @@ def write_campaign_word_lyrics(
     for word in usable:
         if current and (
             word["start"] - current[-1]["end"] > 0.55
-            or len(current) >= 6
+            or len(current) >= words_on_screen
             or current[-1]["word"].endswith((".", "!", "?", "…"))
         ):
             groups.append(current)
@@ -655,6 +658,7 @@ def write_campaign_word_lyrics(
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
     for index, group in enumerate(groups):
+        group_offset = sum(len(previous) for previous in groups[:index])
         start = max(0.0, group[0]["start"])
         next_start = groups[index + 1][0]["start"] if index + 1 < len(groups) else duration
         end = min(duration, max(group[-1]["end"], next_start, start + 0.18))
@@ -683,12 +687,18 @@ def write_campaign_word_lyrics(
                 )
                 # Animated word events alternate the selected main and highlight colors.
                 # This keeps both chosen colors visible instead of hard-coding a cyan accent.
-                word_color = primary if word_index % 2 == 0 else accent
-                for legacy_color in ("&H00D7FF&", "&H66E6FF&", "&HFFFFFF&"):
-                    animation = animation.replace(f"\\c{legacy_color}", f"\\c{word_color}")
+                visible_words = usable[
+                    group_offset + word_index : group_offset + word_index + words_on_screen
+                ]
+                visible_text = " ".join(
+                    f"{{\\c{primary if (group_offset + word_index + offset) % 2 == 0 else accent}}}"
+                    f"{_escape(visible['word'])}{{\\c{primary}}}"
+                    for offset, visible in enumerate(visible_words)
+                )
+                # Keep the selected words visible together; the window advances on each
+                # recognized word boundary, while the current word keeps its own timing.
                 script.append(
-                    f"Dialogue: 0,{_ts(word_start)},{_ts(word_end)},Default,,0,0,0,,"
-                    f"{animation}{_escape(item['word'])}"
+                    f"Dialogue: 0,{_ts(word_start)},{_ts(word_end)},Default,,0,0,0,,{animation}{visible_text}"
                 )
             continue
         if style == "karaoke":
