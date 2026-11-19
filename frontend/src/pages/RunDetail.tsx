@@ -444,25 +444,25 @@ function CampaignStoryboardEditor({
                   <label className="flex flex-col gap-1 text-xs text-muted">
                     Start (seconds)
                     <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.start_seconds}
-                      onChange={(event) => updateShot(editIndex, shotIndex, { start_seconds: Number(event.target.value) })}
+                      onChange={(event) => updateShot(editIndex, shotIndex, { start_seconds: Number(event.target.value) })} disabled={saving}
                       className="w-full rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
                   </label>
                   <label className="flex flex-col gap-1 text-xs text-muted">
                     End (seconds)
                     <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.end_seconds}
-                      onChange={(event) => updateShot(editIndex, shotIndex, { end_seconds: Number(event.target.value) })}
+                      onChange={(event) => updateShot(editIndex, shotIndex, { end_seconds: Number(event.target.value) })} disabled={saving}
                       className="w-full rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
                   </label>
                   <div className="flex items-center justify-end gap-1">
-                    <button type="button" title="Move shot up" aria-label="Move shot up" disabled={shotIndex === 0}
+                    <button type="button" title="Move shot up" aria-label="Move shot up" disabled={saving || shotIndex === 0}
                       onClick={() => moveShot(editIndex, shotIndex, -1)} className="rounded-md border border-line p-2 text-muted hover:text-ink disabled:opacity-30">
                       <ArrowUp className="h-4 w-4" />
                     </button>
-                    <button type="button" title="Move shot down" aria-label="Move shot down" disabled={shotIndex === edit.shots.length - 1}
+                    <button type="button" title="Move shot down" aria-label="Move shot down" disabled={saving || shotIndex === edit.shots.length - 1}
                       onClick={() => moveShot(editIndex, shotIndex, 1)} className="rounded-md border border-line p-2 text-muted hover:text-ink disabled:opacity-30">
                       <ArrowDown className="h-4 w-4" />
                     </button>
-                    <button type="button" title="Remove shot" aria-label="Remove shot"
+                    <button type="button" title="Remove shot" aria-label="Remove shot" disabled={saving}
                       onClick={() => removeShot(editIndex, shotIndex)} className="rounded-md border border-line p-2 text-muted hover:text-bad">
                       <Trash2 className="h-4 w-4" />
                     </button>
