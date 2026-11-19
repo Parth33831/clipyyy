@@ -387,7 +387,8 @@ def _build_text_only_montage(
                     )
                 else:
                     reason = (
-                        "Selected near an FFmpeg-detected scene change; semantic scene content was not analysed."
+                        "Selected near an FFmpeg-detected scene change; "
+                        "semantic scene content was not analysed."
                         if is_scene_change
                         else (
                             "Fallback time sample; scene semantics were not analysed "
