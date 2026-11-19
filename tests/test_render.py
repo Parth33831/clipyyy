@@ -266,4 +266,3 @@ def test_campaign_lyrics_karaoke_style_highlights_words(tmp_path):
     script = path.read_text(encoding="utf-8")
     assert "{\\k" in script
     assert "Stay" in script and "tonight" in script
-
