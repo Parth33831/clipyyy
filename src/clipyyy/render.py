@@ -423,10 +423,14 @@ def render_campaign_montages(
                     ]
                 )
             if music_path:
+                music_input = []
+                if music_analysis and music_analysis["duration_seconds"] - music_start < duration:
+                    music_input = ["-stream_loop", "-1"]
                 run_ffmpeg(
                     [
                         "-i",
                         str(visual),
+                        *music_input,
                         "-ss",
                         f"{music_start:.3f}",
                         "-i",
@@ -606,7 +610,7 @@ def write_campaign_lyrics(
             relative_start = int(minutes) * 60 + int(seconds) + centiseconds / 100 - offset_seconds
             if 0 <= relative_start < duration:
                 timed_lines.append((relative_start, text))
-    has_lrc_timestamps = any(re.match(r"^\\[\\d{1,2}:\\d{2}(?:\\.\\d{1,2})?\\]", line) for line in lines)
+    has_lrc_timestamps = any(re.match(r"^\[\d{1,2}:\d{2}(?:\.\d{1,2})?\]", line) for line in lines)
     if timed_lines:
         for index, (start, line) in enumerate(timed_lines):
             end = timed_lines[index + 1][0] if index + 1 < len(timed_lines) else duration
