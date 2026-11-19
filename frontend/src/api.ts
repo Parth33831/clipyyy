@@ -86,8 +86,20 @@ export interface Post {
   created_at: string
 }
 
+export interface CampaignDialogueCandidate {
+  id: string
+  source_index: number
+  source_title: string
+  start_seconds: number
+  end_seconds: number
+  duration_seconds: number
+  text: string
+  score: number
+}
+
 export interface CampaignPlan {
-  [key: string]: string | number | boolean | string[] | null | undefined
+  [key: string]: string | number | boolean | string[] | CampaignDialogueCandidate[] | null | undefined
+  dialogue_candidates?: CampaignDialogueCandidate[]
 }
 
 export interface RunDetail extends Run {
