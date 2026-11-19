@@ -52,6 +52,7 @@
 | Task | Owner chat | Branch / PR | Status | Last update |
 |---|---|---|---|---|
 | Conservative filler-word removal for spoken clips | Feature Development + Architecture review | `feature/transcript-filler-removal` / [PR #23](https://github.com/Parth33831/clipyyy/pull/23) | Merged into `main` as `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`; post-merge CI passed | 2026-11-19 |
+| Campaign footage discovery from the existing Pexels integration | Feature Development | `feature/campaign-footage-discovery` / [PR #24](https://github.com/Parth33831/clipyyy/pull/24) | Ready for Architecture review; CI passed: 89 passed, 15 skipped; Ruff and frontend build passed | 2026-11-19 |
 | Campaign shot-level editor | Architecture & Master Plan | `feature/campaign-shot-editor` | Assigned; implementation in progress | 2026-11-19 |
 
 ### Assignment: Conservative filler-word removal
@@ -91,7 +92,7 @@
 **Owner:** Feature Development  
 **Branch:** `feature/campaign-footage-discovery`  
 **Base:** `main` at `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`  
-**Status:** In progress
+**Status:** Ready for Architecture review — [PR #24](https://github.com/Parth33831/clipyyy/pull/24); latest CI passed
 
 **Objective:** Reduce manual footage gathering for campaign edits by automatically discovering relevant stock-video candidates from the already-supported Pexels integration, using the extracted campaign brief and requirements.
 
