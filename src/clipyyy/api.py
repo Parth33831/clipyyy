@@ -39,6 +39,7 @@ class CampaignLyricsUpdate(BaseModel):
     lyrics_style: Literal["dynamic", "cinematic", "minimal"] = "dynamic"
     hook_text: str = Field("", max_length=160)
     include_hook: bool = False
+    selected_dialogue_id: str | None = Field(None, max_length=80)
 
 
 class UpdateSettings(BaseModel):
@@ -134,6 +135,15 @@ def create_app(start_worker: bool = True) -> FastAPI:
             raise HTTPException(400, "Lyrics can only be edited on campaign runs.")
         if run["status"] in {"queued", "running"}:
             raise HTTPException(409, "Wait for the campaign run to finish before editing lyrics.")
+        selected_id = body.selected_dialogue_id
+        if selected_id:
+            select_file = pipeline.run_dir(run_id) / "work" / "select.json"
+            if not select_file.exists():
+                raise HTTPException(409, "Dialogue candidates are not ready yet. Rebuild the campaign first.")
+            plan = json.loads(select_file.read_text(encoding="utf-8")).get("campaign_plan") or {}
+            valid_ids = {item.get("id") for item in plan.get("dialogue_candidates", [])}
+            if selected_id not in valid_ids:
+                raise HTTPException(400, "That dialogue choice is not part of this campaign.")
         options = {
             **run["options"],
             "campaign_lyrics": body.lyrics,
@@ -141,6 +151,7 @@ def create_app(start_worker: bool = True) -> FastAPI:
             "campaign_lyrics_style": body.lyrics_style,
             "campaign_hook_text": body.hook_text.strip(),
             "include_campaign_hook": body.include_hook,
+            "selected_campaign_dialogue_id": selected_id,
         }
         db.update_run(run_id, options=options)
         return {"saved": True, "characters": len(body.lyrics)}
