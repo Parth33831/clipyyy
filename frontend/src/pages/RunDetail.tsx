@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowUpRight, Check, ChevronDown, Copy, Download, RotateCcw, Send, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, Download, RotateCcw, Send, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
-import { api, type Clip, type Post, type RunDetail } from '../api'
+import { api, type CampaignEdit, type CampaignShot, type CampaignSource, type Clip, type Post, type RunDetail } from '../api'
 import { PublishDialog } from '../components/PublishDialog'
 import { Button, Eyebrow, Panel, Squares, StatusChip, cn, formatDuration, sourceHost, sourceLabel, timeAgo } from '../components/ui'
 
@@ -30,6 +30,7 @@ export function RunDetailPage() {
   const [lyricsColor, setLyricsColor] = useState('#FFFFFF')
   const [lyricsHighlightColor, setLyricsHighlightColor] = useState('#00D7FF')
   const [lyricsWordsOnScreen, setLyricsWordsOnScreen] = useState<1 | 2 | 3>(3)
+  const [campaignEdits, setCampaignEdits] = useState<CampaignEdit[]>([])
   useEffect(() => {
     setLyricsText(run.data?.options.campaign_lyrics ?? '')
     setLyricsStyle(run.data?.options.campaign_lyrics_style ?? 'dynamic')
@@ -38,7 +39,8 @@ export function RunDetailPage() {
     setLyricsColor(run.data?.options.campaign_lyrics_color ?? '#FFFFFF')
     setLyricsHighlightColor(run.data?.options.campaign_lyrics_highlight_color ?? '#00D7FF')
     setLyricsWordsOnScreen(run.data?.options.campaign_lyrics_words_on_screen ?? 3)
-  }, [runId, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.campaign_plan?.generated_hook])
+    setCampaignEdits(run.data?.campaign_edits ?? [])
+  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.campaign_plan?.generated_hook])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -65,6 +67,14 @@ export function RunDetailPage() {
     mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook, lyricsColor, lyricsHighlightColor, lyricsWordsOnScreen),
     onSuccess: (result) => {
       toast.success(`Applied to ${result.outputs} existing edit(s) — no re-picking or lyric transcription.`)
+      refresh()
+    },
+    onError: (e) => toast.error(e.message),
+  })
+  const saveMontage = useMutation({
+    mutationFn: () => api.saveCampaignMontage(runId, campaignEdits),
+    onSuccess: (result) => {
+      toast.success(`Rebuilt ${result.outputs} campaign edit(s) from your storyboard.`)
       refresh()
     },
     onError: (e) => toast.error(e.message),
@@ -292,6 +302,19 @@ export function RunDetailPage() {
 
       {(busy || data.status === 'failed') && <Progress run={data} />}
 
+      {data.options.campaign_mode && !busy && campaignEdits.length > 0 && (
+        <CampaignStoryboardEditor
+          edits={campaignEdits}
+          savedEdits={data.campaign_edits}
+          originalEdits={data.campaign_original_edits ?? data.campaign_edits}
+          sources={data.campaign_sources ?? []}
+          saving={saveMontage.isPending}
+          onChange={setCampaignEdits}
+          onSave={() => saveMontage.mutate()}
+          onReset={() => setCampaignEdits(data.campaign_original_edits ?? data.campaign_edits)}
+        />
+      )}
+
       {data.campaign_plan && <CampaignPlanCard plan={data.campaign_plan} checks={data.campaign_quality_checks} />}
 
       {data.clips.length > 0 && data.source_duration && !data.options.campaign_mode ? (
@@ -326,6 +349,132 @@ export function RunDetailPage() {
 
       {publishing && <PublishDialog clip={publishing} onClose={() => setPublishing(null)} onDone={refresh} />}
     </div>
+  )
+}
+
+function CampaignStoryboardEditor({
+  edits,
+  savedEdits,
+  originalEdits,
+  sources,
+  saving,
+  onChange,
+  onSave,
+  onReset,
+}: {
+  edits: CampaignEdit[]
+  savedEdits: CampaignEdit[]
+  originalEdits: CampaignEdit[]
+  sources: CampaignSource[]
+  saving: boolean
+  onChange: (edits: CampaignEdit[]) => void
+  onSave: () => void
+  onReset: () => void
+}) {
+  const sourceByIndex = new Map(sources.map((source) => [source.index, source]))
+  const changed = JSON.stringify(edits) !== JSON.stringify(savedEdits)
+  const resetAvailable = JSON.stringify(savedEdits) !== JSON.stringify(originalEdits) || changed
+  const shotCount = edits.reduce((total, edit) => total + edit.shots.length, 0)
+
+  const updateShot = (editIndex: number, shotIndex: number, patch: Partial<CampaignShot>) => {
+    onChange(edits.map((edit, index) => index !== editIndex ? edit : {
+      ...edit,
+      shots: edit.shots.map((shot, position) => position === shotIndex ? { ...shot, ...patch } : shot),
+    }))
+  }
+  const moveShot = (editIndex: number, shotIndex: number, direction: -1 | 1) => {
+    onChange(edits.map((edit, index) => {
+      if (index !== editIndex) return edit
+      const target = shotIndex + direction
+      if (target < 0 || target >= edit.shots.length) return edit
+      const shots = [...edit.shots]
+      ;[shots[shotIndex], shots[target]] = [shots[target], shots[shotIndex]]
+      return { ...edit, shots }
+    }))
+  }
+  const removeShot = (editIndex: number, shotIndex: number) => {
+    onChange(edits.map((edit, index) => index !== editIndex ? edit : {
+      ...edit,
+      shots: edit.shots.filter((_, position) => position !== shotIndex),
+    }))
+  }
+
+  return (
+    <Panel className="flex flex-col gap-5 p-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <Eyebrow>Campaign editor</Eyebrow>
+          <h2 className="display mt-1 text-2xl">Edit your storyboard</h2>
+          <p className="mt-1 text-[13px] text-muted">
+            Reorder shots, adjust source in/out points or remove a shot. Saving rebuilds the montage from cached footage.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="line" disabled={!resetAvailable || saving} onClick={onReset}>
+            <RotateCcw className="h-4 w-4" /> Reset AI plan
+          </Button>
+          <Button variant="ink" disabled={!changed || saving || edits.some((edit) => edit.shots.length < 3)} loading={saving} onClick={onSave}>
+            Save &amp; re-render
+          </Button>
+        </div>
+      </div>
+      <p className="label text-muted">{edits.length} output(s) · {shotCount} shots · Keep at least 3 shots per output; each shot must be 1.5–5 seconds.</p>
+      {edits.map((edit, editIndex) => (
+        <section key={edit.rank} className="flex flex-col gap-3 border-t border-line pt-4">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="font-semibold">#{edit.rank} · {edit.title}</h3>
+            <span className="label text-muted">{edit.shots.length} shots</span>
+          </div>
+          <ol className="flex flex-col gap-2">
+            {edit.shots.map((shot, shotIndex) => {
+              const source = sourceByIndex.get(shot.source_index)
+              return (
+                <li key={`${edit.rank}-${shotIndex}-${shot.source_index}`} className="grid gap-3 rounded-lg border border-line bg-panel p-3 md:grid-cols-[minmax(0,1fr)_150px_150px_auto] md:items-center">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="label shrink-0 text-faint">SHOT {String(shotIndex + 1).padStart(2, '0')}</span>
+                      <span className="truncate text-sm font-medium">{source?.title ?? `Source ${shot.source_index + 1}`}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted">{shot.reason || 'AI-selected campaign moment'}</p>
+                    <p className="mt-1 font-mono text-[11px] text-faint">
+                      {formatDuration(shot.start_seconds)} → {formatDuration(shot.end_seconds)}
+                      {source ? ` / ${formatDuration(source.duration_seconds)} source` : ''}
+                    </p>
+                  </div>
+                  <label className="flex flex-col gap-1 text-xs text-muted">
+                    Start (seconds)
+                    <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.start_seconds}
+                      onChange={(event) => updateShot(editIndex, shotIndex, { start_seconds: Number(event.target.value) })} disabled={saving}
+                      className="w-full rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
+                  </label>
+                  <label className="flex flex-col gap-1 text-xs text-muted">
+                    End (seconds)
+                    <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.end_seconds}
+                      onChange={(event) => updateShot(editIndex, shotIndex, { end_seconds: Number(event.target.value) })} disabled={saving}
+                      className="w-full rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
+                  </label>
+                  <div className="flex items-center justify-end gap-1">
+                    <button type="button" title="Move shot up" aria-label="Move shot up" disabled={saving || shotIndex === 0}
+                      onClick={() => moveShot(editIndex, shotIndex, -1)} className="rounded-md border border-line p-2 text-muted hover:text-ink disabled:opacity-30">
+                      <ArrowUp className="h-4 w-4" />
+                    </button>
+                    <button type="button" title="Move shot down" aria-label="Move shot down" disabled={saving || shotIndex === edit.shots.length - 1}
+                      onClick={() => moveShot(editIndex, shotIndex, 1)} className="rounded-md border border-line p-2 text-muted hover:text-ink disabled:opacity-30">
+                      <ArrowDown className="h-4 w-4" />
+                    </button>
+                    <button type="button" title="Remove shot" aria-label="Remove shot" disabled={saving}
+                      onClick={() => removeShot(editIndex, shotIndex)} className="rounded-md border border-line p-2 text-muted hover:text-bad">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </li>
+              )
+            })}
+          </ol>
+          {edit.shots.length < 3 && <p className="text-xs text-bad">Add or restore shots so this output has at least 3. You cannot save it yet.</p>}
+        </section>
+      ))}
+    </Panel>
   )
 }
 
