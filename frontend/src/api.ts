@@ -95,8 +95,30 @@ export interface CampaignPlan {
   [key: string]: string | number | boolean | string[] | null | undefined
 }
 
+export interface CampaignShot {
+  source_index: number
+  start_seconds: number
+  end_seconds: number
+  reason: string
+}
+
+export interface CampaignEdit {
+  rank: number
+  title: string
+  shots: CampaignShot[]
+}
+
+export interface CampaignSource {
+  index: number
+  title: string
+  duration_seconds: number
+}
+
 export interface RunDetail extends Run {
   campaign_plan: CampaignPlan | null
+  campaign_edits: CampaignEdit[]
+  campaign_original_edits: CampaignEdit[]
+  campaign_sources: CampaignSource[]
   campaign_quality_checks: Record<
     string,
     string | boolean | number | null | Record<string, string | number | null>
@@ -201,6 +223,11 @@ export const api = {
     request<{ saved: boolean; rendered: boolean; characters: number; outputs: number }>(`/api/runs/${id}/campaign-lyrics`, {
       method: 'PUT',
       body: JSON.stringify({ lyrics, lyrics_style: lyricsStyle, hook_text: hookText, include_hook: includeHook, lyrics_color: lyricsColor, highlight_color: highlightColor, words_on_screen: wordsOnScreen }),
+    }),
+  saveCampaignMontage: (id: string, edits: CampaignEdit[]) =>
+    request<{ saved: boolean; rendered: boolean; outputs: number }>(`/api/runs/${id}/campaign-montage`, {
+      method: 'PUT',
+      body: JSON.stringify({ edits }),
     }),
   retry: (id: string, fromStage?: string) =>
     request<RunDetail>(`/api/runs/${id}/retry`, {
