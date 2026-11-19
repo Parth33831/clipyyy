@@ -606,14 +606,15 @@ def write_campaign_lyrics(
             relative_start = int(minutes) * 60 + int(seconds) + centiseconds / 100 - offset_seconds
             if 0 <= relative_start < duration:
                 timed_lines.append((relative_start, text))
+    has_lrc_timestamps = any(re.match(r"^\\[\\d{1,2}:\\d{2}(?:\\.\\d{1,2})?\\]", line) for line in lines)
     if timed_lines:
         for index, (start, line) in enumerate(timed_lines):
             end = timed_lines[index + 1][0] if index + 1 < len(timed_lines) else duration
             start = max(0.0, min(start, duration))
-            end = max(start + 0.2, min(end, duration))
+            end = min(duration, max(start + 0.2, min(end, duration)))
             dialogue = f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,"
             script.append(dialogue + f"{{\\fad(100,120)}}{_escape(line)}")
-    else:
+    elif not has_lrc_timestamps:
         interval = duration / max(1, len(lines))
         for index, line in enumerate(lines):
             start = index * interval
