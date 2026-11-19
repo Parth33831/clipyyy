@@ -322,67 +322,69 @@ def render_campaign_montages(
         edit_dir.mkdir(parents=True, exist_ok=True)
         output = out_dir / f"campaign-{rank:02d}-{slugify(edit['title'])}.mp4"
         try:
-            segments = []
-            for shot_index, shot in enumerate(edit["shots"]):
-                source_index = int(shot["source_index"])
-                if not 0 <= source_index < len(sources):
-                    raise ValueError(f"Shot {shot_index + 1} refers to a missing source video.")
-                source_path = Path(sources[source_index]["video_path"])
-                start = max(0.0, float(shot["start_seconds"]))
-                end = min(float(sources[source_index]["duration_seconds"]), float(shot["end_seconds"]))
-                duration = end - start
-                if beat_times and duration >= 1.5:
-                    elapsed = sum(probe(item)[2] for item in segments) if segments else 0.0
-                    desired_cut = elapsed + duration
-                    candidates = [
-                        beat - music_start
-                        for beat in beat_times
-                        if 1.5 <= beat - music_start - elapsed <= 5.0
-                    ]
-                    if candidates:
-                        aligned_cut = min(candidates, key=lambda beat: abs(beat - desired_cut))
-                        aligned_duration = aligned_cut - elapsed
-                        if 1.5 <= aligned_duration <= 5.0:
-                            end = min(
-                                float(sources[source_index]["duration_seconds"]),
-                                start + aligned_duration,
-                            )
-                            duration = end - start
-                if duration < 1.0:
-                    continue
-                segment = edit_dir / f"shot-{shot_index:03d}.mp4"
-                vf = fill_filter(width, height) + ",eq=contrast=1.06:saturation=1.12"
-                run_ffmpeg(
-                    [
-                        "-ss",
-                        f"{start:.3f}",
-                        "-i",
-                        str(source_path),
-                        "-t",
-                        f"{duration:.3f}",
-                        "-vf",
-                        vf,
-                        "-an",
-                        "-c:v",
-                        "libx264",
-                        "-preset",
-                        "veryfast",
-                        "-crf",
-                        "20",
-                        "-pix_fmt",
-                        "yuv420p",
-                        "-movflags",
-                        "+faststart",
-                        str(segment),
-                    ]
-                )
-                if segment.exists() and segment.stat().st_size:
-                    segments.append(segment)
-            if len(segments) < 3:
-                raise RuntimeError("Fewer than three campaign shots could be rendered.")
             silent = edit_dir / "montage-silent.mp4"
-            # Hard cuts preserve the musical transient at each selected beat.
-            _crossfade_segments(segments, silent, fade_seconds=0.0 if beat_times else 0.28)
+            # Reuse the assembled montage for instant style-only changes.
+            if not (options.get("reuse_campaign_montage") and silent.exists()):
+                segments = []
+                for shot_index, shot in enumerate(edit["shots"]):
+                    source_index = int(shot["source_index"])
+                    if not 0 <= source_index < len(sources):
+                        raise ValueError(f"Shot {shot_index + 1} refers to a missing source video.")
+                    source_path = Path(sources[source_index]["video_path"])
+                    start = max(0.0, float(shot["start_seconds"]))
+                    end = min(float(sources[source_index]["duration_seconds"]), float(shot["end_seconds"]))
+                    duration = end - start
+                    if beat_times and duration >= 1.5:
+                        elapsed = sum(probe(item)[2] for item in segments) if segments else 0.0
+                        desired_cut = elapsed + duration
+                        candidates = [
+                            beat - music_start
+                            for beat in beat_times
+                            if 1.5 <= beat - music_start - elapsed <= 5.0
+                        ]
+                        if candidates:
+                            aligned_cut = min(candidates, key=lambda beat: abs(beat - desired_cut))
+                            aligned_duration = aligned_cut - elapsed
+                            if 1.5 <= aligned_duration <= 5.0:
+                                end = min(
+                                    float(sources[source_index]["duration_seconds"]),
+                                    start + aligned_duration,
+                                )
+                                duration = end - start
+                    if duration < 1.0:
+                        continue
+                    segment = edit_dir / f"shot-{shot_index:03d}.mp4"
+                    vf = fill_filter(width, height) + ",eq=contrast=1.06:saturation=1.12"
+                    run_ffmpeg(
+                        [
+                            "-ss",
+                            f"{start:.3f}",
+                            "-i",
+                            str(source_path),
+                            "-t",
+                            f"{duration:.3f}",
+                            "-vf",
+                            vf,
+                            "-an",
+                            "-c:v",
+                            "libx264",
+                            "-preset",
+                            "veryfast",
+                            "-crf",
+                            "20",
+                            "-pix_fmt",
+                            "yuv420p",
+                            "-movflags",
+                            "+faststart",
+                            str(segment),
+                        ]
+                    )
+                    if segment.exists() and segment.stat().st_size:
+                        segments.append(segment)
+                if len(segments) < 3:
+                    raise RuntimeError("Fewer than three campaign shots could be rendered.")
+                # Hard cuts preserve the musical transient at each selected beat.
+                _crossfade_segments(segments, silent, fade_seconds=0.0 if beat_times else 0.28)
             _, _, duration = probe(silent)
             target_duration = float(campaign_plan.get("target_duration_seconds") or 0)
             if target_duration > 0 and abs(duration - target_duration) > 0.05:
@@ -640,6 +642,32 @@ def write_campaign_word_lyrics(
         end = min(duration, max(group[-1]["end"], next_start, start + 0.18))
         if end <= start:
             continue
+        if style in {"dynamic", "zoom", "bounce", "pulse", "glitch"}:
+            for word_index, item in enumerate(group):
+                word_start = max(0.0, item["start"])
+                next_start = group[word_index + 1]["start"] if word_index + 1 < len(group) else item["end"]
+                word_end = min(duration, max(item["end"], next_start))
+                if word_end <= word_start:
+                    continue
+                animation = (
+                    "{\\fad(45,75)\\fscx55\\fscy55\\t(0,110,\\fscx118\\fscy118)"
+                    "\\t(110,220,\\fscx100\\fscy100)\\c&H00D7FF&\\bord4\\shad3}"
+                    if style in {"dynamic", "zoom"}
+                    else "{\\fad(45,75)\\fscx88\\fscy125\\t(0,100,\\fscx108\\fscy92)"
+                    "\\t(100,200,\\fscx100\\fscy100)\\c&H66E6FF&\\bord4\\shad3}"
+                    if style == "bounce"
+                    else "{\\fad(45,75)\\t(0,120,\\fscx115\\fscy115)"
+                    "\\t(120,240,\\fscx100\\fscy100)\\c&HFFFFFF&\\bord4\\shad3}"
+                    if style == "pulse"
+                    else "{\\fad(25,70)\\fscx85\\fscy112\\frz-3"
+                    "\\t(0,90,\\fscx110\\fscy92\\frz3)\\t(90,180,\\fscx100\\fscy100\\frz0)"
+                    "\\c&H00D7FF&\\bord4\\shad3}"
+                )
+                script.append(
+                    f"Dialogue: 0,{_ts(word_start)},{_ts(word_end)},Default,,0,0,0,,"
+                    f"{animation}{_escape(item['word'])}"
+                )
+            continue
         if style == "karaoke":
             pieces = []
             for word_index, item in enumerate(group):
@@ -659,6 +687,26 @@ def write_campaign_word_lyrics(
                 else "{\\fad(180,180)\\c&HFFFFFF&\\bord2\\shad3}"
                 if style == "cinematic"
                 else "{\\fad(100,120)\\c&HFFFFFF&\\bord2\\shad1}"
+                if style == "minimal"
+                else (
+                    "{\\fad(50,100)\\fscx65\\fscy65\\t(0,120,\\fscx112\\fscy112)"
+                    "\\t(120,240,\\fscx100\\fscy100)\\c&H00D7FF&\\bord4\\shad3}"
+                )
+                if style == "zoom"
+                else (
+                    "{\\fad(60,100)\\fscx90\\fscy125\\t(0,110,\\fscx105\\fscy95)"
+                    "\\t(110,220,\\fscx100\\fscy100)\\c&H66E6FF&\\bord4\\shad3}"
+                )
+                if style == "bounce"
+                else (
+                    "{\\fad(60,100)\\fscx100\\fscy100\\t(0,180,\\fscx112\\fscy112)"
+                    "\\t(180,360,\\fscx100\\fscy100)\\c&HFFFFFF&\\bord4\\shad3}"
+                )
+                if style == "pulse"
+                else (
+                    "{\\fad(35,90)\\fscx88\\fscy110\\frz-2\\t(0,90,\\fscx108\\fscy92\\frz2)"
+                    "\\t(90,180,\\fscx100\\fscy100\\frz0)\\c&H00D7FF&\\bord4\\shad3}"
+                )
             )
             text = _escape(phrase)
         script.append(f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,{treatment}{text}")

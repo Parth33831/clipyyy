@@ -22,7 +22,9 @@ export function RunDetailPage() {
   const [focused, setFocused] = useState<number | null>(null)
   const [musicFile, setMusicFile] = useState<File | null>(null)
   const [lyricsText, setLyricsText] = useState('')
-  const [lyricsStyle, setLyricsStyle] = useState<'dynamic' | 'cinematic' | 'minimal' | 'karaoke'>('dynamic')
+  const [lyricsStyle, setLyricsStyle] = useState<
+    'dynamic' | 'cinematic' | 'minimal' | 'karaoke' | 'zoom' | 'bounce' | 'pulse' | 'glitch'
+  >('dynamic')
   const [hookText, setHookText] = useState('')
   const [includeHook, setIncludeHook] = useState(false)
   useEffect(() => {
@@ -55,8 +57,8 @@ export function RunDetailPage() {
   })
   const saveLyrics = useMutation({
     mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook),
-    onSuccess: () => {
-      toast.success('Creative settings saved. Choose Pick again to rebuild the montage.')
+    onSuccess: (result) => {
+      toast.success(`Applied to ${result.outputs} existing edit(s) — no re-picking or lyric transcription.`)
       refresh()
     },
     onError: (e) => toast.error(e.message),
@@ -187,14 +189,19 @@ export function RunDetailPage() {
           </Button>
           </div>
           <label className="flex flex-col gap-2 text-sm">
-            <span className="font-medium">Lyrics animation style</span>
-            <select value={lyricsStyle} onChange={(event) => setLyricsStyle(event.target.value as 'dynamic' | 'cinematic' | 'minimal' | 'karaoke')}
+            <span className="font-medium">Lyrics animation preset</span>
+            <select value={lyricsStyle} onChange={(event) => setLyricsStyle(event.target.value as typeof lyricsStyle)}
               className="w-full rounded-lg border border-line bg-panel p-2.5 text-sm text-ink">
-              <option value="dynamic">Dynamic pop — colour + scale punch</option>
-              <option value="karaoke">Karaoke sweep — highlight each word</option>
-              <option value="cinematic">Cinematic — soft fade, clean white</option>
-              <option value="minimal">Minimal — simple readable captions</option>
+              <option value="dynamic">01 · Pop Punch — quick zoom + colour hit</option>
+              <option value="karaoke">02 · Karaoke Sweep — word-by-word highlight</option>
+              <option value="cinematic">03 · Cinematic Fade — smooth, clean entrance</option>
+              <option value="minimal">04 · Minimal — simple readable lyrics</option>
+              <option value="zoom">05 · Zoom Burst — big pop-in, settle back</option>
+              <option value="bounce">06 · Elastic Bounce — springy movement</option>
+              <option value="pulse">07 · Beat Pulse — scale pulse on each lyric phrase</option>
+              <option value="glitch">08 · Tilt Pop — quick tilted punch and settle</option>
             </select>
+            <span className="text-xs text-muted">Change the preset or lyrics, then apply it to the existing montage. Saved shots and Whisper word timings are reused.</span>
           </label>
           <label className="flex flex-col gap-2 text-sm">
             <span className="font-medium">Lyrics / timed captions</span>
@@ -212,8 +219,8 @@ export function RunDetailPage() {
             </span>
           </label>
           <div className="flex justify-end">
-            <Button variant="line" loading={saveLyrics.isPending} onClick={() => saveLyrics.mutate()}>
-              Save creative settings
+            <Button variant="ink" loading={saveLyrics.isPending} onClick={() => saveLyrics.mutate()}>
+              Apply to existing edit
             </Button>
           </div>
         </div>

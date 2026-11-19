@@ -36,7 +36,9 @@ class RetryRun(BaseModel):
 
 class CampaignLyricsUpdate(BaseModel):
     lyrics: str = Field("", max_length=12000)
-    lyrics_style: Literal["dynamic", "cinematic", "minimal", "karaoke"] = "dynamic"
+    lyrics_style: Literal[
+        "dynamic", "cinematic", "minimal", "karaoke", "zoom", "bounce", "pulse", "glitch"
+    ] = "dynamic"
     hook_text: str = Field("", max_length=160)
     include_hook: bool = False
 
@@ -134,18 +136,34 @@ def create_app(start_worker: bool = True) -> FastAPI:
             raise HTTPException(400, "Lyrics can only be edited on campaign runs.")
         if run["status"] in {"queued", "running"}:
             raise HTTPException(409, "Wait for the campaign run to finish before editing lyrics.")
+        lyrics_unchanged = body.lyrics == run["options"].get("campaign_lyrics", "")
         options = {
             **run["options"],
             "campaign_lyrics": body.lyrics,
-            "campaign_lyrics_source": "Creator-edited",
-            # Creator edits replace the automatic transcript; do not render stale word timings.
-            "campaign_lyric_words": [],
+            "campaign_lyrics_source": (
+                run["options"].get("campaign_lyrics_source", "Local Whisper draft")
+                if lyrics_unchanged
+                else "Creator-edited"
+            ),
+            # Preserve Whisper's word timings when only style or hook settings change.
+            "campaign_lyric_words": (
+                run["options"].get("campaign_lyric_words", []) if lyrics_unchanged else []
+            ),
             "campaign_lyrics_style": body.lyrics_style,
             "campaign_hook_text": body.hook_text.strip(),
             "include_campaign_hook": body.include_hook,
         }
         db.update_run(run_id, options=options)
-        return {"saved": True, "characters": len(body.lyrics)}
+        try:
+            result = pipeline.rerender_campaign(run_id)
+        except Exception as exc:
+            raise HTTPException(500, f"Could not apply the lyric changes: {exc}") from exc
+        return {
+            "saved": True,
+            "rendered": True,
+            "characters": len(body.lyrics),
+            "outputs": len(result.get("renders", [])),
+        }
 
     @app.post("/api/runs/{run_id}/campaign-music")
     def attach_campaign_music(run_id: str, file: UploadFile) -> dict:
