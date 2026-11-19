@@ -89,7 +89,10 @@ export interface CampaignPlan {
 
 export interface RunDetail extends Run {
   campaign_plan: CampaignPlan | null
-  campaign_quality_checks: Record<string, string | boolean | number | null> | null
+  campaign_quality_checks: Record<
+    string,
+    string | boolean | number | null | Record<string, string | number | null>
+  > | null
   source_duration: number | null
   stages: Stage[]
   clips: Clip[]
