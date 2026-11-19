@@ -29,7 +29,7 @@ export function RunDetailPage() {
   const [includeHook, setIncludeHook] = useState(false)
   const [lyricsColor, setLyricsColor] = useState('#FFFFFF')
   const [lyricsHighlightColor, setLyricsHighlightColor] = useState('#00D7FF')
-  const [lyricsWordsOnScreen, setLyricsWordsOnScreen] = useState(3)
+  const [lyricsWordsOnScreen, setLyricsWordsOnScreen] = useState<1 | 2 | 3>(3)
   useEffect(() => {
     setLyricsText(run.data?.options.campaign_lyrics ?? '')
     setLyricsStyle(run.data?.options.campaign_lyrics_style ?? 'dynamic')
