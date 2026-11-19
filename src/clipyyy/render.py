@@ -691,7 +691,7 @@ def write_campaign_word_lyrics(
                     group_offset + word_index : group_offset + word_index + words_on_screen
                 ]
                 visible_text = " ".join(
-                    f"{{\\c{primary if (word_index + offset) % 2 == 0 else accent}}}"
+                    f"{{\\c{primary if (group_offset + word_index + offset) % 2 == 0 else accent}}}"
                     f"{_escape(visible['word'])}{{\\c{primary}}}"
                     for offset, visible in enumerate(visible_words)
                 )
