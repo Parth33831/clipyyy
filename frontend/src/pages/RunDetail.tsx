@@ -128,7 +128,7 @@ export function RunDetailPage() {
             </a>
           )}
           {!busy && (
-            <Button variant="line" loading={retry.isPending} onClick={() => retry.mutate(data.status === 'completed' ? (data.options.campaign_mode ? 'transcribe' : 'select') : undefined)}>
+            <Button variant="line" loading={retry.isPending} onClick={() => retry.mutate(data.status === 'completed' ? (data.options.campaign_mode ? ((data.campaign_plan?.dialogue_candidates?.length ?? 0) > 0 ? 'select' : 'transcribe') : 'select') : undefined)}>
               <RotateCcw className="h-4 w-4" /> {data.status === 'completed' ? 'Pick again' : 'Retry'}
             </Button>
           )}
