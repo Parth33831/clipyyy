@@ -301,17 +301,35 @@ def _render_campaign_dialogue_intro(
     caption = work_dir / "dialogue-caption.ass"
     write_campaign_hook(str(candidate["text"]), duration, caption, width, height)
     args = [
-        "-ss", f"{start:.3f}", "-i", str(source_path), "-t", f"{duration:.3f}",
-        "-vf", f"{fill_filter(width, height)},{ass_filter(caption)}",
-        "-map", "0:v:0",
+        "-ss",
+        f"{start:.3f}",
+        "-i",
+        str(source_path),
+        "-t",
+        f"{duration:.3f}",
+        "-vf",
+        f"{fill_filter(width, height)},{ass_filter(caption)}",
+        "-map",
+        "0:v:0",
     ]
     if has_audio(source_path):
         args += ["-map", "0:a:0", "-c:a", "aac", "-b:a", "160k"]
     else:
         raise RuntimeError("The selected dialogue source has no audio stream.")
     args += [
-        "-c:v", "libx264", "-preset", "veryfast", "-crf", "19",
-        "-pix_fmt", "yuv420p", "-r", str(FPS), "-movflags", "+faststart", str(output),
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "19",
+        "-pix_fmt",
+        "yuv420p",
+        "-r",
+        str(FPS),
+        "-movflags",
+        "+faststart",
+        str(output),
     ]
     run_ffmpeg(args)
     return probe(output)[2]
@@ -346,21 +364,63 @@ def _join_dialogue_intro(
             f"adelay={delay_ms}|{delay_ms},volume=0.9[music]",
             "[dialogue][music]amix=inputs=2:duration=longest:dropout_transition=0[a]",
         ]
-        run_ffmpeg([
-            *inputs, "-filter_complex", ";".join(filters),
-            "-map", "[v]", "-map", "[a]", "-t", f"{total_duration:.3f}",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "19",
-            "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k",
-            "-movflags", "+faststart", str(output),
-        ])
+        run_ffmpeg(
+            [
+                *inputs,
+                "-filter_complex",
+                ";".join(filters),
+                "-map",
+                "[v]",
+                "-map",
+                "[a]",
+                "-t",
+                f"{total_duration:.3f}",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "veryfast",
+                "-crf",
+                "19",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "192k",
+                "-movflags",
+                "+faststart",
+                str(output),
+            ]
+        )
     else:
-        run_ffmpeg([
-            *inputs, "-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0[v]",
-            "-map", "[v]", "-map", "0:a:0", "-t", f"{total_duration:.3f}",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "19",
-            "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k",
-            "-movflags", "+faststart", str(output),
-        ])
+        run_ffmpeg(
+            [
+                *inputs,
+                "-filter_complex",
+                "[0:v][1:v]concat=n=2:v=1:a=0[v]",
+                "-map",
+                "[v]",
+                "-map",
+                "0:a:0",
+                "-t",
+                f"{total_duration:.3f}",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "veryfast",
+                "-crf",
+                "19",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "160k",
+                "-movflags",
+                "+faststart",
+                str(output),
+            ]
+        )
 
 
 def render_campaign_montages(
