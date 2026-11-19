@@ -418,8 +418,19 @@ def render_campaign_montages(
                 visual = hooked
             if lyrics:
                 overlay = edit_dir / "campaign-lyrics.ass"
-                write_campaign_lyrics(
-                    lyrics,
+                if options.get("campaign_lyric_words"):
+                    write_campaign_word_lyrics(
+                        options["campaign_lyric_words"],
+                        duration,
+                        overlay,
+                        width,
+                        height,
+                        offset_seconds=music_start,
+                        style=options.get("campaign_lyrics_style", "dynamic"),
+                    )
+                else:
+                    write_campaign_lyrics(
+                        lyrics,
                     duration,
                     overlay,
                     width,
@@ -556,6 +567,87 @@ def render_campaign_montages(
             ),
         },
     }
+
+
+def write_campaign_word_lyrics(
+    words: list[dict],
+    duration: float,
+    path: Path,
+    width: int,
+    height: int,
+    offset_seconds: float = 0.0,
+    style: str = "dynamic",
+) -> Path:
+    """Render phrase captions using Whisper's actual per-word singing timestamps."""
+    from clipyyy.captions import _ass_color, _escape, _ts
+
+    usable = [
+        {
+            "word": str(item.get("word", "")).strip(),
+            "start": max(0.0, float(item.get("start", 0)) - offset_seconds),
+            "end": max(0.0, float(item.get("end", 0)) - offset_seconds),
+        }
+        for item in words
+        if str(item.get("word", "")).strip()
+        and float(item.get("end", 0)) > offset_seconds
+        and float(item.get("start", 0)) - offset_seconds < duration
+    ]
+    usable = [item for item in usable if item["end"] > item["start"]]
+    if not usable:
+        return write_campaign_lyrics([], duration, path, width, height, style=style)
+
+    groups: list[list[dict]] = []
+    current: list[dict] = []
+    for word in usable:
+        if current and (
+            word["start"] - current[-1]["end"] > 0.55
+            or len(current) >= 6
+            or current[-1]["word"].endswith((".", "!", "?", "…"))
+        ):
+            groups.append(current)
+            current = []
+        current.append(word)
+    if current:
+        groups.append(current)
+
+    font_size = round(height * 0.047)
+    script = [
+        "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {width}", f"PlayResY: {height}",
+        "WrapStyle: 0", "ScaledBorderAndShadow: yes", "", "[V4+ Styles]",
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+        f"Style: Default,Arial,{font_size},{_ass_color('FFFFFF')},&H000000FF,&H00000000,&H64000000,1,0,0,0,100,100,0,0,1,4,2,2,{round(width * 0.07)},{round(width * 0.07)},{round(height * 0.16)},1",
+        "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+    ]
+    for index, group in enumerate(groups):
+        start = max(0.0, group[0]["start"])
+        next_start = groups[index + 1][0]["start"] if index + 1 < len(groups) else duration
+        end = min(duration, max(group[-1]["end"], next_start, start + 0.18))
+        if end <= start:
+            continue
+        if style == "karaoke":
+            pieces = []
+            for word_index, item in enumerate(group):
+                next_word_start = group[word_index + 1]["start"] if word_index + 1 < len(group) else item["end"]
+                word_end = min(end, max(item["end"], next_word_start))
+                centiseconds = max(1, round((word_end - item["start"]) * 100))
+                pieces.append(f"{{\\k{centiseconds}}}{_escape(item['word'])}")
+            treatment = "{\\fad(60,100)\\c&HFFFFFF&\\2c&H00D7FF&\\bord3\\shad2}"
+            text = " ".join(pieces)
+        else:
+            phrase = " ".join(item["word"] for item in group)
+            treatment = (
+                "{\\fad(80,100)\\fscx82\\fscy82\\t(0,150,\\fscx100\\fscy100)\\c&H00D7FF&\\bord4\\shad2}"
+                if style == "dynamic"
+                else "{\\fad(180,180)\\c&HFFFFFF&\\bord2\\shad3}"
+                if style == "cinematic"
+                else "{\\fad(100,120)\\c&HFFFFFF&\\bord2\\shad1}"
+            )
+            text = _escape(phrase)
+        script.append(
+            f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,{treatment}{text}"
+        )
+    path.write_text("\\n".join(script) + "\\n", encoding="utf-8")
+    return path
 
 
 def _normalize_montage_duration(
