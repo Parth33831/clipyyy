@@ -670,14 +670,31 @@ def write_campaign_lyrics(
             start = index * interval
             end = duration if index == len(lines) - 1 else (index + 1) * interval
             dialogue = f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,"
-            treatment = (
-                "{\\fad(90,120)\\fscx75\\fscy75\\t(0,170,\\fscx100\\fscy100)\\c&H00D7FF&\\bord4\\shad2}"
-                if style == "dynamic"
-                else "{\\fad(220,220)\\c&HFFFFFF&\\bord2\\shad3\\fsp1}"
-                if style == "cinematic"
-                else "{\\fad(120,140)\\c&HFFFFFF&\\bord2\\shad1}"
-            )
-            script.append(dialogue + treatment + _escape(line))
+            if style == "karaoke":
+                words = line.split()
+                weights = [max(1, len(word)) for word in words]
+                total_weight = sum(weights) or 1
+                available_cs = max(len(words), round((end - start) * 100))
+                remaining_cs = available_cs
+                karaoke_text = []
+                for word_index, word in enumerate(words):
+                    word_cs = remaining_cs if word_index == len(words) - 1 else max(
+                        1, round(available_cs * weights[word_index] / total_weight)
+                    )
+                    remaining_cs -= word_cs
+                    karaoke_text.append(f"{{\\k{word_cs}}}{_escape(word)}")
+                treatment = "{\\fad(80,120)\\c&HFFFFFF&\\2c&H00D7FF&\\bord3\\shad2}"
+                caption_text = treatment + " ".join(karaoke_text)
+            else:
+                treatment = (
+                    "{\\fad(90,120)\\fscx75\\fscy75\\t(0,170,\\fscx100\\fscy100)\\c&H00D7FF&\\bord4\\shad2}"
+                    if style == "dynamic"
+                    else "{\\fad(220,220)\\c&HFFFFFF&\\bord2\\shad3\\fsp1}"
+                    if style == "cinematic"
+                    else "{\\fad(120,140)\\c&HFFFFFF&\\bord2\\shad1}"
+                )
+                caption_text = treatment + _escape(line)
+            script.append(dialogue + caption_text)
     path.write_text("\n".join(script) + "\n", encoding="utf-8")
     return path
 
