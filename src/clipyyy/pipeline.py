@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -281,6 +282,7 @@ def stage_select(ctx: Context) -> dict:
                 else None
             ),
             "campaign_edits": edits,
+            "campaign_original_edits": json.loads(json.dumps(edits)),
             "campaign_sources": sources,
             "clips": clips,
         }
@@ -488,8 +490,105 @@ def execute(run: dict[str, Any], on_stage: Callable[[str], None] | None = None) 
     db.update_run(run_id, status="completed", current_stage=None, error=None)
 
 
-def rerender_campaign(run_id: str) -> dict:
-    """Re-render an existing campaign with its saved footage and edit plan."""
+def update_campaign_montage(run_id: str, edits: list[dict[str, Any]]) -> dict:
+    """Validate and save creator edits, then rebuild the montage from cached source footage."""
+    run = db.get_run(run_id)
+    if run is None:
+        raise ValueError("Run not found.")
+    if not run["options"].get("campaign_mode"):
+        raise ValueError("Shot editing is only available for campaign runs.")
+    if run["status"] in {"queued", "running"}:
+        raise ValueError("Wait for the campaign run to finish before editing its shots.")
+
+    work_dir = run_dir(run_id) / "work"
+    download_file = work_dir / "download.json"
+    select_file = work_dir / "select.json"
+    if not download_file.is_file() or not select_file.is_file():
+        raise ValueError("The saved campaign footage and edit plan are not available.")
+
+    source_data = json.loads(download_file.read_text(encoding="utf-8"))
+    selection = json.loads(select_file.read_text(encoding="utf-8"))
+    sources = selection.get("campaign_sources") or source_data.get("sources") or [source_data]
+    original = selection.get("campaign_original_edits") or selection.get("campaign_edits") or []
+    selection.setdefault("campaign_original_edits", json.loads(json.dumps(original)))
+    expected_ranks = {int(edit["rank"]) for edit in original}
+    submitted_ranks = [int(edit["rank"]) for edit in edits]
+    if len(submitted_ranks) != len(set(submitted_ranks)) or set(submitted_ranks) != expected_ranks:
+        raise ValueError("Keep every campaign output rank exactly once; output count cannot be changed here.")
+
+    target = float((selection.get("campaign_plan") or {}).get("target_duration_seconds") or 30.0)
+    minimum_total = max(5.0, target * 0.65)
+    normalized = []
+    for edit in edits:
+        rank = int(edit["rank"])
+        title = str(edit.get("title") or f"Campaign edit {rank}")[:100]
+        shots = edit.get("shots") or []
+        if len(shots) < 3:
+            raise ValueError(f"Campaign edit {rank} must contain at least 3 shots.")
+        if len(shots) > 40:
+            raise ValueError(f"Campaign edit {rank} cannot contain more than 40 shots.")
+        clean_shots = []
+        total = 0.0
+        for shot_number, shot in enumerate(shots, start=1):
+            try:
+                source_index = int(shot["source_index"])
+                start = float(shot["start_seconds"])
+                end = float(shot["end_seconds"])
+            except (KeyError, TypeError, ValueError) as exc:
+                message = f"Campaign edit {rank}, shot {shot_number} has invalid timing data."
+                raise ValueError(message) from exc
+            if not 0 <= source_index < len(sources):
+                raise ValueError(f"Campaign edit {rank}, shot {shot_number} refers to an unknown source.")
+            source_duration = float(sources[source_index].get("duration_seconds") or 0.0)
+            duration = end - start
+            if not math.isfinite(start) or not math.isfinite(end):
+                raise ValueError(f"Campaign edit {rank}, shot {shot_number} has non-finite timestamps.")
+            if start < 0 or end > source_duration or duration < 1.5 or duration > 5.0:
+                raise ValueError(
+                    f"Campaign edit {rank}, shot {shot_number} must be 1.5–5 seconds "
+                    "and remain inside its source video."
+                )
+            clean_shots.append(
+                {
+                    "source_index": source_index,
+                    "start_seconds": round(start, 3),
+                    "end_seconds": round(end, 3),
+                    "reason": str(shot.get("reason") or "Creator-adjusted shot")[:300],
+                }
+            )
+            total += duration
+        if total < minimum_total:
+            raise ValueError(
+                f"Campaign edit {rank} needs at least {minimum_total:.1f} seconds of selected footage."
+            )
+        normalized.append({"rank": rank, "title": title, "shots": clean_shots})
+
+    selection["campaign_edits"] = normalized
+    clips_by_rank = {int(clip["rank"]): clip for clip in selection.get("clips", [])}
+    for edit in normalized:
+        clip = clips_by_rank.get(edit["rank"])
+        if clip is not None:
+            duration = sum(shot["end_seconds"] - shot["start_seconds"] for shot in edit["shots"])
+            clip["campaign_shots"] = edit["shots"]
+            clip["end_seconds"] = round(duration, 3)
+            clip["duration_seconds"] = round(duration, 3)
+
+    temporary = select_file.with_suffix(".tmp")
+    temporary.write_text(json.dumps(selection, indent=2, ensure_ascii=False), encoding="utf-8")
+    temporary.replace(select_file)
+    db.update_run(run_id, status="running", current_stage="render", error=None)
+    try:
+        return rerender_campaign(run_id, rebuild_montage=True)
+    except Exception as exc:
+        db.update_run(run_id, status="failed", current_stage=None, error=f"campaign render: {exc}")
+        raise
+
+
+def rerender_campaign(run_id: str, rebuild_montage: bool = False) -> dict:
+    """Re-render an existing campaign with its saved footage and edit plan.
+
+    Style-only changes reuse the assembled silent montage. Shot edits explicitly rebuild it.
+    """
     run = db.get_run(run_id)
     if run is None:
         raise ValueError("Run not found.")
@@ -503,9 +602,11 @@ def rerender_campaign(run_id: str) -> dict:
         raise ValueError("The saved campaign footage and edit plan are not available.")
     source = json.loads(download_file.read_text(encoding="utf-8"))
     selection = json.loads(select_file.read_text(encoding="utf-8"))
+    if selection.get("campaign_sources"):
+        source["sources"] = selection["campaign_sources"]
     options = dict(run["options"])
     options["campaign_plan"] = selection.get("campaign_plan")
-    options["reuse_campaign_montage"] = True
+    options["reuse_campaign_montage"] = not rebuild_montage
     from clipyyy.render import render_campaign_montages
 
     result = render_campaign_montages(source, selection, work_dir, out_dir, options)
@@ -519,6 +620,8 @@ def rerender_campaign(run_id: str) -> dict:
                 width=rendered["width"],
                 height=rendered["height"],
                 duration_seconds=rendered["duration_seconds"],
+                start_seconds=0.0,
+                end_seconds=rendered["duration_seconds"],
                 status="ready",
                 error=None,
             )
