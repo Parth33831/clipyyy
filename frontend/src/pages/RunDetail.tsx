@@ -369,8 +369,7 @@ function CampaignStoryboardEditor({
   onReset: () => void
 }) {
   const sourceByIndex = new Map(sources.map((source) => [source.index, source]))
-  const changed = JSON.stringify(edits) !== JSON.stringify(originalEdits) &&
-    JSON.stringify(edits) !== JSON.stringify(originalEdits)
+  const changed = JSON.stringify(edits) !== JSON.stringify(originalEdits)
   const shotCount = edits.reduce((total, edit) => total + edit.shots.length, 0)
 
   const updateShot = (editIndex: number, shotIndex: number, patch: Partial<CampaignShot>) => {
