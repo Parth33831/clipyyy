@@ -489,9 +489,7 @@ def rerender_campaign(run_id: str) -> dict:
                 status="ready",
                 error=None,
             )
-    (work_dir / "render.json").write_text(
-        json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
+    (work_dir / "render.json").write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
     db.update_run(run_id, status="completed", current_stage=None, error=None)
     return result
 
