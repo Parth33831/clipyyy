@@ -50,7 +50,7 @@
 
 | Task | Owner chat | Branch / PR | Status | Last update |
 |---|---|---|---|---|
-| Conservative filler-word removal for spoken clips | Feature Development | `feature/transcript-filler-removal` / [PR #23](https://github.com/Parth33831/clipyyy/pull/23) | Implementation in progress; awaiting CI and review | 2026-11-19 |
+| Conservative filler-word removal for spoken clips | Feature Development | `feature/transcript-filler-removal` / [PR #23](https://github.com/Parth33831/clipyyy/pull/23) | Implemented; CI passed; awaiting Architecture review (not merged) | 2026-11-19 |
 
 ### Assignment: Conservative filler-word removal
 
@@ -134,4 +134,4 @@ STATUS: In progress / Ready for review / Merged
 - 2026-11-19: Established separate architecture, feature-development and testing/integration responsibilities across ChatGPT conversations.
 - 2026-11-19: Created the coordination document on `docs/project-coordination`; application code was not changed.
 - 2026-11-19: Assigned conservative English filler-word removal to Feature Development on `feature/transcript-filler-removal`, based on existing word-level transcription. Full transcript/timeline editing remains a later, separate feature.
-- 2026-11-19: Feature Development opened PR #23 for the opt-in filler-removal v1. The branch is awaiting CI and Architecture review; it has not been merged.
+- 2026-11-19: Feature Development opened PR #23 for the opt-in filler-removal v1. CI passed on head `f2de407b5f400e6dbf89dc07bd2fd5da78656ca6` (Ruff lint/format, frontend build, 81 passed / 15 skipped in the fast backend suite). Windows, macOS and full-backend jobs were skipped. Awaiting Architecture review; not merged.
