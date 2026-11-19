@@ -605,7 +605,16 @@ def write_campaign_word_lyrics(
     ]
     usable = [item for item in usable if item["end"] > item["start"]]
     if not usable:
-        return write_campaign_lyrics([], duration, path, width, height, style=style, text_color=text_color, highlight_color=highlight_color)
+        return write_campaign_lyrics(
+            [],
+            duration,
+            path,
+            width,
+            height,
+            style=style,
+            text_color=text_color,
+            highlight_color=highlight_color,
+        )
 
     groups: list[list[dict]] = []
     current: list[dict] = []
