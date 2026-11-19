@@ -32,7 +32,31 @@ def transcribe(video_path: Path, work_dir: Path, model_size: str, language: str 
     return {"language": detected, "model": model_size, "words": words, "sentences": group_sentences(words)}
 
 
-def _run_whisper(audio, model_size: str, language: str | None, device: str, compute_type: str):
+def transcribe_music(audio_path: Path, work_dir: Path, model_size: str, language: str = "auto") -> dict:
+    """Transcribe a music track without speech VAD and retain Whisper word timings.
+
+    VAD is useful for dialogue but can discard quiet or sustained singing. A wider
+    beam also gives the small local model a better chance on sung vocals.
+    """
+    work_dir.mkdir(parents=True, exist_ok=True)
+    wav_path = work_dir / "music-audio.wav"
+    run_ffmpeg(
+        ["-i", str(audio_path), "-vn", "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", str(wav_path)]
+    )
+    audio = load_wav(wav_path)
+    lang = None if language in ("", "auto") else language
+    try:
+        words, detected = _run_whisper(audio, model_size, lang, "auto", "default", music=True)
+    except RuntimeError as exc:
+        if not any(k in str(exc).lower() for k in ("cuda", "cublas", "cudnn")):
+            raise
+        logger.warning("GPU music transcription unavailable (%s); using the CPU", exc)
+        words, detected = _run_whisper(audio, model_size, lang, "cpu", "int8", music=True)
+    wav_path.unlink(missing_ok=True)
+    return {"language": detected, "model": model_size, "words": words, "sentences": group_sentences(words)}
+
+
+def _run_whisper(audio, model_size: str, language: str | None, device: str, compute_type: str, music: bool = False):
     import warnings
 
     from faster_whisper import WhisperModel
@@ -47,9 +71,11 @@ def _run_whisper(audio, model_size: str, language: str | None, device: str, comp
         audio,
         language=language,
         word_timestamps=True,
-        vad_filter=True,
-        beam_size=1,
-        condition_on_previous_text=False,
+        vad_filter=not music,
+        beam_size=5 if music else 1,
+        condition_on_previous_text=music,
+        temperature=0.0,
+        no_speech_threshold=0.6,
     )
     words = [
         {"word": w.word.strip(), "start": round(w.start, 3), "end": round(w.end, 3)}
