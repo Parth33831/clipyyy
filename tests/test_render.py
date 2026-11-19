@@ -252,6 +252,7 @@ def test_campaign_hook_overlay_is_written(tmp_path):
     path = write_campaign_hook("Wait for the drop", 2.5, tmp_path / "hook.ass", 1080, 1920)
     assert "Wait for the drop" in path.read_text(encoding="utf-8")
 
+
 def test_campaign_lyrics_karaoke_style_highlights_words(tmp_path):
     from clipyyy.render import write_campaign_lyrics
 
