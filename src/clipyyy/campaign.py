@@ -284,7 +284,9 @@ def _build_text_only_montage(
         used: set[tuple[int, int]] = set()
         for index, shot_length in enumerate(shot_lengths):
             rank_offset = max(1, len(candidates) // (output_count * shot_count))
-            candidate_index = (index * len(candidates) // shot_count + (rank - 1) * rank_offset) % len(candidates)
+            candidate_index = (
+                index * len(candidates) // shot_count + (rank - 1) * rank_offset
+            ) % len(candidates)
             source_index, timestamp = candidates[candidate_index]
             duration = float(sources[source_index].get("duration_seconds") or 0)
             start = min(max(0.0, timestamp + 0.06), max(0.0, duration - shot_length))
