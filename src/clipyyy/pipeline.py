@@ -196,6 +196,7 @@ def stage_select(ctx: Context) -> dict:
         minimum_target = float(options.get("min_seconds") or 5)
         maximum_target = float(options.get("max_seconds") or requested_target)
         target = min(max(requested_target, minimum_target), maximum_target)
+        plan["target_duration_seconds"] = target
         edits = build_montage_plan(
             llm,
             campaign_brief,
