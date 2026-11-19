@@ -103,3 +103,35 @@ def test_best_video_file_prefers_requested_orientation():
     ]
     selected = campaign_assets._best_video_file(files, "portrait")
     assert selected["link"] == "portrait.mp4"
+
+
+def test_text_only_campaign_keeps_creator_footage_primary_with_stock_inserts():
+    from clipyyy.campaign import _build_text_only_montage
+
+    sources = [
+        {"duration_seconds": 120.0, "source_kind": "creator"},
+        {"duration_seconds": 120.0, "source_kind": "pexels", "search_query": "urban running"},
+    ]
+    unavailable = {
+        "frames": [
+            {
+                "timestamp": float(timestamp),
+                "description": "Visual content unavailable: installed model is text-only.",
+            }
+            for timestamp in range(5, 115, 5)
+        ]
+    }
+    edits = _build_text_only_montage(sources, output_count=1, target_seconds=20, analyses=[unavailable, unavailable])
+    shots = edits[0]["shots"]
+    stock_shots = [shot for shot in shots if shot["source_index"] == 1]
+    creator_shots = [shot for shot in shots if shot["source_index"] == 0]
+
+    assert stock_shots
+    assert len(creator_shots) > len(stock_shots)
+    assert all("text-only model did not inspect" in shot["reason"] for shot in stock_shots)
+
+
+def test_campaign_auto_broll_option_is_off_by_default():
+    from clipyyy.pipeline import ClipOptions
+
+    assert ClipOptions(campaign_mode=True).campaign_auto_broll is False
