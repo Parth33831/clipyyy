@@ -194,7 +194,7 @@ def test_render_campaign_montage_from_multiple_sources(tmp_path):
     assert render["lyrics_overlay"] is True
 
 
-def test_music_analysis_selects_high_energy_section_and_finds_beats(monkeypatch):
+def test_music_analysis_selects_high_energy_section_and_finds_beats(monkeypatch, tmp_path):
     from array import array
     from types import SimpleNamespace
 
