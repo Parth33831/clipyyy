@@ -311,7 +311,11 @@ def render_campaign_montages(
     music_analysis = analyze_campaign_music(music_path, target_duration) if music_path else None
     beat_times = music_analysis["beat_times"] if music_analysis else []
     music_start = float(music_analysis["best_start_seconds"]) if music_analysis else 0.0
-    hook = str(campaign_plan.get("generated_hook") or "").strip()
+    hook = (
+        str(options.get("campaign_hook_text") or campaign_plan.get("generated_hook") or "").strip()
+        if options.get("include_campaign_hook", False)
+        else ""
+    )
 
     for edit in selection.get("campaign_edits", []):
         rank = edit["rank"]
@@ -415,7 +419,15 @@ def render_campaign_montages(
                 visual = hooked
             if lyrics:
                 overlay = edit_dir / "campaign-lyrics.ass"
-                write_campaign_lyrics(lyrics, duration, overlay, width, height, offset_seconds=music_start)
+                write_campaign_lyrics(
+                    lyrics,
+                    duration,
+                    overlay,
+                    width,
+                    height,
+                    offset_seconds=music_start,
+                    style=options.get("campaign_lyrics_style", "dynamic"),
+                )
                 captioned = edit_dir / "montage-lyrics.mp4"
                 run_ffmpeg(
                     [
@@ -537,6 +549,7 @@ def render_campaign_montages(
                 else None
             ),
             "opening_hook": hook or None,
+            "lyrics_style": options.get("campaign_lyrics_style", "dynamic") if lyrics else None,
             "official_platform_sound": (
                 "select the campaign's official sound in the social app after export"
                 if official_sound_required
@@ -589,8 +602,9 @@ def write_campaign_lyrics(
     width: int,
     height: int,
     offset_seconds: float = 0.0,
+    style: str = "dynamic",
 ) -> Path:
-    """Burn only creator-supplied lyric/text lines, timed evenly over the montage."""
+    """Burn timed lyrics with dynamic, cinematic, or minimal styling."""
     from clipyyy.captions import _ass_color, _escape, _ts
 
     font_size = round(height * 0.047)
@@ -633,14 +647,32 @@ def write_campaign_lyrics(
             start = max(0.0, min(start, duration))
             end = min(duration, max(start + 0.2, min(end, duration)))
             dialogue = f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,"
-            script.append(dialogue + f"{{\\fad(100,120)}}{_escape(line)}")
+            treatment = (
+                (
+                    "{\\fad(90,120)\\fscx72\\fscy72\\t(0,170,\\fscx100\\fscy100)\\c&H00D7FF&\\bord4\\shad2}",
+                    "{\\fad(90,120)\\fscx82\\fscy82\\t(0,150,\\fscx100\\fscy100)\\c&H66E6FF&\\bord4\\shad2}",
+                    "{\\fad(90,120)\\fscx76\\fscy76\\t(0,190,\\fscx100\\fscy100)\\c&H99CCFF&\\bord4\\shad2}",
+                )[index % 3]
+                if style == "dynamic"
+                else "{\\fad(220,220)\\c&HFFFFFF&\\bord2\\shad3\\fsp1}"
+                if style == "cinematic"
+                else "{\\fad(120,140)\\c&HFFFFFF&\\bord2\\shad1}"
+            )
+            script.append(dialogue + treatment + _escape(line))
     elif not has_lrc_timestamps:
         interval = duration / max(1, len(lines))
         for index, line in enumerate(lines):
             start = index * interval
             end = duration if index == len(lines) - 1 else (index + 1) * interval
             dialogue = f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,"
-            script.append(dialogue + f"{{\\fad(180,180)}}{_escape(line)}")
+            treatment = (
+                "{\\fad(90,120)\\fscx75\\fscy75\\t(0,170,\\fscx100\\fscy100)\\c&H00D7FF&\\bord4\\shad2}"
+                if style == "dynamic"
+                else "{\\fad(220,220)\\c&HFFFFFF&\\bord2\\shad3\\fsp1}"
+                if style == "cinematic"
+                else "{\\fad(120,140)\\c&HFFFFFF&\\bord2\\shad1}"
+            )
+            script.append(dialogue + treatment + _escape(line))
     path.write_text("\n".join(script) + "\n", encoding="utf-8")
     return path
 

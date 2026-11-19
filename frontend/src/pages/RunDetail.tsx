@@ -22,9 +22,15 @@ export function RunDetailPage() {
   const [focused, setFocused] = useState<number | null>(null)
   const [musicFile, setMusicFile] = useState<File | null>(null)
   const [lyricsText, setLyricsText] = useState('')
+  const [lyricsStyle, setLyricsStyle] = useState<'dynamic' | 'cinematic' | 'minimal'>('dynamic')
+  const [hookText, setHookText] = useState('')
+  const [includeHook, setIncludeHook] = useState(false)
   useEffect(() => {
     setLyricsText(run.data?.options.campaign_lyrics ?? '')
-  }, [runId, run.data?.options.campaign_lyrics])
+    setLyricsStyle(run.data?.options.campaign_lyrics_style ?? 'dynamic')
+    setHookText(run.data?.options.campaign_hook_text ?? String(run.data?.campaign_plan?.generated_hook ?? ''))
+    setIncludeHook(Boolean(run.data?.options.include_campaign_hook))
+  }, [runId, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.campaign_plan?.generated_hook])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -48,9 +54,9 @@ export function RunDetailPage() {
     onError: (e) => toast.error(e.message),
   })
   const saveLyrics = useMutation({
-    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText),
+    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook),
     onSuccess: () => {
-      toast.success('Lyrics saved. Choose Pick again to rebuild the montage.')
+      toast.success('Creative settings saved. Choose Pick again to rebuild the montage.')
       refresh()
     },
     onError: (e) => toast.error(e.message),
@@ -138,13 +144,22 @@ export function RunDetailPage() {
 
       {data.options.campaign_mode && !busy && (
         <div className="flex flex-col gap-4 rounded-xl border border-line bg-surface p-4">
-          {typeof data.campaign_plan?.generated_hook === 'string' && data.campaign_plan.generated_hook && (
-            <div className="flex flex-col gap-1">
-              <span className="label text-muted">AI-suggested opening hook</span>
-              <p className="text-lg font-semibold">{data.campaign_plan.generated_hook}</p>
-              <span className="text-xs text-muted">A campaign-based suggestion, not a claim about live trends.</span>
+          <div className="flex flex-col gap-2 border-b border-line pb-4">
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-medium">Opening text hook</span>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={includeHook} onChange={(event) => setIncludeHook(event.target.checked)} />
+                Include in video
+              </label>
             </div>
-          )}
+            {typeof data.campaign_plan?.generated_hook === 'string' && data.campaign_plan.generated_hook && (
+              <p className="text-xs text-muted">AI suggestion: {data.campaign_plan.generated_hook}</p>
+            )}
+            <textarea value={hookText} onChange={(event) => setHookText(event.target.value)} rows={2} maxLength={160}
+              placeholder="Write your own opening text, or leave blank for no text hook."
+              className="w-full rounded-lg border border-line bg-panel p-3 text-sm text-ink placeholder:text-muted" />
+            <span className="text-xs text-muted">Off by default. Your edit does not need campaign branding or AI-generated text.</span>
+          </div>
           <div className="flex flex-wrap items-end gap-3">
           <label className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
             <span className="font-medium">Campaign music</span>
@@ -172,6 +187,15 @@ export function RunDetailPage() {
           </Button>
           </div>
           <label className="flex flex-col gap-2 text-sm">
+            <span className="font-medium">Lyrics animation style</span>
+            <select value={lyricsStyle} onChange={(event) => setLyricsStyle(event.target.value as 'dynamic' | 'cinematic' | 'minimal')}
+              className="w-full rounded-lg border border-line bg-panel p-2.5 text-sm text-ink">
+              <option value="dynamic">Dynamic pop — alternating colour and scale</option>
+              <option value="cinematic">Cinematic — soft fade, clean white</option>
+              <option value="minimal">Minimal — simple readable captions</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-2 text-sm">
             <span className="font-medium">Lyrics / timed captions</span>
             <textarea
               value={lyricsText}
@@ -187,8 +211,8 @@ export function RunDetailPage() {
             </span>
           </label>
           <div className="flex justify-end">
-            <Button variant="line" disabled={lyricsText === (data.options.campaign_lyrics ?? '')} loading={saveLyrics.isPending} onClick={() => saveLyrics.mutate()}>
-              Save lyrics
+            <Button variant="line" loading={saveLyrics.isPending} onClick={() => saveLyrics.mutate()}>
+              Save creative settings
             </Button>
           </div>
         </div>

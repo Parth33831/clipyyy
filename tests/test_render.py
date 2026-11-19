@@ -189,6 +189,7 @@ def test_render_campaign_montage_from_multiple_sources(tmp_path):
             "campaign_lyrics": "\n".join(["First line", "Second line"]),
             "campaign_music_path": None,
             "campaign_plan": {"target_duration_seconds": 9.0, "generated_hook": "Wait for the drop"},
+            "include_campaign_hook": True,
         },
     )
     render = result["renders"][0]
@@ -241,6 +242,8 @@ def test_campaign_lyrics_lrc_timestamps_are_shifted_to_selected_music_section(tm
     assert "Second lyric" in script
     assert "Outside selected section" not in script
     assert "0:00:00.00" in script
+    assert "\\fscx" in script
+    assert "&H00D7FF&" in script
 
 
 def test_campaign_hook_overlay_is_written(tmp_path):

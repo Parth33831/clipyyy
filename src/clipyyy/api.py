@@ -9,7 +9,7 @@ import zipfile
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.responses import FileResponse
@@ -36,6 +36,9 @@ class RetryRun(BaseModel):
 
 class CampaignLyricsUpdate(BaseModel):
     lyrics: str = Field("", max_length=12000)
+    lyrics_style: Literal["dynamic", "cinematic", "minimal"] = "dynamic"
+    hook_text: str = Field("", max_length=160)
+    include_hook: bool = False
 
 
 class UpdateSettings(BaseModel):
@@ -135,6 +138,9 @@ def create_app(start_worker: bool = True) -> FastAPI:
             **run["options"],
             "campaign_lyrics": body.lyrics,
             "campaign_lyrics_source": "Creator-edited",
+            "campaign_lyrics_style": body.lyrics_style,
+            "campaign_hook_text": body.hook_text.strip(),
+            "include_campaign_hook": body.include_hook,
         }
         db.update_run(run_id, options=options)
         return {"saved": True, "characters": len(body.lyrics)}
