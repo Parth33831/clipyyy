@@ -645,11 +645,7 @@ def write_campaign_word_lyrics(
         if style in {"dynamic", "zoom", "bounce", "pulse", "glitch"}:
             for word_index, item in enumerate(group):
                 word_start = max(0.0, item["start"])
-                next_start = (
-                    group[word_index + 1]["start"]
-                    if word_index + 1 < len(group)
-                    else item["end"]
-                )
+                next_start = group[word_index + 1]["start"] if word_index + 1 < len(group) else item["end"]
                 word_end = min(duration, max(item["end"], next_start))
                 if word_end <= word_start:
                     continue
