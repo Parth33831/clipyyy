@@ -308,6 +308,7 @@ def stage_render(ctx: Context) -> dict:
                 from clipyyy.transcribe import transcribe
 
                 lyric_work = ctx.work_dir / "campaign-music-lyrics"
+                lyric_work.mkdir(parents=True, exist_ok=True)
                 lyric_result = transcribe(
                     Path(music_path), lyric_work, get_setting("whisper_model") or "tiny", "auto"
                 )
