@@ -199,7 +199,6 @@ def test_run_detail_exposes_filler_removal_count(client):
     assert detail["clips"][0]["filler_words_removed"] == 2
 
 
-
 def test_campaign_montage_endpoint_accepts_creator_storyboard(client, monkeypatch):
     run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
     captured = {}
