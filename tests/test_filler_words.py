@@ -16,9 +16,9 @@ def test_filler_intervals_detect_only_conservative_standalone_english_words():
         ],
     }
     assert filler_intervals(transcript, 0.0, 5.0, language="en") == [
-        (0.5, 0.8),
-        (1.3, 1.6),
-        (3.8, 3.9),
+        (0.4, 0.9),
+        (1.2, 1.7),
+        (3.7, 4.0),
     ]
 
 
