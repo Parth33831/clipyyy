@@ -40,9 +40,7 @@ def transcribe_music(audio_path: Path, work_dir: Path, model_size: str, language
     """
     work_dir.mkdir(parents=True, exist_ok=True)
     wav_path = work_dir / "music-audio.wav"
-    run_ffmpeg(
-        ["-i", str(audio_path), "-vn", "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", str(wav_path)]
-    )
+    run_ffmpeg(["-i", str(audio_path), "-vn", "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", str(wav_path)])
     audio = load_wav(wav_path)
     lang = None if language in ("", "auto") else language
     try:
