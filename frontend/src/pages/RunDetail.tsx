@@ -228,7 +228,7 @@ export function RunDetailPage() {
           <div className="flex flex-col gap-2 rounded-lg border border-line bg-panel p-3 text-sm">
             <span className="font-medium">Words on screen at once</span>
             <div className="flex gap-2">
-              {[1, 2, 3].map((count) => (
+              {([1, 2, 3] as const).map((count) => (
                 <button key={count} type="button" onClick={() => setLyricsWordsOnScreen(count)}
                   aria-pressed={lyricsWordsOnScreen === count}
                   className={cn('flex-1 rounded-lg border px-3 py-2 font-semibold transition-colors',
