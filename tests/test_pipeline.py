@@ -159,7 +159,6 @@ def test_filler_removal_option_is_off_by_default_and_preserved():
     assert pipeline.ClipOptions(remove_filler_words=True).model_dump()["remove_filler_words"] is True
 
 
-
 def _campaign_edit_fixture(tmp_path, run_id):
     run_root = tmp_path / run_id
     work_dir = run_root / "work"
