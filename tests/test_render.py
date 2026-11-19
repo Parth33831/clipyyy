@@ -251,3 +251,71 @@ def test_campaign_hook_overlay_is_written(tmp_path):
 
     path = write_campaign_hook("Wait for the drop", 2.5, tmp_path / "hook.ass", 1080, 1920)
     assert "Wait for the drop" in path.read_text(encoding="utf-8")
+
+
+def test_campaign_dialogue_is_rendered_before_montage_with_original_audio(tmp_path):
+    from clipyyy.render import render_campaign_montages
+
+    source = tmp_path / "dialogue-source.mp4"
+    run_ffmpeg(
+        [
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=640x360:rate=30:duration=12",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=12",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast",
+            "-c:a",
+            "aac",
+            "-shortest",
+            str(source),
+        ]
+    )
+    sources = [{"video_path": str(source), "duration_seconds": 12, "title": "Dialogue source"}]
+    selection = {
+        "campaign_edits": [
+            {
+                "rank": 1,
+                "title": "Dialogue first",
+                "shots": [
+                    {"source_index": 0, "start_seconds": 1, "end_seconds": 4},
+                    {"source_index": 0, "start_seconds": 4, "end_seconds": 7},
+                    {"source_index": 0, "start_seconds": 7, "end_seconds": 10},
+                ],
+            }
+        ]
+    }
+    candidate = {
+        "id": "0:2.00:3.50",
+        "source_index": 0,
+        "start_seconds": 2.0,
+        "end_seconds": 3.5,
+        "text": "Please don't leave me alone.",
+    }
+    result = render_campaign_montages(
+        {"sources": sources},
+        selection,
+        tmp_path / "work",
+        tmp_path / "out",
+        {
+            "aspect_ratio": "9:16",
+            "campaign_music_path": None,
+            "campaign_plan": {
+                "target_duration_seconds": 9.0,
+                "dialogue_candidates": [candidate],
+            },
+            "selected_campaign_dialogue_id": candidate["id"],
+        },
+    )
+    render = result["renders"][0]
+    assert render["status"] == "ready", render.get("error")
+    assert render["dialogue_text"] == candidate["text"]
+    assert render["dialogue_intro_seconds"] == pytest.approx(1.5, abs=0.3)
+    assert probe(render["file_path"])[2] >= 10.0
+    assert has_audio(render["file_path"])
