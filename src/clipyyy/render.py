@@ -478,7 +478,8 @@ def render_campaign_montages(
                         f"volume=0.9,afade=t=in:st=0:d=0.4,"
                         f"afade=t=out:st={max(0.0, duration - 0.8):.3f}:d=0.8",
                         "-shortest",
-                        "-movflags", "+faststart",
+                        "-movflags",
+                        "+faststart",
                         str(output),
                     ]
                 )
@@ -692,8 +693,10 @@ def write_campaign_lyrics(
                 remaining_cs = available_cs
                 karaoke_text = []
                 for word_index, word in enumerate(words):
-                    word_cs = remaining_cs if word_index == len(words) - 1 else max(
-                        1, round(available_cs * weights[word_index] / total_weight)
+                    word_cs = (
+                        remaining_cs
+                        if word_index == len(words) - 1
+                        else max(1, round(available_cs * weights[word_index] / total_weight))
                     )
                     remaining_cs -= word_cs
                     karaoke_text.append(f"{{\\k{word_cs}}}{_escape(word)}")
