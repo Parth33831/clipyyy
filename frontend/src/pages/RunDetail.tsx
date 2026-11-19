@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowUpRight, Check, ChevronDown, Copy, Download, RotateCcw, Send, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { api, type Clip, type Post, type RunDetail } from '../api'
@@ -21,6 +21,10 @@ export function RunDetailPage() {
   const [publishing, setPublishing] = useState<Clip | null>(null)
   const [focused, setFocused] = useState<number | null>(null)
   const [musicFile, setMusicFile] = useState<File | null>(null)
+  const [lyricsText, setLyricsText] = useState('')
+  useEffect(() => {
+    setLyricsText(run.data?.options.campaign_lyrics ?? '')
+  }, [runId, run.data?.options.campaign_lyrics])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -39,6 +43,14 @@ export function RunDetailPage() {
     onSuccess: (result) => {
       toast.success(`Attached ${result.name}. Choose Pick again to render the campaign with music.`)
       setMusicFile(null)
+      refresh()
+    },
+    onError: (e) => toast.error(e.message),
+  })
+  const saveLyrics = useMutation({
+    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText),
+    onSuccess: () => {
+      toast.success('Lyrics saved. Choose Pick again to rebuild the montage.')
       refresh()
     },
     onError: (e) => toast.error(e.message),
@@ -125,7 +137,15 @@ export function RunDetailPage() {
       </header>
 
       {data.options.campaign_mode && !busy && (
-        <div className="flex flex-wrap items-end gap-3 rounded-xl border border-line bg-surface p-4">
+        <div className="flex flex-col gap-4 rounded-xl border border-line bg-surface p-4">
+          {typeof data.campaign_plan?.generated_hook === 'string' && data.campaign_plan.generated_hook && (
+            <div className="flex flex-col gap-1">
+              <span className="label text-muted">AI-suggested opening hook</span>
+              <p className="text-lg font-semibold">{data.campaign_plan.generated_hook}</p>
+              <span className="text-xs text-muted">A campaign-based suggestion, not a claim about live trends.</span>
+            </div>
+          )}
+          <div className="flex flex-wrap items-end gap-3">
           <label className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
             <span className="font-medium">Campaign music</span>
             <input
@@ -150,6 +170,27 @@ export function RunDetailPage() {
           >
             Attach music
           </Button>
+          </div>
+          <label className="flex flex-col gap-2 text-sm">
+            <span className="font-medium">Lyrics / timed captions</span>
+            <textarea
+              value={lyricsText}
+              onChange={(event) => setLyricsText(event.target.value)}
+              rows={5}
+              maxLength={12000}
+              placeholder={'Local Whisper will draft lyrics from the attached song. You can correct them here.\nFor precise timing, use LRC lines such as [00:12.40] lyric text.'}
+              className="w-full rounded-lg border border-line bg-panel p-3 text-sm text-ink placeholder:text-muted"
+            />
+            <span className="text-xs text-muted">
+              {data.options.campaign_lyrics_source || 'No lyric draft yet. Attach music and choose Pick again to create a local draft.'}
+              {' '}Singing recognition can be inaccurate; review the words before publishing.
+            </span>
+          </label>
+          <div className="flex justify-end">
+            <Button variant="line" disabled={lyricsText === (data.options.campaign_lyrics ?? '')} loading={saveLyrics.isPending} onClick={() => saveLyrics.mutate()}>
+              Save lyrics
+            </Button>
+          </div>
         </div>
       )}
 
