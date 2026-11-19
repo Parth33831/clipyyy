@@ -62,6 +62,7 @@ export interface Clip {
   start_seconds: number
   end_seconds: number
   duration_seconds: number | null
+  filler_words_removed?: number
   title: string
   post_title: string
   caption: string
