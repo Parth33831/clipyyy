@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from clipyyy import db, pipeline
 
 
