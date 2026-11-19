@@ -62,7 +62,7 @@ def discover_campaign_assets(
     work_dir: Path,
     api_key: str,
     orientation: str = "portrait",
-    max_assets: int = 4,
+    max_assets: int = 3,
     brief: str = "",
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Search and download a small set of Pexels clips; failures never block the campaign."""
@@ -101,7 +101,7 @@ def discover_campaign_assets(
                         duration = float(item.get("duration") or 0)
                     except (KeyError, TypeError, ValueError):
                         continue
-                    if video_id in used_ids or duration < 3.0:
+                    if video_id in used_ids or duration < 3.0 or duration > 180.0:
                         continue
                     video_file = _best_video_file(item.get("video_files", []), orientation)
                     if not video_file:
@@ -162,8 +162,8 @@ def _best_video_file(files: list[dict[str, Any]], orientation: str) -> dict[str,
             width, height = int(item.get("width") or 0), int(item.get("height") or 0)
         except (TypeError, ValueError):
             continue
-        if item.get("link") and width >= 480 and height >= 270:
-            candidates.append((abs(width / height - target_ratio), -width, item))
+        if item.get("link") and 480 <= width <= 1920 and height >= 270:
+            candidates.append((abs(width / height - target_ratio), abs(width - 1080), item))
     return min(candidates, default=(0, 0, None), key=lambda value: (value[0], value[1]))[2]
 
 
