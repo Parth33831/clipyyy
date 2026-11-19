@@ -216,7 +216,19 @@ def remove_timed_intervals(video: Path, intervals: list[tuple[float, float]]) ->
     args = ["-i", str(video), "-filter_complex", ";".join(filters), "-map", "[vout]"]
     if audio:
         args += ["-map", "[aout]", "-c:a", "aac", "-b:a", "160k"]
-    args += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(temporary)]
+    args += [
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "20",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+        str(temporary),
+    ]
     run_ffmpeg(args)
     temporary.replace(video)
 
