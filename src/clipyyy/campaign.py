@@ -295,9 +295,7 @@ def _build_text_only_montage(
         for i, source in enumerate(sources)
         if float(source.get("duration_seconds") or 0) >= 2.0
     ]
-    creator_indexes = {
-        index for index, source in enumerate(sources) if source.get("source_kind") != "pexels"
-    }
+    creator_indexes = {index for index, source in enumerate(sources) if source.get("source_kind") != "pexels"}
     stock_indexes = {index for index, source in enumerate(sources) if source.get("source_kind") == "pexels"}
     if not usable:
         raise ValueError("No usable source footage is available for a text-only montage.")
@@ -391,8 +389,7 @@ def _build_text_only_montage(
                         "semantic scene content was not analysed."
                         if is_scene_change
                         else (
-                            "Fallback time sample; scene semantics were not analysed "
-                            "by the text-only model."
+                            "Fallback time sample; scene semantics were not analysed by the text-only model."
                         )
                     )
                 shots.append(
