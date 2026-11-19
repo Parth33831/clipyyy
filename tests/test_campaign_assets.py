@@ -24,9 +24,7 @@ def test_campaign_search_queries_have_a_brief_fallback():
 
 
 def test_discovery_skips_cleanly_without_a_pexels_key(tmp_path):
-    assets, status = campaign_assets.discover_campaign_assets(
-        {"subject_or_theme": "running"}, tmp_path, ""
-    )
+    assets, status = campaign_assets.discover_campaign_assets({"subject_or_theme": "running"}, tmp_path, "")
     assert assets == []
     assert status["status"] == "skipped_missing_pexels_key"
     assert not (tmp_path / "campaign-stock").exists()
