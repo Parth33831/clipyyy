@@ -101,6 +101,9 @@ def discover_campaign_assets(
                     failures += 1
                     logger.warning("Pexels returned an invalid video-search response for %r", query)
                     continue
+                if not isinstance(videos, list):
+                    failures += 1
+                    continue
                 for item in videos:
                     if not isinstance(item, dict):
                         continue
