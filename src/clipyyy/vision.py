@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import re
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -79,11 +81,40 @@ def sample_frames(
     return samples
 
 
+def detect_scene_changes(video_path: Path, duration: float, limit: int = 48) -> list[float]:
+    """Return timestamps of visual cuts detected by FFmpeg's scene-change filter."""
+    if duration <= 2:
+        return []
+    try:
+        result = subprocess.run(
+            [
+                "ffmpeg", "-hide_banner", "-loglevel", "info", "-i", str(video_path),
+                "-vf", "select='gt(scene,0.20)',showinfo", "-an", "-f", "null", "-",
+            ],
+            capture_output=True, text=True, timeout=180, check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        logger.exception("FFmpeg scene detection failed for %s", video_path)
+        return []
+    timestamps = []
+    for match in re.finditer(r"pts_time:([0-9]+(?:\.[0-9]+)?)", result.stderr or ""):
+        timestamp = float(match.group(1))
+        if 0.25 < timestamp < duration - 1.0:
+            timestamps.append(timestamp)
+    timestamps = sorted(set(round(value, 3) for value in timestamps))
+    if len(timestamps) > limit:
+        stride = (len(timestamps) - 1) / (limit - 1)
+        timestamps = [timestamps[round(index * stride)] for index in range(limit)]
+    return timestamps
+
+
 def analyze_campaign_video(source: dict, work_dir: Path, llm, campaign_brief: str) -> dict:
     """Ask a vision model to describe sampled scenes in relation to the supplied campaign."""
     frames = sample_frames(Path(source["video_path"]), float(source.get("duration_seconds") or 0), work_dir)
     if not supports_visual_input(llm):
-        logger.info("Text-only model; keeping sampled timestamps without visual descriptions")
+        logger.info("Text-only model; using FFmpeg scene boundaries without visual descriptions")
+        scene_times = detect_scene_changes(Path(source["video_path"]), float(source.get("duration_seconds") or 0))
+        timestamps = scene_times or [timestamp for timestamp, _ in frames]
         return {
             "frames": [
                 {
@@ -92,7 +123,7 @@ def analyze_campaign_video(source: dict, work_dir: Path, llm, campaign_brief: st
                     "mood": "unknown",
                     "subjects": "not analyzed",
                 }
-                for timestamp, _ in frames
+                for timestamp in timestamps
             ]
         }
     if not frames:
