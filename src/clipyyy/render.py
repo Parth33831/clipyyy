@@ -658,6 +658,7 @@ def write_campaign_word_lyrics(
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
     for index, group in enumerate(groups):
+        group_offset = sum(len(previous) for previous in groups[:index])
         start = max(0.0, group[0]["start"])
         next_start = groups[index + 1][0]["start"] if index + 1 < len(groups) else duration
         end = min(duration, max(group[-1]["end"], next_start, start + 0.18))
@@ -686,7 +687,9 @@ def write_campaign_word_lyrics(
                 )
                 # Animated word events alternate the selected main and highlight colors.
                 # This keeps both chosen colors visible instead of hard-coding a cyan accent.
-                visible_words = group[word_index : word_index + words_on_screen]
+                visible_words = usable[
+                    group_offset + word_index : group_offset + word_index + words_on_screen
+                ]
                 visible_text = " ".join(
                     f"{{\\c{primary if (word_index + offset) % 2 == 0 else accent}}}"
                     f"{_escape(visible['word'])}{{\\c{primary}}}"
