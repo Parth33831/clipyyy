@@ -53,7 +53,8 @@
 |---|---|---|---|---|
 | Conservative filler-word removal for spoken clips | Feature Development + Architecture review | `feature/transcript-filler-removal` / [PR #23](https://github.com/Parth33831/clipyyy/pull/23) | Merged into `main` as `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`; post-merge CI passed | 2026-11-19 |
 | Campaign footage discovery from the existing Pexels integration | Feature Development | `feature/campaign-footage-discovery` / [PR #24](https://github.com/Parth33831/clipyyy/pull/24) | Ready for Architecture review; CI passed: 89 passed, 15 skipped; Ruff and frontend build passed | 2026-11-19 |
-| Campaign shot-level editor | Architecture & Master Plan | `feature/campaign-shot-editor` | Assigned; implementation in progress | 2026-11-19 |
+| Campaign shot-level editor | Architecture & Master Plan | `feature/campaign-shot-editor` / [PR #25](https://github.com/Parth33831/clipyyy/pull/25) | Implemented on branch; CI/review and integration pending | 2026-11-19 |
+| Campaign automatic stock-footage discovery | Feature Development | `feature/campaign-footage-discovery` / [PR #24](https://github.com/Parth33831/clipyyy/pull/24) | Separate active PR; latest frontend and fast-backend CI passed; overlaps shared campaign files and must be integrated before final shot-editor review | 2026-11-19 |
 
 ### Assignment: Conservative filler-word removal
 
@@ -211,3 +212,4 @@ STATUS: In progress / Ready for review / Merged
 - 2026-11-19: Assigned conservative English filler-word removal to Feature Development on `feature/transcript-filler-removal`, based on existing word-level transcription. Full transcript/timeline editing remains a later, separate feature.
 - 2026-11-19: PR #23 was reviewed and squash-merged into `main` as `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`. Post-merge CI passed: Ruff lint, Ruff format, frontend build, and fast backend tests (82 passed, 15 skipped). Windows, macOS and full-backend jobs were skipped because they are manual-only.
 - 2026-11-19: Inspected the latest `main` campaign pipeline and confirmed brief parsing, visual analysis, montage selection, music section/beat analysis, hooks and lyric overlays already exist. The historical music-intelligence branch maps to merged PR #10; avoid duplicating it. Assigned Campaign shot-level editor to Architecture on `feature/campaign-shot-editor`, based on `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`.
+- 2026-11-19: Implemented the shot-level storyboard editor and opened PR #25. It shares `frontend/src/api.ts`, `frontend/src/pages/RunDetail.tsx` and `src/clipyyy/pipeline.py` with the independently active PR #24 (campaign stock-footage discovery). The shot editor has been made compatible with PR #24's persisted `campaign_sources` data. Do not merge either branch until both diffs are reviewed together and the shot-editor branch is updated against the resulting main.
