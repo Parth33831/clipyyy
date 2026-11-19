@@ -23,7 +23,7 @@
 ## Repository baseline (inspected 2026-11-19)
 
 - **Default branch:** `main`
-- **Latest main commit:** `f6004eecccf5a676e34b2c8fa6fa35c9d2732000` — Add conservative filler-word removal (#23).
+- **Latest main commit:** `67f8ec1e00c6b622a56750df035c61df3629a8ec` — Add editable campaign storyboard controls (#26).
 - Recent completed main work includes lyric animation previews, multi-colour lyric captions, configurable lyric colours, word-accurate song transcription and campaign dialogue/montage editing.
 - **Open PR search:** no open PRs were returned for this repository at inspection time.
 - **Branches observed:** `automatic-word-timed-lyrics`, `campaign-dialogue-transcription`, `creative-anime-editing`, `fix/campaign-export-audio-duration`, `fix/campaign-scene-selection-ci-final`, `fix/campaign-scene-selection-final-ci`, `fix/campaign-scene-selection-pacing`, `fix/campaign-scene-selection-pacing-ci`, `fix/campaign-scene-selection-release-check`, `fix/campaign-scene-selection-tested`, `fix/campaign-scene-selection-validated`, `improve-multi-clip-selection`, `instant-lyrics-style-editor`, `instant-lyrics-style-editor-ci`, `instant-lyrics-style-editor-verified`, `lyric-style-previews-multicolor`, `lyric-words-on-screen`, `lyrics-captions-animation`, `lyrics-color-controls`, `main`, `music-intelligence-hooks`, `refresh-legacy-lyric-timings`, `reuse-campaign-transcript-on-dialogue-rebuild`.
@@ -42,19 +42,19 @@
 | Virality scoring improvements | Not yet assessed | Unassigned | Existing selection already has hook, value, clarity and overall scores; assess before expanding. |
 | Advanced subject tracking | Not yet assessed | Unassigned | Avoid duplicating existing MediaPipe face tracking. |
 | Text-based editing / filler removal | V1 implemented | PR #23 / `main` | Conservative English filler-word removal is merged; full transcript editing remains a later feature. |
-| Campaign shot-level editor | Assigned / in progress | Architecture / `feature/campaign-shot-editor` | Reorder, trim and remove AI-selected campaign shots, then rerender from saved sources without rerunning analysis. |
+| Campaign shot-level editor | V1 implemented | PR #26 / `main` | Reorder, trim and remove AI-selected campaign shots, reset to the AI plan, and rerender from cached creator/Pexels sources without rerunning analysis. |
 | Advanced timeline editor | Not yet assessed | Unassigned | A full multitrack/waveform timeline remains separate from this focused campaign storyboard editor. |
 | Audio enhancement / voiceover | Not yet assessed | Unassigned | Assess local/offline options and dependencies. |
-| AI B-roll improvements | Existing optional B-roll; enhancements not assessed | Unassigned | Inspect current Pexels workflow before implementing alternatives. |
+| Automatic campaign stock-footage discovery | V1 implemented | PR #24 / `main` | Opt-in Pexels discovery is merged; creator footage stays first and attribution is surfaced. |
+| AI B-roll improvements | Existing optional B-roll; future enhancements not assessed | Unassigned | Inspect current Pexels workflow before implementing alternatives. |
 
 ## Current work
 
 | Task | Owner chat | Branch / PR | Status | Last update |
 |---|---|---|---|---|
 | Conservative filler-word removal for spoken clips | Feature Development + Architecture review | `feature/transcript-filler-removal` / [PR #23](https://github.com/Parth33831/clipyyy/pull/23) | Merged into `main` as `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`; post-merge CI passed | 2026-11-19 |
-| Campaign footage discovery from the existing Pexels integration | Feature Development | `feature/campaign-footage-discovery` / [PR #24](https://github.com/Parth33831/clipyyy/pull/24) | Ready for Architecture review; CI passed: 89 passed, 15 skipped; Ruff and frontend build passed | 2026-11-19 |
-| Campaign shot-level editor | Architecture & Master Plan | `feature/campaign-shot-editor` / [PR #25](https://github.com/Parth33831/clipyyy/pull/25) | Implemented on branch; CI/review and integration pending | 2026-11-19 |
-| Campaign automatic stock-footage discovery | Feature Development | `feature/campaign-footage-discovery` / [PR #24](https://github.com/Parth33831/clipyyy/pull/24) | Separate active PR; latest frontend and fast-backend CI passed; overlaps shared campaign files and must be integrated before final shot-editor review | 2026-11-19 |
+| Campaign footage discovery from the existing Pexels integration | Feature Development + Architecture review | `feature/campaign-footage-discovery` / [PR #24](https://github.com/Parth33831/clipyyy/pull/24) | Merged into `main` as `45cf0a0653d11eceb56d8b104786f1821da9801c`; fast-backend and frontend CI passed | 2026-11-19 |
+| Campaign shot-level editor | Architecture & Master Plan | `feature/campaign-shot-editor-integration` / [PR #26](https://github.com/Parth33831/clipyyy/pull/26) | Merged into `main` as `67f8ec1e00c6b622a56750df035c61df3629a8ec`; post-merge CI passed: 95 passed, 15 skipped, frontend build passed | 2026-11-19 |
 
 ### Assignment: Conservative filler-word removal
 
@@ -88,12 +88,12 @@
 **Priority:** P1 — next after the current lyric/campaign UI testing is complete. It builds on existing word-level transcription and adds a clear creator-facing editing capability. Keep the full transcript editor, advanced timeline and subject-tracking upgrades for later separate assignments.
 
 
-## Next assignment: Campaign footage discovery (Pexels)
+## Completed assignment: Campaign footage discovery (Pexels)
 
 **Owner:** Feature Development  
 **Branch:** `feature/campaign-footage-discovery`  
 **Base:** `main` at `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`  
-**Status:** Ready for Architecture review — [PR #24](https://github.com/Parth33831/clipyyy/pull/24); latest CI passed
+**Status:** Merged into `main` as `45cf0a0653d11eceb56d8b104786f1821da9801c` via [PR #24](https://github.com/Parth33831/clipyyy/pull/24); CI passed
 
 **Objective:** Reduce manual footage gathering for campaign edits by automatically discovering relevant stock-video candidates from the already-supported Pexels integration, using the extracted campaign brief and requirements.
 
@@ -125,7 +125,7 @@
 
 
 
-### Assignment: Campaign shot-level editor
+### Completed assignment: Campaign shot-level editor
 
 **Objective:** Turn the current AI-generated campaign montage into an editable storyboard. After the initial AI analysis, creators can inspect the selected shots, reorder them, trim their in/out points, remove unwanted shots, and rerender the campaign without downloading footage again or rerunning visual analysis/transcription.
 
@@ -158,6 +158,15 @@
 - Run `uv run pytest -q`, `uv run ruff check src tests`, `uv run ruff format --check src tests`, and `npm --prefix frontend run build`; report actual results. A real FFmpeg smoke test is required where the CI environment supports it.
 
 **Priority:** P1 — next campaign-editor capability. This delivers creator control over AI decisions before we invest in a full multitrack timeline.
+
+
+**Implementation and integration result**
+- **PR:** [#26](https://github.com/Parth33831/clipyyy/pull/26), squash-merged.
+- **Merge commit:** `67f8ec1e00c6b622a56750df035c61df3629a8ec`.
+- **Final branch:** `feature/campaign-shot-editor-integration` (rebased/reapplied on top of merged PR #24 so stock footage and storyboard editing integrate cleanly). The earlier PR #25 was closed as superseded.
+- **Files changed:** `frontend/src/api.ts`, `frontend/src/pages/RunDetail.tsx`, `src/clipyyy/api.py`, `src/clipyyy/pipeline.py`, `tests/test_api.py`, `tests/test_pipeline.py`.
+- **CI:** Ruff lint passed; Ruff format passed; frontend production build passed; fast backend suite passed with **95 passed, 15 skipped**. Post-merge main CI also passed. Windows, macOS and full-backend/manual jobs were skipped.
+- **Known validation gap:** No real-media FFmpeg campaign render or local Windows smoke test was run in this environment. The backend rerender path is covered by mocked pipeline/API tests; manual testing with a real campaign and music track remains recommended.
 
 ## Safe development protocol
 
@@ -212,4 +221,5 @@ STATUS: In progress / Ready for review / Merged
 - 2026-11-19: Assigned conservative English filler-word removal to Feature Development on `feature/transcript-filler-removal`, based on existing word-level transcription. Full transcript/timeline editing remains a later, separate feature.
 - 2026-11-19: PR #23 was reviewed and squash-merged into `main` as `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`. Post-merge CI passed: Ruff lint, Ruff format, frontend build, and fast backend tests (82 passed, 15 skipped). Windows, macOS and full-backend jobs were skipped because they are manual-only.
 - 2026-11-19: Inspected the latest `main` campaign pipeline and confirmed brief parsing, visual analysis, montage selection, music section/beat analysis, hooks and lyric overlays already exist. The historical music-intelligence branch maps to merged PR #10; avoid duplicating it. Assigned Campaign shot-level editor to Architecture on `feature/campaign-shot-editor`, based on `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`.
-- 2026-11-19: Implemented the shot-level storyboard editor and opened PR #25. It shares `frontend/src/api.ts`, `frontend/src/pages/RunDetail.tsx` and `src/clipyyy/pipeline.py` with the independently active PR #24 (campaign stock-footage discovery). The shot editor has been made compatible with PR #24's persisted `campaign_sources` data. Do not merge either branch until both diffs are reviewed together and the shot-editor branch is updated against the resulting main.
+- 2026-11-19: PR #24 added opt-in Pexels campaign footage discovery and was squash-merged into `main` as `45cf0a0653d11eceb56d8b104786f1821da9801c`; post-merge CI passed.
+- 2026-11-19: Implemented the campaign storyboard editor, integrated it on top of PR #24's persisted `campaign_sources` data, and merged PR #26 into `main` as `67f8ec1e00c6b622a56750df035c61df3629a8ec`. CI passed: 95 backend tests passed, 15 skipped; Ruff lint/format and frontend build passed. The earlier PR #25 was closed as superseded during integration. A real-media FFmpeg/Windows smoke test remains.
