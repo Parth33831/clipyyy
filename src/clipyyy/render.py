@@ -287,142 +287,6 @@ def _interpolate_expression(points: list[tuple[float, float]]) -> str:
     return expression
 
 
-def _render_campaign_dialogue_intro(
-    source_path: Path,
-    candidate: dict,
-    output: Path,
-    width: int,
-    height: int,
-    work_dir: Path,
-) -> float:
-    """Render the chosen source dialogue with its original audio and a readable caption."""
-    start = max(0.0, float(candidate["start_seconds"]))
-    duration = max(0.5, float(candidate["end_seconds"]) - start)
-    caption = work_dir / "dialogue-caption.ass"
-    write_campaign_hook(str(candidate["text"]), duration, caption, width, height)
-    args = [
-        "-ss",
-        f"{start:.3f}",
-        "-i",
-        str(source_path),
-        "-t",
-        f"{duration:.3f}",
-        "-vf",
-        f"{fill_filter(width, height)},{ass_filter(caption)}",
-        "-map",
-        "0:v:0",
-    ]
-    if has_audio(source_path):
-        args += ["-map", "0:a:0", "-c:a", "aac", "-b:a", "160k"]
-    else:
-        raise RuntimeError("The selected dialogue source has no audio stream.")
-    args += [
-        "-c:v",
-        "libx264",
-        "-preset",
-        "veryfast",
-        "-crf",
-        "19",
-        "-pix_fmt",
-        "yuv420p",
-        "-r",
-        str(FPS),
-        "-movflags",
-        "+faststart",
-        str(output),
-    ]
-    run_ffmpeg(args)
-    return probe(output)[2]
-
-
-def _join_dialogue_intro(
-    intro: Path,
-    montage: Path,
-    music_path: Path | None,
-    music_start: float,
-    montage_duration: float,
-    output: Path,
-) -> None:
-    """Join dialogue before the montage and start the supplied song after the dialogue."""
-    intro_duration = probe(intro)[2]
-    total_duration = intro_duration + montage_duration
-    inputs = ["-i", str(intro), "-i", str(montage)]
-    if music_path:
-        music_input = []
-        try:
-            track_duration = probe(music_path)[2]
-            if track_duration - music_start < montage_duration:
-                music_input = ["-stream_loop", "-1"]
-        except Exception:
-            pass
-        inputs += [*music_input, "-ss", f"{music_start:.3f}", "-i", str(music_path)]
-        delay_ms = round(intro_duration * 1000)
-        filters = [
-            "[0:v][1:v]concat=n=2:v=1:a=0[v]",
-            f"[0:a]aresample=44100,apad=pad_dur={montage_duration:.3f}[dialogue]",
-            f"[2:a]atrim=duration={montage_duration:.3f},asetpts=PTS-STARTPTS,"
-            f"adelay={delay_ms}|{delay_ms},volume=0.9[music]",
-            "[dialogue][music]amix=inputs=2:duration=longest:dropout_transition=0[a]",
-        ]
-        run_ffmpeg(
-            [
-                *inputs,
-                "-filter_complex",
-                ";".join(filters),
-                "-map",
-                "[v]",
-                "-map",
-                "[a]",
-                "-t",
-                f"{total_duration:.3f}",
-                "-c:v",
-                "libx264",
-                "-preset",
-                "veryfast",
-                "-crf",
-                "19",
-                "-pix_fmt",
-                "yuv420p",
-                "-c:a",
-                "aac",
-                "-b:a",
-                "192k",
-                "-movflags",
-                "+faststart",
-                str(output),
-            ]
-        )
-    else:
-        run_ffmpeg(
-            [
-                *inputs,
-                "-filter_complex",
-                "[0:v][1:v]concat=n=2:v=1:a=0[v]",
-                "-map",
-                "[v]",
-                "-map",
-                "0:a:0",
-                "-t",
-                f"{total_duration:.3f}",
-                "-c:v",
-                "libx264",
-                "-preset",
-                "veryfast",
-                "-crf",
-                "19",
-                "-pix_fmt",
-                "yuv420p",
-                "-c:a",
-                "aac",
-                "-b:a",
-                "160k",
-                "-movflags",
-                "+faststart",
-                str(output),
-            ]
-        )
-
-
 def render_campaign_montages(
     source: dict,
     selection: dict,
@@ -452,17 +316,6 @@ def render_campaign_montages(
         if options.get("include_campaign_hook", False)
         else ""
     )
-    selected_dialogue = next(
-        (
-            item
-            for item in campaign_plan.get("dialogue_candidates", [])
-            if item.get("id") == options.get("selected_campaign_dialogue_id")
-        ),
-        None,
-    )
-    if options.get("selected_campaign_dialogue_id") and not selected_dialogue:
-        raise ValueError("The selected dialogue line is no longer available. Pick a line again.")
-
     for edit in selection.get("campaign_edits", []):
         rank = edit["rank"]
         edit_dir = work_dir / f"campaign-edit-{rank:02d}"
@@ -596,58 +449,25 @@ def render_campaign_montages(
                     ]
                 )
                 visual = captioned
-            dialogue_intro_seconds = 0.0
-            dialogue_text = None
-            if selected_dialogue:
-                source_index = int(selected_dialogue["source_index"])
-                if not 0 <= source_index < len(sources):
-                    raise ValueError("The selected dialogue refers to a missing source video.")
-                intro = edit_dir / "dialogue-intro.mp4"
-                dialogue_intro_seconds = _render_campaign_dialogue_intro(
-                    Path(sources[source_index]["video_path"]),
-                    selected_dialogue,
-                    intro,
-                    width,
-                    height,
-                    edit_dir,
-                )
-                dialogue_text = str(selected_dialogue["text"])
-                joined = edit_dir / "montage-with-dialogue.mp4"
-                _join_dialogue_intro(intro, visual, music_path, music_start, duration, joined)
-                visual = joined
-            if selected_dialogue:
-                shutil.copy2(visual, output)
-            elif music_path:
+            if music_path:
                 music_input = []
                 if music_analysis and music_analysis["duration_seconds"] - music_start < duration:
                     music_input = ["-stream_loop", "-1"]
                 run_ffmpeg(
                     [
-                        "-i",
-                        str(visual),
+                        "-i", str(visual),
                         *music_input,
-                        "-ss",
-                        f"{music_start:.3f}",
-                        "-i",
-                        str(music_path),
-                        "-map",
-                        "0:v:0",
-                        "-map",
-                        "1:a:0",
-                        "-t",
-                        f"{duration:.3f}",
-                        "-c:v",
-                        "copy",
-                        "-c:a",
-                        "aac",
-                        "-b:a",
-                        "192k",
-                        "-af",
-                        f"volume=0.9,afade=t=in:st=0:d=0.4,"
-                        f"afade=t=out:st={max(0.0, duration - 0.8):.3f}:d=0.8",
+                        "-ss", f"{music_start:.3f}",
+                        "-i", str(music_path),
+                        "-map", "0:v:0",
+                        "-map", "1:a:0",
+                        "-t", f"{duration:.3f}",
+                        "-c:v", "copy",
+                        "-c:a", "aac",
+                        "-b:a", "192k",
+                        "-af", f"volume=0.9,afade=t=in:st=0:d=0.4,afade=t=out:st={max(0.0, duration - 0.8):.3f}:d=0.8",
                         "-shortest",
-                        "-movflags",
-                        "+faststart",
+                        "-movflags", "+faststart",
                         str(output),
                     ]
                 )
@@ -675,8 +495,6 @@ def render_campaign_montages(
                     "beat_synced": bool(beat_times),
                     "music_start_seconds": round(music_start, 2),
                     "music_bpm_estimate": music_analysis.get("bpm") if music_analysis else None,
-                    "dialogue_intro_seconds": round(dialogue_intro_seconds, 2),
-                    "dialogue_text": dialogue_text,
                 }
             )
         except Exception as exc:
@@ -816,6 +634,24 @@ def write_campaign_lyrics(
             start = max(0.0, min(start, duration))
             end = min(duration, max(start + 0.2, min(end, duration)))
             dialogue = f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,"
+            if style == "karaoke":
+                words = line.split()
+                weights = [max(1, len(word)) for word in words]
+                total_weight = sum(weights) or 1
+                available_cs = max(len(words), round((end - start) * 100))
+                remaining_cs = available_cs
+                karaoke_text = []
+                for word_index, word in enumerate(words):
+                    word_cs = remaining_cs if word_index == len(words) - 1 else max(
+                        1, round(available_cs * weights[word_index] / total_weight)
+                    )
+                    remaining_cs -= word_cs
+                    karaoke_text.append(f"{{\\k{word_cs}}}{_escape(word)}")
+                script.append(
+                    dialogue + "{\\fad(80,120)\\c&HFFFFFF&\\2c&H00D7FF&\\bord3\\shad2}"
+                    + " ".join(karaoke_text)
+                )
+                continue
             treatment = (
                 (
                     "{\\fad(90,120)\\fscx72\\fscy72\\t(0,170,\\fscx100\\fscy100)\\c&H00D7FF&\\bord4\\shad2}",
