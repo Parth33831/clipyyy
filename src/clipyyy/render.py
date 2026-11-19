@@ -324,7 +324,7 @@ def render_campaign_montages(
         try:
             silent = edit_dir / "montage-silent.mp4"
             # Reuse the assembled montage for instant style-only changes.
-            if not silent.exists():
+            if not (options.get("reuse_campaign_montage") and silent.exists()):
                 segments = []
                 for shot_index, shot in enumerate(edit["shots"]):
                     source_index = int(shot["source_index"])
@@ -641,6 +641,36 @@ def write_campaign_word_lyrics(
         next_start = groups[index + 1][0]["start"] if index + 1 < len(groups) else duration
         end = min(duration, max(group[-1]["end"], next_start, start + 0.18))
         if end <= start:
+            continue
+        if style in {"dynamic", "zoom", "bounce", "pulse", "glitch"}:
+            for word_index, item in enumerate(group):
+                word_start = max(0.0, item["start"])
+                next_start = (
+                    group[word_index + 1]["start"]
+                    if word_index + 1 < len(group)
+                    else item["end"]
+                )
+                word_end = min(duration, max(item["end"], next_start))
+                if word_end <= word_start:
+                    continue
+                animation = (
+                    "{\\fad(45,75)\\fscx55\\fscy55\\t(0,110,\\fscx118\\fscy118)"
+                    "\\t(110,220,\\fscx100\\fscy100)\\c&H00D7FF&\\bord4\\shad3}"
+                    if style in {"dynamic", "zoom"}
+                    else "{\\fad(45,75)\\fscx88\\fscy125\\t(0,100,\\fscx108\\fscy92)"
+                    "\\t(100,200,\\fscx100\\fscy100)\\c&H66E6FF&\\bord4\\shad3}"
+                    if style == "bounce"
+                    else "{\\fad(45,75)\\t(0,120,\\fscx115\\fscy115)"
+                    "\\t(120,240,\\fscx100\\fscy100)\\c&HFFFFFF&\\bord4\\shad3}"
+                    if style == "pulse"
+                    else "{\\fad(25,70)\\fscx85\\fscy112\\frz-3"
+                    "\\t(0,90,\\fscx110\\fscy92\\frz3)\\t(90,180,\\fscx100\\fscy100\\frz0)"
+                    "\\c&H00D7FF&\\bord4\\shad3}"
+                )
+                script.append(
+                    f"Dialogue: 0,{_ts(word_start)},{_ts(word_end)},Default,,0,0,0,,"
+                    f"{animation}{_escape(item['word'])}"
+                )
             continue
         if style == "karaoke":
             pieces = []
