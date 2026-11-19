@@ -42,7 +42,8 @@
 | Virality scoring improvements | Not yet assessed | Unassigned | Existing selection already has hook, value, clarity and overall scores; assess before expanding. |
 | Advanced subject tracking | Not yet assessed | Unassigned | Avoid duplicating existing MediaPipe face tracking. |
 | Text-based editing / filler removal | V1 implemented | PR #23 / `main` | Conservative English filler-word removal is merged; full transcript editing remains a later feature. |
-| Advanced timeline editor | Not yet assessed | Unassigned | Requires separate UX and data-model planning. |
+| Campaign shot-level editor | Assigned / in progress | Architecture / `feature/campaign-shot-editor` | Reorder, trim and remove AI-selected campaign shots, then rerender from saved sources without rerunning analysis. |
+| Advanced timeline editor | Not yet assessed | Unassigned | A full multitrack/waveform timeline remains separate from this focused campaign storyboard editor. |
 | Audio enhancement / voiceover | Not yet assessed | Unassigned | Assess local/offline options and dependencies. |
 | AI B-roll improvements | Existing optional B-roll; enhancements not assessed | Unassigned | Inspect current Pexels workflow before implementing alternatives. |
 
@@ -51,6 +52,7 @@
 | Task | Owner chat | Branch / PR | Status | Last update |
 |---|---|---|---|---|
 | Conservative filler-word removal for spoken clips | Feature Development + Architecture review | `feature/transcript-filler-removal` / [PR #23](https://github.com/Parth33831/clipyyy/pull/23) | Merged into `main` as `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`; post-merge CI passed | 2026-11-19 |
+| Campaign shot-level editor | Architecture & Master Plan | `feature/campaign-shot-editor` | Assigned; implementation in progress | 2026-11-19 |
 
 ### Assignment: Conservative filler-word removal
 
@@ -120,6 +122,41 @@
 **Coordination note:** Existing stale branches `music-intelligence-hooks` and `creative-anime-editing` are divergent from current `main` and touch campaign/render modules. Do not merge or reuse them wholesale. This feature starts from current `main` and must avoid their unrelated changes.
 
 
+
+### Assignment: Campaign shot-level editor
+
+**Objective:** Turn the current AI-generated campaign montage into an editable storyboard. After the initial AI analysis, creators can inspect the selected shots, reorder them, trim their in/out points, remove unwanted shots, and rerender the campaign without downloading footage again or rerunning visual analysis/transcription.
+
+**Why this is next:** Main already includes campaign brief parsing, visual scene analysis, reference-video style analysis, montage planning, local music analysis/beat-aligned cuts, opening hooks, lyrics and campaign export checks. The unmerged-looking `music-intelligence-hooks` branch is historical: its corresponding PR #10 is already merged. Do not duplicate that work. A focused shot-level editor is the missing creator-control layer, not another music-analysis implementation.
+
+**V1 scope**
+1. Expose saved campaign edits and safe source metadata (title and duration) in run details; do not expose local filesystem paths.
+2. Add a storyboard editor for each generated campaign output. Show ordered shots with source, source in/out timestamps and the AI selection reason.
+3. Allow moving shots up/down, editing start/end timestamps and removing shots. Keep output rank/title stable. No adding arbitrary new source ranges in V1.
+4. Validate edits server-side: known edit ranks only; source indexes exist; finite timestamps within source duration; each shot is 1.5–5 seconds; at least 3 shots per edit; total selected duration at least max(5 seconds, 65% of target duration).
+5. Preserve the original AI-generated shot plan so creators can reset their manual edits.
+6. Save the edited plan to the existing selection artifact, then rebuild only the montage/render from already-downloaded source files. Do not rerun campaign-page import, vision analysis, reference analysis, AI selection, or lyric transcription.
+7. Preserve attached music, beat alignment, hooks, lyrics and style settings. Normal lyric/style rerender must continue reusing the already-assembled montage.
+8. Keep non-campaign clipping and all existing workflows unchanged.
+
+**Likely files**
+- `src/clipyyy/pipeline.py`: validate/persist edited selection and rerender with an explicit montage-rebuild option.
+- `src/clipyyy/api.py`: typed update endpoint and public campaign edit/source metadata.
+- `frontend/src/api.ts`, `frontend/src/pages/RunDetail.tsx`: types, save action and shot storyboard controls.
+- `tests/test_pipeline.py`, `tests/test_api.py`, optionally `tests/test_campaign.py`: validation, persistence, rerender reuse/rebuild and endpoint coverage.
+
+**Acceptance criteria**
+- Creator can reorder, trim and remove shots for each campaign output; edits are reflected in final rendered output.
+- Reset restores the original AI-generated shot order and timestamps.
+- Invalid source indexes, out-of-range/non-finite timestamps, too-short/too-long shots, fewer than 3 shots and insufficient total duration are rejected without corrupting the saved plan.
+- Rerender reuses downloaded footage and saved edit decisions; it does not invoke the LLM or vision analysis.
+- Music beat alignment and existing hook/lyric overlays remain functional.
+- Existing lyric-only changes continue to reuse the assembled montage (no regression).
+- Existing non-campaign clip runs remain unchanged.
+- Run `uv run pytest -q`, `uv run ruff check src tests`, `uv run ruff format --check src tests`, and `npm --prefix frontend run build`; report actual results. A real FFmpeg smoke test is required where the CI environment supports it.
+
+**Priority:** P1 — next campaign-editor capability. This delivers creator control over AI decisions before we invest in a full multitrack timeline.
+
 ## Safe development protocol
 
 1. Before coding, inspect `git status`, current branch, `git log -5 --oneline`, and latest remote refs in the local working tree.
@@ -172,3 +209,4 @@ STATUS: In progress / Ready for review / Merged
 - 2026-11-19: Created the coordination document on `docs/project-coordination`; application code was not changed.
 - 2026-11-19: Assigned conservative English filler-word removal to Feature Development on `feature/transcript-filler-removal`, based on existing word-level transcription. Full transcript/timeline editing remains a later, separate feature.
 - 2026-11-19: PR #23 was reviewed and squash-merged into `main` as `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`. Post-merge CI passed: Ruff lint, Ruff format, frontend build, and fast backend tests (82 passed, 15 skipped). Windows, macOS and full-backend jobs were skipped because they are manual-only.
+- 2026-11-19: Inspected the latest `main` campaign pipeline and confirmed brief parsing, visual analysis, montage selection, music section/beat analysis, hooks and lyric overlays already exist. The historical music-intelligence branch maps to merged PR #10; avoid duplicating it. Assigned Campaign shot-level editor to Architecture on `feature/campaign-shot-editor`, based on `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`.
