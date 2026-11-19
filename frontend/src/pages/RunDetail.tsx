@@ -192,28 +192,44 @@ export function RunDetailPage() {
             Attach music
           </Button>
           </div>
-          <label className="flex flex-col gap-2 text-sm">
+          <div className="flex flex-col gap-3 text-sm">
             <span className="font-medium">Lyrics animation preset</span>
-            <select value={lyricsStyle} onChange={(event) => setLyricsStyle(event.target.value as typeof lyricsStyle)}
-              className="w-full rounded-lg border border-line bg-panel p-2.5 text-sm text-ink">
-              <option value="dynamic">01 · Pop Punch — quick zoom + colour hit</option>
-              <option value="karaoke">02 · Karaoke Sweep — word-by-word highlight</option>
-              <option value="cinematic">03 · Cinematic Fade — smooth, clean entrance</option>
-              <option value="minimal">04 · Minimal — simple readable lyrics</option>
-              <option value="zoom">05 · Zoom Burst — big pop-in, settle back</option>
-              <option value="bounce">06 · Elastic Bounce — springy movement</option>
-              <option value="pulse">07 · Beat Pulse — scale pulse on each lyric phrase</option>
-              <option value="glitch">08 · Tilt Pop — quick tilted punch and settle</option>
-            </select>
-            <span className="text-xs text-muted">Change the preset or lyrics, then apply it to the existing montage. Saved shots and Whisper word timings are reused.</span>
-          </label>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {([
+                ['dynamic', '01 · Pop Punch', 'Quick zoom + colour hit', 'lyric-preview-pop'],
+                ['karaoke', '02 · Karaoke Sweep', 'Word-by-word highlight', 'lyric-preview-karaoke'],
+                ['cinematic', '03 · Cinematic Fade', 'Smooth, clean entrance', 'lyric-preview-fade'],
+                ['minimal', '04 · Minimal', 'Simple readable lyrics', 'lyric-preview-minimal'],
+                ['zoom', '05 · Zoom Burst', 'Big pop-in, settle back', 'lyric-preview-zoom'],
+                ['bounce', '06 · Elastic Bounce', 'Springy movement', 'lyric-preview-bounce'],
+                ['pulse', '07 · Beat Pulse', 'Scale pulse on each phrase', 'lyric-preview-pulse'],
+                ['glitch', '08 · Tilt Pop', 'Tilted punch and settle', 'lyric-preview-tilt'],
+              ] as const).map(([value, title, description, animationClass]) => (
+                <button key={value} type="button" onClick={() => setLyricsStyle(value)}
+                  aria-pressed={lyricsStyle === value}
+                  className={cn('flex items-center gap-3 rounded-lg border p-3 text-left transition-colors',
+                    lyricsStyle === value ? 'border-ink bg-sunk' : 'border-line bg-panel hover:border-line-strong')}>
+                  <span className="flex h-12 w-24 shrink-0 items-center justify-center overflow-hidden rounded-md bg-ink">
+                    <span className={cn('text-sm font-black tracking-tight', animationClass)}
+                      style={{ color: lyricsColor, textShadow: '0 1px 3px #000' }}>Lyric!</span>
+                  </span>
+                  <span className="flex min-w-0 flex-col gap-1">
+                    <span className="font-medium">{title}</span>
+                    <span className="text-xs text-muted">{description}</span>
+                    {lyricsStyle === value && <span className="text-[10px] font-semibold uppercase tracking-wider text-ok">Selected</span>}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-muted">Each tile previews the motion. Change the preset or lyrics, then apply it to the existing montage; saved shots and Whisper word timings are reused.</span>
+          </div>
           <div className="grid gap-4 rounded-lg border border-line bg-panel p-3 sm:grid-cols-2">
             <label className="flex items-center justify-between gap-3 text-sm">
               <span className="flex flex-col gap-1"><span className="font-medium">Lyrics color</span><span className="text-xs text-muted">Main caption text</span></span>
               <input type="color" aria-label="Lyrics text color" value={lyricsColor} onChange={(event) => setLyricsColor(event.target.value.toUpperCase())} className="h-10 w-14 cursor-pointer rounded border border-line bg-transparent p-1" />
             </label>
             <label className="flex items-center justify-between gap-3 text-sm">
-              <span className="flex flex-col gap-1"><span className="font-medium">Highlight color</span><span className="text-xs text-muted">Active karaoke word / animation accent</span></span>
+              <span className="flex flex-col gap-1"><span className="font-medium">Highlight color</span><span className="text-xs text-muted">Second color / alternating words</span></span>
               <input type="color" aria-label="Lyrics highlight color" value={lyricsHighlightColor} onChange={(event) => setLyricsHighlightColor(event.target.value.toUpperCase())} className="h-10 w-14 cursor-pointer rounded border border-line bg-transparent p-1" />
             </label>
             <div className="flex flex-wrap gap-2 sm:col-span-2">
@@ -227,8 +243,10 @@ export function RunDetailPage() {
               ))}
             </div>
             <div className="flex items-center justify-center rounded-lg bg-ink px-4 py-5 sm:col-span-2">
-              <p className="text-center text-xl font-extrabold tracking-wide" style={{ color: lyricsColor, textShadow: '0 2px 4px #000, 0 0 10px #000' }}>
-                <span>Pop it, </span><span style={{ color: lyricsHighlightColor }}>feel the beat</span>
+              <p className="text-center text-xl font-extrabold tracking-wide" style={{ textShadow: '0 2px 4px #000, 0 0 10px #000' }}>
+                <span style={{ color: lyricsColor }}>Pop </span><span style={{ color: lyricsHighlightColor }}>it, </span>
+                <span style={{ color: lyricsColor }}>feel </span><span style={{ color: lyricsHighlightColor }}>the </span>
+                <span style={{ color: lyricsColor }}>beat</span>
               </p>
             </div>
             <p className="text-xs text-muted sm:col-span-2">Colors are independent of animation style. Apply updates the existing edit without re-picking footage or re-transcribing the song.</p>

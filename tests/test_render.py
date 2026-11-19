@@ -309,3 +309,48 @@ def test_campaign_word_lyrics_respect_custom_text_and_highlight_colors(tmp_path)
     content = path.read_text(encoding="utf-8")
     assert "&H000000FF" in content
     assert "&H00FF0000" in content
+
+
+def test_campaign_word_lyrics_apply_both_selected_colors_to_animated_words(tmp_path):
+    from clipyyy.render import write_campaign_word_lyrics
+
+    path = tmp_path / "alternating-colors.ass"
+    write_campaign_word_lyrics(
+        [
+            {"word": "Red", "start": 0.0, "end": 0.4},
+            {"word": "White", "start": 0.4, "end": 0.8},
+            {"word": "Red", "start": 0.8, "end": 1.2},
+        ],
+        2.0,
+        path,
+        1080,
+        1920,
+        style="dynamic",
+        text_color="#FF0000",
+        highlight_color="#FFFFFF",
+    )
+    content = path.read_text(encoding="utf-8")
+    assert "\\c&H000000FF&" in content
+    assert "\\c&H00FFFFFF&" in content
+
+
+def test_campaign_word_lyrics_karaoke_uses_selected_primary_and_highlight_colors(tmp_path):
+    from clipyyy.render import write_campaign_word_lyrics
+
+    path = tmp_path / "custom-karaoke-colors.ass"
+    write_campaign_word_lyrics(
+        [
+            {"word": "Red", "start": 0.0, "end": 0.4},
+            {"word": "White", "start": 0.4, "end": 0.8},
+        ],
+        2.0,
+        path,
+        1080,
+        1920,
+        style="karaoke",
+        text_color="#FF0000",
+        highlight_color="#FFFFFF",
+    )
+    content = path.read_text(encoding="utf-8")
+    assert "\\c&H000000FF&" in content
+    assert "\\2c&H00FFFFFF&" in content
