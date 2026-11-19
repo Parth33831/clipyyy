@@ -400,7 +400,7 @@ def render_campaign_montages(
                 visual = hooked
             if lyrics:
                 overlay = edit_dir / "campaign-lyrics.ass"
-                write_campaign_lyrics(lyrics, duration, overlay, width, height)
+                write_campaign_lyrics(lyrics, duration, overlay, width, height, offset_seconds=music_start)
                 visual = edit_dir / "montage-lyrics.mp4"
                 run_ffmpeg(
                     [
@@ -562,7 +562,14 @@ def _normalize_montage_duration(
     return output
 
 
-def write_campaign_lyrics(lines: list[str], duration: float, path: Path, width: int, height: int) -> Path:
+def write_campaign_lyrics(
+    lines: list[str],
+    duration: float,
+    path: Path,
+    width: int,
+    height: int,
+    offset_seconds: float = 0.0,
+) -> Path:
     """Burn only creator-supplied lyric/text lines, timed evenly over the montage."""
     from clipyyy.captions import _ass_color, _escape, _ts
 
@@ -596,7 +603,9 @@ def write_campaign_lyrics(lines: list[str], duration: float, path: Path, width: 
         if match:
             minutes, seconds, fraction, text = match.groups()
             centiseconds = int((fraction or "0").ljust(2, "0")[:2])
-            timed_lines.append((int(minutes) * 60 + int(seconds) + centiseconds / 100, text))
+            relative_start = int(minutes) * 60 + int(seconds) + centiseconds / 100 - offset_seconds
+            if 0 <= relative_start < duration:
+                timed_lines.append((relative_start, text))
     if timed_lines:
         for index, (start, line) in enumerate(timed_lines):
             end = timed_lines[index + 1][0] if index + 1 < len(timed_lines) else duration
