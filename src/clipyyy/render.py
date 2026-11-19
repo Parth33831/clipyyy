@@ -894,7 +894,18 @@ def write_campaign_lyrics(
                 )
                 caption_text = treatment + _escape(line)
             script.append(dialogue + caption_text)
-    script = [line.replace("&H00FFFFFF&", primary).replace("&H0000D7FF&", accent).replace("&H00D7FF&", accent).replace("&H66E6FF&", accent).replace("&H99CCFF&", accent) for line in script]
+    color_replacements = {
+        "&H00FFFFFF&": primary,
+        "&HFFFFFF&": primary,
+        "&H0000D7FF&": accent,
+        "&H00D7FF&": accent,
+        "&H66E6FF&": accent,
+        "&H99CCFF&": accent,
+    }
+    for index, line in enumerate(script):
+        for original, chosen in color_replacements.items():
+            line = line.replace(original, chosen)
+        script[index] = line
     path.write_text("\n".join(script) + "\n", encoding="utf-8")
     return path
 
