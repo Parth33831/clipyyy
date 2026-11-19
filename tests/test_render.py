@@ -192,3 +192,54 @@ def test_render_campaign_montage_from_multiple_sources(tmp_path):
     assert (width, height) == (1080, 1920)
     assert 8.0 <= duration <= 9.5
     assert render["lyrics_overlay"] is True
+
+
+def test_music_analysis_selects_high_energy_section_and_finds_beats(monkeypatch):
+    from array import array
+    from types import SimpleNamespace
+
+    from clipyyy import render
+
+    sample_rate = 11025
+    frame = 551
+    samples = array("f")
+    for index in range(240):
+        amplitude = 0.05
+        if index >= 60 and (index - 60) % 10 == 0:
+            amplitude = 0.9
+        samples.extend([amplitude] * frame)
+    monkeypatch.setattr(
+        render.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(stdout=samples.tobytes(), returncode=0),
+    )
+    analysis = render.analyze_campaign_music(tmp_path / "track.mp3", 3.0)
+    assert analysis["duration_seconds"] == pytest.approx(12.0, abs=0.1)
+    assert analysis["best_start_seconds"] >= 2.5
+    assert analysis["bpm"] == 120
+    assert len(analysis["beat_times"]) >= 4
+
+
+def test_campaign_lyrics_lrc_timestamps_are_shifted_to_selected_music_section(tmp_path):
+    from clipyyy.render import write_campaign_lyrics
+
+    path = write_campaign_lyrics(
+        ["[00:10.00]First lyric", "[00:11.50]Second lyric", "[00:25.00]Outside selected section"],
+        5.0,
+        tmp_path / "timed.ass",
+        1080,
+        1920,
+        offset_seconds=10.0,
+    )
+    script = path.read_text(encoding="utf-8")
+    assert "First lyric" in script
+    assert "Second lyric" in script
+    assert "Outside selected section" not in script
+    assert "0:00:00.00" in script
+
+
+def test_campaign_hook_overlay_is_written(tmp_path):
+    from clipyyy.render import write_campaign_hook
+
+    path = write_campaign_hook("Wait for the drop", 2.5, tmp_path / "hook.ass", 1080, 1920)
+    assert "Wait for the drop" in path.read_text(encoding="utf-8")
