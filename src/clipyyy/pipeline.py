@@ -44,7 +44,9 @@ class ClipOptions(BaseModel):
         "", max_length=12000, description="Optional creator-provided or locally transcribed lyric lines"
     )
     campaign_lyrics_source: str | None = Field(None, description="Origin of the campaign lyric draft")
-    campaign_lyrics_style: Literal["dynamic", "cinematic", "minimal", "karaoke"] = "dynamic"
+    campaign_lyrics_style: Literal[
+        "dynamic", "cinematic", "minimal", "karaoke", "zoom", "bounce", "pulse", "glitch"
+    ] = "dynamic"
     campaign_hook_text: str = Field("", max_length=160)
     include_campaign_hook: bool = False
     model: str | None = Field(None, description="Override the default LLM model")
@@ -451,6 +453,46 @@ def execute(run: dict[str, Any], on_stage: Callable[[str], None] | None = None) 
         ctx.state[name] = result
         db.set_stage(run_id, name, "done")
     db.update_run(run_id, status="completed", current_stage=None, error=None)
+
+
+def rerender_campaign(run_id: str) -> dict:
+    """Re-render an existing campaign with its saved footage and edit plan."""
+    run = db.get_run(run_id)
+    if run is None:
+        raise ValueError("Run not found.")
+    if not run["options"].get("campaign_mode"):
+        raise ValueError("Instant lyric styling is only available for campaign edits.")
+    work_dir = run_dir(run_id) / "work"
+    out_dir = run_dir(run_id) / "clips"
+    download_file = work_dir / "download.json"
+    select_file = work_dir / "select.json"
+    if not download_file.is_file() or not select_file.is_file():
+        raise ValueError("The saved campaign footage and edit plan are not available.")
+    source = json.loads(download_file.read_text(encoding="utf-8"))
+    selection = json.loads(select_file.read_text(encoding="utf-8"))
+    options = dict(run["options"])
+    options["campaign_plan"] = selection.get("campaign_plan")
+    from clipyyy.render import render_campaign_montages
+
+    result = render_campaign_montages(source, selection, work_dir, out_dir, options)
+    by_rank = {item["rank"]: item for item in result["renders"]}
+    for clip in db.list_clips(run_id):
+        rendered = by_rank.get(clip["rank"])
+        if rendered and rendered.get("status") == "ready":
+            db.update_clip(
+                clip["id"],
+                file_path=rendered["file_path"],
+                width=rendered["width"],
+                height=rendered["height"],
+                duration_seconds=rendered["duration_seconds"],
+                status="ready",
+                error=None,
+            )
+    (work_dir / "render.json").write_text(
+        json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    db.update_run(run_id, status="completed", current_stage=None, error=None)
+    return result
 
 
 def retry(run_id: str, from_stage: str | None = None) -> None:
