@@ -200,18 +200,17 @@ def remove_timed_intervals(video: Path, intervals: list[tuple[float, float]]) ->
 
     audio = has_audio(video)
     filters = []
-    video_labels = []
-    audio_labels = []
+    concat_labels = []
     for index, (start, end) in enumerate(keep):
         filters.append(f"[0:v]trim=start={start:.3f}:end={end:.3f},setpts=PTS-STARTPTS[v{index}]")
-        video_labels.append(f"[v{index}]")
+        concat_labels.append(f"[v{index}]")
         if audio:
             filters.append(f"[0:a]atrim=start={start:.3f}:end={end:.3f},asetpts=PTS-STARTPTS[a{index}]")
-            audio_labels.append(f"[a{index}]")
+            concat_labels.append(f"[a{index}]")
     if audio:
-        filters.append("".join(video_labels + audio_labels) + f"concat=n={len(keep)}:v=1:a=1[vout][aout]")
+        filters.append("".join(concat_labels) + f"concat=n={len(keep)}:v=1:a=1[vout][aout]")
     else:
-        filters.append("".join(video_labels) + f"concat=n={len(keep)}:v=1:a=0[vout]")
+        filters.append("".join(concat_labels) + f"concat=n={len(keep)}:v=1:a=0[vout]")
 
     temporary = video.with_name(f"{video.stem}-filler-cleaned{video.suffix}")
     args = ["-i", str(video), "-filter_complex", ";".join(filters), "-map", "[vout]"]
