@@ -227,7 +227,6 @@ def test_campaign_montage_duration_normalization_pads_or_trims(tmp_path, monkeyp
     assert "trim=duration=15.000" in trimmed_filter
 
 
-
 def test_text_only_montage_uses_detected_scene_boundaries():
     from clipyyy.campaign import _build_text_only_montage
 
