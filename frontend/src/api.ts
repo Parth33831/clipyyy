@@ -186,11 +186,11 @@ export const api = {
   saveCampaignLyrics: (
     id: string,
     lyrics: string,
-    lyricsStyle: 'dynamic' | 'cinematic' | 'minimal' | 'karaoke',
+    lyricsStyle: 'dynamic' | 'cinematic' | 'minimal' | 'karaoke' | 'zoom' | 'bounce' | 'pulse' | 'glitch',
     hookText: string,
     includeHook: boolean,
   ) =>
-    request<{ saved: boolean; characters: number }>(`/api/runs/${id}/campaign-lyrics`, {
+    request<{ saved: boolean; rendered: boolean; characters: number; outputs: number }>(`/api/runs/${id}/campaign-lyrics`, {
       method: 'PUT',
       body: JSON.stringify({ lyrics, lyrics_style: lyricsStyle, hook_text: hookText, include_hook: includeHook }),
     }),
