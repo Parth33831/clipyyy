@@ -155,3 +155,39 @@ def test_campaign_options_preserve_creative_settings():
     assert options["campaign_lyrics_style"] == "cinematic"
     assert options["campaign_hook_text"] == "Stay until the end"
     assert options["include_campaign_hook"] is True
+
+
+def test_campaign_transcribe_processes_each_source_locally(monkeypatch, tmp_path):
+    from clipyyy import transcribe as transcribe_module
+
+    calls = []
+
+    def fake_transcribe(path, work_dir, model_size, language):
+        calls.append((path.name, model_size, language, work_dir.name))
+        return {
+            "language": "en",
+            "sentences": [{"text": "Please stay with me.", "start": 1.0, "end": 2.5}],
+        }
+
+    monkeypatch.setattr(transcribe_module, "transcribe", fake_transcribe)
+    monkeypatch.setattr(pipeline, "get_setting", lambda key: "tiny" if key == "whisper_model" else "")
+    sources = [
+        {"video_path": str(tmp_path / "one.mp4"), "title": "One"},
+        {"video_path": str(tmp_path / "two.mp4"), "title": "Two"},
+    ]
+    ctx = pipeline.Context(
+        run_id="campaign-transcribe-test",
+        source="[]",
+        options=pipeline.ClipOptions(campaign_mode=True).model_dump(),
+        work_dir=tmp_path / "work",
+        out_dir=tmp_path / "out",
+        state={"download": {"sources": sources}},
+    )
+    ctx.work_dir.mkdir()
+
+    result = pipeline.stage_transcribe(ctx)
+
+    assert [call[0] for call in calls] == ["one.mp4", "two.mp4"]
+    assert all(call[1] == "tiny" and call[2] == "auto" for call in calls)
+    assert result["language"] == "campaign-sources"
+    assert result["sources"][1]["sentences"][0]["text"] == "Please stay with me."
