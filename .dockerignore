@@ -1,6 +1,0 @@
-.venv
-.git
-frontend/node_modules
-src/clipyyy/web
-data
-**/__pycache__
