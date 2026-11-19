@@ -1,7 +1,9 @@
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
-from clipyyy import db
+from clipyyy import db, pipeline
 from clipyyy.api import create_app
 
 
@@ -158,3 +160,40 @@ def test_run_download_archive_is_persisted_under_clipyyy_home(client, tmp_path):
 
     with zipfile.ZipFile(archive) as zf:
         assert "rendered-clip.mp4" in zf.namelist()
+
+
+def test_run_detail_exposes_filler_removal_count(client):
+    run = db.create_run("local.mp4", {})
+    db.replace_clips(
+        run["id"],
+        [
+            {
+                "rank": 1,
+                "start_seconds": 1.0,
+                "end_seconds": 10.0,
+                "duration_seconds": 8.0,
+                "title": "Test clip",
+                "post_title": "Test clip",
+                "caption": "A caption",
+                "hashtags": [],
+                "rationale": "A reason",
+                "score": None,
+                "transcript": "A transcript",
+                "file_path": None,
+                "width": 1080,
+                "height": 1920,
+                "status": "ready",
+                "error": None,
+            }
+        ],
+    )
+    render_file = pipeline.run_dir(run["id"]) / "work" / "render.json"
+    render_file.parent.mkdir(parents=True, exist_ok=True)
+    render_file.write_text(
+        json.dumps({"renders": [{"rank": 1, "filler_words_removed": 2}]}),
+        encoding="utf-8",
+    )
+
+    detail = client.get(f"/api/runs/{run['id']}").json()
+
+    assert detail["clips"][0]["filler_words_removed"] == 2

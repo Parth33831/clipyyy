@@ -325,6 +325,12 @@ export function NewRunPage() {
           </Section>}
 
           {!options.campaign_mode && <Section title="Edit">
+            <Toggle
+              checked={options.remove_filler_words}
+              onChange={(v) => set('remove_filler_words', v)}
+              label="Remove filler words"
+              hint="Conservatively cuts standalone English “um”, “uh”, “erm” and “er” from the finished clip. Off by default."
+            />
             <Toggle checked={options.face_tracking} onChange={(v) => set('face_tracking', v)} label="Follow the speaker" hint="Keeps the face in frame. Off uses a centre crop" />
             <Toggle
               checked={options.broll}

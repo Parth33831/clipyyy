@@ -456,6 +456,11 @@ function ClipCard({
             <span>
               {formatDuration(clip.start_seconds)} → {formatDuration(clip.end_seconds)}
             </span>
+            {Boolean(clip.filler_words_removed) && (
+              <span className="text-ok">
+                {clip.filler_words_removed} filler {clip.filler_words_removed === 1 ? 'word' : 'words'} removed
+              </span>
+            )}
           </div>
         </div>
 
