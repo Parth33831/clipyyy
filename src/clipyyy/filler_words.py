@@ -7,7 +7,7 @@ import re
 FILLERS = frozenset({"um", "uh", "erm", "er"})
 SAFETY_PADDING = 0.025
 MIN_NEIGHBOUR_GAP = 0.015
-_TOKEN = re.compile(r"^[^\\w]*([a-z]+)[^\\w]*$", re.IGNORECASE)
+_TOKEN = re.compile(r"^\W*([a-z]+)\W*$", re.IGNORECASE)
 
 
 def filler_intervals(
