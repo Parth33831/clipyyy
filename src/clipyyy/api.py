@@ -389,6 +389,7 @@ def run_detail(run_id: str) -> dict:
     source_file = pipeline.run_dir(run_id) / "work" / "download.json"
     select_file = pipeline.run_dir(run_id) / "work" / "select.json"
     render_file = pipeline.run_dir(run_id) / "work" / "render.json"
+    selection_data = {}
     campaign_plan = None
     campaign_edits = []
     campaign_original_edits = []
@@ -401,7 +402,7 @@ def run_detail(run_id: str) -> dict:
         campaign_original_edits = selection_data.get("campaign_original_edits") or campaign_edits
     if source_file.exists() and run["options"].get("campaign_mode"):
         source_data = json.loads(source_file.read_text(encoding="utf-8"))
-        source_items = source_data.get("sources") or [source_data]
+        source_items = selection_data.get("campaign_sources") or source_data.get("sources") or [source_data]
         campaign_sources = [
             {
                 "index": index,
