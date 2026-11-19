@@ -40,7 +40,7 @@ export function RunDetailPage() {
     setLyricsHighlightColor(run.data?.options.campaign_lyrics_highlight_color ?? '#00D7FF')
     setLyricsWordsOnScreen(run.data?.options.campaign_lyrics_words_on_screen ?? 3)
     setCampaignEdits(run.data?.campaign_edits ?? [])
-  }, [runId, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.campaign_plan?.generated_hook])
+  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.campaign_plan?.generated_hook])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -305,6 +305,7 @@ export function RunDetailPage() {
       {data.options.campaign_mode && !busy && campaignEdits.length > 0 && (
         <CampaignStoryboardEditor
           edits={campaignEdits}
+          savedEdits={data.campaign_edits}
           originalEdits={data.campaign_original_edits ?? data.campaign_edits}
           sources={data.campaign_sources ?? []}
           saving={saveMontage.isPending}
@@ -353,6 +354,7 @@ export function RunDetailPage() {
 
 function CampaignStoryboardEditor({
   edits,
+  savedEdits,
   originalEdits,
   sources,
   saving,
@@ -361,6 +363,7 @@ function CampaignStoryboardEditor({
   onReset,
 }: {
   edits: CampaignEdit[]
+  savedEdits: CampaignEdit[]
   originalEdits: CampaignEdit[]
   sources: CampaignSource[]
   saving: boolean
@@ -369,7 +372,8 @@ function CampaignStoryboardEditor({
   onReset: () => void
 }) {
   const sourceByIndex = new Map(sources.map((source) => [source.index, source]))
-  const changed = JSON.stringify(edits) !== JSON.stringify(originalEdits)
+  const changed = JSON.stringify(edits) !== JSON.stringify(savedEdits)
+  const resetAvailable = JSON.stringify(savedEdits) !== JSON.stringify(originalEdits) || changed
   const shotCount = edits.reduce((total, edit) => total + edit.shots.length, 0)
 
   const updateShot = (editIndex: number, shotIndex: number, patch: Partial<CampaignShot>) => {
@@ -406,7 +410,7 @@ function CampaignStoryboardEditor({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="line" disabled={!changed || saving} onClick={onReset}>
+          <Button variant="line" disabled={!resetAvailable || saving} onClick={onReset}>
             <RotateCcw className="h-4 w-4" /> Reset AI plan
           </Button>
           <Button variant="ink" disabled={!changed || saving || edits.some((edit) => edit.shots.length < 3)} loading={saving} onClick={onSave}>
