@@ -46,6 +46,23 @@ class CampaignLyricsUpdate(BaseModel):
     include_hook: bool = False
 
 
+class CampaignShotEdit(BaseModel):
+    source_index: int = Field(..., ge=0)
+    start_seconds: float = Field(..., ge=0)
+    end_seconds: float = Field(..., gt=0)
+    reason: str = Field("", max_length=300)
+
+
+class CampaignEditUpdate(BaseModel):
+    rank: int = Field(..., ge=1)
+    title: str = Field(..., min_length=1, max_length=100)
+    shots: list[CampaignShotEdit] = Field(..., min_length=3, max_length=40)
+
+
+class CampaignMontageUpdate(BaseModel):
+    edits: list[CampaignEditUpdate] = Field(..., min_length=1, max_length=10)
+
+
 class UpdateSettings(BaseModel):
     values: dict[str, str | None]
 
@@ -168,6 +185,27 @@ def create_app(start_worker: bool = True) -> FastAPI:
             "saved": True,
             "rendered": True,
             "characters": len(body.lyrics),
+            "outputs": len(result.get("renders", [])),
+        }
+
+    @app.put("/api/runs/{run_id}/campaign-montage")
+    def update_campaign_montage(run_id: str, body: CampaignMontageUpdate) -> dict:
+        run = _run_or_404(run_id)
+        if not run["options"].get("campaign_mode"):
+            raise HTTPException(400, "Shot editing is only available for campaign runs.")
+        if run["status"] in {"queued", "running"}:
+            raise HTTPException(409, "Wait for the campaign run to finish before editing its shots.")
+        try:
+            result = pipeline.update_campaign_montage(
+                run_id, [edit.model_dump() for edit in body.edits]
+            )
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(500, f"Could not rebuild the campaign montage: {exc}") from exc
+        return {
+            "saved": True,
+            "rendered": True,
             "outputs": len(result.get("renders", [])),
         }
 
@@ -352,9 +390,26 @@ def run_detail(run_id: str) -> dict:
     select_file = pipeline.run_dir(run_id) / "work" / "select.json"
     render_file = pipeline.run_dir(run_id) / "work" / "render.json"
     campaign_plan = None
+    campaign_edits = []
+    campaign_original_edits = []
+    campaign_sources = []
     campaign_quality_checks = None
     if select_file.exists():
-        campaign_plan = json.loads(select_file.read_text(encoding="utf-8")).get("campaign_plan")
+        selection_data = json.loads(select_file.read_text(encoding="utf-8"))
+        campaign_plan = selection_data.get("campaign_plan")
+        campaign_edits = selection_data.get("campaign_edits", [])
+        campaign_original_edits = selection_data.get("campaign_original_edits") or campaign_edits
+    if source_file.exists() and run["options"].get("campaign_mode"):
+        source_data = json.loads(source_file.read_text(encoding="utf-8"))
+        source_items = source_data.get("sources") or [source_data]
+        campaign_sources = [
+            {
+                "index": index,
+                "title": item.get("title") or f"Source {index + 1}",
+                "duration_seconds": float(item.get("duration_seconds") or 0),
+            }
+            for index, item in enumerate(source_items)
+        ]
     render_data = {}
     if render_file.exists():
         render_data = json.loads(render_file.read_text(encoding="utf-8"))
@@ -371,6 +426,9 @@ def run_detail(run_id: str) -> dict:
         **run,
         "source_duration": source_duration,
         "campaign_plan": campaign_plan,
+        "campaign_edits": campaign_edits,
+        "campaign_original_edits": campaign_original_edits,
+        "campaign_sources": campaign_sources,
         "campaign_quality_checks": campaign_quality_checks,
         "stages": stages,
         "clips": [
