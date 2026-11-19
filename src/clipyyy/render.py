@@ -394,9 +394,22 @@ def render_campaign_montages(
                 hooked = edit_dir / "montage-hook.mp4"
                 run_ffmpeg(
                     [
-                        "-i", str(visual), "-vf", ass_filter(hook_overlay), "-an",
-                        "-c:v", "libx264", "-preset", "veryfast", "-crf", "19",
-                        "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(hooked),
+                        "-i",
+                        str(visual),
+                        "-vf",
+                        ass_filter(hook_overlay),
+                        "-an",
+                        "-c:v",
+                        "libx264",
+                        "-preset",
+                        "veryfast",
+                        "-crf",
+                        "19",
+                        "-pix_fmt",
+                        "yuv420p",
+                        "-movflags",
+                        "+faststart",
+                        str(hooked),
                     ]
                 )
                 visual = hooked
