@@ -97,20 +97,32 @@ def stage_transcribe(ctx: Context) -> dict:
         for index, source in enumerate(sources):
             source_work = ctx.work_dir / f"campaign-dialogue-{index + 1:02d}"
             source_work.mkdir(parents=True, exist_ok=True)
-            result = transcribe(
-                Path(source["video_path"]),
-                source_work,
-                model_size,
-                ctx.options.get("language", "auto"),
-            )
-            transcripts.append(
-                {
-                    "source_index": index,
-                    "title": source.get("title") or f"Source {index + 1}",
-                    "language": result.get("language"),
-                    "sentences": result.get("sentences", []),
-                }
-            )
+            try:
+                result = transcribe(
+                    Path(source["video_path"]),
+                    source_work,
+                    model_size,
+                    ctx.options.get("language", "auto"),
+                )
+                transcripts.append(
+                    {
+                        "source_index": index,
+                        "title": source.get("title") or f"Source {index + 1}",
+                        "language": result.get("language"),
+                        "sentences": result.get("sentences", []),
+                    }
+                )
+            except Exception as exc:
+                logger.warning("Could not transcribe campaign source %s: %s", index, exc)
+                transcripts.append(
+                    {
+                        "source_index": index,
+                        "title": source.get("title") or f"Source {index + 1}",
+                        "language": None,
+                        "sentences": [],
+                        "error": str(exc),
+                    }
+                )
         return {"language": "campaign-sources", "sources": transcripts}
     return transcribe(
         Path(ctx.state["download"]["video_path"]),
@@ -366,11 +378,6 @@ def stage_render(ctx: Context) -> dict:
         }
         music_path = render_options.get("campaign_music_path")
         campaign_plan = render_options.get("campaign_plan") or {}
-        lyric_requirements = " ".join(
-            str(campaign_plan.get(key) or "")
-            for key in ("audio_mode", "on_screen_text_requirements", "mandatory_content")
-        ).lower()
-        lyrics_requested = "lyric" in lyric_requirements
         # A supplied song is enough to offer a timed local lyric draft; do not make
         # this depend on whether the campaign brief happened to contain the word lyric.
         if music_path and not render_options.get("campaign_lyrics", "").strip():
