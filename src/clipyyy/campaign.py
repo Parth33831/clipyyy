@@ -250,7 +250,7 @@ def _build_text_only_montage(
     if not usable:
         raise ValueError("No usable source footage is available for a text-only montage.")
 
-    candidates: list[tuple[int, float]] = []
+    candidates: list[tuple[int, float, bool]] = []
     for source_index, duration in usable:
         frames = analyses[source_index].get("frames", []) if analyses and source_index < len(analyses) else []
         for frame in frames:
@@ -259,16 +259,24 @@ def _build_text_only_montage(
             except (KeyError, TypeError, ValueError):
                 continue
             if 0.25 < timestamp < duration - 1.0:
-                candidates.append((source_index, timestamp))
-
-    # If FFmpeg found no scene changes, retain a transparent deterministic fallback.
-    if not candidates:
-        for source_index, duration in usable:
-            for index in range(1, 25):
-                candidates.append((source_index, duration * index / 25))
-    candidates.sort(key=lambda item: (item[0], item[1]))
+                candidates.append((source_index, timestamp, True))
 
     shot_count = max(5, min(24, round(target_seconds / 2.5)))
+    required_candidates = shot_count * max(1, output_count)
+    # Sparse cuts are supplemented with clearly identified time samples so short or static
+    # footage can still render instead of failing after scene detection.
+    if len(candidates) < required_candidates:
+        per_source = max(24, (required_candidates + len(usable) - 1) // len(usable) + 8)
+        existing = {(source_index, round(timestamp, 1)) for source_index, timestamp, _ in candidates}
+        for source_index, duration in usable:
+            for index in range(1, per_source + 1):
+                timestamp = duration * index / (per_source + 1)
+                key = (source_index, round(timestamp, 1))
+                if key not in existing:
+                    candidates.append((source_index, timestamp, False))
+                    existing.add(key)
+    candidates.sort(key=lambda item: (item[0], item[1]))
+
     # Crossfades shorten the assembled timeline; include their overlap in source footage.
     source_time_needed = target_seconds + 0.28 * (shot_count - 1)
     pattern = [1.9, 2.5, 2.1, 2.9, 2.2, 2.6]
@@ -279,44 +287,49 @@ def _build_text_only_montage(
         shot_lengths = [source_time_needed / shot_count] * shot_count
 
     edits = []
+    segment_size = max(shot_count, len(candidates) // max(1, output_count))
     for rank in range(1, output_count + 1):
         shots = []
         used: set[tuple[int, int]] = set()
+        segment_start = (rank - 1) * segment_size
+        segment_end = len(candidates) if rank == output_count else min(len(candidates), segment_start + segment_size)
+        segment_candidates = candidates[segment_start:segment_end]
         for index, shot_length in enumerate(shot_lengths):
-            rank_offset = max(1, len(candidates) // (output_count * shot_count))
-            candidate_index = (index * len(candidates) // shot_count + (rank - 1) * rank_offset) % len(
-                candidates
+            candidate_index = min(
+                len(segment_candidates) - 1,
+                int((index + 0.5) * len(segment_candidates) / shot_count),
             )
-            source_index, timestamp = candidates[candidate_index]
+            source_index, timestamp, is_scene_change = segment_candidates[candidate_index]
             duration = float(sources[source_index].get("duration_seconds") or 0)
             start = min(max(0.0, timestamp + 0.06), max(0.0, duration - shot_length))
             end = min(duration, start + shot_length)
             key = (source_index, round(start / 1.5))
             if key in used:
-                for offset in range(1, len(candidates)):
-                    alt_source, alt_timestamp = candidates[(candidate_index + offset) % len(candidates)]
+                for alt_source, alt_timestamp, alt_is_scene_change in segment_candidates:
                     alt_duration = float(sources[alt_source].get("duration_seconds") or 0)
                     alt_start = min(max(0.0, alt_timestamp + 0.06), max(0.0, alt_duration - shot_length))
                     alt_key = (alt_source, round(alt_start / 1.5))
                     if alt_key not in used:
                         source_index, duration, start = alt_source, alt_duration, alt_start
-                        end, key = min(alt_duration, alt_start + shot_length), alt_key
+                        end, key, is_scene_change = min(alt_duration, alt_start + shot_length), alt_key, alt_is_scene_change
                         break
             if end - start >= 1.25 and key not in used:
                 used.add(key)
+                reason = (
+                    "Selected near an FFmpeg-detected scene change; semantic anime content was not analysed."
+                    if is_scene_change
+                    else "Fallback time sample; scene/character semantics were not analysed by the text-only model."
+                )
                 shots.append(
                     {
                         "source_index": source_index,
                         "start_seconds": round(start, 3),
                         "end_seconds": round(end, 3),
-                        "reason": (
-                            "Selected near an FFmpeg-detected scene change; the installed text-only "
-                            "model did not identify anime characters or story events."
-                        ),
+                        "reason": reason,
                     }
                 )
         if len(shots) < 3:
-            raise ValueError("Not enough distinct scene changes were found for a varied montage.")
+            raise ValueError("Not enough distinct footage windows were available for a varied montage.")
         edits.append({"rank": rank, "title": f"Campaign montage {rank}", "shots": shots})
     return edits
 
