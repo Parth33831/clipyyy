@@ -184,7 +184,12 @@ def test_render_campaign_montage_from_multiple_sources(tmp_path):
         selection,
         tmp_path / "work",
         tmp_path / "out",
-        {"aspect_ratio": "9:16", "campaign_lyrics": "First line\\nSecond line", "campaign_music_path": None},
+        {
+            "aspect_ratio": "9:16",
+            "campaign_lyrics": "\\n".join(["First line", "Second line"]),
+            "campaign_music_path": None,
+            "campaign_plan": {"target_duration_seconds": 9.0, "generated_hook": "Wait for the drop"},
+        },
     )
     render = result["renders"][0]
     assert render["status"] == "ready", render.get("error")
@@ -192,6 +197,7 @@ def test_render_campaign_montage_from_multiple_sources(tmp_path):
     assert (width, height) == (1080, 1920)
     assert 8.0 <= duration <= 9.5
     assert render["lyrics_overlay"] is True
+    assert result["quality_checks"]["opening_hook"] == "Wait for the drop"
 
 
 def test_music_analysis_selects_high_energy_section_and_finds_beats(monkeypatch, tmp_path):
