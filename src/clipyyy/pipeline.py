@@ -190,7 +190,12 @@ def stage_select(ctx: Context) -> dict:
                 except Exception as exc:
                     logger.info("Could not analyse campaign reference %s: %s", reference_url, exc)
         count = min(10, plan.get("output_count") or options["clip_count"])
-        target = plan.get("target_duration_seconds") or options["max_seconds"]
+        requested_target = float(plan.get("target_duration_seconds") or options["max_seconds"])
+        # The editor's explicit duration range is a hard constraint. A brief extraction
+        # outside that range must not silently override the user's configured range.
+        minimum_target = float(options.get("min_seconds") or 5)
+        maximum_target = float(options.get("max_seconds") or requested_target)
+        target = min(max(requested_target, minimum_target), maximum_target)
         edits = build_montage_plan(
             llm,
             campaign_brief,
