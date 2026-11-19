@@ -152,7 +152,7 @@ def build_montage_plan(
         "Visual content unavailable" in str(item.get("description", "")) for item in candidates
     )
     if candidates and text_only_frames:
-        return _build_text_only_montage(sources, output_count, target_seconds)
+        return _build_text_only_montage(sources, output_count, target_seconds, analyses)
     if len(candidates) < 3:
         raise ValueError(
             "Not enough visual scenes could be analysed. Use a vision-capable model and clear source videos."
@@ -236,9 +236,12 @@ def build_montage_plan(
 
 
 def _build_text_only_montage(
-    sources: list[dict], output_count: int, target_seconds: float
+    sources: list[dict],
+    output_count: int,
+    target_seconds: float,
+    analyses: list[dict] | None = None,
 ) -> list[dict[str, Any]]:
-    """Create distinct, evenly distributed edits when no local vision model is installed."""
+    """Build varied edits around detected scene boundaries without claiming visual understanding."""
     usable = [
         (i, float(source.get("duration_seconds") or 0))
         for i, source in enumerate(sources)
@@ -246,40 +249,73 @@ def _build_text_only_montage(
     ]
     if not usable:
         raise ValueError("No usable source footage is available for a text-only montage.")
-    shot_count = max(3, min(24, int((target_seconds + 3.9) // 4)))
-    shot_length = min(5.0, max(2.0, target_seconds / shot_count))
-    per_source_count = (shot_count + len(usable) - 1) // len(usable)
-    total_slots = max(1, per_source_count * output_count)
+
+    candidates: list[tuple[int, float]] = []
+    for source_index, duration in usable:
+        frames = analyses[source_index].get("frames", []) if analyses and source_index < len(analyses) else []
+        for frame in frames:
+            try:
+                timestamp = float(frame["timestamp"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if 0.25 < timestamp < duration - 1.0:
+                candidates.append((source_index, timestamp))
+
+    # If FFmpeg found no scene changes, retain a transparent deterministic fallback.
+    if not candidates:
+        for source_index, duration in usable:
+            for index in range(1, 25):
+                candidates.append((source_index, duration * index / 25))
+    candidates.sort(key=lambda item: (item[0], item[1]))
+
+    shot_count = max(5, min(24, round(target_seconds / 2.5)))
+    # Crossfades shorten the assembled timeline; include their overlap in source footage.
+    source_time_needed = target_seconds + 0.28 * (shot_count - 1)
+    pattern = [1.9, 2.5, 2.1, 2.9, 2.2, 2.6]
+    weights = [pattern[index % len(pattern)] for index in range(shot_count)]
+    scale = source_time_needed / sum(weights)
+    shot_lengths = [weight * scale for weight in weights]
+    if max(shot_lengths) > 4.0 or min(shot_lengths) < 1.25:
+        shot_lengths = [source_time_needed / shot_count] * shot_count
+
     edits = []
     for rank in range(1, output_count + 1):
         shots = []
-        source_slots = [0] * len(usable)
-        for index in range(shot_count):
-            usable_index = (index + rank - 1) % len(usable)
-            source_index, duration = usable[usable_index]
-            local_slot = source_slots[usable_index]
-            source_slots[usable_index] += 1
-            global_slot = (rank - 1) * per_source_count + local_slot
-            available = max(0.0, duration - shot_length)
-            start = available * global_slot / max(1, total_slots - 1)
+        used: set[tuple[int, int]] = set()
+        for index, shot_length in enumerate(shot_lengths):
+            candidate_index = (index * len(candidates) // shot_count + (rank - 1) * max(1, len(candidates) // (output_count * shot_count))) % len(candidates)
+            source_index, timestamp = candidates[candidate_index]
+            duration = float(sources[source_index].get("duration_seconds") or 0)
+            start = min(max(0.0, timestamp + 0.06), max(0.0, duration - shot_length))
             end = min(duration, start + shot_length)
-            if end - start >= 1.5:
+            key = (source_index, round(start / 1.5))
+            if key in used:
+                for offset in range(1, len(candidates)):
+                    alt_source, alt_timestamp = candidates[(candidate_index + offset) % len(candidates)]
+                    alt_duration = float(sources[alt_source].get("duration_seconds") or 0)
+                    alt_start = min(max(0.0, alt_timestamp + 0.06), max(0.0, alt_duration - shot_length))
+                    alt_key = (alt_source, round(alt_start / 1.5))
+                    if alt_key not in used:
+                        source_index, duration, start = alt_source, alt_duration, alt_start
+                        end, key = min(alt_duration, alt_start + shot_length), alt_key
+                        break
+            if end - start >= 1.25 and key not in used:
+                used.add(key)
                 shots.append(
                     {
                         "source_index": source_index,
                         "start_seconds": round(start, 3),
                         "end_seconds": round(end, 3),
                         "reason": (
-                            "Distinct timestamp sample; visual content was not analysed "
-                            "by the installed text-only model."
+                            "Selected near an FFmpeg-detected scene change; the installed text-only "
+                            "model did not identify anime characters or story events."
                         ),
                     }
                 )
         if len(shots) < 3:
-            raise ValueError("Source videos are too short for a useful text-only montage.")
+            raise ValueError("Not enough distinct scene changes were found for a varied montage.")
         edits.append({"rank": rank, "title": f"Campaign montage {rank}", "shots": shots})
     return edits
-
 
 def format_campaign_plan(plan: dict[str, Any]) -> str:
     """Compact, explicit plan for downstream creative selection."""
