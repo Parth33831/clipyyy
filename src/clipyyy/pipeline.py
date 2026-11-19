@@ -44,7 +44,7 @@ class ClipOptions(BaseModel):
         "", max_length=12000, description="Optional creator-provided or locally transcribed lyric lines"
     )
     campaign_lyrics_source: str | None = Field(None, description="Origin of the campaign lyric draft")
-    campaign_lyrics_style: Literal["dynamic", "cinematic", "minimal"] = "dynamic"
+    campaign_lyrics_style: Literal["dynamic", "cinematic", "minimal", "karaoke"] = "dynamic"
     campaign_hook_text: str = Field("", max_length=160)
     include_campaign_hook: bool = False
     model: str | None = Field(None, description="Override the default LLM model")
