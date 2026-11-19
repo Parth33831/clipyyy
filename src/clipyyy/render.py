@@ -311,7 +311,6 @@ def render_campaign_montages(
     music_analysis = analyze_campaign_music(music_path, target_duration) if music_path else None
     beat_times = music_analysis["beat_times"] if music_analysis else []
     music_start = float(music_analysis["best_start_seconds"]) if music_analysis else 0.0
-    beat_interval = music_analysis.get("beat_interval_seconds") if music_analysis else None
     hook = str(campaign_plan.get("generated_hook") or "").strip()
 
     for edit in selection.get("campaign_edits", []):
