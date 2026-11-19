@@ -39,6 +39,8 @@ class CampaignLyricsUpdate(BaseModel):
     lyrics_style: Literal[
         "dynamic", "cinematic", "minimal", "karaoke", "zoom", "bounce", "pulse", "glitch"
     ] = "dynamic"
+    lyrics_color: str = Field("#FFFFFF", pattern=r"^#[0-9A-Fa-f]{6}$")
+    highlight_color: str = Field("#00D7FF", pattern=r"^#[0-9A-Fa-f]{6}$")
     hook_text: str = Field("", max_length=160)
     include_hook: bool = False
 
@@ -150,6 +152,8 @@ def create_app(start_worker: bool = True) -> FastAPI:
                 run["options"].get("campaign_lyric_words", []) if lyrics_unchanged else []
             ),
             "campaign_lyrics_style": body.lyrics_style,
+            "campaign_lyrics_color": body.lyrics_color.upper(),
+            "campaign_lyrics_highlight_color": body.highlight_color.upper(),
             "campaign_hook_text": body.hook_text.strip(),
             "include_campaign_hook": body.include_hook,
         }

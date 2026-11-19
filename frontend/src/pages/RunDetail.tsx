@@ -27,12 +27,16 @@ export function RunDetailPage() {
   >('dynamic')
   const [hookText, setHookText] = useState('')
   const [includeHook, setIncludeHook] = useState(false)
+  const [lyricsColor, setLyricsColor] = useState('#FFFFFF')
+  const [lyricsHighlightColor, setLyricsHighlightColor] = useState('#00D7FF')
   useEffect(() => {
     setLyricsText(run.data?.options.campaign_lyrics ?? '')
     setLyricsStyle(run.data?.options.campaign_lyrics_style ?? 'dynamic')
     setHookText(run.data?.options.campaign_hook_text ?? String(run.data?.campaign_plan?.generated_hook ?? ''))
     setIncludeHook(Boolean(run.data?.options.include_campaign_hook))
-  }, [runId, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.campaign_plan?.generated_hook])
+    setLyricsColor(run.data?.options.campaign_lyrics_color ?? '#FFFFFF')
+    setLyricsHighlightColor(run.data?.options.campaign_lyrics_highlight_color ?? '#00D7FF')
+  }, [runId, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.campaign_plan?.generated_hook])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -56,7 +60,7 @@ export function RunDetailPage() {
     onError: (e) => toast.error(e.message),
   })
   const saveLyrics = useMutation({
-    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook),
+    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook, lyricsColor, lyricsHighlightColor),
     onSuccess: (result) => {
       toast.success(`Applied to ${result.outputs} existing edit(s) — no re-picking or lyric transcription.`)
       refresh()
@@ -203,6 +207,32 @@ export function RunDetailPage() {
             </select>
             <span className="text-xs text-muted">Change the preset or lyrics, then apply it to the existing montage. Saved shots and Whisper word timings are reused.</span>
           </label>
+          <div className="grid gap-4 rounded-lg border border-line bg-panel p-3 sm:grid-cols-2">
+            <label className="flex items-center justify-between gap-3 text-sm">
+              <span className="flex flex-col gap-1"><span className="font-medium">Lyrics color</span><span className="text-xs text-muted">Main caption text</span></span>
+              <input type="color" aria-label="Lyrics text color" value={lyricsColor} onChange={(event) => setLyricsColor(event.target.value.toUpperCase())} className="h-10 w-14 cursor-pointer rounded border border-line bg-transparent p-1" />
+            </label>
+            <label className="flex items-center justify-between gap-3 text-sm">
+              <span className="flex flex-col gap-1"><span className="font-medium">Highlight color</span><span className="text-xs text-muted">Active karaoke word / animation accent</span></span>
+              <input type="color" aria-label="Lyrics highlight color" value={lyricsHighlightColor} onChange={(event) => setLyricsHighlightColor(event.target.value.toUpperCase())} className="h-10 w-14 cursor-pointer rounded border border-line bg-transparent p-1" />
+            </label>
+            <div className="flex flex-wrap gap-2 sm:col-span-2">
+              {[
+                ['White', '#FFFFFF'], ['Red', '#FF3B4F'], ['Blue', '#3488FF'], ['Yellow', '#FFE14A'],
+                ['Pink', '#FF62B8'], ['Purple', '#A978FF'], ['Green', '#45D483'], ['Orange', '#FF963D'],
+              ].map(([name, value]) => (
+                <button key={value} type="button" onClick={() => setLyricsColor(value)} aria-label={name + ' lyrics color'} aria-pressed={lyricsColor === value}
+                  className={cn('h-7 w-7 rounded-full border-2 transition-transform', lyricsColor === value ? 'scale-110 border-ink' : 'border-line')}
+                  style={{ backgroundColor: value }} />
+              ))}
+            </div>
+            <div className="flex items-center justify-center rounded-lg bg-ink px-4 py-5 sm:col-span-2">
+              <p className="text-center text-xl font-extrabold tracking-wide" style={{ color: lyricsColor, textShadow: '0 2px 4px #000, 0 0 10px #000' }}>
+                <span>Pop it, </span><span style={{ color: lyricsHighlightColor }}>feel the beat</span>
+              </p>
+            </div>
+            <p className="text-xs text-muted sm:col-span-2">Colors are independent of animation style. Apply updates the existing edit without re-picking footage or re-transcribing the song.</p>
+          </div>
           <label className="flex flex-col gap-2 text-sm">
             <span className="font-medium">Lyrics / timed captions</span>
             <textarea
