@@ -185,11 +185,7 @@ def test_text_only_campaign_builds_timestamp_spread_without_visual_claims():
     )
     assert len(edits) == 2
     assert all(len(edit["shots"]) >= 3 for edit in edits)
-    assert all(
-        "not analysed" in shot["reason"].lower()
-        for edit in edits
-        for shot in edit["shots"]
-    )
+    assert all("not analysed" in shot["reason"].lower() for edit in edits for shot in edit["shots"])
 
 
 def test_text_only_campaign_outputs_use_distinct_time_ranges():
