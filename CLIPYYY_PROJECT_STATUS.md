@@ -83,6 +83,43 @@
 
 **Priority:** P1 — next after the current lyric/campaign UI testing is complete. It builds on existing word-level transcription and adds a clear creator-facing editing capability. Keep the full transcript editor, advanced timeline and subject-tracking upgrades for later separate assignments.
 
+
+## Next assignment: Campaign footage discovery (Pexels)
+
+**Owner:** Feature Development  
+**Branch:** `feature/campaign-footage-discovery`  
+**Base:** `main` at `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`  
+**Status:** In progress
+
+**Objective:** Reduce manual footage gathering for campaign edits by automatically discovering relevant stock-video candidates from the already-supported Pexels integration, using the extracted campaign brief and requirements.
+
+**V1 scope**
+1. Keep creator-supplied source videos as the primary footage and preserve their existing ordering/behaviour.
+2. Add an opt-in campaign control for automatic matching stock footage. If enabled and a Pexels key is configured, derive a small set of search queries from the structured campaign plan and fetch a bounded number of relevant Pexels videos.
+3. Download candidates only into the run's existing work directory under `CLIPYYY_HOME`; never use OS temp or C: paths.
+4. Include discovered footage in the campaign montage source pool with correct source indexes, duration checks and deduplication.
+5. Preserve Pexels author/page attribution in run details/export metadata.
+6. If the key is missing, search fails, or no suitable results exist, continue with creator-supplied footage and show a clear non-fatal status. Never silently switch to a paid API.
+7. Be explicit that text-only Ollama models cannot visually understand footage. Search relevance comes from the query; frame-level semantic matching remains available only with a compatible vision model.
+8. Do not scrape arbitrary YouTube videos or bypass access controls. Existing creator-supplied URLs remain supported subject to the creator having rights to use them.
+
+**Out of scope:** YouTube search/download automation, paid stock APIs, automatic social publishing, a full timeline editor, new vision-model downloads, or changing campaign music/lyrics rendering.
+
+**Likely modules:** New focused campaign asset discovery module; `pipeline.py`; `campaign.py` only if query derivation needs a helper; `frontend/src/api.ts`; `frontend/src/pages/NewRun.tsx`; `frontend/src/pages/RunDetail.tsx`; campaign/pipeline tests.
+
+**Acceptance criteria**
+- Feature is optional and disabled by default unless product review explicitly changes that decision.
+- Existing campaign runs without the option behave identically.
+- Creator-supplied source indexes remain stable; discovered sources are appended, not inserted before them.
+- Every discovered video is duration-validated, deduplicated, stored under the run work directory, and credited.
+- Missing Pexels key/network failure/no results never fail the campaign.
+- Text-only fallback never claims to have visually inspected stock footage.
+- Unit tests cover query generation, API response parsing, deduplication, source-index integrity, graceful fallback, and run-detail attribution.
+- Run backend tests, Ruff, frontend production build and relevant CI. Do not claim local Windows verification unless run locally.
+
+**Coordination note:** Existing stale branches `music-intelligence-hooks` and `creative-anime-editing` are divergent from current `main` and touch campaign/render modules. Do not merge or reuse them wholesale. This feature starts from current `main` and must avoid their unrelated changes.
+
+
 ## Safe development protocol
 
 1. Before coding, inspect `git status`, current branch, `git log -5 --oneline`, and latest remote refs in the local working tree.
