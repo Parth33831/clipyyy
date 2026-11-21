@@ -413,6 +413,7 @@ def test_remove_timed_intervals_keeps_audio_and_video_synchronized(tmp_path):
     assert duration == pytest.approx(5.0, abs=0.15)
     assert has_audio(source)
 
+
 def test_campaign_shot_filter_adds_subtle_movement_and_can_disable_it():
     from clipyyy.render import campaign_shot_filter, fill_filter
 
