@@ -490,3 +490,35 @@ def test_campaign_shot_filter_varies_direction_between_shots():
     assert first != second
     assert "sin(t*0.32+0.0000)" in first
     assert "sin(t*0.32+1.5708)" in second
+
+
+def test_campaign_transitions_use_the_requested_sequence(tmp_path, monkeypatch):
+    from clipyyy import render
+
+    captured = {}
+
+    monkeypatch.setattr(render, "probe", lambda path: (1080, 1920, 2.0))
+    monkeypatch.setattr(render, "run_ffmpeg", lambda args: captured.setdefault("args", args))
+
+    render._crossfade_segments(
+        [tmp_path / "shot-a.mp4", tmp_path / "shot-b.mp4", tmp_path / "shot-c.mp4"],
+        tmp_path / "montage.mp4",
+        fade_seconds=0.24,
+        transition_names=["smoothleft", "wipeleft"],
+    )
+
+    graph = captured["args"][captured["args"].index("-filter_complex") + 1]
+    assert "xfade=transition=smoothleft" in graph
+    assert "xfade=transition=wipeleft" in graph
+    assert "duration=0.24" in graph
+
+
+def test_campaign_transition_style_defaults_to_auto_and_rejects_unknown_values():
+    import pytest
+
+    from clipyyy.pipeline import ClipOptions
+
+    assert ClipOptions().campaign_transition_style == "auto"
+    assert ClipOptions(campaign_transition_style="dynamic").campaign_transition_style == "dynamic"
+    with pytest.raises(ValueError):
+        ClipOptions(campaign_transition_style="flashy")
