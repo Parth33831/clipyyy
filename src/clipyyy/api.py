@@ -290,6 +290,7 @@ def create_app(start_worker: bool = True) -> FastAPI:
             zf.writestr(
                 "clips.json", json.dumps([_clip_public(c) for c in clips], indent=2, ensure_ascii=False)
             )
+            zf.writestr("POSTING-COPY.txt", _posting_copy(clips))
         return FileResponse(archive_path, filename=name, media_type="application/zip")
 
     # ── clips & publishing ───────────────────────────────────────────────────
@@ -458,3 +459,34 @@ def _safe(text: str) -> str:
     from clipyyy.render import slugify
 
     return slugify(text)
+
+def _posting_copy(clips: list[dict]) -> str:
+    """Build a plain-text, ready-to-copy posting sheet for the clips in an export."""
+    sections = [
+        "CLIPYYY — POSTING COPY",
+        "Copy the title, caption and hashtags into your chosen social platform.",
+    ]
+    for clip in clips:
+        title = str(clip.get("post_title") or clip.get("title") or "").strip()
+        caption = str(clip.get("caption") or "").strip()
+        hashtags = clip.get("hashtags") or []
+        if isinstance(hashtags, str):
+            hashtags = [hashtags] if hashtags.strip() else []
+        tags = " ".join(str(tag).strip() for tag in hashtags if str(tag).strip())
+        filename = Path(clip["file_path"]).name if clip.get("file_path") else "Video file"
+        sections.extend(
+            [
+                "",
+                "=" * 48,
+                f"CLIP {clip.get('rank', '')}: {title or 'Untitled'}",
+                f"Video: {filename}",
+                "",
+                "CAPTION",
+                caption or "(No caption generated)",
+                "",
+                "HASHTAGS",
+                tags or "(No hashtags generated)",
+            ]
+        )
+    return "\n".join(sections).strip() + "\n"
+
