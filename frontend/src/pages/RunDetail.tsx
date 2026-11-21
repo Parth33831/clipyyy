@@ -500,6 +500,112 @@ function CampaignStoryboardEditor({
   )
 }
 
+function CampaignTimeline({
+  edit,
+  runId,
+  sources,
+  musicAnalysis,
+  transitionStyle,
+}: {
+  edit: CampaignEdit
+  runId: string
+  sources: CampaignSource[]
+  musicAnalysis: CampaignMusicAnalysis | null
+  transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
+}) {
+  const sourceByIndex = new Map(sources.map((source) => [source.index, source]))
+  const hasBeats = (musicAnalysis?.detected_beats ?? 0) > 0
+  const useFades = transitionStyle === 'cinematic' || transitionStyle === 'dynamic' || (transitionStyle === 'auto' && !hasBeats)
+  const shots = edit.shots.map((shot, index) => ({
+    shot,
+    index,
+    duration: Math.max(0.1, shot.end_seconds - shot.start_seconds - (useFades && index > 0 ? 0.24 : 0)),
+  }))
+  const total = Math.max(0.1, shots.reduce((sum, item) => sum + item.duration, 0))
+  const musicStart = musicAnalysis?.selected_start_seconds ?? 0
+
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3">
+      <div className="flex items-center justify-between gap-3">
+        <span className="label text-muted">Video timeline</span>
+        <span className="font-mono text-[11px] text-faint">{formatDuration(total)} estimated</span>
+      </div>
+      <div className="overflow-x-auto">
+        <div className="flex min-w-[680px] gap-1 rounded-md bg-surface p-2">
+          {shots.map(({ shot, index, duration }) => {
+            const source = sourceByIndex.get(shot.source_index)
+            return (
+              <button
+                key={`${edit.rank}-timeline-${index}`}
+                type="button"
+                title={`Shot ${index + 1}: ${source?.title ?? `Source ${shot.source_index + 1}`} · ${formatDuration(shot.end_seconds - shot.start_seconds)}`}
+                aria-label={`Jump to shot ${index + 1} in the storyboard editor`}
+                onClick={() => document.getElementById(`campaign-shot-${edit.rank}-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                className="group min-w-[104px] flex-1 overflow-hidden rounded-md border border-line bg-paper text-left transition-colors hover:border-ink"
+                style={{ flex: `${duration} 1 0%` }}
+              >
+                <img
+                  src={`/api/runs/${runId}/campaign-frame?source_index=${shot.source_index}&timestamp=${shot.start_seconds.toFixed(1)}`}
+                  alt=""
+                  loading="lazy"
+                  className="h-14 w-full object-cover"
+                />
+                <span className="flex items-center justify-between gap-1 px-2 py-1.5">
+                  <span className="label truncate text-faint">SHOT {String(index + 1).padStart(2, '0')}</span>
+                  <span className="font-mono text-[10px] text-muted">{formatDuration(shot.end_seconds - shot.start_seconds)}</span>
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      <div className="label flex justify-between px-1 text-faint">
+        <span>0:00</span>
+        <span>{formatDuration(total / 2)}</span>
+        <span>{formatDuration(total)}</span>
+      </div>
+      {musicAnalysis && (
+        <div className="flex flex-col gap-2 border-t border-line pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="label text-muted">Music energy track</span>
+            <span className="font-mono text-[11px] text-faint">
+              {musicAnalysis.estimated_bpm ? `${musicAnalysis.estimated_bpm} BPM` : 'Energy profile'}
+              {' · '}{musicAnalysis.detected_beats} transients
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <div className="relative h-9 min-w-[680px] overflow-hidden rounded-md bg-surface">
+              {musicAnalysis.energy_sections.map((section, index) => {
+                const left = Math.max(0, section.start_seconds - 0.25 - musicStart)
+                const right = Math.min(total, section.end_seconds + 0.25 - musicStart)
+                if (right <= left) return null
+                return (
+                  <div
+                    key={`energy-${index}`}
+                    title={`${section.level} energy · ${formatDuration(section.start_seconds)}–${formatDuration(section.end_seconds)}`}
+                    className={cn(
+                      'absolute inset-y-0 flex items-center overflow-hidden border-r border-paper/40 px-1',
+                      section.level === 'high' ? 'bg-acid text-ink' : section.level === 'medium' ? 'bg-sunk text-ink' : 'bg-line text-muted',
+                    )}
+                    style={{ left: `${(left / total) * 100}%`, width: `${Math.max(0.5, ((right - left) / total) * 100)}%` }}
+                  >
+                    <span className="label truncate !text-[9px]">{section.level}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3 text-[10px] text-faint">
+            <span>Selected track window: {musicAnalysis.selected_section}</span>
+            <span>High energy · Medium energy · Low energy</span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 function Progress({ run }: { run: RunDetail }) {
   return (
     <Panel>
