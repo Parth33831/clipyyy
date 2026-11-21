@@ -281,4 +281,5 @@ def test_campaign_shot_edit_requires_three_valid_shots(tmp_path, monkeypatch):
 
 def test_campaign_camera_motion_is_enabled_by_default_and_can_be_disabled():
     assert pipeline.ClipOptions(campaign_mode=True).campaign_camera_motion is True
-    assert pipeline.ClipOptions(campaign_mode=True, campaign_camera_motion=False).campaign_camera_motion is False
+    options = pipeline.ClipOptions(campaign_mode=True, campaign_camera_motion=False)
+    assert options.campaign_camera_motion is False
