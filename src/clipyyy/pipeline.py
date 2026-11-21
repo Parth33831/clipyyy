@@ -31,6 +31,7 @@ class ClipOptions(BaseModel):
     max_seconds: float = Field(60, ge=10, le=180)
     aspect_ratio: Literal["9:16", "4:5", "1:1"] = "9:16"
     captions: bool = True
+    normalize_audio: bool = False
     remove_filler_words: bool = False
     source_has_subtitles: bool = False
     caption_style: Literal["bold", "highlight", "minimal"] = "bold"
