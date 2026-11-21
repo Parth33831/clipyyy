@@ -38,7 +38,7 @@
 | Local transcription | Existing implementation | Existing code | faster-whisper already provides word-level timestamps. |
 | Face-based vertical reframing | Existing implementation | Existing code | Future improvements must not regress current framing. |
 | Animated captions | Existing implementation | Feature Development | Recent lyric animation, colour and word-window work is on main. |
-| Campaign montage / music / lyrics | Existing implementation + integrated improvements | `main` | Music analysis, beat alignment, hooks, lyrics, storyboard controls, Pexels discovery, cinematic camera movement, brief-led storytelling, black-footage filtering, scene-aware sampling and structured visual evidence are integrated. |
+| Campaign montage / music / lyrics | Existing implementation + integrated improvements | `main` | Music analysis now exposes normalized energy profiles/sections and transient strengths; cut selection favors strong energetic transients near planned shot durations. Hooks, lyrics, storyboard controls, Pexels discovery, cinematic camera movement, brief-led storytelling, black-footage filtering, scene-aware sampling and structured visual evidence remain integrated. |
 | Cinematic campaign camera movement | V1 implemented | PR #27 / `main` | Optional subtle Ken Burns-style per-shot movement with a static-crop toggle; merged as `942a2db`. |
 | Campaign shot transitions | V1 in review | [PR #35](https://github.com/Parth33831/clipyyy/pull/35) | Auto preserves beat-aware hard cuts and fallback dissolves; creators can also choose clean cuts, cinematic fades or dynamic directional transitions. Beat timing accounts for overlap. |
 | Virality scoring improvements | Not yet assessed | Unassigned | Existing selection already has hook, value, clarity and overall scores; assess before expanding. |
@@ -59,6 +59,7 @@
 | Black-footage campaign filter | `feature/campaign-black-frame-filter-integration` / [PR #29](https://github.com/Parth33831/clipyyy/pull/29) | Merged into main as `05a177f18d01565eabc88ff3dee5952c2dbb2407` | FFmpeg blackdetect excludes sustained near-black ranges from campaign candidates and selected shots. CI passed on latest PR head. |
 | Ready-to-post export kit | `feature/post-ready-export-kit` / [PR #31](https://github.com/Parth33831/clipyyy/pull/31) | Merged into main as `5d2de67d5bd04bb480ef90de5d7a5ba145c74faf` | ZIP export includes `POSTING-COPY.txt` with title, filename, caption and hashtags. |
 | Scene-aware sampling + structured visual observations | `feature/campaign-scene-aware-analysis` / [PR #32](https://github.com/Parth33831/clipyyy/pull/32) | Merged into main as `87136bef95bff7810b03305134fc5a3be27db139` | Rebuilt on top of merged #29/#30 to preserve black filtering and brief-led storytelling; adds cut-aware sampling and bounded shot-scale/action/text/confidence observations. |
+| Music energy + transient-aware cut selection | `feature/music-aware-campaign-editing` / [PR #34](https://github.com/Parth33831/clipyyy/pull/34) | Merged into main as `80d34552ff1b3f0199d47426efe252adfcb80024` | Extends local audio analysis with normalized energy profiles/low-medium-high sections and transient strengths; selects stronger nearby cut points while preserving the no-transient fallback. |
 | Music-energy-aware cut selection | `feature/music-aware-campaign-editing` / [PR #34](https://github.com/Parth33831/clipyyy/pull/34) | Merged into main as `80d34552ff1b3f0199d47426efe252adfcb80024` | Adds normalized music-energy profile/sections, beat strengths and transient selection that favors stronger musical moments without extreme pacing changes. |
 
 **Latest main baseline:** `80d34552ff1b3f0199d47426efe252adfcb80024`.
@@ -334,18 +335,22 @@ STATUS: In progress / Ready for review / Merged
 - 2026-11-21: PR #32 integration passed fast-backend and frontend CI and was squash-merged into main as 87136bef95bff7810b03305134fc5a3be27db139. All four PRs #29–#32 are now integrated; no local Windows/real-media test is claimed.
 
 
-### Current feature development: Selectable campaign transitions
+### Current feature development: Music-aware editing + selectable campaign transitions
 
-- **Branch:** `feature/campaign-transitions`
-- **PR:** [#35 — Add selectable cinematic transitions to campaign edits](https://github.com/Parth33831/clipyyy/pull/35)
+- **Branch:** `feature/campaign-transitions-energy-integration`
+- **PR:** [#36 — Integrate music-energy editing with selectable campaign transitions](https://github.com/Parth33831/clipyyy/pull/36)
 - **Base:** `main` at `80d34552ff1b3f0199d47426efe252adfcb80024`
-- **Latest commit:** `88aab6a2e47b3d1a71b1e4d7434088ec03bdfc16`
+- **Latest commit:** `88a2c85e5758346da57cbc96cc773a79ed27e3a1`
 - **Files:** `src/clipyyy/pipeline.py`, `src/clipyyy/render.py`, `frontend/src/api.ts`, `frontend/src/pages/NewRun.tsx`, `tests/test_render.py`.
-- **Implementation:** Adds Auto (default), Clean hard cuts, Cinematic fades and Dynamic transitions. Auto preserves prior behavior. Integrated PR #34's music-energy profile and stronger-transient selection; fade overlap is included in beat-alignment calculations. No new dependencies or model requirements.
-- **Tests:** Added xfade transition sequence and Pydantic option validation tests. Previous fast-backend failed only on a Ruff line-length issue, which was corrected. The rebased head `88aab6a2e47b3d1a71b1e4d7434088ec03bdfc16` has fresh fast-backend and frontend checks queued; do not merge until both pass.
-- **Known gap:** No local Windows or real-media visual review has been performed.
+- **Implementation:** Consolidates Auto (default), Clean hard cuts, Cinematic fades and Dynamic transitions with PR #34's energy-aware music analysis. Auto preserves beat-aware cuts and fallback dissolves; transition overlap is accounted for in cut timing. Strong nearby transients and normalized energy influence cut selection; energy sections are exposed in quality metadata. No new dependencies or model requirements.
+- **Tests:** Added transition sequence/option validation and music energy profile, section, transient selection and fallback tests. CI status is not yet visible through the current workflow/status query; do not merge until fast-backend, Ruff and frontend checks pass.
+- **Known gap:** No local Windows or real-media visual/audio review has been performed. PR #35 is closed as superseded by #36.
 
 - 2026-11-21: Closed duplicate PR #33 because its brief-led storytelling and scene-aware visual analysis were already merged through PRs #30 and #32; main also contains PR #29 black-footage filtering.
 - 2026-11-21: Started PR #35 to give campaign creators explicit control over shot transitions while retaining the current automatic default and beat-sync behavior.
 
 - 2026-11-21: PR #34 added music-energy profiles/sections, beat strengths and stronger-transient cut selection; fast-backend and frontend CI passed, and it was squash-merged as `80d34552ff1b3f0199d47426efe252adfcb80024`. PR #35 was rebuilt on top of this mainline commit so selectable transitions and energy-aware beat selection coexist in one renderer branch.
+
+
+- 2026-11-21: PR #34 merged music-energy-aware campaign editing into `main` as `80d34552ff1b3f0199d47426efe252adfcb80024`. It extends existing beat analysis with normalized energy sections and transient-strength scoring; no new audio dependency was added.
+- 2026-11-21: Rebased the selectable transition work on latest main and consolidated it with PR #34 as PR #36 (`feature/campaign-transitions-energy-integration`). Closed PR #35 as superseded to avoid competing edits to `render.py` and `tests/test_render.py`. PR #36 requires CI/review before merge.
