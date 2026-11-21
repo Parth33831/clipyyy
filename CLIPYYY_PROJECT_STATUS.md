@@ -65,6 +65,8 @@
 | Selectable campaign transitions + music-aware timing | `feature/campaign-transitions-energy-integration` / [PR #36](https://github.com/Parth33831/clipyyy/pull/36) | Merged into main as `e26f53bb5e9ae625ee99e4aea60e11f5eb949221` | Adds Auto, Clean hard cuts, Cinematic fades and Dynamic directional transitions; accounts for overlap while preserving energy-aware transient selection and lyrics/audio timing. Fast-backend: 106 passed, 22 skipped; Ruff lint/format and frontend build passed. |
 | Continuity-aware primary-subject tracking | `feature/continuity-aware-subject-tracking` / [PR #37](https://github.com/Parth33831/clipyyy/pull/37) | Merged into main as `0e5a9d83109ffe2edb9fa15a43ad21d574fa2d1b` | Tracks a geometrically consistent face between frames, tolerates brief misses and reacquires after a longer disappearance or large position change. Fast-backend: 106 passed, 22 skipped; Ruff lint/format and frontend build passed. |
 | Campaign storyboard frame previews | `feature/campaign-storyboard-frame-previews` / [PR #38](https://github.com/Parth33831/clipyyy/pull/38) | Merged into main as `e852f7f5e795111516a5a70a051b942a7ee4c229` | Adds cached source-frame thumbnails to storyboard shots and a validated API endpoint; PR CI completed successfully. |
+| Continuity-aware primary-subject tracking | `feature/continuity-aware-subject-tracking` / [PR #37](https://github.com/Parth33831/clipyyy/pull/37) | Merged into main as `0e5a9d83109ffe2edb9fa15a43ad21d574fa2d1b` | Tracks a geometrically consistent face between frames, tolerates brief misses and reacquires after a longer disappearance or large position change. Fast-backend: 106 passed, 22 skipped; Ruff lint/format and frontend build passed. |
+| Campaign storyboard frame previews | `feature/campaign-storyboard-frame-previews` / [PR #38](https://github.com/Parth33831/clipyyy/pull/38) | Merged into main as `e852f7f5e795111516a5a70a051b942a7ee4c229` | Adds cached source-frame thumbnails to storyboard shots and a validated API endpoint; PR CI completed successfully. |
 
 **Latest main baseline:** `e852f7f5e795111516a5a70a051b942a7ee4c229`.
 
@@ -377,6 +379,9 @@ STATUS: In progress / Ready for review / Merged
 - 2026-11-21: PR #38 was reviewed and squash-merged as `e852f7f5e795111516a5a70a051b942a7ee4c229`.
 
 - 2026-11-21: PR #37 added continuity-aware primary-face tracking for vertical reframing and was squash-merged into main as `0e5a9d83109ffe2edb9fa15a43ad21d574fa2d1b`. Fast-backend and frontend CI passed; Windows, macOS and full-backend jobs were skipped.
+
+- 2026-11-21: PR #37 merged continuity-aware primary-subject tracking into `main` as `0e5a9d83109ffe2edb9fa15a43ad21d574fa2d1b`; fast-backend (106 passed, 22 skipped), Ruff lint/format and frontend build passed.
+- 2026-11-21: PR #38 merged cached campaign storyboard frame previews into `main` as `e852f7f5e795111516a5a70a051b942a7ee4c229`; PR CI completed successfully.
 
 - 2026-11-21: PR #37 merged continuity-aware primary-subject tracking into `main` as `0e5a9d83109ffe2edb9fa15a43ad21d574fa2d1b`; fast-backend (106 passed, 22 skipped), Ruff lint/format and frontend build passed.
 - 2026-11-21: PR #38 merged cached campaign storyboard frame previews into `main` as `e852f7f5e795111516a5a70a051b942a7ee4c229`; PR CI completed successfully.
