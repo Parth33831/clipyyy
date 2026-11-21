@@ -23,9 +23,9 @@
 ## Repository baseline (inspected 2026-11-21)
 
 - **Default branch:** `main`
-- **Latest main commit:** `5d638f47dbf420cb3bd830299c37944ef5e9264d` — Score clips for retention and shareability (#41).
+- **Latest main commit:** `e948f0dbefa3ce0e5ae6c5ad2a1e7a34b88dd5f2` — Add opt-in social audio loudness normalization (#42).
 - Recent completed main work includes lyric animation previews, multi-colour lyric captions, configurable lyric colours, word-accurate song transcription, campaign dialogue/montage editing, stock-footage discovery, editable storyboards, optional cinematic camera movement and ready-to-post copy in clip export archives.
-- **Open work:** No active PRs in this development batch. PRs #29, #30, #31, #32, #34, #36, #37, #38, #40 and #41 are merged. PRs #33, #35 and #39 were closed as superseded. PR #27 remains merged.
+- **Open work:** No active PRs in this development batch. PRs #29, #30, #31, #32, #34, #36, #37, #38, #40, #41 and #42 are merged. PRs #33, #35 and #39 were closed as superseded. PR #27 remains merged.
 - **Branches observed:** `automatic-word-timed-lyrics`, `campaign-dialogue-transcription`, `campaign-footage-discovery`, `campaign-shot-editor`, `campaign-shot-editor-integration`, `creative-anime-editing`, `fix/campaign-export-audio-duration`, `fix/campaign-scene-selection-ci-final`, `fix/campaign-scene-selection-final-ci`, `fix/campaign-scene-selection-pacing`, `fix/campaign-scene-selection-pacing-ci`, `fix/campaign-scene-selection-release-check`, `fix/campaign-scene-selection-tested`, `fix/campaign-scene-selection-validated`, `improve-multi-clip-selection`, `instant-lyrics-style-editor`, `instant-lyrics-style-editor-ci`, `instant-lyrics-style-editor-verified`, `lyric-style-previews-multicolor`, `lyric-words-on-screen`, `lyrics-captions-animation`, `lyrics-color-controls`, `main`, `music-intelligence-hooks`, `refresh-legacy-lyric-timings`, `reuse-campaign-transcript-on-dialogue-rebuild`.
 - Branch names alone do not prove whether work is merged or active; check branch heads and diffs before reusing them.
 - **Coordination document branch:** `docs/project-coordination` (this document is maintained separately from application code).
@@ -49,7 +49,7 @@
 | Text-based editing / filler removal | V1 implemented | PR #23 / `main` | Conservative English filler-word removal is merged; full transcript editing remains a later feature. |
 | Campaign shot-level editor | V1 implemented | PR #26 / `main` | Reorder, trim and remove AI-selected campaign shots, reset to the AI plan, and rerender from cached creator/Pexels sources without rerunning analysis. |
 | Advanced timeline editor | V1 campaign visual timeline implemented | [PR #40](https://github.com/Parth33831/clipyyy/pull/40) / `main` | Visual shot/music lanes are in place; full multitrack audio/video editing, waveform scrubbing and drag-trim remain future work. |
-| Audio enhancement / voiceover | Not yet assessed | Unassigned | Assess local/offline options and dependencies. |
+| Audio enhancement / voiceover | V1 opt-in loudness normalization implemented | [PR #42](https://github.com/Parth33831/clipyyy/pull/42) / `main` | Applies FFmpeg loudnorm at -16 LUFS/-1.5 dBTP to spoken audio or campaign music when enabled; default OFF. AI voiceover and separate narration mixing remain future work. |
 | Automatic campaign stock-footage discovery | V1 implemented | PR #24 / `main` | Opt-in Pexels discovery is merged; creator footage stays first and attribution is surfaced. |
 | AI B-roll improvements | Existing optional B-roll; future enhancements not assessed | Unassigned | Inspect current Pexels workflow before implementing alternatives. |
 
@@ -68,14 +68,11 @@
 | Campaign storyboard frame previews | `feature/campaign-storyboard-frame-previews` / [PR #38](https://github.com/Parth33831/clipyyy/pull/38) | Merged into main as `e852f7f5e795111516a5a70a051b942a7ee4c229` | Adds cached source-frame thumbnails to storyboard shots and a validated API endpoint; PR CI completed successfully. |
 | Campaign visual timeline + music energy lane | `feature/campaign-visual-timeline` / [PR #40](https://github.com/Parth33831/clipyyy/pull/40) | Merged into main as `a9521c877e40a376ae8372a75d1047d18580c96e` | Adds proportional shot thumbnails, durations and selected-track energy sections, with navigation to existing storyboard controls. Fast-backend: 108 passed, 22 skipped; Ruff lint/format and frontend build passed. |
 | Retention-aware virality scoring | `feature/retention-aware-virality-scoring` / [PR #41](https://github.com/Parth33831/clipyyy/pull/41) | Merged into main as `5d638f47dbf420cb3bd830299c37944ef5e9264d` | Scores hook, value, clarity, retention and shareability with a bounded weighted formula; older models retain the legacy score fallback. Fast-backend: 112 passed, 22 skipped; Ruff lint/format and frontend build passed. |
-| Continuity-aware primary-subject tracking | `feature/continuity-aware-subject-tracking` / [PR #37](https://github.com/Parth33831/clipyyy/pull/37) | Merged into main as `0e5a9d83109ffe2edb9fa15a43ad21d574fa2d1b` | Tracks a geometrically consistent face between frames, tolerates brief misses and reacquires after a longer disappearance or large position change. Fast-backend: 106 passed, 22 skipped; Ruff lint/format and frontend build passed. |
-| Campaign storyboard frame previews | `feature/campaign-storyboard-frame-previews` / [PR #38](https://github.com/Parth33831/clipyyy/pull/38) | Merged into main as `e852f7f5e795111516a5a70a051b942a7ee4c229` | Adds cached source-frame thumbnails to storyboard shots and a validated API endpoint; PR CI completed successfully. |
-| Continuity-aware primary-subject tracking | `feature/continuity-aware-subject-tracking` / [PR #37](https://github.com/Parth33831/clipyyy/pull/37) | Merged into main as `0e5a9d83109ffe2edb9fa15a43ad21d574fa2d1b` | Tracks a geometrically consistent face between frames, tolerates brief misses and reacquires after a longer disappearance or large position change. Fast-backend: 106 passed, 22 skipped; Ruff lint/format and frontend build passed. |
-| Campaign storyboard frame previews | `feature/campaign-storyboard-frame-previews` / [PR #38](https://github.com/Parth33831/clipyyy/pull/38) | Merged into main as `e852f7f5e795111516a5a70a051b942a7ee4c229` | Adds cached source-frame thumbnails to storyboard shots and a validated API endpoint; PR CI completed successfully. |
+| Opt-in social audio normalization | `feature/social-audio-normalization` / [PR #42](https://github.com/Parth33831/clipyyy/pull/42) | Merged into main as `e948f0dbefa3ce0e5ae6c5ad2a1e7a34b88dd5f2` | Adds an OFF-by-default Normalize audio control for spoken clips and campaign music, using FFmpeg loudnorm (-16 LUFS, -1.5 dBTP). Silent sources are untouched. Fast-backend: 118 passed, 24 skipped; Ruff lint/format and frontend build passed. |
 
-**Latest main baseline:** `5d638f47dbf420cb3bd830299c37944ef5e9264d`.
+**Latest main baseline:** `e948f0dbefa3ce0e5ae6c5ad2a1e7a34b88dd5f2`.
 
-**Validation honesty:** PR #29, #30, #31, #32, #34, #36, #37, #38, #40 and #41 fast-backend and frontend checks passed. Windows, macOS and full-backend jobs were skipped by workflow configuration. No local Windows media test or real-media visual review has been run. PR #32 was rebuilt on top of merged #29/#30 code; PR #36 consolidated music-energy cut selection with selectable transitions on top of PR #34; PR #40 adds the visual shot/music timeline; PR #41 adds retention/shareability to the AI virality score.
+**Validation honesty:** PR #29, #30, #31, #32, #34, #36, #37, #38, #40, #41 and #42 fast-backend and frontend checks passed. Windows, macOS and full-backend jobs were skipped by workflow configuration. No local Windows media test or real-media visual review has been run. PR #32 was rebuilt on top of merged #29/#30 code; PR #36 consolidated music-energy cut selection with selectable transitions on top of PR #34; PR #40 adds the visual shot/music timeline; PR #41 adds retention/shareability to the AI virality score; PR #42 adds opt-in loudness normalization.
 
 ## Current work
 
@@ -418,3 +415,15 @@ STATUS: In progress / Ready for review / Merged
 - **Known limitation:** Older/local models may omit the new optional retention/shareability scores, in which case their legacy overall score is retained.
 
 - 2026-11-21: PR #41 merged retention-aware AI virality scoring into `main` as `5d638f47dbf420cb3bd830299c37944ef5e9264d`. Fast-backend passed (112 passed, 22 skipped), Ruff lint/format and frontend build passed.
+
+
+### Completed feature: Opt-in social audio normalization
+
+- **Branch:** `feature/social-audio-normalization`
+- **PR:** [#42 — Add opt-in social audio loudness normalization](https://github.com/Parth33831/clipyyy/pull/42)
+- **Base:** `main` at `5d638f47dbf420cb3bd830299c37944ef5e9264d`
+- **Merge commit:** `e948f0dbefa3ce0e5ae6c5ad2a1e7a34b88dd5f2`
+- **Files:** `.github/workflows/ci.yml`, `src/clipyyy/pipeline.py`, `src/clipyyy/render.py`, `frontend/src/api.ts`, `frontend/src/pages/NewRun.tsx`, `tests/test_render.py`, `tests/test_audio_normalization.py`.
+- **Implementation:** Adds an OFF-by-default Normalize audio control. When enabled, source speech or campaign music is processed with FFmpeg `loudnorm` targeting -16 LUFS and -1.5 dBTP. Silent sources remain untouched. Campaign quality checks record when music was normalized.
+- **CI:** Fast backend **118 passed, 24 skipped**; Ruff lint/format and frontend production build passed. Windows, macOS and full-backend/manual jobs were skipped.
+- **Known limitation:** No local Windows or real-media loudness listening test has been performed. The filter is one-pass loudnorm; it is a safe general social-video target, not a per-platform mastering preset.
