@@ -178,7 +178,10 @@ def _intersects_black_interval(
             black_start, black_end = float(interval[0]), float(interval[1])
         except (TypeError, ValueError, IndexError):
             continue
-        overlaps = (black_start <= start <= black_end) if start == end else (black_start < end and black_end > start)
+        if start == end:
+            overlaps = black_start <= start <= black_end
+        else:
+            overlaps = black_start < end and black_end > start
         if overlaps:
             return True
     return False
