@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, Download, R
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
-import { api, type CampaignEdit, type CampaignShot, type CampaignSource, type Clip, type Post, type RunDetail } from '../api'
+import { api, type CampaignEdit, type CampaignMusicAnalysis, type CampaignShot, type CampaignSource, type Clip, type Post, type RunDetail } from '../api'
 import { PublishDialog } from '../components/PublishDialog'
 import { Button, Eyebrow, Panel, Squares, StatusChip, cn, formatDuration, sourceHost, sourceLabel, timeAgo } from '../components/ui'
 
@@ -309,6 +309,8 @@ export function RunDetailPage() {
           savedEdits={data.campaign_edits}
           originalEdits={data.campaign_original_edits ?? data.campaign_edits}
           sources={data.campaign_sources ?? []}
+          musicAnalysis={data.campaign_quality_checks?.music_analysis ?? null}
+          transitionStyle={data.options.campaign_transition_style ?? 'auto'}
           saving={saveMontage.isPending}
           onChange={setCampaignEdits}
           onSave={() => saveMontage.mutate()}
@@ -359,6 +361,8 @@ function CampaignStoryboardEditor({
   savedEdits,
   originalEdits,
   sources,
+  musicAnalysis,
+  transitionStyle,
   saving,
   onChange,
   onSave,
@@ -369,6 +373,8 @@ function CampaignStoryboardEditor({
   savedEdits: CampaignEdit[]
   originalEdits: CampaignEdit[]
   sources: CampaignSource[]
+  musicAnalysis: CampaignMusicAnalysis | null
+  transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
   saving: boolean
   onChange: (edits: CampaignEdit[]) => void
   onSave: () => void
@@ -428,11 +434,18 @@ function CampaignStoryboardEditor({
             <h3 className="font-semibold">#{edit.rank} · {edit.title}</h3>
             <span className="label text-muted">{edit.shots.length} shots</span>
           </div>
+          <CampaignTimeline
+            edit={edit}
+            runId={runId}
+            sources={sources}
+            musicAnalysis={musicAnalysis}
+            transitionStyle={transitionStyle}
+          />
           <ol className="flex flex-col gap-2">
             {edit.shots.map((shot, shotIndex) => {
               const source = sourceByIndex.get(shot.source_index)
               return (
-                <li key={`${edit.rank}-${shotIndex}-${shot.source_index}`} className="grid gap-3 rounded-lg border border-line bg-panel p-3 md:grid-cols-[112px_minmax(0,1fr)_150px_150px_auto] md:items-center">
+                <li id={`campaign-shot-${edit.rank}-${shotIndex}`} key={`${edit.rank}-${shotIndex}-${shot.source_index}`} className="grid gap-3 rounded-lg border border-line bg-panel p-3 md:grid-cols-[112px_minmax(0,1fr)_150px_150px_auto] md:items-center">
                   <img
                     src={`/api/runs/${runId}/campaign-frame?source_index=${shot.source_index}&timestamp=${shot.start_seconds.toFixed(1)}`}
                     alt={`Preview of shot ${shotIndex + 1}`}
