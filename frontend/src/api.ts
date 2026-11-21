@@ -130,7 +130,7 @@ export interface CampaignMusicAnalysis {
   selected_section: string
   estimated_bpm: number | null
   detected_beats: number
-  energy_sections: CampaignEnergySection[]
+  energy_sections?: CampaignEnergySection[]
 }
 
 export interface CampaignQualityChecks {
