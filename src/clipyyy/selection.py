@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import re
 from string import Template
 from typing import Any
@@ -41,6 +42,8 @@ SCHEMA: dict[str, Any] = {
                     "hook_score": {"type": "number"},
                     "value_score": {"type": "number"},
                     "clarity_score": {"type": "number"},
+                    "retention_score": {"type": "number"},
+                    "shareability_score": {"type": "number"},
                     "overall_score": {"type": "number"},
                 },
                 "required": [
@@ -245,6 +248,31 @@ def select_clips(llm: LLM, source: dict, transcript: dict, options: dict) -> dic
     return {"model": llm.model, "clips": clips}
 
 
+def _bounded_score(value: Any) -> float | None:
+    try:
+        score = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(score):
+        return None
+    return max(0.0, min(10.0, score))
+
+
+def _combined_virality_score(item: dict) -> float:
+    """Use retention/shareability when available, with a safe legacy-score fallback."""
+    weights = {
+        "hook_score": 0.20,
+        "value_score": 0.25,
+        "clarity_score": 0.15,
+        "retention_score": 0.25,
+        "shareability_score": 0.15,
+    }
+    scores = {name: _bounded_score(item.get(name)) for name in weights}
+    if all(score is not None for score in scores.values()):
+        return round(sum(scores[name] * weight for name, weight in weights.items()), 2)
+    return _bounded_score(item.get("overall_score")) or 0.0
+
+
 def validate_clips(raw_clips: list[dict], transcript: dict, options: dict) -> list[dict]:
     """Snap to sentences, drop clips outside the length range or overlapping a better one."""
     min_s, max_s = float(options["min_seconds"]), float(options["max_seconds"])
@@ -277,7 +305,7 @@ def validate_clips(raw_clips: list[dict], transcript: dict, options: dict) -> li
                     str(q).strip() for q in (item.get("broll_queries") or []) if str(q).strip()
                 ][:8],
                 "rationale": str(item.get("rationale", "")).strip(),
-                "score": _num(item.get("overall_score"), 0.0),
+                "score": _combined_virality_score(item),
                 "transcript": excerpt(start, end, sentences),
             }
         )
