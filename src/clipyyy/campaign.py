@@ -178,11 +178,7 @@ def _intersects_black_interval(
             black_start, black_end = float(interval[0]), float(interval[1])
         except (TypeError, ValueError, IndexError):
             continue
-        overlaps = (
-            black_start <= start <= black_end
-            if start == end
-            else black_start < end and black_end > start
-        )
+        overlaps = (black_start <= start <= black_end) if start == end else (black_start < end and black_end > start)
         if overlaps:
             return True
     return False
@@ -342,9 +338,8 @@ def _build_text_only_montage(
                 timestamp = float(frame["timestamp"])
             except (KeyError, TypeError, ValueError):
                 continue
-            if (
-                0.25 < timestamp < duration - 1.0
-                and not _intersects_black_interval(timestamp, timestamp, black_intervals)
+            if 0.25 < timestamp < duration - 1.0 and not _intersects_black_interval(
+                timestamp, timestamp, black_intervals
             ):
                 candidates.append((source_index, timestamp, True))
 
@@ -400,9 +395,7 @@ def _build_text_only_montage(
                     candidate for candidate in candidates if candidate[0] in preferred_indexes
                 ]
             candidate_pool = preferred_candidates or segment_candidates
-            def is_usable(
-                candidate: tuple[int, float, bool], shot_duration: float = shot_length
-            ) -> bool:
+            def is_usable(candidate: tuple[int, float, bool], shot_duration: float = shot_length) -> bool:
                 candidate_source, candidate_time, _ = candidate
                 candidate_duration = float(sources[candidate_source].get("duration_seconds") or 0)
                 candidate_start = min(
@@ -411,21 +404,17 @@ def _build_text_only_montage(
                 )
                 candidate_end = min(candidate_duration, candidate_start + shot_duration)
                 source_analysis = (
-                    analyses[candidate_source]
-                    if analyses and candidate_source < len(analyses)
-                    else {}
+                    analyses[candidate_source] if analyses and candidate_source < len(analyses) else {}
                 )
-                return (
-                    candidate_end - candidate_start >= 1.25
-                    and not _intersects_black_interval(
-                        candidate_start, candidate_end, source_analysis.get("black_intervals", [])
-                    )
+                return candidate_end - candidate_start >= 1.25 and not _intersects_black_interval(
+                    candidate_start, candidate_end, source_analysis.get("black_intervals", [])
                 )
 
             candidate_pool = [candidate for candidate in candidate_pool if is_usable(candidate)]
             if not candidate_pool:
                 candidate_pool = [
-                    candidate for candidate in candidates
+                    candidate
+                    for candidate in candidates
                     if candidate[0] in preferred_indexes and is_usable(candidate)
                 ]
             if not candidate_pool:
