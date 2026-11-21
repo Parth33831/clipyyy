@@ -122,10 +122,7 @@ export interface RunDetail extends Run {
   campaign_edits: CampaignEdit[]
   campaign_original_edits: CampaignEdit[]
   campaign_sources: CampaignSource[]
-  campaign_quality_checks: Record<
-    string,
-    string | boolean | number | null | Record<string, string | number | null>
-  > | null
+  campaign_quality_checks: Record<string, unknown> | null
   source_duration: number | null
   stages: Stage[]
   clips: Clip[]
