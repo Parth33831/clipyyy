@@ -121,14 +121,80 @@ def detect_scene_changes(video_path: Path, duration: float, limit: int = 48) -> 
     return timestamps
 
 
+def detect_black_intervals(video_path: Path, duration: float) -> list[tuple[float, float]]:
+    """Find sustained near-black sections with FFmpeg; return safe, duration-clamped intervals."""
+    if duration <= 0:
+        return []
+    try:
+        result = subprocess.run(
+            [
+                ffmpeg_bin(),
+                "-hide_banner",
+                "-loglevel",
+                "info",
+                "-i",
+                str(video_path),
+                "-vf",
+                "blackdetect=d=0.35:pix_th=0.04",
+                "-an",
+                "-f",
+                "null",
+                "-",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=180,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        logger.exception("FFmpeg black-frame detection failed for %s", video_path)
+        return []
+
+    intervals: list[tuple[float, float]] = []
+    pattern = re.compile(
+        r"black_start:(?P<start>-?\\d+(?:\\.\\d+)?)\\s+"
+        r"black_end:(?P<end>-?\\d+(?:\\.\\d+)?|N/A)"
+    )
+    for match in pattern.finditer(result.stderr or ""):
+        try:
+            start = max(0.0, float(match.group("start")))
+            end = duration if match.group("end") == "N/A" else min(duration, float(match.group("end")))
+        except (TypeError, ValueError):
+            continue
+        if end > start:
+            intervals.append((round(start, 3), round(end, 3)))
+
+    merged: list[tuple[float, float]] = []
+    for start, end in sorted(intervals):
+        if merged and start <= merged[-1][1] + 0.05:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+        else:
+            merged.append((start, end))
+    return merged
+
+
+def timestamp_in_intervals(timestamp: float, intervals: list[tuple[float, float]]) -> bool:
+    """Return whether a timestamp falls inside one of the detected black intervals."""
+    return any(start <= timestamp <= end for start, end in intervals)
+
+
 def analyze_campaign_video(source: dict, work_dir: Path, llm, campaign_brief: str) -> dict:
     """Ask a vision model to describe sampled scenes in relation to the supplied campaign."""
-    frames = sample_frames(Path(source["video_path"]), float(source.get("duration_seconds") or 0), work_dir)
+    duration = float(source.get("duration_seconds") or 0)
+    black_intervals = detect_black_intervals(Path(source["video_path"]), duration)
+    frames = sample_frames(Path(source["video_path"]), duration, work_dir)
+    frames = [
+        (timestamp, path)
+        for timestamp, path in frames
+        if not timestamp_in_intervals(timestamp, black_intervals)
+    ]
     if not supports_visual_input(llm):
         logger.info("Text-only model; using FFmpeg scene boundaries without visual descriptions")
-        duration = float(source.get("duration_seconds") or 0)
         scene_times = detect_scene_changes(Path(source["video_path"]), duration)
         timestamps = scene_times or [timestamp for timestamp, _ in frames]
+        timestamps = [
+            timestamp for timestamp in timestamps if not timestamp_in_intervals(timestamp, black_intervals)
+        ]
         return {
             "frames": [
                 {
@@ -138,10 +204,11 @@ def analyze_campaign_video(source: dict, work_dir: Path, llm, campaign_brief: st
                     "subjects": "not analyzed",
                 }
                 for timestamp in timestamps
-            ]
+            ],
+            "black_intervals": black_intervals,
         }
     if not frames:
-        return {"frames": []}
+        return {"frames": [], "black_intervals": black_intervals}
     system = (
         "You are a professional short-form video editor analysing source footage for a campaign. "
         "Describe only what is visibly present. Do not guess character identities, plot, lyrics, or events. "
@@ -169,7 +236,7 @@ def analyze_campaign_video(source: dict, work_dir: Path, llm, campaign_brief: st
                 "subjects": str(item.get("subjects", ""))[:200],
             }
         )
-    return {"frames": valid}
+    return {"frames": valid, "black_intervals": black_intervals}
 
 
 def analyze_reference_video(source: dict, work_dir: Path, llm) -> dict:
