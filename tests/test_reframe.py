@@ -38,7 +38,6 @@ def test_detection_dimensions_do_not_upscale_small_video():
     assert detection_dimensions(640, 360) == (640, 360)
 
 
-
 def test_track_primary_faces_prefers_continuity_over_a_larger_background_face():
     from clipyyy.reframe import track_primary_faces
 
