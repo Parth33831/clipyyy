@@ -25,7 +25,7 @@
 - **Default branch:** `main`
 - **Latest main commit:** `87136bef95bff7810b03305134fc5a3be27db139` — Add scene-aware campaign visual analysis (#32).
 - Recent completed main work includes lyric animation previews, multi-colour lyric captions, configurable lyric colours, word-accurate song transcription, campaign dialogue/montage editing, stock-footage discovery, editable storyboards, optional cinematic camera movement and ready-to-post copy in clip export archives.
-- **Open work:** No active PRs from this campaign integration batch. PRs #29, #30, #31 and #32 are merged. PR #27 remains merged.
+- **Open work:** PR #35 adds selectable campaign transitions and is under CI review. PRs #29, #30, #31 and #32 are merged; duplicate PR #33 was closed as superseded. PR #27 remains merged.
 - **Branches observed:** `automatic-word-timed-lyrics`, `campaign-dialogue-transcription`, `campaign-footage-discovery`, `campaign-shot-editor`, `campaign-shot-editor-integration`, `creative-anime-editing`, `fix/campaign-export-audio-duration`, `fix/campaign-scene-selection-ci-final`, `fix/campaign-scene-selection-final-ci`, `fix/campaign-scene-selection-pacing`, `fix/campaign-scene-selection-pacing-ci`, `fix/campaign-scene-selection-release-check`, `fix/campaign-scene-selection-tested`, `fix/campaign-scene-selection-validated`, `improve-multi-clip-selection`, `instant-lyrics-style-editor`, `instant-lyrics-style-editor-ci`, `instant-lyrics-style-editor-verified`, `lyric-style-previews-multicolor`, `lyric-words-on-screen`, `lyrics-captions-animation`, `lyrics-color-controls`, `main`, `music-intelligence-hooks`, `refresh-legacy-lyric-timings`, `reuse-campaign-transcript-on-dialogue-rebuild`.
 - Branch names alone do not prove whether work is merged or active; check branch heads and diffs before reusing them.
 - **Coordination document branch:** `docs/project-coordination` (this document is maintained separately from application code).
@@ -40,6 +40,7 @@
 | Animated captions | Existing implementation | Feature Development | Recent lyric animation, colour and word-window work is on main. |
 | Campaign montage / music / lyrics | Existing implementation + integrated improvements | `main` | Music analysis, beat alignment, hooks, lyrics, storyboard controls, Pexels discovery, cinematic camera movement, brief-led storytelling, black-footage filtering, scene-aware sampling and structured visual evidence are integrated. |
 | Cinematic campaign camera movement | V1 implemented | PR #27 / `main` | Optional subtle Ken Burns-style per-shot movement with a static-crop toggle; merged as `942a2db`. |
+| Campaign shot transitions | V1 in review | [PR #35](https://github.com/Parth33831/clipyyy/pull/35) | Auto preserves beat-aware hard cuts and fallback dissolves; creators can also choose clean cuts, cinematic fades or dynamic directional transitions. Beat timing accounts for overlap. |
 | Virality scoring improvements | Not yet assessed | Unassigned | Existing selection already has hook, value, clarity and overall scores; assess before expanding. |
 | Advanced subject tracking | Not yet assessed | Unassigned | Avoid duplicating existing MediaPipe face tracking. |
 | Text-based editing / filler removal | V1 implemented | PR #23 / `main` | Conservative English filler-word removal is merged; full transcript editing remains a later feature. |
@@ -330,3 +331,18 @@ STATUS: In progress / Ready for review / Merged
 - 2026-11-21: Integrated PR #32 scene-aware sampling and structured visual observations on top of merged main, preserving black-frame filtering and brief-led storytelling. PR branch was rebuilt from current main to remove merge conflicts; latest head `ec7a91c6728018abf159f6bfacf347078e27ffa3`. Fast-backend and frontend CI are running; do not merge until they pass.
 
 - 2026-11-21: PR #32 integration passed fast-backend and frontend CI and was squash-merged into main as 87136bef95bff7810b03305134fc5a3be27db139. All four PRs #29–#32 are now integrated; no local Windows/real-media test is claimed.
+
+
+### Current feature development: Selectable campaign transitions
+
+- **Branch:** `feature/campaign-transitions`
+- **PR:** [#35 — Add selectable cinematic transitions to campaign edits](https://github.com/Parth33831/clipyyy/pull/35)
+- **Base:** `main` at `87136bef95bff7810b03305134fc5a3be27db139`
+- **Latest commit:** `6af66808c66bc35e51f7f71fc5237e1e32097d97`
+- **Files:** `src/clipyyy/pipeline.py`, `src/clipyyy/render.py`, `frontend/src/api.ts`, `frontend/src/pages/NewRun.tsx`, `tests/test_render.py`.
+- **Implementation:** Adds Auto (default), Clean hard cuts, Cinematic fades and Dynamic transitions. Auto preserves prior behavior. Fade overlap is included in beat-alignment calculations. No new dependencies or model requirements.
+- **Tests:** Added xfade transition sequence and Pydantic option validation tests. CI status not yet visible at last check; do not merge until fast-backend, Ruff and frontend checks pass.
+- **Known gap:** No local Windows or real-media visual review has been performed.
+
+- 2026-11-21: Closed duplicate PR #33 because its brief-led storytelling and scene-aware visual analysis were already merged through PRs #30 and #32; main also contains PR #29 black-footage filtering.
+- 2026-11-21: Started PR #35 to give campaign creators explicit control over shot transitions while retaining the current automatic default and beat-sync behavior.
