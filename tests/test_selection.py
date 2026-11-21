@@ -86,7 +86,7 @@ def test_validate_bounds_virality_component_scores(transcript):
 
     result = validate_clips([clip], transcript, OPTIONS)
 
-    assert result[0]["score"] == pytest.approx(7.75)
+    assert result[0]["score"] == pytest.approx(7.95)
 
 
 def test_validate_skips_garbage(transcript):
@@ -108,6 +108,15 @@ def test_caption_and_hashtag_cleanup():
     tags, caption = clean_hashtags(["growth", "#Startups", "#growth"], "Build things #founders #Startups")
     assert caption == "Build things"
     assert tags == ["#growth", "#Startups", "#founders"]
+
+
+
+def test_prompt_requests_retention_and_shareability_scores(transcript):
+    system, _ = build_prompt({"title": "Talk"}, transcript, OPTIONS)
+
+    assert "retention_score" in system
+    assert "shareability_score" in system
+    assert "25% retention" in system
 
 
 def test_prompt_includes_options_and_instructions(transcript):
