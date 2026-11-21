@@ -20,12 +20,12 @@
 | Feature Development | Implement the feature(s) explicitly assigned to that conversation | Work on a dedicated branch; preserve unrelated work; provide a complete handoff. |
 | Testing & Integration | Review branches/PRs, inspect diffs, run tests and coordinate safe integration | Never merge unreviewed or conflicting changes. |
 
-## Repository baseline (inspected 2026-11-19)
+## Repository baseline (inspected 2026-11-21)
 
 - **Default branch:** `main`
-- **Latest main commit:** `67f8ec1e00c6b622a56750df035c61df3629a8ec` — Add editable campaign storyboard controls (#26).
-- Recent completed main work includes lyric animation previews, multi-colour lyric captions, configurable lyric colours, word-accurate song transcription and campaign dialogue/montage editing.
-- **Open PR search:** no open PRs were returned for this repository at inspection time.
+- **Latest main commit:** `942a2dbbd5ebf00fe89de9174fd3cf3c494db928` — Add subtle cinematic camera movement to campaign edits (#27).
+- Recent completed main work includes lyric animation previews, multi-colour lyric captions, configurable lyric colours, word-accurate song transcription, campaign dialogue/montage editing, stock-footage discovery, editable storyboards and optional cinematic camera movement.
+- **Open PR search:** PR #27 was merged on 2026-11-21; no other open PRs were present at the latest inspection.
 - **Branches observed:** `automatic-word-timed-lyrics`, `campaign-dialogue-transcription`, `campaign-footage-discovery`, `campaign-shot-editor`, `campaign-shot-editor-integration`, `creative-anime-editing`, `fix/campaign-export-audio-duration`, `fix/campaign-scene-selection-ci-final`, `fix/campaign-scene-selection-final-ci`, `fix/campaign-scene-selection-pacing`, `fix/campaign-scene-selection-pacing-ci`, `fix/campaign-scene-selection-release-check`, `fix/campaign-scene-selection-tested`, `fix/campaign-scene-selection-validated`, `improve-multi-clip-selection`, `instant-lyrics-style-editor`, `instant-lyrics-style-editor-ci`, `instant-lyrics-style-editor-verified`, `lyric-style-previews-multicolor`, `lyric-words-on-screen`, `lyrics-captions-animation`, `lyrics-color-controls`, `main`, `music-intelligence-hooks`, `refresh-legacy-lyric-timings`, `reuse-campaign-transcript-on-dialogue-rebuild`.
 - Branch names alone do not prove whether work is merged or active; check branch heads and diffs before reusing them.
 - **Coordination document branch:** `docs/project-coordination` (this document is maintained separately from application code).
@@ -38,7 +38,8 @@
 | Local transcription | Existing implementation | Existing code | faster-whisper already provides word-level timestamps. |
 | Face-based vertical reframing | Existing implementation | Existing code | Future improvements must not regress current framing. |
 | Animated captions | Existing implementation | Feature Development | Recent lyric animation, colour and word-window work is on main. |
-| Campaign montage / music / lyrics | Existing implementation | Feature Development | Recent campaign and lyric work is on main; avoid overlapping changes. |
+| Campaign montage / music / lyrics | Existing implementation | `main` | Music analysis, beat alignment, hooks, lyrics, storyboard controls, Pexels discovery and cinematic camera movement are integrated; improve only after auditing existing behavior. |
+| Cinematic campaign camera movement | V1 implemented | PR #27 / `main` | Optional subtle Ken Burns-style per-shot movement with a static-crop toggle; merged as `942a2db`. |
 | Virality scoring improvements | Not yet assessed | Unassigned | Existing selection already has hook, value, clarity and overall scores; assess before expanding. |
 | Advanced subject tracking | Not yet assessed | Unassigned | Avoid duplicating existing MediaPipe face tracking. |
 | Text-based editing / filler removal | V1 implemented | PR #23 / `main` | Conservative English filler-word removal is merged; full transcript editing remains a later feature. |
@@ -54,7 +55,8 @@
 |---|---|---|---|---|
 | Conservative filler-word removal for spoken clips | Feature Development + Architecture review | `feature/transcript-filler-removal` / [PR #23](https://github.com/Parth33831/clipyyy/pull/23) | Merged into `main` as `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`; post-merge CI passed | 2026-11-19 |
 | Campaign footage discovery from the existing Pexels integration | Feature Development + Architecture review | `feature/campaign-footage-discovery` / [PR #24](https://github.com/Parth33831/clipyyy/pull/24) | Merged into `main` as `45cf0a0653d11eceb56d8b104786f1821da9801c`; fast-backend and frontend CI passed | 2026-11-19 |
-| Campaign shot-level editor | Architecture & Master Plan | `feature/campaign-shot-editor-integration` / [PR #26](https://github.com/Parth33831/clipyyy/pull/26) | Merged into `main` as `67f8ec1e00c6b622a56750df035c61df3629a8ec`; post-merge CI passed: 95 passed, 15 skipped, frontend build passed | 2026-11-19 |
+| Campaign shot-level editor | Architecture & Master Plan | `feature/campaign-shot-editor-integration` / [PR #26](https://github.com/Parth33831/clipyyy/pull/26) | Merged into `main` as `67f8ec1e00c6b622a56750df035c61df3629a8ec`; CI passed: 95 passed, 15 skipped, frontend build passed | 2026-11-19 |
+| Cinematic campaign camera movement | Feature Development + Architecture review | `feature/campaign-kinetic-visuals` / [PR #27](https://github.com/Parth33831/clipyyy/pull/27) | Merged into `main` as `942a2dbbd5ebf00fe89de9174fd3cf3c494db928`; PR CI passed: 96 passed, 17 skipped, Ruff and frontend build passed; post-merge CI queued at last check | 2026-11-21 |
 
 ### Assignment: Conservative filler-word removal
 
@@ -250,6 +252,9 @@ STATUS: In progress / Ready for review / Merged
 - Frontend production build passed.
 - Fast backend suite passed: **96 passed, 17 skipped**, including the real FFmpeg campaign montage render test.
 - Windows, macOS and full-backend/manual CI jobs were skipped; no local Windows test is claimed.
-- **Status:** Ready for Architecture review. Not merged.
+- **Status:** Merged into `main` as `942a2dbbd5ebf00fe89de9174fd3cf3c494db928` on 2026-11-21.
 
 **Next priority after review:** Improve actual visual understanding and footage-to-brief matching. The current CPU-only local setup has a text-only Qwen model, so it cannot semantically inspect frames. Before adding a vision model, check available B: drive storage and benchmark a small local vision model; do not silently download a large model or use a paid/cloud fallback.
+
+
+- 2026-11-21: Reviewed and merged PR #27, cinematic campaign camera movement, into `main` as `942a2dbbd5ebf00fe89de9174fd3cf3c494db928`. PR CI passed: 96 backend tests passed, 17 skipped; Ruff lint/format and frontend production build passed. Post-merge CI was queued; local Windows/real-media visual review remains outstanding. Next priority is an audit-led AI visual storytelling/footage-to-brief matching improvement, with no duplicate music-analysis or vision-model implementation.
