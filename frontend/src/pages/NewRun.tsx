@@ -388,6 +388,12 @@ export function NewRunPage() {
                   ? 'Searches Pexels for supporting clips based on the campaign brief. Your own videos remain the primary sources.'
                   : 'Add a free Pexels API key in Settings to enable. Your supplied source videos work without it.'}
               />
+              <Toggle
+                checked={options.campaign_camera_motion}
+                onChange={(v) => set('campaign_camera_motion', v)}
+                label="Add cinematic camera movement"
+                hint="Adds subtle alternating push and pan movement to each shot for a more dynamic edit. Turn it off for a completely static crop."
+              />
               <Field label="Lyrics / exact on-screen text (optional)" hint="Paste only the lines you are allowed to use. They will be displayed in sequence across the edit.">
                 <Textarea rows={3} value={options.campaign_lyrics} onChange={(e) => set('campaign_lyrics', e.target.value)} placeholder="One line per screen..." />
               </Field>
