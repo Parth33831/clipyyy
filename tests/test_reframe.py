@@ -38,6 +38,41 @@ def test_detection_dimensions_do_not_upscale_small_video():
     assert detection_dimensions(640, 360) == (640, 360)
 
 
+
+def test_track_primary_faces_prefers_continuity_over_a_larger_background_face():
+    from clipyyy.reframe import track_primary_faces
+
+    primary_first = Face(0.10, 0.20, 0.18, 0.18)
+    background_first = Face(0.65, 0.20, 0.14, 0.14)
+    primary_next = Face(0.13, 0.20, 0.18, 0.18)
+    background_next = Face(0.60, 0.20, 0.28, 0.28)
+
+    tracked = track_primary_faces(
+        [[primary_first, background_first], [primary_next, background_next]]
+    )
+
+    assert tracked == [primary_first, primary_next]
+
+
+def test_track_primary_faces_reacquires_largest_face_after_long_disappearance():
+    from clipyyy.reframe import track_primary_faces
+
+    first = Face(0.10, 0.20, 0.20, 0.20)
+    new_primary = Face(0.65, 0.20, 0.30, 0.30)
+    smaller = Face(0.15, 0.20, 0.12, 0.12)
+
+    tracked = track_primary_faces([[first], [], [], [], [new_primary, smaller]])
+
+    assert tracked == [first, None, None, None, new_primary]
+
+
+def test_track_primary_faces_keeps_missing_frames_for_fallback_ratio():
+    from clipyyy.reframe import track_primary_faces
+
+    face = Face(0.2, 0.2, 0.2, 0.2)
+
+    assert track_primary_faces([[face], [], [face]]) == [face, None, face]
+
 def test_prepare_clips_skips_full_video_intermediate_without_broll(monkeypatch, tmp_path):
     import clipyyy.reframe as reframe
 
