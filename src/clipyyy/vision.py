@@ -152,8 +152,8 @@ def detect_black_intervals(video_path: Path, duration: float) -> list[tuple[floa
 
     intervals: list[tuple[float, float]] = []
     pattern = re.compile(
-        r"black_start:(?P<start>-?\\d+(?:\\.\\d+)?)\\s+"
-        r"black_end:(?P<end>-?\\d+(?:\\.\\d+)?|N/A)"
+        r"black_start:(?P<start>-?\d+(?:\.\d+)?)\s+"
+        r"black_end:(?P<end>-?\d+(?:\.\d+)?|N/A)"
     )
     for match in pattern.finditer(result.stderr or ""):
         try:
