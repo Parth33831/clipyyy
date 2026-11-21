@@ -303,10 +303,10 @@ STATUS: In progress / Ready for review / Merged
 
 **PR:** [#31 — Include ready-to-copy posting details in clip exports](https://github.com/Parth33831/clipyyy/pull/31)
 - Branch: `feature/post-ready-export-kit`
-- Latest commit: `bf257379c432f64d6a7e9c0e04318781f48736bd`
+- Latest commit: `2aab80f87823a877673db58ef0b6f18099ebd2a1`
 - Base: `main` at `942a2dbbd5ebf00fe89de9174fd3cf3c494db928`
 - Added API test assertions for title, caption, hashtags and video filename in the posting sheet.
-- First CI attempt: Ruff lint passed, Ruff format caught a spacing issue (fixed in latest commit); frontend build passed, fast backend job stopped at formatting before tests ran. Windows, macOS and full-backend jobs were skipped. CI rerun is pending; no local test run is claimed.
+- CI formatting corrections: two Ruff format-only failures were fixed in follow-up commits. Latest CI rerun is pending. Windows, macOS and full-backend jobs are skipped by workflow configuration; no local test run is claimed.
 - **Status:** Draft PR, awaiting CI and review. Not merged.
 
 **Next:** After PR #31 CI/review, continue with visual footage relevance audit and a local vision-model feasibility check; do not download models or change the user's machine settings without approval.
