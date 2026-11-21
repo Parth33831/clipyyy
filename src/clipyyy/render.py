@@ -433,23 +433,15 @@ def render_campaign_montages(
                     start = max(0.0, float(shot["start_seconds"]))
                     end = min(float(sources[source_index]["duration_seconds"]), float(shot["end_seconds"]))
                     duration = end - start
-                    if beat_times and duration >= 1.5:
+                    if music_analysis and duration >= 1.5:
                         elapsed = sum(probe(item)[2] for item in segments) if segments else 0.0
-                        desired_cut = elapsed + duration
-                        candidates = [
-                            beat - music_start
-                            for beat in beat_times
-                            if 1.5 <= beat - music_start - elapsed <= 5.0
-                        ]
-                        if candidates:
-                            aligned_cut = min(candidates, key=lambda beat: abs(beat - desired_cut))
-                            aligned_duration = aligned_cut - elapsed
-                            if 1.5 <= aligned_duration <= 5.0:
-                                end = min(
-                                    float(sources[source_index]["duration_seconds"]),
-                                    start + aligned_duration,
-                                )
-                                duration = end - start
+                        aligned_duration = select_music_cut_duration(elapsed, duration, music_analysis)
+                        if aligned_duration is not None:
+                            end = min(
+                                float(sources[source_index]["duration_seconds"]),
+                                start + aligned_duration,
+                            )
+                            duration = end - start
                     if duration < 1.0:
                         continue
                     segment = edit_dir / f"shot-{shot_index:03d}.mp4"
@@ -650,7 +642,7 @@ def render_campaign_montages(
             "music_track_added": bool(music_path),
             "official_sound_required": official_sound_required,
             "beat_sync": (
-                f"cuts aligned to detected musical transients; estimated {music_analysis['bpm']} BPM"
+                f"cuts guided by high-energy musical transients; estimated {music_analysis['bpm']} BPM"
                 if music_analysis and beat_times and music_analysis.get("bpm")
                 else "track analysed, but reliable beat transients were not detected"
                 if music_analysis
@@ -1149,6 +1141,83 @@ def detect_music_beat_interval(path: Path) -> float | None:
         return None
 
 
+def _build_music_energy_sections(
+    energy: list[float], frame_seconds: float, bucket_seconds: float = 0.5
+) -> tuple[list[dict], list[dict]]:
+    """Compress short-window RMS into normalized half-second energy and section summaries."""
+    if not energy:
+        return [], []
+    stride = max(1, round(bucket_seconds / frame_seconds))
+    buckets = [
+        (index, sum(energy[index : index + stride]) / len(energy[index : index + stride]))
+        for index in range(0, len(energy), stride)
+        if energy[index : index + stride]
+    ]
+    values = [value for _, value in buckets]
+    ordered = sorted(values)
+    low = ordered[min(len(ordered) - 1, round((len(ordered) - 1) * 0.10))]
+    high = ordered[min(len(ordered) - 1, round((len(ordered) - 1) * 0.90))]
+    spread = high - low
+    profile = [
+        {
+            "time_seconds": round((index + min(stride, len(energy) - index) / 2) * frame_seconds, 3),
+            "energy": round(max(0.0, min(1.0, (value - low) / spread)), 4) if spread > 1e-9 else 0.5,
+        }
+        for index, value in buckets
+    ]
+    sections = []
+    for point in profile:
+        level = "low" if point["energy"] < 0.34 else "medium" if point["energy"] < 0.68 else "high"
+        if sections and sections[-1]["level"] == level:
+            sections[-1]["end_seconds"] = point["time_seconds"]
+            sections[-1]["average_energy"] = round(
+                (sections[-1]["average_energy"] * sections[-1]["samples"] + point["energy"])
+                / (sections[-1]["samples"] + 1),
+                4,
+            )
+            sections[-1]["samples"] += 1
+        else:
+            sections.append(
+                {
+                    "start_seconds": point["time_seconds"],
+                    "end_seconds": point["time_seconds"],
+                    "level": level,
+                    "average_energy": point["energy"],
+                    "samples": 1,
+                }
+            )
+    for section in sections:
+        section.pop("samples")
+    return profile, sections
+
+
+def select_music_cut_duration(
+    elapsed_seconds: float, desired_duration: float, analysis: dict
+) -> float | None:
+    """Choose a nearby musical transient, preferring energetic beats without wild pacing jumps."""
+    beats = analysis.get("beat_times") or []
+    if not beats:
+        return None
+    strengths = analysis.get("beat_strengths") or []
+    profile = analysis.get("energy_profile") or []
+    music_start = float(analysis.get("best_start_seconds") or 0.0)
+    candidates = []
+    for index, beat in enumerate(beats):
+        relative = float(beat) - music_start - elapsed_seconds
+        if not 1.5 <= relative <= 5.0:
+            continue
+        strength = float(strengths[index]) if index < len(strengths) else 0.0
+        energy = 0.5
+        if profile:
+            nearest = min(profile, key=lambda point: abs(float(point["time_seconds"]) - float(beat)))
+            energy = max(0.0, min(1.0, float(nearest.get("energy", 0.5))))
+        score = abs(relative - desired_duration) - 0.55 * energy - 0.35 * max(0.0, min(1.0, strength))
+        candidates.append((score, relative))
+    if not candidates:
+        return None
+    return round(min(candidates, key=lambda item: item[0])[1], 3)
+
+
 def analyze_campaign_music(path: Path, target_duration: float) -> dict:
     """Analyse the complete local track and choose its most energetic usable section."""
     result = subprocess.run(
@@ -1199,8 +1268,10 @@ def analyze_campaign_music(path: Path, target_duration: float) -> dict:
 
     novelty = [max(0.0, energy[index] - energy[index - 1]) for index in range(1, len(energy))]
     baseline = median(novelty) if novelty else 0.0
-    threshold = max(baseline * 2.2, max(novelty, default=0.0) * 0.10)
+    max_novelty = max(novelty, default=0.0)
+    threshold = max(baseline * 2.2, max_novelty * 0.10)
     beats = []
+    beat_strengths = []
     last = -1.0
     for index in range(1, len(novelty) - 1):
         value = novelty[index]
@@ -1213,6 +1284,7 @@ def analyze_campaign_music(path: Path, target_duration: float) -> dict:
         ):
             if best_start <= timestamp <= best_end:
                 beats.append(round(timestamp, 3))
+                beat_strengths.append(round(value / max_novelty, 4) if max_novelty else 0.0)
                 last = timestamp
     intervals = [
         second - first
@@ -1221,11 +1293,15 @@ def analyze_campaign_music(path: Path, target_duration: float) -> dict:
     ]
     beat_interval = median(intervals) if len(intervals) >= 4 else None
     bpm = round(60 / beat_interval) if beat_interval else None
+    energy_profile, energy_sections = _build_music_energy_sections(energy, frame_seconds)
     return {
         "duration_seconds": round(track_duration, 2),
         "best_start_seconds": round(best_start, 3),
         "selected_section": f"{best_start:.1f}–{best_end:.1f}s",
         "beat_times": beats,
+        "beat_strengths": beat_strengths,
+        "energy_profile": energy_profile,
+        "energy_sections": energy_sections,
         "beat_interval_seconds": round(beat_interval, 4) if beat_interval else None,
         "bpm": bpm,
     }

@@ -226,6 +226,60 @@ def test_music_analysis_selects_high_energy_section_and_finds_beats(monkeypatch,
     assert len(analysis["beat_times"]) >= 4
 
 
+def test_music_energy_analysis_returns_sections_and_normalized_profile(monkeypatch, tmp_path):
+    from array import array
+    from types import SimpleNamespace
+
+    from clipyyy import render
+
+    frame = 551
+    samples = array("f")
+    for index in range(240):
+        amplitude = 0.08 if index < 80 else 0.45 if index < 160 else 0.95
+        samples.extend([amplitude] * frame)
+    monkeypatch.setattr(
+        render.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(stdout=samples.tobytes(), returncode=0),
+    )
+
+    analysis = render.analyze_campaign_music(tmp_path / "sections.mp3", 5.0)
+
+    assert analysis["energy_profile"]
+    assert all(0.0 <= point["energy"] <= 1.0 for point in analysis["energy_profile"])
+    assert analysis["energy_sections"]
+    assert {section["level"] for section in analysis["energy_sections"]} >= {"low", "high"}
+
+
+def test_music_cut_selection_prefers_strong_energy_transient_near_target():
+    from clipyyy.render import select_music_cut_duration
+
+    analysis = {
+        "best_start_seconds": 0.0,
+        "beat_times": [3.0, 3.8],
+        "beat_strengths": [0.1, 1.0],
+        "energy_profile": [
+            {"time_seconds": 3.0, "energy": 0.0},
+            {"time_seconds": 3.8, "energy": 1.0},
+        ],
+    }
+
+    assert select_music_cut_duration(0.0, 2.8, analysis) == 3.8
+
+
+def test_music_cut_selection_falls_back_when_no_transient_is_in_range():
+    from clipyyy.render import select_music_cut_duration
+
+    analysis = {
+        "best_start_seconds": 0.0,
+        "beat_times": [0.8, 1.2, 6.0],
+        "beat_strengths": [1.0, 1.0, 1.0],
+        "energy_profile": [],
+    }
+
+    assert select_music_cut_duration(0.0, 2.5, analysis) is None
+
+
 def test_campaign_lyrics_lrc_timestamps_are_shifted_to_selected_music_section(tmp_path):
     from clipyyy.render import write_campaign_lyrics
 
