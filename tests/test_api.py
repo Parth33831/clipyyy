@@ -206,6 +206,8 @@ def test_run_detail_exposes_filler_removal_count(client):
 
 
 def test_campaign_frame_endpoint_returns_and_caches_source_thumbnail(client, tmp_path, monkeypatch):
+    from pathlib import Path
+
     run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
     source = tmp_path / "campaign-source.mp4"
     source.write_bytes(b"fake-video")
