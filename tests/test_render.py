@@ -59,7 +59,12 @@ def test_render_synthetic_clip(tmp_path, transcript, aspect, size, normalize_aud
     first_box = crop_boxes[0]
     moving_box = {**first_box, "t": 10.0, "x": first_box["x"] + 20}
     prepared = {"clips": [{"rank": 1, "speaker_path": str(speaker), "crop_boxes": [first_box, moving_box]}]}
-    options = {"aspect_ratio": aspect, "captions": True, "caption_style": "bold", "normalize_audio": normalize_audio}
+    options = {
+        "aspect_ratio": aspect,
+        "captions": True,
+        "caption_style": "bold",
+        "normalize_audio": normalize_audio,
+    }
 
     result = render_clips(
         {"video_path": str(source)},
