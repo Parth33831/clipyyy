@@ -25,7 +25,7 @@
 - **Default branch:** `main`
 - **Latest main commit:** `e852f7f5e795111516a5a70a051b942a7ee4c229` — Add campaign storyboard frame previews (#38).
 - Recent completed main work includes lyric animation previews, multi-colour lyric captions, configurable lyric colours, word-accurate song transcription, campaign dialogue/montage editing, stock-footage discovery, editable storyboards, optional cinematic camera movement and ready-to-post copy in clip export archives.
-- **Open work:** No active PRs. PRs #29, #30, #31, #32, #34, #36, #37 and #38 are merged. PRs #33 and #35 were closed as superseded. PR #27 remains merged.
+- **Open work:** PR #39 adds a readable campaign music-energy timeline in Run Detail; CI is running. PRs #29, #30, #31, #32, #34, #36, #37 and #38 are merged. PRs #33 and #35 were closed as superseded. PR #27 remains merged.
 - **Branches observed:** `automatic-word-timed-lyrics`, `campaign-dialogue-transcription`, `campaign-footage-discovery`, `campaign-shot-editor`, `campaign-shot-editor-integration`, `creative-anime-editing`, `fix/campaign-export-audio-duration`, `fix/campaign-scene-selection-ci-final`, `fix/campaign-scene-selection-final-ci`, `fix/campaign-scene-selection-pacing`, `fix/campaign-scene-selection-pacing-ci`, `fix/campaign-scene-selection-release-check`, `fix/campaign-scene-selection-tested`, `fix/campaign-scene-selection-validated`, `improve-multi-clip-selection`, `instant-lyrics-style-editor`, `instant-lyrics-style-editor-ci`, `instant-lyrics-style-editor-verified`, `lyric-style-previews-multicolor`, `lyric-words-on-screen`, `lyrics-captions-animation`, `lyrics-color-controls`, `main`, `music-intelligence-hooks`, `refresh-legacy-lyric-timings`, `reuse-campaign-transcript-on-dialogue-rebuild`.
 - Branch names alone do not prove whether work is merged or active; check branch heads and diffs before reusing them.
 - **Coordination document branch:** `docs/project-coordination` (this document is maintained separately from application code).
@@ -43,6 +43,7 @@
 | Campaign shot transitions | V1 implemented | [PR #36](https://github.com/Parth33831/clipyyy/pull/36) / `main` | Auto preserves beat-aware hard cuts and fallback dissolves; creators can also choose clean cuts, cinematic fades or dynamic directional transitions. Beat timing accounts for overlap. |
 | Visual campaign storyboard | V1 implemented | [PR #38](https://github.com/Parth33831/clipyyy/pull/38) / `main` | Each selected shot now shows a cached source-frame thumbnail; preview endpoint validates source/timestamp and keeps local paths private. |
 | Continuity-aware primary subject tracking | V1 implemented | [PR #37](https://github.com/Parth33831/clipyyy/pull/37) / `main` | Tracks a consistent primary face across frames instead of switching to a larger background face; reacquires after a short disappearance. |
+| Campaign music energy timeline | In review | [PR #39](https://github.com/Parth33831/clipyyy/pull/39) | Displays estimated BPM, transients, selected track section and low/medium/high energy sections in the campaign intelligence panel. |
 | Virality scoring improvements | Not yet assessed | Unassigned | Existing selection already has hook, value, clarity and overall scores; assess before expanding. |
 | Advanced subject tracking | V1 continuity-aware face tracking implemented | [PR #37](https://github.com/Parth33831/clipyyy/pull/37) / `main` | True active-speaker detection and semantic multi-person identity remain future work; do not duplicate existing MediaPipe face detection. |
 | Text-based editing / filler removal | V1 implemented | PR #23 / `main` | Conservative English filler-word removal is merged; full transcript editing remains a later feature. |
@@ -385,3 +386,14 @@ STATUS: In progress / Ready for review / Merged
 
 - 2026-11-21: PR #37 merged continuity-aware primary-subject tracking into `main` as `0e5a9d83109ffe2edb9fa15a43ad21d574fa2d1b`; fast-backend (106 passed, 22 skipped), Ruff lint/format and frontend build passed.
 - 2026-11-21: PR #38 merged cached campaign storyboard frame previews into `main` as `e852f7f5e795111516a5a70a051b942a7ee4c229`; PR CI completed successfully.
+
+
+### Feature Development: Campaign music energy timeline
+
+- **PR:** [#39 — Show the analyzed music energy timeline in campaign intelligence](https://github.com/Parth33831/clipyyy/pull/39)
+- **Branch:** `feature/music-energy-visual-summary`
+- **Head:** `dbc5e5ffe2185dca594ca9871a78faa35c9a6715`
+- **Base:** `main` at `0e5a9d83109ffe2edb9fa15a43ad21d574fa2d1b`
+- **Files:** `frontend/src/api.ts`, `frontend/src/pages/RunDetail.tsx`.
+- **Implementation:** Replaces generic object text for `music_analysis` with a readable compact energy timeline, BPM, transient count and selected track section.
+- **Validation:** Frontend/backend CI running; merge only after required checks pass.
