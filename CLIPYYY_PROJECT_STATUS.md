@@ -286,3 +286,27 @@ STATUS: In progress / Ready for review / Merged
 - PR #28 was closed as superseded after PR #27 merged while this work was underway. PR #29 is rebased on main commit `942a2db`.
 
 **Next priority:** Improve campaign source relevance with actual local visual understanding. First benchmark an appropriate small vision model against the user's CPU/RAM constraints and available B: drive storage; do not download it or alter local machine settings without explicit approval. Until then, the application must keep reporting text-only limitations accurately.
+
+### Feature Development update: Ready-to-post export kit
+
+**Objective:** Make each completed run easier to publish by packaging the generated copy alongside the rendered clips.
+
+**Implementation**
+- Preserves every existing MP4 and the existing `clips.json` export.
+- Adds `POSTING-COPY.txt` to the run ZIP with each clip's suggested post title, video filename, caption and hashtags.
+- Handles missing captions/hashtags without failing the export.
+- Entirely local/offline; does not connect accounts, upload media, or publish posts.
+
+**Files changed**
+- `src/clipyyy/api.py`
+- `tests/test_api.py`
+
+**PR:** [#31 — Include ready-to-copy posting details in clip exports](https://github.com/Parth33831/clipyyy/pull/31)
+- Branch: `feature/post-ready-export-kit`
+- Latest commit: `d0584deff0e399785d7ed3422c4797ccff9ab392`
+- Base: `main` at `942a2dbbd5ebf00fe89de9174fd3cf3c494db928`
+- Added API test assertions for title, caption, hashtags and video filename in the posting sheet.
+- CI: fast backend and frontend checks were queued at last check; Windows, macOS and full-backend jobs were skipped. No local test run is claimed.
+- **Status:** Draft PR, awaiting CI and review. Not merged.
+
+**Next:** After PR #31 CI/review, continue with visual footage relevance audit and a local vision-model feasibility check; do not download models or change the user's machine settings without approval.
