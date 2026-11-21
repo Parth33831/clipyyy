@@ -23,9 +23,9 @@
 ## Repository baseline (inspected 2026-11-21)
 
 - **Default branch:** `main`
-- **Latest main commit:** `a9521c877e40a376ae8372a75d1047d18580c96e` — Add a visual campaign timeline with music-energy track (#40).
+- **Latest main commit:** `5d638f47dbf420cb3bd830299c37944ef5e9264d` — Score clips for retention and shareability (#41).
 - Recent completed main work includes lyric animation previews, multi-colour lyric captions, configurable lyric colours, word-accurate song transcription, campaign dialogue/montage editing, stock-footage discovery, editable storyboards, optional cinematic camera movement and ready-to-post copy in clip export archives.
-- **Open work:** No active PRs in this development batch. PRs #29, #30, #31, #32, #34, #36, #37, #38 and #40 are merged. PRs #33, #35 and #39 were closed as superseded. PR #27 remains merged.
+- **Open work:** No active PRs in this development batch. PRs #29, #30, #31, #32, #34, #36, #37, #38, #40 and #41 are merged. PRs #33, #35 and #39 were closed as superseded. PR #27 remains merged.
 - **Branches observed:** `automatic-word-timed-lyrics`, `campaign-dialogue-transcription`, `campaign-footage-discovery`, `campaign-shot-editor`, `campaign-shot-editor-integration`, `creative-anime-editing`, `fix/campaign-export-audio-duration`, `fix/campaign-scene-selection-ci-final`, `fix/campaign-scene-selection-final-ci`, `fix/campaign-scene-selection-pacing`, `fix/campaign-scene-selection-pacing-ci`, `fix/campaign-scene-selection-release-check`, `fix/campaign-scene-selection-tested`, `fix/campaign-scene-selection-validated`, `improve-multi-clip-selection`, `instant-lyrics-style-editor`, `instant-lyrics-style-editor-ci`, `instant-lyrics-style-editor-verified`, `lyric-style-previews-multicolor`, `lyric-words-on-screen`, `lyrics-captions-animation`, `lyrics-color-controls`, `main`, `music-intelligence-hooks`, `refresh-legacy-lyric-timings`, `reuse-campaign-transcript-on-dialogue-rebuild`.
 - Branch names alone do not prove whether work is merged or active; check branch heads and diffs before reusing them.
 - **Coordination document branch:** `docs/project-coordination` (this document is maintained separately from application code).
@@ -44,7 +44,7 @@
 | Visual campaign storyboard | V1 implemented | [PR #38](https://github.com/Parth33831/clipyyy/pull/38) / `main` | Each selected shot now shows a cached source-frame thumbnail; preview endpoint validates source/timestamp and keeps local paths private. |
 | Continuity-aware primary subject tracking | V1 implemented | [PR #37](https://github.com/Parth33831/clipyyy/pull/37) / `main` | Tracks a consistent primary face across frames instead of switching to a larger background face; reacquires after a short disappearance. |
 | Campaign visual timeline + music energy lane | V1 implemented | [PR #40](https://github.com/Parth33831/clipyyy/pull/40) / `main` | Shows proportional shot thumbnail blocks, durations and the selected track's low/medium/high energy sections; clicking a shot jumps to its existing storyboard controls. |
-| Virality scoring improvements | Not yet assessed | Unassigned | Existing selection already has hook, value, clarity and overall scores; assess before expanding. |
+| Virality scoring improvements | V1 retention-aware scoring implemented | [PR #41](https://github.com/Parth33831/clipyyy/pull/41) / `main` | Adds retention and shareability components (20% hook, 25% value, 15% clarity, 25% retention, 15% shareability); safely falls back to the legacy overall score when optional fields are absent. |
 | Advanced subject tracking | V1 continuity-aware face tracking implemented | [PR #37](https://github.com/Parth33831/clipyyy/pull/37) / `main` | True active-speaker detection and semantic multi-person identity remain future work; do not duplicate existing MediaPipe face detection. |
 | Text-based editing / filler removal | V1 implemented | PR #23 / `main` | Conservative English filler-word removal is merged; full transcript editing remains a later feature. |
 | Campaign shot-level editor | V1 implemented | PR #26 / `main` | Reorder, trim and remove AI-selected campaign shots, reset to the AI plan, and rerender from cached creator/Pexels sources without rerunning analysis. |
@@ -67,14 +67,15 @@
 | Continuity-aware primary-subject tracking | `feature/continuity-aware-subject-tracking` / [PR #37](https://github.com/Parth33831/clipyyy/pull/37) | Merged into main as `0e5a9d83109ffe2edb9fa15a43ad21d574fa2d1b` | Tracks a geometrically consistent face between frames, tolerates brief misses and reacquires after a longer disappearance or large position change. Fast-backend: 106 passed, 22 skipped; Ruff lint/format and frontend build passed. |
 | Campaign storyboard frame previews | `feature/campaign-storyboard-frame-previews` / [PR #38](https://github.com/Parth33831/clipyyy/pull/38) | Merged into main as `e852f7f5e795111516a5a70a051b942a7ee4c229` | Adds cached source-frame thumbnails to storyboard shots and a validated API endpoint; PR CI completed successfully. |
 | Campaign visual timeline + music energy lane | `feature/campaign-visual-timeline` / [PR #40](https://github.com/Parth33831/clipyyy/pull/40) | Merged into main as `a9521c877e40a376ae8372a75d1047d18580c96e` | Adds proportional shot thumbnails, durations and selected-track energy sections, with navigation to existing storyboard controls. Fast-backend: 108 passed, 22 skipped; Ruff lint/format and frontend build passed. |
+| Retention-aware virality scoring | `feature/retention-aware-virality-scoring` / [PR #41](https://github.com/Parth33831/clipyyy/pull/41) | Merged into main as `5d638f47dbf420cb3bd830299c37944ef5e9264d` | Scores hook, value, clarity, retention and shareability with a bounded weighted formula; older models retain the legacy score fallback. Fast-backend: 112 passed, 22 skipped; Ruff lint/format and frontend build passed. |
 | Continuity-aware primary-subject tracking | `feature/continuity-aware-subject-tracking` / [PR #37](https://github.com/Parth33831/clipyyy/pull/37) | Merged into main as `0e5a9d83109ffe2edb9fa15a43ad21d574fa2d1b` | Tracks a geometrically consistent face between frames, tolerates brief misses and reacquires after a longer disappearance or large position change. Fast-backend: 106 passed, 22 skipped; Ruff lint/format and frontend build passed. |
 | Campaign storyboard frame previews | `feature/campaign-storyboard-frame-previews` / [PR #38](https://github.com/Parth33831/clipyyy/pull/38) | Merged into main as `e852f7f5e795111516a5a70a051b942a7ee4c229` | Adds cached source-frame thumbnails to storyboard shots and a validated API endpoint; PR CI completed successfully. |
 | Continuity-aware primary-subject tracking | `feature/continuity-aware-subject-tracking` / [PR #37](https://github.com/Parth33831/clipyyy/pull/37) | Merged into main as `0e5a9d83109ffe2edb9fa15a43ad21d574fa2d1b` | Tracks a geometrically consistent face between frames, tolerates brief misses and reacquires after a longer disappearance or large position change. Fast-backend: 106 passed, 22 skipped; Ruff lint/format and frontend build passed. |
 | Campaign storyboard frame previews | `feature/campaign-storyboard-frame-previews` / [PR #38](https://github.com/Parth33831/clipyyy/pull/38) | Merged into main as `e852f7f5e795111516a5a70a051b942a7ee4c229` | Adds cached source-frame thumbnails to storyboard shots and a validated API endpoint; PR CI completed successfully. |
 
-**Latest main baseline:** `a9521c877e40a376ae8372a75d1047d18580c96e`.
+**Latest main baseline:** `5d638f47dbf420cb3bd830299c37944ef5e9264d`.
 
-**Validation honesty:** PR #29, #30, #31, #32, #34, #36, #37, #38 and #40 fast-backend and frontend checks passed. Windows, macOS and full-backend jobs were skipped by workflow configuration. No local Windows media test or real-media visual review has been run. PR #32 was rebuilt on top of merged #29/#30 code; PR #36 consolidated music-energy cut selection with selectable transitions on top of PR #34; PR #40 adds the visual shot/music timeline.
+**Validation honesty:** PR #29, #30, #31, #32, #34, #36, #37, #38, #40 and #41 fast-backend and frontend checks passed. Windows, macOS and full-backend jobs were skipped by workflow configuration. No local Windows media test or real-media visual review has been run. PR #32 was rebuilt on top of merged #29/#30 code; PR #36 consolidated music-energy cut selection with selectable transitions on top of PR #34; PR #40 adds the visual shot/music timeline; PR #41 adds retention/shareability to the AI virality score.
 
 ## Current work
 
@@ -405,11 +406,15 @@ STATUS: In progress / Ready for review / Merged
 - 2026-11-21: PR #40 merged the visual campaign timeline and music-energy lane into `main` as `a9521c877e40a376ae8372a75d1047d18580c96e`. Fast-backend passed (108 passed, 22 skipped), Ruff lint/format and frontend build passed. PR #39 was closed as superseded to avoid duplicating the same energy timeline.
 
 
-### Feature Development: Visual campaign timeline
+### Completed feature: Retention-aware AI virality scoring
 
-- **PR:** [#40 — Add a visual campaign timeline with music-energy track](https://github.com/Parth33831/clipyyy/pull/40)
-- **Branch:** `feature/campaign-visual-timeline`
-- **Merge commit:** `a9521c877e40a376ae8372a75d1047d18580c96e`
-- **Implementation:** Adds a clickable video shot timeline with source thumbnails and a music-energy track aligned to the selected music window. Shows BPM, detected transients and low/medium/high energy sections. Timeline blocks jump to the matching storyboard shot.
-- **Validation:** Fast-backend and frontend CI passed; Windows, macOS and full-backend jobs skipped. No local Windows/real-media review is claimed.
-- **Coordination:** PR #39 was closed as superseded because #40 provides the richer storyboard-level energy visualization.
+- **Branch:** `feature/retention-aware-virality-scoring`
+- **PR:** [#41 — Score clips for retention and shareability](https://github.com/Parth33831/clipyyy/pull/41)
+- **Base:** `main` at `a9521c877e40a376ae8372a75d1047d18580c96e`
+- **Merge commit:** `5d638f47dbf420cb3bd830299c37944ef5e9264d`
+- **Files:** `src/clipyyy/selection.py`, `src/clipyyy/prompts/clip_selection.md`, `tests/test_selection.py`, `frontend/src/pages/RunDetail.tsx`.
+- **Implementation:** When all component scores are available, the AI virality estimate uses 20% hook, 25% value, 15% clarity, 25% retention and 15% shareability. Missing optional fields use the previous model-provided overall score. Scores are bounded to 0–10, and the UI identifies the result as an AI estimate rather than a guarantee.
+- **CI:** Fast backend **112 passed, 22 skipped**; Ruff lint/format and frontend production build passed. Windows, macOS and full-backend/manual jobs were skipped.
+- **Known limitation:** Older/local models may omit the new optional retention/shareability scores, in which case their legacy overall score is retained.
+
+- 2026-11-21: PR #41 merged retention-aware AI virality scoring into `main` as `5d638f47dbf420cb3bd830299c37944ef5e9264d`. Fast-backend passed (112 passed, 22 skipped), Ruff lint/format and frontend build passed.
