@@ -248,7 +248,7 @@ STATUS: In progress / Ready for review / Merged
 - Latest commit: `841a91eb61d11a2f5a411e8a0c35db31fd5d1f4f`
 - Ruff lint and format passed.
 - Frontend production build passed.
-- Fast backend suite passed, including the real FFmpeg campaign montage render test.
+- Fast backend suite passed: **96 passed, 17 skipped**, including the real FFmpeg campaign montage render test.
 - Windows, macOS and full-backend/manual CI jobs were skipped; no local Windows test is claimed.
 - **Status:** Ready for Architecture review. Not merged.
 
