@@ -688,6 +688,66 @@ function CopyBlock({ label, text }: { label: string; text: string }) {
 }
 
 
+function MusicEnergySummary({ analysis }: { analysis: Record<string, unknown> }) {
+  const sections = Array.isArray(analysis.energy_sections)
+    ? analysis.energy_sections.filter(
+        (section): section is Record<string, unknown> =>
+          typeof section === 'object' && section !== null,
+      )
+    : []
+  const durations = sections.map((section) =>
+    Math.max(0.25, Number(section.end_seconds ?? 0) - Number(section.start_seconds ?? 0)),
+  )
+  const totalDuration = durations.reduce((total, duration) => total + duration, 0)
+  const counts = sections.reduce(
+    (result, section) => {
+      const level = String(section.level ?? 'unknown')
+      result[level] = (result[level] ?? 0) + 1
+      return result
+    },
+    {} as Record<string, number>,
+  )
+  const bpm = typeof analysis.estimated_bpm === 'number' ? analysis.estimated_bpm : null
+  const beats = typeof analysis.detected_beats === 'number' ? analysis.detected_beats : null
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
+        {bpm !== null && <span>{bpm} BPM</span>}
+        {beats !== null && <span>{beats} detected transients</span>}
+        {typeof analysis.selected_section === 'string' && <span>Track section {analysis.selected_section}</span>}
+      </div>
+      {sections.length > 0 && (
+        <>
+          <div className="flex h-3 w-full gap-px overflow-hidden rounded bg-sunk" aria-label="Music energy timeline">
+            {sections.map((section, index) => {
+              const level = String(section.level ?? 'unknown')
+              const color =
+                level === 'high' ? 'bg-acid' : level === 'medium' ? 'bg-ink/50' : 'bg-line'
+              const start = Number(section.start_seconds ?? 0)
+              const end = Number(section.end_seconds ?? start)
+              const duration = durations[index]
+              return (
+                <div
+                  key={index}
+                  title={`${level} energy · ${formatDuration(start)}–${formatDuration(end)}`}
+                  className={color}
+                  style={{ flexGrow: duration / totalDuration, flexBasis: 0 }}
+                />
+              )
+            })}
+          </div>
+          <div className="flex flex-wrap gap-3 text-[11px] text-muted">
+            {(['low', 'medium', 'high'] as const).map((level) =>
+              counts[level] ? <span key={level}>{counts[level]} {level}-energy section(s)</span> : null,
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 function CampaignPlanCard({ plan, checks }: { plan: NonNullable<RunDetail['campaign_plan']>; checks: RunDetail['campaign_quality_checks'] }) {
   const labels: Record<string, string> = {
     campaign_name: 'Campaign',
@@ -750,15 +810,17 @@ function CampaignPlanCard({ plan, checks }: { plan: NonNullable<RunDetail['campa
               <div key={key}>
                 <dt className="label text-muted">{key.replaceAll('_', ' ')}</dt>
                 <dd className="mt-1 text-sm">
-                  {key === 'lyrics_overlay' && value === false
-                    ? 'Not added — no lyric lines were available or configured.'
-                    : key === 'music_track_added' && value === true
-                      ? 'Yes — attached local track is mixed into the export.'
-                      : typeof value === 'boolean'
-                        ? (value ? 'Yes' : 'No')
-                        : typeof value === 'object' && value !== null
-                          ? Object.entries(value).map(([name, detail]) => `${name.replaceAll('_', ' ')}: ${detail}`).join(' · ')
-                          : String(value)}
+                  {key === 'music_analysis' && typeof value === 'object' && value !== null
+                    ? <MusicEnergySummary analysis={value as Record<string, unknown>} />
+                    : key === 'lyrics_overlay' && value === false
+                      ? 'Not added — no lyric lines were available or configured.'
+                      : key === 'music_track_added' && value === true
+                        ? 'Yes — attached local track is mixed into the export.'
+                        : typeof value === 'boolean'
+                          ? (value ? 'Yes' : 'No')
+                          : typeof value === 'object' && value !== null
+                            ? Object.entries(value).map(([name, detail]) => `${name.replaceAll('_', ' ')}: ${detail}`).join(' · ')
+                            : String(value)}
                 </dd>
               </div>
             ))}
