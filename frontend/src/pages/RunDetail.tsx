@@ -391,15 +391,18 @@ function CampaignStoryboardEditor({
       shots: edit.shots.map((shot, position) => position === shotIndex ? { ...shot, ...patch } : shot),
     }))
   }
-  const moveShot = (editIndex: number, shotIndex: number, direction: -1 | 1) => {
+  const moveShotTo = (editIndex: number, fromIndex: number, toIndex: number) => {
     onChange(edits.map((edit, index) => {
-      if (index !== editIndex) return edit
-      const target = shotIndex + direction
-      if (target < 0 || target >= edit.shots.length) return edit
+      if (index !== editIndex || fromIndex === toIndex) return edit
+      if (fromIndex < 0 || toIndex < 0 || fromIndex >= edit.shots.length || toIndex >= edit.shots.length) return edit
       const shots = [...edit.shots]
-      ;[shots[shotIndex], shots[target]] = [shots[target], shots[shotIndex]]
+      const [moved] = shots.splice(fromIndex, 1)
+      shots.splice(toIndex, 0, moved)
       return { ...edit, shots }
     }))
+  }
+  const moveShot = (editIndex: number, shotIndex: number, direction: -1 | 1) => {
+    moveShotTo(editIndex, shotIndex, shotIndex + direction)
   }
   const removeShot = (editIndex: number, shotIndex: number) => {
     onChange(edits.map((edit, index) => index !== editIndex ? edit : {
@@ -440,6 +443,7 @@ function CampaignStoryboardEditor({
             sources={sources}
             musicAnalysis={musicAnalysis}
             transitionStyle={transitionStyle}
+            onMoveShot={(fromIndex, toIndex) => moveShotTo(editIndex, fromIndex, toIndex)}
           />
           <ol className="flex flex-col gap-2">
             {edit.shots.map((shot, shotIndex) => {
@@ -506,12 +510,14 @@ function CampaignTimeline({
   sources,
   musicAnalysis,
   transitionStyle,
+  onMoveShot,
 }: {
   edit: CampaignEdit
   runId: string
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
   transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
+  onMoveShot: (fromIndex: number, toIndex: number) => void
 }) {
   const sourceByIndex = new Map(sources.map((source) => [source.index, source]))
   const hasBeats = (musicAnalysis?.detected_beats ?? 0) > 0
@@ -527,7 +533,7 @@ function CampaignTimeline({
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3">
       <div className="flex items-center justify-between gap-3">
-        <span className="label text-muted">Video timeline</span>
+        <span className="label text-muted">Video timeline · drag shots to reorder</span>
         <span className="font-mono text-[11px] text-faint">{formatDuration(total)} estimated</span>
       </div>
       <div className="overflow-x-auto">
@@ -541,7 +547,21 @@ function CampaignTimeline({
                 title={`Shot ${index + 1}: ${source?.title ?? `Source ${shot.source_index + 1}`} · ${formatDuration(shot.end_seconds - shot.start_seconds)}`}
                 aria-label={`Jump to shot ${index + 1} in the storyboard editor`}
                 onClick={() => document.getElementById(`campaign-shot-${edit.rank}-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                className="group min-w-[104px] flex-1 overflow-hidden rounded-md border border-line bg-paper text-left transition-colors hover:border-ink"
+                draggable
+                onDragStart={(event) => {
+                  event.dataTransfer.effectAllowed = 'move'
+                  event.dataTransfer.setData('text/plain', String(index))
+                }}
+                onDragOver={(event) => {
+                  event.preventDefault()
+                  event.dataTransfer.dropEffect = 'move'
+                }}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  const fromIndex = Number(event.dataTransfer.getData('text/plain'))
+                  if (Number.isInteger(fromIndex)) onMoveShot(fromIndex, index)
+                }}
+                className="group min-w-[104px] flex-1 cursor-grab overflow-hidden rounded-md border border-line bg-paper text-left transition-colors hover:border-ink active:cursor-grabbing"
                 style={{ flex: `${duration} 1 0%` }}
               >
                 <img
