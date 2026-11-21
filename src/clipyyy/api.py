@@ -460,6 +460,7 @@ def _safe(text: str) -> str:
 
     return slugify(text)
 
+
 def _posting_copy(clips: list[dict]) -> str:
     """Build a plain-text, ready-to-copy posting sheet for the clips in an export."""
     sections = [
