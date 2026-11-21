@@ -1211,7 +1211,7 @@ def select_music_cut_duration(
         if profile:
             nearest = min(profile, key=lambda point: abs(float(point["time_seconds"]) - float(beat)))
             energy = max(0.0, min(1.0, float(nearest.get("energy", 0.5))))
-        score = abs(relative - desired_duration) - 0.45 * energy - 0.25 * max(0.0, min(1.0, strength))
+        score = abs(relative - desired_duration) - 0.55 * energy - 0.35 * max(0.0, min(1.0, strength))
         candidates.append((score, relative))
     if not candidates:
         return None
