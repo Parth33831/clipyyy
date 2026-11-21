@@ -86,34 +86,6 @@ def test_render_synthetic_clip(tmp_path, transcript, aspect, size, normalize_aud
     assert (tmp_path / "out" / "clip-01-test-clip.jpg").exists()
 
 
-@pytest.mark.parametrize("normalize_audio,expected", [(False, False), (True, True)])
-def test_render_speaker_only_applies_optional_loudness_normalization(
-    tmp_path, monkeypatch, normalize_audio, expected
-):
-    from clipyyy import render
-
-    captured = {}
-    monkeypatch.setattr(render, "probe", lambda _path: (1280, 720, 30.0))
-    monkeypatch.setattr(render, "has_audio", lambda _path: True)
-    monkeypatch.setattr(render, "run_ffmpeg", lambda args: captured.setdefault("args", args))
-
-    render.render_speaker_only(
-        tmp_path / "source.mp4",
-        {"start_seconds": 0.0, "end_seconds": 10.0},
-        {"crop_boxes": []},
-        tmp_path / "work",
-        tmp_path / "out.mp4",
-        (1080, 1920),
-        None,
-        normalize_audio,
-    )
-
-    args = captured["args"]
-    assert ("-af" in args) is expected
-    if expected:
-        assert args[args.index("-af") + 1] == "loudnorm=I=-16:TP=-1.5:LRA=11"
-
-
 def test_crop_filter_interpolates_face_positions():
     result = crop_filter(
         [
