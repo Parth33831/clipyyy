@@ -265,3 +265,56 @@ def test_detect_scene_changes_extracts_and_limits_ffmpeg_timestamps(tmp_path, mo
     assert len(timestamps) == 5
     assert timestamps[0] == 2.0
     assert timestamps[-1] == 28.0
+
+
+
+def test_montage_planner_builds_a_brief_led_story_instead_of_a_random_highlight_reel():
+    from clipyyy.campaign import build_montage_plan
+
+    class CapturingLLM:
+        system = ""
+        user = ""
+
+        def complete_json(self, system, user, schema, name):
+            self.system = system
+            self.user = user
+            return {
+                "edits": [
+                    {
+                        "title": "A clear campaign story",
+                        "shots": [
+                            {"source_index": 0, "start_seconds": 1, "end_seconds": 3, "reason": "Opening"},
+                            {"source_index": 0, "start_seconds": 4, "end_seconds": 6, "reason": "Build"},
+                            {"source_index": 0, "start_seconds": 7, "end_seconds": 9, "reason": "Payoff"},
+                        ],
+                    }
+                ]
+            }
+
+    llm = CapturingLLM()
+    source = {"title": "Campaign footage", "duration_seconds": 12}
+    analysis = {
+        "frames": [
+            {"timestamp": 1, "description": "Person notices a problem", "mood": "curious", "subjects": "person"},
+            {"timestamp": 5, "description": "Person demonstrates a solution", "mood": "focused", "subjects": "person, product"},
+            {"timestamp": 8, "description": "Person smiles while using product", "mood": "hopeful", "subjects": "person, product"},
+        ]
+    }
+
+    edits = build_montage_plan(
+        llm,
+        "Show how this product makes daily work easier. Do not make unsupported performance claims.",
+        {"mandatory_content": ["Show the product in use"]},
+        [source],
+        [analysis],
+        1,
+        6,
+    )
+
+    assert len(edits) == 1
+    assert "visual storyteller" in llm.system
+    assert "omit or adapt any beat" in llm.system
+    assert "creator footage as the narrative backbone" in llm.system
+    assert "story function" in llm.user
+    assert "random" in llm.user
+    assert "Do not force a CTA" in llm.user
