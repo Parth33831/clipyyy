@@ -50,6 +50,45 @@ def test_validate_respects_clip_count(transcript):
     assert len(validate_clips([raw(0, 20, 1), raw(36, 55, 2)], transcript, options)) == 1
 
 
+
+def test_validate_uses_retention_and_shareability_in_virality_score(transcript):
+    clip = raw(
+        0,
+        20,
+        hook_score=8,
+        value_score=9,
+        clarity_score=8,
+        retention_score=9,
+        shareability_score=7,
+    )
+
+    result = validate_clips([clip], transcript, OPTIONS)
+
+    assert result[0]["score"] == pytest.approx(8.35)
+
+
+def test_validate_falls_back_to_legacy_overall_score_without_new_components(transcript):
+    result = validate_clips([raw(0, 20)], transcript, OPTIONS)
+
+    assert result[0]["score"] == 8.0
+
+
+def test_validate_bounds_virality_component_scores(transcript):
+    clip = raw(
+        0,
+        20,
+        hook_score=12,
+        value_score=9,
+        clarity_score=8,
+        retention_score=11,
+        shareability_score=-2,
+    )
+
+    result = validate_clips([clip], transcript, OPTIONS)
+
+    assert result[0]["score"] == pytest.approx(7.75)
+
+
 def test_validate_skips_garbage(transcript):
     assert validate_clips([{"rank": 1, "start_seconds": "x"}], transcript, OPTIONS) == []
 
