@@ -225,6 +225,29 @@ def test_campaign_montage_duration_normalization_pads_or_trims(tmp_path, monkeyp
     assert "trim=duration=15.000" in trimmed_filter
 
 
+def test_text_only_montage_never_selects_shots_overlapping_black_sections():
+    from clipyyy.campaign import _build_text_only_montage
+
+    sources = [{"duration_seconds": 120.0}]
+    analyses = [
+        {
+            "frames": [
+                {"timestamp": float(timestamp), "description": "Visual content unavailable"}
+                for timestamp in range(5, 116, 5)
+            ],
+            "black_intervals": [[0.0, 22.0], [48.0, 70.0]],
+        }
+    ]
+
+    edits = _build_text_only_montage(sources, output_count=1, target_seconds=15.0, analyses=analyses)
+
+    assert len(edits[0]["shots"]) >= 3
+    for shot in edits[0]["shots"]:
+        start, end = shot["start_seconds"], shot["end_seconds"]
+        assert not (start < 22.0 and end > 0.0)
+        assert not (start < 70.0 and end > 48.0)
+
+
 def test_text_only_montage_uses_detected_scene_boundaries():
     from clipyyy.campaign import _build_text_only_montage
 
