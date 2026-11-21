@@ -268,12 +268,8 @@ def test_campaign_frame_endpoint_rejects_invalid_source_and_timestamp(client, tm
         encoding="utf-8",
     )
 
-    invalid_source = client.get(
-        f"/api/runs/{run['id']}/campaign-frame?source_index=3&timestamp=4.2"
-    )
-    invalid_timestamp = client.get(
-        f"/api/runs/{run['id']}/campaign-frame?source_index=0&timestamp=12"
-    )
+    invalid_source = client.get(f"/api/runs/{run['id']}/campaign-frame?source_index=3&timestamp=4.2")
+    invalid_timestamp = client.get(f"/api/runs/{run['id']}/campaign-frame?source_index=0&timestamp=12")
 
     assert invalid_source.status_code == 404
     assert invalid_timestamp.status_code == 400
