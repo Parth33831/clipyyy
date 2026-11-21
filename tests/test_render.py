@@ -10,8 +10,9 @@ from clipyyy.timeline import plan_timeline
 pytestmark = pytest.mark.skipif(not find_ffmpeg().ffmpeg, reason="needs ffmpeg")
 
 
+@pytest.mark.parametrize("normalize_audio", [False, True])
 @pytest.mark.parametrize("aspect,size", [("9:16", (1080, 1920)), ("1:1", (1080, 1080))])
-def test_render_synthetic_clip(tmp_path, transcript, aspect, size):
+def test_render_synthetic_clip(tmp_path, transcript, aspect, size, normalize_audio):
     source = tmp_path / "source.mp4"
     run_ffmpeg(
         [
@@ -58,7 +59,7 @@ def test_render_synthetic_clip(tmp_path, transcript, aspect, size):
     first_box = crop_boxes[0]
     moving_box = {**first_box, "t": 10.0, "x": first_box["x"] + 20}
     prepared = {"clips": [{"rank": 1, "speaker_path": str(speaker), "crop_boxes": [first_box, moving_box]}]}
-    options = {"aspect_ratio": aspect, "captions": True, "caption_style": "bold"}
+    options = {"aspect_ratio": aspect, "captions": True, "caption_style": "bold", "normalize_audio": normalize_audio}
 
     result = render_clips(
         {"video_path": str(source)},
