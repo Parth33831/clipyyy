@@ -185,3 +185,238 @@ def test_local_vision_model_is_recognized():
             return {}
 
     assert supports_visual_input(VisionModel()) is True
+
+
+def test_scene_aware_sampling_prioritizes_cut_coverage_and_fills_with_uniform_frames(tmp_path, monkeypatch):
+    from clipyyy import vision
+
+    calls = []
+
+    def fake_ffmpeg(args):
+        output = tmp_path / "campaign-frames" / args[-1].split("/")[-1]
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(b"frame")
+        calls.append(args)
+
+    monkeypatch.setattr(vision, "detect_scene_changes", lambda *args, **kwargs: [10, 20, 30, 40, 50, 60])
+    monkeypatch.setattr(vision, "run_ffmpeg", fake_ffmpeg)
+
+    frames = vision.sample_scene_aware_frames(tmp_path / "source.mp4", 80, tmp_path, limit=6)
+
+    timestamps = [timestamp for timestamp, _ in frames]
+    assert len(frames) == 6
+    assert timestamps == sorted(timestamps)
+    assert any(abs(timestamp - 10.35) < 0.01 for timestamp in timestamps)
+    assert any(abs(timestamp - 60.35) < 0.01 for timestamp in timestamps)
+    assert len(calls) == 6
+
+
+def test_scene_aware_sampling_falls_back_to_uniform_frames_without_detected_cuts(tmp_path, monkeypatch):
+    from clipyyy import vision
+
+    expected = [(5.0, "frame-a.jpg"), (15.0, "frame-b.jpg")]
+    monkeypatch.setattr(vision, "detect_scene_changes", lambda *args, **kwargs: [])
+    monkeypatch.setattr(vision, "sample_frames", lambda *args, **kwargs: expected)
+
+    assert vision.sample_scene_aware_frames(tmp_path / "source.mp4", 20, tmp_path, limit=4) == expected
+
+
+def test_campaign_vision_analysis_uses_scene_aware_sampling_for_vision_models(tmp_path, monkeypatch):
+    from clipyyy import vision
+
+    sampled = [(4.0, "scene-a.jpg"), (9.0, "scene-b.jpg")]
+    monkeypatch.setattr(vision, "sample_scene_aware_frames", lambda *args, **kwargs: sampled)
+
+    class VisionLLM:
+        provider = None
+
+        def complete_json_with_images(self, system, user, schema, name, frames):
+            assert frames == sampled
+            return {
+                "frames": [
+                    {
+                        "timestamp": 4.0,
+                        "description": "Wide shot",
+                        "mood": "calm",
+                        "subjects": "person",
+                    },
+                    {
+                        "timestamp": 9.0,
+                        "description": "Close-up",
+                        "mood": "focused",
+                        "subjects": "product",
+                    },
+                ]
+            }
+
+    result = vision.analyze_campaign_video(
+        {"video_path": str(tmp_path / "source.mp4"), "duration_seconds": 12},
+        tmp_path,
+        VisionLLM(),
+        "Campaign brief",
+    )
+    assert [frame["timestamp"] for frame in result["frames"]] == [4.0, 9.0]
+
+
+def test_campaign_visual_analysis_returns_grounded_structured_scene_attributes(tmp_path, monkeypatch):
+    from clipyyy import vision
+
+    monkeypatch.setattr(
+        vision,
+        "sample_scene_aware_frames",
+        lambda *args, **kwargs: [(4.0, "frame-a.jpg")],
+    )
+
+    class VisionLLM:
+        provider = None
+
+        def complete_json_with_images(self, system, user, schema, name, frames):
+            assert "single still image" in system
+            properties = schema["properties"]["frames"]["items"]["properties"]
+            assert {"shot_scale", "visible_action", "visible_text", "confidence"} <= set(properties)
+            assert {
+                "shot_scale",
+                "visible_action",
+                "visible_text",
+                "confidence",
+            } <= set(schema["properties"]["frames"]["items"]["required"])
+            return {
+                "frames": [
+                    {
+                        "timestamp": 4,
+                        "description": "Close-up of a person holding a phone",
+                        "mood": "focused",
+                        "subjects": "person, phone",
+                        "shot_scale": "close-up",
+                        "visible_action": "person holding phone",
+                        "visible_text": "unknown",
+                        "confidence": 0.92,
+                    },
+                    {
+                        "timestamp": "bad",
+                        "description": "invalid timestamp",
+                    },
+                ]
+            }
+
+    result = vision.analyze_campaign_video(
+        {"video_path": str(tmp_path / "source.mp4"), "duration_seconds": 12},
+        tmp_path,
+        VisionLLM(),
+        "Show the product in use",
+    )
+
+    assert len(result["frames"]) == 1
+    frame = result["frames"][0]
+    assert frame["shot_scale"] == "close-up"
+    assert frame["visible_action"] == "person holding phone"
+    assert frame["visible_text"] == "unknown"
+    assert frame["confidence"] == 0.92
+
+
+def test_visual_attribute_normalization_is_backward_compatible_and_bounded():
+    from clipyyy.vision import _normalize_frame_observations
+
+    frames = _normalize_frame_observations(
+        {
+            "frames": [
+                {
+                    "timestamp": 1,
+                    "description": "legacy observation",
+                    "mood": "calm",
+                    "subjects": "person",
+                    "confidence": 4.5,
+                }
+            ]
+        }
+    )
+
+    assert frames[0]["description"] == "legacy observation"
+    assert frames[0]["shot_scale"] == "unknown"
+    assert frames[0]["visible_action"] == "unknown"
+    assert frames[0]["visible_text"] == "unknown"
+    assert frames[0]["confidence"] == 1.0
+
+
+def test_montage_planner_uses_structured_visual_attributes_as_evidence():
+    from clipyyy.campaign import build_montage_plan
+
+    class CapturingLLM:
+        user = ""
+        system = ""
+
+        def complete_json(self, system, user, schema, name):
+            self.system = system
+            self.user = user
+            return {
+                "edits": [
+                    {
+                        "title": "Product story",
+                        "shots": [
+                            {
+                                "source_index": 0,
+                                "start_seconds": 1,
+                                "end_seconds": 3,
+                                "reason": "context",
+                            },
+                            {
+                                "source_index": 0,
+                                "start_seconds": 4,
+                                "end_seconds": 6,
+                                "reason": "detail",
+                            },
+                            {
+                                "source_index": 0,
+                                "start_seconds": 7,
+                                "end_seconds": 9,
+                                "reason": "payoff",
+                            },
+                        ],
+                    }
+                ]
+            }
+
+    llm = CapturingLLM()
+    source = {"title": "Product footage", "duration_seconds": 12}
+    analysis = {
+        "frames": [
+            {
+                "timestamp": 1,
+                "description": "Person entering room",
+                "mood": "curious",
+                "subjects": "person",
+                "shot_scale": "wide",
+                "visible_action": "person entering room",
+                "visible_text": "none",
+                "confidence": 0.95,
+            },
+            {
+                "timestamp": 5,
+                "description": "Close-up of product",
+                "mood": "focused",
+                "subjects": "product",
+                "shot_scale": "detail",
+                "visible_action": "hand holding product",
+                "visible_text": "Brand name",
+                "confidence": 0.88,
+            },
+            {
+                "timestamp": 8,
+                "description": "Person smiling",
+                "mood": "happy",
+                "subjects": "person",
+                "shot_scale": "close-up",
+                "visible_action": "smiling",
+                "visible_text": "none",
+                "confidence": 0.9,
+            },
+        ]
+    }
+
+    edits = build_montage_plan(llm, "Show the product in use", {}, [source], [analysis], 1, 6)
+
+    assert len(edits) == 1
+    assert "shot_scale" in llm.system
+    assert "visible_action" in llm.system
+    assert "Brand name" in llm.user
+    assert "0.88" in llm.user

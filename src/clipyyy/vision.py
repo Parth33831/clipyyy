@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import re
 import subprocess
 from pathlib import Path
@@ -37,8 +38,21 @@ FRAME_SCHEMA: dict[str, Any] = {
                     "description": {"type": "string"},
                     "mood": {"type": "string"},
                     "subjects": {"type": "string"},
+                    "shot_scale": {"type": "string"},
+                    "visible_action": {"type": "string"},
+                    "visible_text": {"type": "string"},
+                    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
                 },
-                "required": ["timestamp", "description", "mood", "subjects"],
+                "required": [
+                    "timestamp",
+                    "description",
+                    "mood",
+                    "subjects",
+                    "shot_scale",
+                    "visible_action",
+                    "visible_text",
+                    "confidence",
+                ],
                 "additionalProperties": False,
             },
         }
@@ -178,19 +192,108 @@ def timestamp_in_intervals(timestamp: float, intervals: list[tuple[float, float]
     return any(start <= timestamp <= end for start, end in intervals)
 
 
+def sample_scene_aware_frames(
+    video_path: Path, duration: float, work_dir: Path, limit: int = 12
+) -> list[tuple[float, str]]:
+    """Sample frames around detected cuts, supplemented by evenly spaced coverage."""
+    if duration <= 0 or limit <= 0:
+        return []
+    scene_times = detect_scene_changes(video_path, duration, limit=limit * 4)
+    if not scene_times:
+        return sample_frames(video_path, duration, work_dir, limit=limit)
+
+    # A frame just after a cut is less likely to capture a transition blend.
+    scene_candidates = [
+        min(max(timestamp + 0.35, 0.5), max(0.5, duration - 0.2)) for timestamp in scene_times
+    ]
+    scene_budget = max(1, limit // 2)
+    if len(scene_candidates) > scene_budget:
+        stride = (len(scene_candidates) - 1) / (scene_budget - 1) if scene_budget > 1 else 0
+        scene_candidates = [scene_candidates[round(index * stride)] for index in range(scene_budget)]
+
+    uniform_count = min(limit, max(3, int(duration // 8) + 1))
+    uniform_candidates = [
+        min(max(0.5, duration * (index + 0.5) / uniform_count), max(0.5, duration - 0.2))
+        for index in range(uniform_count)
+    ]
+    timestamps = list(scene_candidates)
+    for timestamp in uniform_candidates:
+        if len(timestamps) >= limit:
+            break
+        if all(abs(timestamp - selected) >= 0.75 for selected in timestamps):
+            timestamps.append(timestamp)
+    timestamps = sorted(timestamps[:limit])
+
+    folder = work_dir / "campaign-frames"
+    folder.mkdir(parents=True, exist_ok=True)
+    samples: list[tuple[float, str]] = []
+    for index, timestamp in enumerate(timestamps):
+        output = folder / f"scene-frame-{index:02d}.jpg"
+        run_ffmpeg(
+            [
+                "-ss",
+                f"{timestamp:.3f}",
+                "-i",
+                str(video_path),
+                "-frames:v",
+                "1",
+                "-vf",
+                "scale=512:-2",
+                "-q:v",
+                "7",
+                str(output),
+            ]
+        )
+        if output.exists() and output.stat().st_size:
+            samples.append((timestamp, str(output)))
+    return samples
+
+
+def _normalize_frame_observations(result: dict) -> list[dict]:
+    """Normalize optional structured visual attributes while preserving legacy fields."""
+    valid = []
+    for item in result.get("frames", []):
+        try:
+            timestamp = float(item["timestamp"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        try:
+            confidence = float(item.get("confidence", 0.0))
+        except (TypeError, ValueError):
+            confidence = 0.0
+        if not math.isfinite(confidence):
+            confidence = 0.0
+        valid.append(
+            {
+                "timestamp": timestamp,
+                "description": str(item.get("description", ""))[:500],
+                "mood": str(item.get("mood", ""))[:100],
+                "subjects": str(item.get("subjects", ""))[:200],
+                "shot_scale": str(item.get("shot_scale", "unknown"))[:40],
+                "visible_action": str(item.get("visible_action", "unknown"))[:160],
+                "visible_text": str(item.get("visible_text", "unknown"))[:240],
+                "confidence": max(0.0, min(1.0, confidence)),
+            }
+        )
+    return valid
+
+
 def analyze_campaign_video(source: dict, work_dir: Path, llm, campaign_brief: str) -> dict:
-    """Ask a vision model to describe sampled scenes in relation to the supplied campaign."""
+    """Analyze campaign footage while preserving black-frame filtering and honest fallbacks."""
     duration = float(source.get("duration_seconds") or 0)
-    black_intervals = detect_black_intervals(Path(source["video_path"]), duration)
-    frames = sample_frames(Path(source["video_path"]), duration, work_dir)
+    video_path = Path(source["video_path"])
+    black_intervals = detect_black_intervals(video_path, duration)
+    vision_capable = supports_visual_input(llm)
+    sampler = sample_scene_aware_frames if vision_capable else sample_frames
+    frames = sampler(video_path, duration, work_dir)
     frames = [
         (timestamp, path)
         for timestamp, path in frames
         if not timestamp_in_intervals(timestamp, black_intervals)
     ]
-    if not supports_visual_input(llm):
+    if not vision_capable:
         logger.info("Text-only model; using FFmpeg scene boundaries without visual descriptions")
-        scene_times = detect_scene_changes(Path(source["video_path"]), duration)
+        scene_times = detect_scene_changes(video_path, duration)
         timestamps = scene_times or [timestamp for timestamp, _ in frames]
         timestamps = [
             timestamp for timestamp in timestamps if not timestamp_in_intervals(timestamp, black_intervals)
@@ -212,9 +315,12 @@ def analyze_campaign_video(source: dict, work_dir: Path, llm, campaign_brief: st
     system = (
         "You are a professional short-form video editor analysing source footage for a campaign. "
         "Describe only what is visibly present. Do not guess character identities, plot, lyrics, or events. "
-        "For every supplied frame return its exact supplied timestamp, concise visual description, emotional "
-        "mood, and visible subjects. Keep descriptions useful for selecting emotionally and thematically "
-        "relevant footage. Return JSON only."
+        "For every supplied frame return its exact timestamp, visual description, mood, and subjects. "
+        "Also return approximate shot scale (wide, medium, close-up, detail, or unknown), one directly "
+        "visible action or 'unknown', readable on-screen text or graphics or 'none', and confidence from "
+        "0 to 1. Only report evidence visible in that single still image. Do not infer movement, events "
+        "before or after the frame, product identity, or unreadable text. Use 'unknown' when uncertain. "
+        "Keep descriptions useful for selecting relevant footage. Return JSON only."
     )
     user = (
         "Campaign brief:\n"
@@ -222,21 +328,10 @@ def analyze_campaign_video(source: dict, work_dir: Path, llm, campaign_brief: st
         + "\n\nAnalyse these timestamped frames. Return one observation per frame, preserving each timestamp."
     )
     result = llm.complete_json_with_images(system, user, FRAME_SCHEMA, "campaign_visual_analysis", frames)
-    valid = []
-    for item in result.get("frames", []):
-        try:
-            timestamp = float(item["timestamp"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        valid.append(
-            {
-                "timestamp": timestamp,
-                "description": str(item.get("description", ""))[:500],
-                "mood": str(item.get("mood", ""))[:100],
-                "subjects": str(item.get("subjects", ""))[:200],
-            }
-        )
-    return {"frames": valid, "black_intervals": black_intervals}
+    return {
+        "frames": _normalize_frame_observations(result),
+        "black_intervals": black_intervals,
+    }
 
 
 def analyze_reference_video(source: dict, work_dir: Path, llm) -> dict:
