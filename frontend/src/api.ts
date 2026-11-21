@@ -23,6 +23,7 @@ export interface ClipOptions {
   campaign_music_path: string | null
   campaign_auto_broll: boolean
   campaign_camera_motion: boolean
+  campaign_transition_style: 'auto' | 'cut' | 'cinematic' | 'dynamic'
   campaign_lyrics: string
   campaign_lyrics_source?: string | null
   campaign_lyrics_style?: 'dynamic' | 'cinematic' | 'minimal' | 'karaoke'
@@ -264,6 +265,7 @@ export const DEFAULT_OPTIONS: ClipOptions = {
   campaign_music_path: null,
   campaign_auto_broll: false,
   campaign_camera_motion: true,
+  campaign_transition_style: 'auto',
   campaign_lyrics: '',
   model: null,
 }
