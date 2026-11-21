@@ -295,9 +295,24 @@ def test_montage_planner_builds_a_brief_led_story_instead_of_a_random_highlight_
     source = {"title": "Campaign footage", "duration_seconds": 12}
     analysis = {
         "frames": [
-            {"timestamp": 1, "description": "Person notices a problem", "mood": "curious", "subjects": "person"},
-            {"timestamp": 5, "description": "Person demonstrates a solution", "mood": "focused", "subjects": "person, product"},
-            {"timestamp": 8, "description": "Person smiles while using product", "mood": "hopeful", "subjects": "person, product"},
+            {
+                "timestamp": 1,
+                "description": "Person notices a problem",
+                "mood": "curious",
+                "subjects": "person",
+            },
+            {
+                "timestamp": 5,
+                "description": "Person demonstrates a solution",
+                "mood": "focused",
+                "subjects": "person, product",
+            },
+            {
+                "timestamp": 8,
+                "description": "Person smiles while using product",
+                "mood": "hopeful",
+                "subjects": "person, product",
+            },
         ]
     }
 
