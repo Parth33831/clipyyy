@@ -573,28 +573,32 @@ function CampaignTimeline({
               {' · '}{musicAnalysis.detected_beats} transients
             </span>
           </div>
-          <div className="overflow-x-auto">
-            <div className="relative h-9 min-w-[680px] overflow-hidden rounded-md bg-surface">
-              {(musicAnalysis.energy_sections ?? []).map((section, index) => {
-                const left = Math.max(0, section.start_seconds - 0.25 - musicStart)
-                const right = Math.min(total, section.end_seconds + 0.25 - musicStart)
-                if (right <= left) return null
-                return (
-                  <div
-                    key={`energy-${index}`}
-                    title={`${section.level} energy · ${formatDuration(section.start_seconds)}–${formatDuration(section.end_seconds)}`}
-                    className={cn(
-                      'absolute inset-y-0 flex items-center overflow-hidden border-r border-paper/40 px-1',
-                      section.level === 'high' ? 'bg-acid text-ink' : section.level === 'medium' ? 'bg-sunk text-ink' : 'bg-line text-muted',
-                    )}
-                    style={{ left: `${(left / total) * 100}%`, width: `${Math.max(0.5, ((right - left) / total) * 100)}%` }}
-                  >
-                    <span className="label truncate !text-[9px]">{section.level}</span>
-                  </div>
-                )
-              })}
+          {(musicAnalysis.energy_sections ?? []).length > 0 ? (
+            <div className="overflow-x-auto">
+              <div className="relative h-9 min-w-[680px] overflow-hidden rounded-md bg-surface">
+                {(musicAnalysis.energy_sections ?? []).map((section, index) => {
+                  const left = Math.max(0, section.start_seconds - 0.25 - musicStart)
+                  const right = Math.min(total, section.end_seconds + 0.25 - musicStart)
+                  if (right <= left) return null
+                  return (
+                    <div
+                      key={`energy-${index}`}
+                      title={`${section.level} energy · ${formatDuration(section.start_seconds)}–${formatDuration(section.end_seconds)}`}
+                      className={cn(
+                        'absolute inset-y-0 flex items-center overflow-hidden border-r border-paper/40 px-1',
+                        section.level === 'high' ? 'bg-acid text-ink' : section.level === 'medium' ? 'bg-sunk text-ink' : 'bg-line text-muted',
+                      )}
+                      style={{ left: `${(left / total) * 100}%`, width: `${Math.max(0.5, ((right - left) / total) * 100)}%` }}
+                    >
+                      <span className="label truncate !text-[9px]">{section.level}</span>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-          </div>
+          ) : (
+            <p className="text-xs text-faint">Energy detail is unavailable for this saved run.</p>
+          )}
           <div className="flex flex-wrap gap-3 text-[10px] text-faint">
             <span>Selected track window: {musicAnalysis.selected_section}</span>
             <span>High energy · Medium energy · Low energy</span>
