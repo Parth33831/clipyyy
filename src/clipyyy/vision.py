@@ -348,7 +348,10 @@ def analyze_reference_video(source: dict, work_dir: Path, llm) -> dict:
         "Describe only visible evidence: "
         "shot scale, framing, composition, dominant colours, lighting, visible text or graphics, "
         "and recurring "
-        "visual motifs. Do not claim to know the soundtrack, exact transitions, or motion from still frames. "
+        "visual motifs. Also report approximate shot scale, one directly visible action or unknown, "
+        "readable on-screen text or graphics or none, and confidence from 0 to 1. Only report evidence "
+        "visible in each single still image. Do not claim to know the soundtrack, exact transitions, or "
+        "motion from still frames. "
         "Do not recommend copying exact footage; extract reusable stylistic patterns only. "
         "Return JSON only."
     )
@@ -357,18 +360,4 @@ def analyze_reference_video(source: dict, work_dir: Path, llm) -> dict:
         "that could be recreated with different source footage. Preserve each supplied timestamp."
     )
     result = llm.complete_json_with_images(system, user, FRAME_SCHEMA, "campaign_reference_analysis", frames)
-    valid = []
-    for item in result.get("frames", []):
-        try:
-            timestamp = float(item["timestamp"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        valid.append(
-            {
-                "timestamp": timestamp,
-                "description": str(item.get("description", ""))[:500],
-                "mood": str(item.get("mood", ""))[:100],
-                "subjects": str(item.get("subjects", ""))[:200],
-            }
-        )
-    return {"frames": valid}
+    return {"frames": _normalize_frame_observations(result)}
