@@ -490,4 +490,3 @@ def _posting_copy(clips: list[dict]) -> str:
             ]
         )
     return "\n".join(sections).strip() + "\n"
-
