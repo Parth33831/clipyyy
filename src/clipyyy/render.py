@@ -397,10 +397,7 @@ def campaign_shot_filter(width: int, height: int, shot_index: int, camera_motion
 
 
 def _campaign_audio_filter(duration: float, normalize_audio: bool) -> str:
-    filters = (
-        f"volume=0.9,afade=t=in:st=0:d=0.4,"
-        f"afade=t=out:st={max(0.0, duration - 0.8):.3f}:d=0.8"
-    )
+    filters = f"volume=0.9,afade=t=in:st=0:d=0.4,afade=t=out:st={max(0.0, duration - 0.8):.3f}:d=0.8"
     if normalize_audio:
         filters += f",{AUDIO_NORMALIZATION_FILTER}"
     return filters
