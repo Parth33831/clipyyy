@@ -15,6 +15,7 @@ from clipyyy.filler_words import filler_intervals
 from clipyyy.media import ffmpeg_bin, has_audio, probe, run_ffmpeg
 
 FPS = 30
+AUDIO_NORMALIZATION_FILTER = "loudnorm=I=-16:TP=-1.5:LRA=11"
 SIZES = {"9:16": (1080, 1920), "4:5": (1080, 1350), "1:1": (1080, 1080)}
 
 
@@ -163,7 +164,7 @@ def render_clip(
         ]
         maps += ["-map", "1:a:0", "-c:a", "aac", "-b:a", "160k"]
         if normalize_audio:
-            maps += ["-af", "loudnorm=I=-16:TP=-1.5:LRA=11"]
+            maps += ["-af", AUDIO_NORMALIZATION_FILTER]
 
     if caption_style and words:
         ass_path = write_ass(words, work_dir / "captions.ass", width, height, caption_style)
@@ -314,7 +315,7 @@ def render_speaker_only(
     if has_audio(source_video):
         args += ["-map", "0:a:0", "-c:a", "aac", "-b:a", "160k"]
         if normalize_audio:
-            args += ["-af", "loudnorm=I=-16:TP=-1.5:LRA=11"]
+            args += ["-af", AUDIO_NORMALIZATION_FILTER]
     args += [
         "-c:v",
         "libx264",
@@ -393,6 +394,16 @@ def campaign_shot_filter(width: int, height: int, shot_index: int, camera_motion
         f"y='(ih-oh)*(0.5+0.18*cos(t*0.26+{phase:.4f}))':eval=frame,"
         f"setsar=1,fps={FPS},format=yuv420p{base_grade}"
     )
+
+
+def _campaign_audio_filter(duration: float, normalize_audio: bool) -> str:
+    filters = (
+        f"volume=0.9,afade=t=in:st=0:d=0.4,"
+        f"afade=t=out:st={max(0.0, duration - 0.8):.3f}:d=0.8"
+    )
+    if normalize_audio:
+        filters += f",{AUDIO_NORMALIZATION_FILTER}"
+    return filters
 
 
 def render_campaign_montages(
@@ -595,11 +606,7 @@ def render_campaign_montages(
                 music_input = []
                 if music_analysis and music_analysis["duration_seconds"] - music_start < duration:
                     music_input = ["-stream_loop", "-1"]
-                audio_filter = (
-                    f"volume=0.9,afade=t=in:st=0:d=0.4,afade=t=out:st={max(0.0, duration - 0.8):.3f}:d=0.8"
-                )
-                if options.get("normalize_audio"):
-                    audio_filter += ",loudnorm=I=-16:TP=-1.5:LRA=11"
+                audio_filter = _campaign_audio_filter(duration, bool(options.get("normalize_audio")))
                 run_ffmpeg(
                     [
                         "-i",
