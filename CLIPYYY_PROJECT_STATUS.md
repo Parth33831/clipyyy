@@ -23,7 +23,7 @@
 ## Repository baseline (inspected 2026-11-21)
 
 - **Default branch:** `main`
-- **Latest main commit:** `942a2dbbd5ebf00fe89de9174fd3cf3c494db928` — Add subtle cinematic camera movement to campaign edits (#27).
+- **Latest main commit:** `5d2de67d5bd04bb480ef90de5d7a5ba145c74faf` — Add ready-to-post copy to clip exports (#31).
 - Recent completed main work includes lyric animation previews, multi-colour lyric captions, configurable lyric colours, word-accurate song transcription, campaign dialogue/montage editing, stock-footage discovery, editable storyboards and optional cinematic camera movement.
 - **Open work:** PR #29 (black-footage filter), PR #30 (brief-led storytelling), PR #31 (ready-to-post export kit) and PR #32 (scene-aware sampling + structured visual observations) are open; none is merged. PR #27 remains merged.
 - **Branches observed:** `automatic-word-timed-lyrics`, `campaign-dialogue-transcription`, `campaign-footage-discovery`, `campaign-shot-editor`, `campaign-shot-editor-integration`, `creative-anime-editing`, `fix/campaign-export-audio-duration`, `fix/campaign-scene-selection-ci-final`, `fix/campaign-scene-selection-final-ci`, `fix/campaign-scene-selection-pacing`, `fix/campaign-scene-selection-pacing-ci`, `fix/campaign-scene-selection-release-check`, `fix/campaign-scene-selection-tested`, `fix/campaign-scene-selection-validated`, `improve-multi-clip-selection`, `instant-lyrics-style-editor`, `instant-lyrics-style-editor-ci`, `instant-lyrics-style-editor-verified`, `lyric-style-previews-multicolor`, `lyric-words-on-screen`, `lyrics-captions-animation`, `lyrics-color-controls`, `main`, `music-intelligence-hooks`, `refresh-legacy-lyric-timings`, `reuse-campaign-transcript-on-dialogue-rebuild`.
@@ -57,9 +57,9 @@
 | Brief-led campaign visual storytelling | `feature/campaign-storytelling-arc` / [PR #30](https://github.com/Parth33831/clipyyy/pull/30) | Open; Ruff formatting fixed; CI rerunning | Prompt guides the montage planner to prioritize the brief, mandatory content, creator footage and truthful story beats. Formatting-only commit `a491c428ea50853d7b0917704222b453d9c48936`; latest CI must pass before review. |
 | Scene-aware campaign frame sampling + structured visual observations | `feature/campaign-scene-aware-analysis` / [PR #32](https://github.com/Parth33831/clipyyy/pull/32) | Open; Ruff formatting fixed; CI rerunning | Vision-capable campaign analysis samples just-after-cut frames plus uniform coverage and adds bounded shot-scale/action/text/confidence observations. Text-only fallback remains unchanged. Formatting-only commits `92df5578493f50f3d8178b6f4c33341cc01e1623` and `6fe1fb536d117e9f539d8532e02df60a3106dc13`; latest CI must pass before review. |
 
-**Latest main baseline:** `942a2dbbd5ebf00fe89de9174fd3cf3c494db928`.
+**Latest main baseline:** `5d2de67d5bd04bb480ef90de5d7a5ba145c74faf`.
 
-**Validation honesty:** Earlier CI failures on PR #30 and PR #32 were Ruff-format-only. Formatting corrections have been committed to their existing branches; fast-backend and frontend CI are rerunning. PR #32's mergeability is now reported true by GitHub after the formatting commits. PR #29 overlaps `vision.py`/`campaign.py` and should be integrated first or carefully coordinated; do not merge conflicting work blindly. No local Windows test or real-media visual review was run.
+**Validation honesty:** PR #29, #30, #31 and #32 all have passing fast-backend and frontend CI. Windows, macOS and full-backend jobs were skipped by workflow configuration; no local Windows test or real-media visual review was run. PR #29, #30 and #32 touch overlapping campaign/vision modules and require ordered integration plus post-merge CI. PR #31 was reviewed and squash-merged independently.
 
 ## Current work
 
@@ -319,6 +319,6 @@ STATUS: In progress / Ready for review / Merged
 - Base: `main` at `942a2dbbd5ebf00fe89de9174fd3cf3c494db928`
 - Added API test assertions for title, caption, hashtags and video filename in the posting sheet.
 - CI: Fast backend suite **96 passed, 17 skipped**; Ruff lint and format passed; frontend production build passed. Windows, macOS and full-backend jobs were skipped by workflow configuration. No local Windows test is claimed.
-- **Status:** Ready for review. PR #31 is open and not merged.
+- **Status:** Merged into `main` as `5d2de67d5bd04bb480ef90de5d7a5ba145c74faf` on 2026-11-21.
 
 **Next:** After PR #31 CI/review, continue with visual footage relevance audit and a local vision-model feasibility check; do not download models or change the user's machine settings without approval.
