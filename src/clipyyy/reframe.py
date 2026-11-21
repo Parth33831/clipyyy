@@ -242,7 +242,7 @@ def track_primary_faces(
                 )
                 for face in faces
             )
-            current = dominant(faces) if nearest_distance > 0.45 else max(faces, key=continuity_score)
+            current = dominant(faces) if nearest_distance > 0.65 else max(faces, key=continuity_score)
 
         tracked.append(current)
         previous = current
