@@ -23,7 +23,9 @@ Use the timestamps from the transcript. Rank the clips from 1 (best) downward. S
 - hook_score: how strongly the first 3 seconds make someone stop scrolling.
 - value_score: how interesting, useful, surprising or emotionally compelling the complete moment is.
 - clarity_score: how understandable the clip is without watching the full video.
-- overall_score: your honest combined quality score, weighted toward hook and standalone value. Do not give every candidate the same score; reserve 9–10 for exceptional moments.
+- retention_score: how likely viewers are to stay through the complete clip. Reward curiosity, clear progression, tension, tight pacing and a satisfying payoff; penalize slow setup, repetition and weak endings.
+- shareability_score: how likely viewers are to save, send, discuss or comment on the moment. Reward useful takeaways, relatable experiences, memorable opinions, surprising facts and emotionally meaningful moments; do not reward controversy without substance.
+- overall_score: your honest combined quality score. When all component scores are available, weight them as 20% hook, 25% value, 15% clarity, 25% retention and 15% shareability. Do not give every candidate the same score; reserve 9–10 for exceptional moments.
 
 For each clip also write posting metadata for the account that will publish it:
 - title: a short internal name for the clip.
