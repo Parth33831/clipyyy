@@ -226,7 +226,6 @@ def test_music_analysis_selects_high_energy_section_and_finds_beats(monkeypatch,
     assert len(analysis["beat_times"]) >= 4
 
 
-
 def test_music_energy_analysis_returns_sections_and_normalized_profile(monkeypatch, tmp_path):
     from array import array
     from types import SimpleNamespace
@@ -279,6 +278,7 @@ def test_music_cut_selection_falls_back_when_no_transient_is_in_range():
     }
 
     assert select_music_cut_duration(0.0, 2.5, analysis) is None
+
 
 def test_campaign_lyrics_lrc_timestamps_are_shifted_to_selected_music_section(tmp_path):
     from clipyyy.render import write_campaign_lyrics
@@ -490,6 +490,7 @@ def test_campaign_shot_filter_varies_direction_between_shots():
     assert first != second
     assert "sin(t*0.32+0.0000)" in first
     assert "sin(t*0.32+1.5708)" in second
+
 
 def test_campaign_transitions_use_the_requested_sequence(tmp_path, monkeypatch):
     from clipyyy import render
