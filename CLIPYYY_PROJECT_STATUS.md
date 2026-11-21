@@ -23,9 +23,9 @@
 ## Repository baseline (inspected 2026-11-21)
 
 - **Default branch:** `main`
-- **Latest main commit:** `87136bef95bff7810b03305134fc5a3be27db139` — Add scene-aware campaign visual analysis (#32).
+- **Latest main commit:** `80d34552ff1b3f0199d47426efe252adfcb80024` — Make campaign edits respond to music energy and transients (#34).
 - Recent completed main work includes lyric animation previews, multi-colour lyric captions, configurable lyric colours, word-accurate song transcription, campaign dialogue/montage editing, stock-footage discovery, editable storyboards, optional cinematic camera movement and ready-to-post copy in clip export archives.
-- **Open work:** PR #35 adds selectable campaign transitions and is under CI review. PRs #29, #30, #31 and #32 are merged; duplicate PR #33 was closed as superseded. PR #27 remains merged.
+- **Open work:** PR #35 adds selectable campaign transitions and is under CI review. PRs #29, #30, #31, #32 and #34 are merged; duplicate PR #33 was closed as superseded. PR #27 remains merged.
 - **Branches observed:** `automatic-word-timed-lyrics`, `campaign-dialogue-transcription`, `campaign-footage-discovery`, `campaign-shot-editor`, `campaign-shot-editor-integration`, `creative-anime-editing`, `fix/campaign-export-audio-duration`, `fix/campaign-scene-selection-ci-final`, `fix/campaign-scene-selection-final-ci`, `fix/campaign-scene-selection-pacing`, `fix/campaign-scene-selection-pacing-ci`, `fix/campaign-scene-selection-release-check`, `fix/campaign-scene-selection-tested`, `fix/campaign-scene-selection-validated`, `improve-multi-clip-selection`, `instant-lyrics-style-editor`, `instant-lyrics-style-editor-ci`, `instant-lyrics-style-editor-verified`, `lyric-style-previews-multicolor`, `lyric-words-on-screen`, `lyrics-captions-animation`, `lyrics-color-controls`, `main`, `music-intelligence-hooks`, `refresh-legacy-lyric-timings`, `reuse-campaign-transcript-on-dialogue-rebuild`.
 - Branch names alone do not prove whether work is merged or active; check branch heads and diffs before reusing them.
 - **Coordination document branch:** `docs/project-coordination` (this document is maintained separately from application code).
@@ -59,10 +59,11 @@
 | Black-footage campaign filter | `feature/campaign-black-frame-filter-integration` / [PR #29](https://github.com/Parth33831/clipyyy/pull/29) | Merged into main as `05a177f18d01565eabc88ff3dee5952c2dbb2407` | FFmpeg blackdetect excludes sustained near-black ranges from campaign candidates and selected shots. CI passed on latest PR head. |
 | Ready-to-post export kit | `feature/post-ready-export-kit` / [PR #31](https://github.com/Parth33831/clipyyy/pull/31) | Merged into main as `5d2de67d5bd04bb480ef90de5d7a5ba145c74faf` | ZIP export includes `POSTING-COPY.txt` with title, filename, caption and hashtags. |
 | Scene-aware sampling + structured visual observations | `feature/campaign-scene-aware-analysis` / [PR #32](https://github.com/Parth33831/clipyyy/pull/32) | Merged into main as `87136bef95bff7810b03305134fc5a3be27db139` | Rebuilt on top of merged #29/#30 to preserve black filtering and brief-led storytelling; adds cut-aware sampling and bounded shot-scale/action/text/confidence observations. |
+| Music-energy-aware cut selection | `feature/music-aware-campaign-editing` / [PR #34](https://github.com/Parth33831/clipyyy/pull/34) | Merged into main as `80d34552ff1b3f0199d47426efe252adfcb80024` | Adds normalized music-energy profile/sections, beat strengths and transient selection that favors stronger musical moments without extreme pacing changes. |
 
-**Latest main baseline:** `87136bef95bff7810b03305134fc5a3be27db139`.
+**Latest main baseline:** `80d34552ff1b3f0199d47426efe252adfcb80024`.
 
-**Validation honesty:** PR #29, #30, #31 and #32 fast-backend and frontend checks passed. Windows, macOS and full-backend jobs were skipped by workflow configuration. No local Windows media test or real-media visual review has been run. PR #32 was rebuilt on top of merged #29/#30 code to resolve overlapping campaign/vision edits before merging.
+**Validation honesty:** PR #29, #30, #31, #32 and #34 fast-backend and frontend checks passed. Windows, macOS and full-backend jobs were skipped by workflow configuration. No local Windows media test or real-media visual review has been run. PR #32 was rebuilt on top of merged #29/#30 code to resolve overlapping campaign/vision edits before merging.
 
 ## Current work
 
@@ -337,12 +338,14 @@ STATUS: In progress / Ready for review / Merged
 
 - **Branch:** `feature/campaign-transitions`
 - **PR:** [#35 — Add selectable cinematic transitions to campaign edits](https://github.com/Parth33831/clipyyy/pull/35)
-- **Base:** `main` at `87136bef95bff7810b03305134fc5a3be27db139`
-- **Latest commit:** `6af66808c66bc35e51f7f71fc5237e1e32097d97`
+- **Base:** `main` at `80d34552ff1b3f0199d47426efe252adfcb80024`
+- **Latest commit:** `88aab6a2e47b3d1a71b1e4d7434088ec03bdfc16`
 - **Files:** `src/clipyyy/pipeline.py`, `src/clipyyy/render.py`, `frontend/src/api.ts`, `frontend/src/pages/NewRun.tsx`, `tests/test_render.py`.
-- **Implementation:** Adds Auto (default), Clean hard cuts, Cinematic fades and Dynamic transitions. Auto preserves prior behavior. Fade overlap is included in beat-alignment calculations. No new dependencies or model requirements.
-- **Tests:** Added xfade transition sequence and Pydantic option validation tests. CI status not yet visible at last check; do not merge until fast-backend, Ruff and frontend checks pass.
+- **Implementation:** Adds Auto (default), Clean hard cuts, Cinematic fades and Dynamic transitions. Auto preserves prior behavior. Integrated PR #34's music-energy profile and stronger-transient selection; fade overlap is included in beat-alignment calculations. No new dependencies or model requirements.
+- **Tests:** Added xfade transition sequence and Pydantic option validation tests. Previous fast-backend failed only on a Ruff line-length issue, which was corrected. The rebased head `88aab6a2e47b3d1a71b1e4d7434088ec03bdfc16` has fresh fast-backend and frontend checks queued; do not merge until both pass.
 - **Known gap:** No local Windows or real-media visual review has been performed.
 
 - 2026-11-21: Closed duplicate PR #33 because its brief-led storytelling and scene-aware visual analysis were already merged through PRs #30 and #32; main also contains PR #29 black-footage filtering.
 - 2026-11-21: Started PR #35 to give campaign creators explicit control over shot transitions while retaining the current automatic default and beat-sync behavior.
+
+- 2026-11-21: PR #34 added music-energy profiles/sections, beat strengths and stronger-transient cut selection; fast-backend and frontend CI passed, and it was squash-merged as `80d34552ff1b3f0199d47426efe252adfcb80024`. PR #35 was rebuilt on top of this mainline commit so selectable transitions and energy-aware beat selection coexist in one renderer branch.
