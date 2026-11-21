@@ -25,7 +25,7 @@
 - **Default branch:** `main`
 - **Latest main commit:** `942a2dbbd5ebf00fe89de9174fd3cf3c494db928` — Add subtle cinematic camera movement to campaign edits (#27).
 - Recent completed main work includes lyric animation previews, multi-colour lyric captions, configurable lyric colours, word-accurate song transcription, campaign dialogue/montage editing, stock-footage discovery, editable storyboards and optional cinematic camera movement.
-- **Open work:** PR #30 (brief-led visual storytelling) and PR #32 (scene-aware visual sampling) are open; neither is merged. PR #27 remains merged.
+- **Open work:** PR #29 (black-footage filter), PR #30 (brief-led storytelling), PR #31 (ready-to-post export kit) and PR #32 (scene-aware sampling + structured visual observations) are open; none is merged. PR #27 remains merged.
 - **Branches observed:** `automatic-word-timed-lyrics`, `campaign-dialogue-transcription`, `campaign-footage-discovery`, `campaign-shot-editor`, `campaign-shot-editor-integration`, `creative-anime-editing`, `fix/campaign-export-audio-duration`, `fix/campaign-scene-selection-ci-final`, `fix/campaign-scene-selection-final-ci`, `fix/campaign-scene-selection-pacing`, `fix/campaign-scene-selection-pacing-ci`, `fix/campaign-scene-selection-release-check`, `fix/campaign-scene-selection-tested`, `fix/campaign-scene-selection-validated`, `improve-multi-clip-selection`, `instant-lyrics-style-editor`, `instant-lyrics-style-editor-ci`, `instant-lyrics-style-editor-verified`, `lyric-style-previews-multicolor`, `lyric-words-on-screen`, `lyrics-captions-animation`, `lyrics-color-controls`, `main`, `music-intelligence-hooks`, `refresh-legacy-lyric-timings`, `reuse-campaign-transcript-on-dialogue-rebuild`.
 - Branch names alone do not prove whether work is merged or active; check branch heads and diffs before reusing them.
 - **Coordination document branch:** `docs/project-coordination` (this document is maintained separately from application code).
@@ -54,14 +54,12 @@
 
 | Task | Branch / PR | Status | Notes |
 |---|---|---|---|
-| Brief-led campaign visual storytelling | `feature/campaign-storytelling-arc` / [PR #30](https://github.com/Parth33831/clipyyy/pull/30) | Open; CI not yet confirmed | Prompt guides the montage planner to prioritize the brief, mandatory content, creator footage and truthful story beats. Regression test added. |
-| Scene-aware campaign frame sampling | `feature/campaign-scene-aware-analysis` / [PR #32](https://github.com/Parth33831/clipyyy/pull/32) | Open; CI not yet confirmed | Vision-capable campaign analysis samples just-after-cut frames plus uniform coverage. Text-only fallback remains unchanged. |
+| Brief-led campaign visual storytelling | `feature/campaign-storytelling-arc` / [PR #30](https://github.com/Parth33831/clipyyy/pull/30) | Open; Ruff formatting fixed; CI rerunning | Prompt guides the montage planner to prioritize the brief, mandatory content, creator footage and truthful story beats. Formatting-only commit `a491c428ea50853d7b0917704222b453d9c48936`; latest CI must pass before review. |
+| Scene-aware campaign frame sampling + structured visual observations | `feature/campaign-scene-aware-analysis` / [PR #32](https://github.com/Parth33831/clipyyy/pull/32) | Open; Ruff formatting fixed; CI rerunning | Vision-capable campaign analysis samples just-after-cut frames plus uniform coverage and adds bounded shot-scale/action/text/confidence observations. Text-only fallback remains unchanged. Formatting-only commits `92df5578493f50f3d8178b6f4c33341cc01e1623` and `6fe1fb536d117e9f539d8532e02df60a3106dc13`; latest CI must pass before review. |
 
 **Latest main baseline:** `942a2dbbd5ebf00fe89de9174fd3cf3c494db928`.
 
-**Validation honesty:** The GitHub connector returned no status checks for the latest PR commits during this handoff. No local Windows test or real-media visual review was run. Do not merge either PR until their CI results are visible and the diffs are reviewed.
-
-**Next recommended assignment after these PRs:** Enrich vision observations with structured, evidence-grounded scene attributes (shot scale, visible action, subject/product visibility, text/graphics and confidence), then use those attributes in the existing storyboard rationale and shot selection. Keep the current observation fields backward-compatible, do not infer motion from still frames, and retain the text-only fallback. This is a distinct next step—not implemented by PR #32.
+**Validation honesty:** Earlier CI failures on PR #30 and PR #32 were Ruff-format-only. Formatting corrections have been committed to their existing branches; fast-backend and frontend CI are rerunning. PR #32's mergeability is now reported true by GitHub after the formatting commits. PR #29 overlaps `vision.py`/`campaign.py` and should be integrated first or carefully coordinated; do not merge conflicting work blindly. No local Windows test or real-media visual review was run.
 
 ## Current work
 
