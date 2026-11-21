@@ -23,9 +23,9 @@
 ## Repository baseline (inspected 2026-11-21)
 
 - **Default branch:** `main`
-- **Latest main commit:** `e852f7f5e795111516a5a70a051b942a7ee4c229` — Add campaign storyboard frame previews (#38).
+- **Latest main commit:** `0e5a9d83109ffe2edb9fa15a43ad21d574fa2d1b` — Keep vertical reframing on a consistent primary subject (#37).
 - Recent completed main work includes lyric animation previews, multi-colour lyric captions, configurable lyric colours, word-accurate song transcription, campaign dialogue/montage editing, stock-footage discovery, editable storyboards, optional cinematic camera movement and ready-to-post copy in clip export archives.
-- **Open work:** PR #37 improves continuity-aware primary-subject tracking and is under CI review. PRs #29, #30, #31, #32, #34, #36 and #38 are merged. PRs #33 and #35 were closed as superseded. PR #27 remains merged.
+- **Open work:** No active PRs. PRs #29, #30, #31, #32, #34, #36, #37 and #38 are merged. PRs #33 and #35 were closed as superseded. PR #27 remains merged.
 - **Branches observed:** `automatic-word-timed-lyrics`, `campaign-dialogue-transcription`, `campaign-footage-discovery`, `campaign-shot-editor`, `campaign-shot-editor-integration`, `creative-anime-editing`, `fix/campaign-export-audio-duration`, `fix/campaign-scene-selection-ci-final`, `fix/campaign-scene-selection-final-ci`, `fix/campaign-scene-selection-pacing`, `fix/campaign-scene-selection-pacing-ci`, `fix/campaign-scene-selection-release-check`, `fix/campaign-scene-selection-tested`, `fix/campaign-scene-selection-validated`, `improve-multi-clip-selection`, `instant-lyrics-style-editor`, `instant-lyrics-style-editor-ci`, `instant-lyrics-style-editor-verified`, `lyric-style-previews-multicolor`, `lyric-words-on-screen`, `lyrics-captions-animation`, `lyrics-color-controls`, `main`, `music-intelligence-hooks`, `refresh-legacy-lyric-timings`, `reuse-campaign-transcript-on-dialogue-rebuild`.
 - Branch names alone do not prove whether work is merged or active; check branch heads and diffs before reusing them.
 - **Coordination document branch:** `docs/project-coordination` (this document is maintained separately from application code).
@@ -42,6 +42,7 @@
 | Cinematic campaign camera movement | V1 implemented | PR #27 / `main` | Optional subtle Ken Burns-style per-shot movement with a static-crop toggle; merged as `942a2db`. |
 | Campaign shot transitions | V1 implemented | [PR #36](https://github.com/Parth33831/clipyyy/pull/36) / `main` | Auto preserves beat-aware hard cuts and fallback dissolves; creators can also choose clean cuts, cinematic fades or dynamic directional transitions. Beat timing accounts for overlap. |
 | Visual campaign storyboard | V1 implemented | [PR #38](https://github.com/Parth33831/clipyyy/pull/38) / `main` | Each selected shot now shows a cached source-frame thumbnail; preview endpoint validates source/timestamp and keeps local paths private. |
+| Continuity-aware primary subject tracking | V1 implemented | [PR #37](https://github.com/Parth33831/clipyyy/pull/37) / `main` | Tracks a consistent primary face across frames instead of switching to a larger background face; reacquires after a short disappearance. |
 | Virality scoring improvements | Not yet assessed | Unassigned | Existing selection already has hook, value, clarity and overall scores; assess before expanding. |
 | Advanced subject tracking | Not yet assessed | Unassigned | Avoid duplicating existing MediaPipe face tracking. |
 | Text-based editing / filler removal | V1 implemented | PR #23 / `main` | Conservative English filler-word removal is merged; full transcript editing remains a later feature. |
@@ -63,9 +64,9 @@
 | Music energy + transient-aware cut selection | `feature/music-aware-campaign-editing` / [PR #34](https://github.com/Parth33831/clipyyy/pull/34) | Merged into main as `80d34552ff1b3f0199d47426efe252adfcb80024` | Extends local audio analysis with normalized energy profiles/low-medium-high sections and transient strengths; selects stronger nearby cut points while preserving the no-transient fallback. |
 | Selectable campaign transitions + music-aware timing | `feature/campaign-transitions-energy-integration` / [PR #36](https://github.com/Parth33831/clipyyy/pull/36) | Merged into main as `e26f53bb5e9ae625ee99e4aea60e11f5eb949221` | Adds Auto, Clean hard cuts, Cinematic fades and Dynamic directional transitions; accounts for overlap while preserving energy-aware transient selection and lyrics/audio timing. Fast-backend: 106 passed, 22 skipped; Ruff lint/format and frontend build passed. |
 
-**Latest main baseline:** `e852f7f5e795111516a5a70a051b942a7ee4c229`.
+**Latest main baseline:** `0e5a9d83109ffe2edb9fa15a43ad21d574fa2d1b`.
 
-**Validation honesty:** PR #29, #30, #31, #32, #34, #36 and #38 fast-backend and frontend checks passed. Windows, macOS and full-backend jobs were skipped by workflow configuration. No local Windows media test or real-media visual review has been run. PR #32 was rebuilt on top of merged #29/#30 code; PR #36 consolidated music-energy cut selection with selectable transitions on top of PR #34.
+**Validation honesty:** PR #29, #30, #31, #32, #34, #36, #37 and #38 fast-backend and frontend checks passed. Windows, macOS and full-backend jobs were skipped by workflow configuration. No local Windows media test or real-media visual review has been run. PR #32 was rebuilt on top of merged #29/#30 code; PR #36 consolidated music-energy cut selection with selectable transitions on top of PR #34.
 
 ## Current work
 
@@ -372,3 +373,5 @@ STATUS: In progress / Ready for review / Merged
 - **Implementation:** Adds per-shot source-frame thumbnails to the storyboard. Frames are extracted through a campaign-only endpoint, cached in the run's work directory and served without exposing local source paths.
 - **Validation:** Fast backend and frontend CI passed; Windows, macOS and full-backend jobs skipped. No local Windows/real-media smoke test is claimed.
 - 2026-11-21: PR #38 was reviewed and squash-merged as `e852f7f5e795111516a5a70a051b942a7ee4c229`.
+
+- 2026-11-21: PR #37 added continuity-aware primary-face tracking for vertical reframing and was squash-merged into main as `0e5a9d83109ffe2edb9fa15a43ad21d574fa2d1b`. Fast-backend and frontend CI passed; Windows, macOS and full-backend jobs were skipped.
