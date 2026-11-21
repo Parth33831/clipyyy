@@ -44,8 +44,8 @@ def test_detect_black_intervals_parses_merges_and_clamps_ffmpeg_output(tmp_path,
         seen["command"] = command
         return SimpleNamespace(
             stderr=(
-                "black_start:0.000 black_end:1.000 black_duration:1.000\\n"
-                "black_start:0.950 black_end:2.000 black_duration:1.050\\n"
+                "black_start:0.000 black_end:1.000 black_duration:1.000\n"
+                "black_start:0.950 black_end:2.000 black_duration:1.050\n"
                 "black_start:9.500 black_end:N/A black_duration:0.500"
             ),
             returncode=0,
