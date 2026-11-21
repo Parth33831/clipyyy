@@ -169,6 +169,20 @@ MONTAGE_SCHEMA: dict[str, Any] = {
 }
 
 
+def _intersects_black_interval(
+    start: float, end: float, intervals: list[list[float] | tuple[float, float]]
+) -> bool:
+    """Check a candidate point or shot range against detected near-black footage."""
+    for interval in intervals:
+        try:
+            black_start, black_end = float(interval[0]), float(interval[1])
+        except (TypeError, ValueError, IndexError):
+            continue
+        if (black_start <= start <= black_end) if start == end else (black_start < end and black_end > start):
+            return True
+    return False
+
+
 def build_montage_plan(
     llm,
     brief: str,
@@ -185,7 +199,14 @@ def build_montage_plan(
         raise ValueError("The selected AI model cannot create a structured montage plan.")
     candidates = []
     for source_index, (source, analysis) in enumerate(zip(sources, analyses, strict=True)):
+        black_intervals = analysis.get("black_intervals", [])
         for frame in analysis.get("frames", []):
+            try:
+                timestamp = float(frame["timestamp"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if _intersects_black_interval(timestamp, timestamp, black_intervals):
+                continue
             candidates.append(
                 {
                     "source_index": source_index,
@@ -245,6 +266,9 @@ def build_montage_plan(
                     end = start + 5.0
                 if end - start < 1.5:
                     continue
+                source_analysis = analyses[source_index] if source_index < len(analyses) else {}
+                if _intersects_black_interval(start, end, source_analysis.get("black_intervals", [])):
+                    continue
                 shots.append(
                     {
                         "source_index": source_index,
@@ -303,12 +327,20 @@ def _build_text_only_montage(
     candidates: list[tuple[int, float, bool]] = []
     for source_index, duration in usable:
         frames = analyses[source_index].get("frames", []) if analyses and source_index < len(analyses) else []
+        black_intervals = (
+            analyses[source_index].get("black_intervals", [])
+            if analyses and source_index < len(analyses)
+            else []
+        )
         for frame in frames:
             try:
                 timestamp = float(frame["timestamp"])
             except (KeyError, TypeError, ValueError):
                 continue
-            if 0.25 < timestamp < duration - 1.0:
+            if (
+                0.25 < timestamp < duration - 1.0
+                and not _intersects_black_interval(timestamp, timestamp, black_intervals)
+            ):
                 candidates.append((source_index, timestamp, True))
 
     shot_count = max(5, min(24, round(target_seconds / 2.5)))
@@ -319,10 +351,17 @@ def _build_text_only_montage(
         per_source = max(24, (required_candidates + len(usable) - 1) // len(usable) + 8)
         existing = {(source_index, round(timestamp, 1)) for source_index, timestamp, _ in candidates}
         for source_index, duration in usable:
+            black_intervals = (
+                analyses[source_index].get("black_intervals", [])
+                if analyses and source_index < len(analyses)
+                else []
+            )
             for index in range(1, per_source + 1):
                 timestamp = duration * index / (per_source + 1)
                 key = (source_index, round(timestamp, 1))
-                if key not in existing:
+                if key not in existing and not _intersects_black_interval(
+                    timestamp, timestamp, black_intervals
+                ):
                     candidates.append((source_index, timestamp, False))
                     existing.add(key)
     candidates.sort(key=lambda item: (item[0], item[1]))
@@ -356,6 +395,36 @@ def _build_text_only_montage(
                     candidate for candidate in candidates if candidate[0] in preferred_indexes
                 ]
             candidate_pool = preferred_candidates or segment_candidates
+            def is_usable(candidate: tuple[int, float, bool]) -> bool:
+                candidate_source, candidate_time, _ = candidate
+                candidate_duration = float(sources[candidate_source].get("duration_seconds") or 0)
+                candidate_start = min(
+                    max(0.0, candidate_time + 0.06),
+                    max(0.0, candidate_duration - shot_length),
+                )
+                candidate_end = min(candidate_duration, candidate_start + shot_length)
+                source_analysis = (
+                    analyses[candidate_source]
+                    if analyses and candidate_source < len(analyses)
+                    else {}
+                )
+                return (
+                    candidate_end - candidate_start >= 1.25
+                    and not _intersects_black_interval(
+                        candidate_start, candidate_end, source_analysis.get("black_intervals", [])
+                    )
+                )
+
+            candidate_pool = [candidate for candidate in candidate_pool if is_usable(candidate)]
+            if not candidate_pool:
+                candidate_pool = [
+                    candidate for candidate in candidates
+                    if candidate[0] in preferred_indexes and is_usable(candidate)
+                ]
+            if not candidate_pool:
+                candidate_pool = [candidate for candidate in candidates if is_usable(candidate)]
+            if not candidate_pool:
+                continue
             candidate_index = min(
                 len(candidate_pool) - 1,
                 int((index + 0.5) * len(candidate_pool) / shot_count),
@@ -369,10 +438,14 @@ def _build_text_only_montage(
                 for alt_source, alt_timestamp, alt_is_scene_change in candidate_pool:
                     alt_duration = float(sources[alt_source].get("duration_seconds") or 0)
                     alt_start = min(max(0.0, alt_timestamp + 0.06), max(0.0, alt_duration - shot_length))
+                    alt_end = min(alt_duration, alt_start + shot_length)
+                    alt_analysis = analyses[alt_source] if analyses and alt_source < len(analyses) else {}
                     alt_key = (alt_source, round(alt_start / 1.5))
-                    if alt_key not in used:
+                    if alt_key not in used and not _intersects_black_interval(
+                        alt_start, alt_end, alt_analysis.get("black_intervals", [])
+                    ):
                         source_index, duration, start = alt_source, alt_duration, alt_start
-                        end = min(alt_duration, alt_start + shot_length)
+                        end = alt_end
                         key, is_scene_change = alt_key, alt_is_scene_change
                         break
             if end - start >= 1.25 and key not in used:
