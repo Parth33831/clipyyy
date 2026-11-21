@@ -25,7 +25,7 @@
 - **Default branch:** `main`
 - **Latest main commit:** `942a2dbbd5ebf00fe89de9174fd3cf3c494db928` — Add subtle cinematic camera movement to campaign edits (#27).
 - Recent completed main work includes lyric animation previews, multi-colour lyric captions, configurable lyric colours, word-accurate song transcription, campaign dialogue/montage editing, stock-footage discovery, editable storyboards and optional cinematic camera movement.
-- **Open PR search:** PR #27 was merged on 2026-11-21; no other open PRs were present at the latest inspection.
+- **Open work:** PR #30 (brief-led visual storytelling) and PR #32 (scene-aware visual sampling) are open; neither is merged. PR #27 remains merged.
 - **Branches observed:** `automatic-word-timed-lyrics`, `campaign-dialogue-transcription`, `campaign-footage-discovery`, `campaign-shot-editor`, `campaign-shot-editor-integration`, `creative-anime-editing`, `fix/campaign-export-audio-duration`, `fix/campaign-scene-selection-ci-final`, `fix/campaign-scene-selection-final-ci`, `fix/campaign-scene-selection-pacing`, `fix/campaign-scene-selection-pacing-ci`, `fix/campaign-scene-selection-release-check`, `fix/campaign-scene-selection-tested`, `fix/campaign-scene-selection-validated`, `improve-multi-clip-selection`, `instant-lyrics-style-editor`, `instant-lyrics-style-editor-ci`, `instant-lyrics-style-editor-verified`, `lyric-style-previews-multicolor`, `lyric-words-on-screen`, `lyrics-captions-animation`, `lyrics-color-controls`, `main`, `music-intelligence-hooks`, `refresh-legacy-lyric-timings`, `reuse-campaign-transcript-on-dialogue-rebuild`.
 - Branch names alone do not prove whether work is merged or active; check branch heads and diffs before reusing them.
 - **Coordination document branch:** `docs/project-coordination` (this document is maintained separately from application code).
@@ -38,7 +38,7 @@
 | Local transcription | Existing implementation | Existing code | faster-whisper already provides word-level timestamps. |
 | Face-based vertical reframing | Existing implementation | Existing code | Future improvements must not regress current framing. |
 | Animated captions | Existing implementation | Feature Development | Recent lyric animation, colour and word-window work is on main. |
-| Campaign montage / music / lyrics | Existing implementation | `main` | Music analysis, beat alignment, hooks, lyrics, storyboard controls, Pexels discovery and cinematic camera movement are integrated; improve only after auditing existing behavior. |
+| Campaign montage / music / lyrics | Existing implementation + active improvements | `main`, PRs #30 and #32 | Music analysis, beat alignment, hooks, lyrics, storyboard controls, Pexels discovery and cinematic camera movement are integrated. Brief-led story selection and scene-aware frame sampling are under review in separate PRs. |
 | Cinematic campaign camera movement | V1 implemented | PR #27 / `main` | Optional subtle Ken Burns-style per-shot movement with a static-crop toggle; merged as `942a2db`. |
 | Virality scoring improvements | Not yet assessed | Unassigned | Existing selection already has hook, value, clarity and overall scores; assess before expanding. |
 | Advanced subject tracking | Not yet assessed | Unassigned | Avoid duplicating existing MediaPipe face tracking. |
@@ -48,6 +48,20 @@
 | Audio enhancement / voiceover | Not yet assessed | Unassigned | Assess local/offline options and dependencies. |
 | Automatic campaign stock-footage discovery | V1 implemented | PR #24 / `main` | Opt-in Pexels discovery is merged; creator footage stays first and attribution is surfaced. |
 | AI B-roll improvements | Existing optional B-roll; future enhancements not assessed | Unassigned | Inspect current Pexels workflow before implementing alternatives. |
+
+
+## Current development handoff (2026-11-21)
+
+| Task | Branch / PR | Status | Notes |
+|---|---|---|---|
+| Brief-led campaign visual storytelling | `feature/campaign-storytelling-arc` / [PR #30](https://github.com/Parth33831/clipyyy/pull/30) | Open; CI not yet confirmed | Prompt guides the montage planner to prioritize the brief, mandatory content, creator footage and truthful story beats. Regression test added. |
+| Scene-aware campaign frame sampling | `feature/campaign-scene-aware-analysis` / [PR #32](https://github.com/Parth33831/clipyyy/pull/32) | Open; CI not yet confirmed | Vision-capable campaign analysis samples just-after-cut frames plus uniform coverage. Text-only fallback remains unchanged. |
+
+**Latest main baseline:** `942a2dbbd5ebf00fe89de9174fd3cf3c494db928`.
+
+**Validation honesty:** The GitHub connector returned no status checks for the latest PR commits during this handoff. No local Windows test or real-media visual review was run. Do not merge either PR until their CI results are visible and the diffs are reviewed.
+
+**Next recommended assignment after these PRs:** Enrich vision observations with structured, evidence-grounded scene attributes (shot scale, visible action, subject/product visibility, text/graphics and confidence), then use those attributes in the existing storyboard rationale and shot selection. Keep the current observation fields backward-compatible, do not infer motion from still frames, and retain the text-only fallback. This is a distinct next step—not implemented by PR #32.
 
 ## Current work
 
