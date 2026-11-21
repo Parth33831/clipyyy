@@ -23,9 +23,9 @@
 ## Repository baseline (inspected 2026-11-21)
 
 - **Default branch:** `main`
-- **Latest main commit:** `80d34552ff1b3f0199d47426efe252adfcb80024` — Make campaign edits respond to music energy and transients (#34).
+- **Latest main commit:** `e26f53bb5e9ae625ee99e4aea60e11f5eb949221` — Integrate music-aware campaign transitions (#36).
 - Recent completed main work includes lyric animation previews, multi-colour lyric captions, configurable lyric colours, word-accurate song transcription, campaign dialogue/montage editing, stock-footage discovery, editable storyboards, optional cinematic camera movement and ready-to-post copy in clip export archives.
-- **Open work:** PR #35 adds selectable campaign transitions and is under CI review. PRs #29, #30, #31, #32 and #34 are merged; duplicate PR #33 was closed as superseded. PR #27 remains merged.
+- **Open work:** No active PRs from the campaign editing batch. PRs #29, #30, #31, #32, #34 and #36 are merged. PRs #33 and #35 were closed as superseded. PR #27 remains merged.
 - **Branches observed:** `automatic-word-timed-lyrics`, `campaign-dialogue-transcription`, `campaign-footage-discovery`, `campaign-shot-editor`, `campaign-shot-editor-integration`, `creative-anime-editing`, `fix/campaign-export-audio-duration`, `fix/campaign-scene-selection-ci-final`, `fix/campaign-scene-selection-final-ci`, `fix/campaign-scene-selection-pacing`, `fix/campaign-scene-selection-pacing-ci`, `fix/campaign-scene-selection-release-check`, `fix/campaign-scene-selection-tested`, `fix/campaign-scene-selection-validated`, `improve-multi-clip-selection`, `instant-lyrics-style-editor`, `instant-lyrics-style-editor-ci`, `instant-lyrics-style-editor-verified`, `lyric-style-previews-multicolor`, `lyric-words-on-screen`, `lyrics-captions-animation`, `lyrics-color-controls`, `main`, `music-intelligence-hooks`, `refresh-legacy-lyric-timings`, `reuse-campaign-transcript-on-dialogue-rebuild`.
 - Branch names alone do not prove whether work is merged or active; check branch heads and diffs before reusing them.
 - **Coordination document branch:** `docs/project-coordination` (this document is maintained separately from application code).
@@ -40,7 +40,7 @@
 | Animated captions | Existing implementation | Feature Development | Recent lyric animation, colour and word-window work is on main. |
 | Campaign montage / music / lyrics | Existing implementation + integrated improvements | `main` | Music analysis now exposes normalized energy profiles/sections and transient strengths; cut selection favors strong energetic transients near planned shot durations. Hooks, lyrics, storyboard controls, Pexels discovery, cinematic camera movement, brief-led storytelling, black-footage filtering, scene-aware sampling and structured visual evidence remain integrated. |
 | Cinematic campaign camera movement | V1 implemented | PR #27 / `main` | Optional subtle Ken Burns-style per-shot movement with a static-crop toggle; merged as `942a2db`. |
-| Campaign shot transitions | V1 in review | [PR #35](https://github.com/Parth33831/clipyyy/pull/35) | Auto preserves beat-aware hard cuts and fallback dissolves; creators can also choose clean cuts, cinematic fades or dynamic directional transitions. Beat timing accounts for overlap. |
+| Campaign shot transitions | V1 implemented | [PR #36](https://github.com/Parth33831/clipyyy/pull/36) / `main` | Auto preserves beat-aware hard cuts and fallback dissolves; creators can also choose clean cuts, cinematic fades or dynamic directional transitions. Beat timing accounts for overlap. |
 | Virality scoring improvements | Not yet assessed | Unassigned | Existing selection already has hook, value, clarity and overall scores; assess before expanding. |
 | Advanced subject tracking | Not yet assessed | Unassigned | Avoid duplicating existing MediaPipe face tracking. |
 | Text-based editing / filler removal | V1 implemented | PR #23 / `main` | Conservative English filler-word removal is merged; full transcript editing remains a later feature. |
@@ -62,9 +62,9 @@
 | Music energy + transient-aware cut selection | `feature/music-aware-campaign-editing` / [PR #34](https://github.com/Parth33831/clipyyy/pull/34) | Merged into main as `80d34552ff1b3f0199d47426efe252adfcb80024` | Extends local audio analysis with normalized energy profiles/low-medium-high sections and transient strengths; selects stronger nearby cut points while preserving the no-transient fallback. |
 | Music-energy-aware cut selection | `feature/music-aware-campaign-editing` / [PR #34](https://github.com/Parth33831/clipyyy/pull/34) | Merged into main as `80d34552ff1b3f0199d47426efe252adfcb80024` | Adds normalized music-energy profile/sections, beat strengths and transient selection that favors stronger musical moments without extreme pacing changes. |
 
-**Latest main baseline:** `80d34552ff1b3f0199d47426efe252adfcb80024`.
+**Latest main baseline:** `e26f53bb5e9ae625ee99e4aea60e11f5eb949221`.
 
-**Validation honesty:** PR #29, #30, #31, #32 and #34 fast-backend and frontend checks passed. Windows, macOS and full-backend jobs were skipped by workflow configuration. No local Windows media test or real-media visual review has been run. PR #32 was rebuilt on top of merged #29/#30 code to resolve overlapping campaign/vision edits before merging.
+**Validation honesty:** PR #29, #30, #31, #32, #34 and #36 fast-backend and frontend checks passed. Windows, macOS and full-backend jobs were skipped by workflow configuration. No local Windows media test or real-media visual review has been run. PR #32 was rebuilt on top of merged #29/#30 code; PR #36 consolidated music-energy cut selection with selectable transitions on top of PR #34.
 
 ## Current work
 
@@ -354,3 +354,5 @@ STATUS: In progress / Ready for review / Merged
 
 - 2026-11-21: PR #34 merged music-energy-aware campaign editing into `main` as `80d34552ff1b3f0199d47426efe252adfcb80024`. It extends existing beat analysis with normalized energy sections and transient-strength scoring; no new audio dependency was added.
 - 2026-11-21: Rebased the selectable transition work on latest main and consolidated it with PR #34 as PR #36 (`feature/campaign-transitions-energy-integration`). Closed PR #35 as superseded to avoid competing edits to `render.py` and `tests/test_render.py`. PR #36 requires CI/review before merge.
+
+- 2026-11-21: PR #36 consolidated the music-energy-aware cut selection from #34 with the selectable campaign transition UI/renderer from #35. Final head `c81d250717eca91d09ed0ce5024a90029212c58a` passed fast-backend and frontend CI and was squash-merged as `e26f53bb5e9ae625ee99e4aea60e11f5eb949221`. Earlier PR #35 was closed as superseded by #36.
