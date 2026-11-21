@@ -53,6 +53,7 @@ def render_clips(
                 output=output,
                 size=(width, height),
                 caption_style=options["caption_style"] if add_captions else None,
+                normalize_audio=bool(options.get("normalize_audio", False)),
             )
             removed_fillers = 0
             if options.get("remove_filler_words") and transcript.get("language") == "en":
@@ -80,6 +81,7 @@ def render_clips(
                     "height": out_h,
                     "duration_seconds": round(duration, 2),
                     "filler_words_removed": removed_fillers,
+                    "audio_normalized": bool(options.get("normalize_audio", False)),
                 }
             )
         except Exception as exc:  # one bad clip should not sink the others
@@ -100,13 +102,14 @@ def render_clip(
     output: Path,
     size: tuple[int, int],
     caption_style: str | None,
+    normalize_audio: bool = False,
 ) -> None:
     width, height = size
     # The common no-B-roll case can be rendered directly from the source in one
     # FFmpeg pass. The old segment/concat path re-encoded every 3-second window and
     # then encoded the whole clip again for captions.
     if all(window["type"] == "speaker" for window in clip["windows"]):
-        render_speaker_only(source_video, clip, prepared, work_dir, output, size, caption_style)
+        render_speaker_only(source_video, clip, prepared, work_dir, output, size, caption_style, normalize_audio)
         return
 
     segments_dir = work_dir / "segments"
@@ -158,6 +161,8 @@ def render_clip(
             str(source_video),
         ]
         maps += ["-map", "1:a:0", "-c:a", "aac", "-b:a", "160k"]
+        if normalize_audio:
+            maps += ["-af", "loudnorm=I=-16:TP=-1.5:LRA=11"]
 
     if caption_style and words:
         ass_path = write_ass(words, work_dir / "captions.ass", width, height, caption_style)
@@ -279,6 +284,7 @@ def render_speaker_only(
     output: Path,
     size: tuple[int, int],
     caption_style: str | None,
+    normalize_audio: bool = False,
 ) -> None:
     """Crop, scale, caption and encode a speaker-only clip in one FFmpeg pass."""
     width, height = size
@@ -306,6 +312,8 @@ def render_speaker_only(
     ]
     if has_audio(source_video):
         args += ["-map", "0:a:0", "-c:a", "aac", "-b:a", "160k"]
+        if normalize_audio:
+            args += ["-af", "loudnorm=I=-16:TP=-1.5:LRA=11"]
     args += [
         "-c:v",
         "libx264",
@@ -586,6 +594,12 @@ def render_campaign_montages(
                 music_input = []
                 if music_analysis and music_analysis["duration_seconds"] - music_start < duration:
                     music_input = ["-stream_loop", "-1"]
+                audio_filter = (
+                    f"volume=0.9,afade=t=in:st=0:d=0.4,"
+                    f"afade=t=out:st={max(0.0, duration - 0.8):.3f}:d=0.8"
+                )
+                if options.get("normalize_audio"):
+                    audio_filter += ",loudnorm=I=-16:TP=-1.5:LRA=11"
                 run_ffmpeg(
                     [
                         "-i",
@@ -608,8 +622,7 @@ def render_campaign_montages(
                         "-b:a",
                         "192k",
                         "-af",
-                        f"volume=0.9,afade=t=in:st=0:d=0.4,"
-                        f"afade=t=out:st={max(0.0, duration - 0.8):.3f}:d=0.8",
+                        audio_filter,
                         "-shortest",
                         "-movflags",
                         "+faststart",
@@ -663,6 +676,7 @@ def render_campaign_montages(
             "camera_motion": bool(options.get("campaign_camera_motion", True)),
             "transition_style": transition_style,
             "music_track_added": bool(music_path),
+            "audio_normalized": bool(music_path and options.get("normalize_audio", False)),
             "official_sound_required": official_sound_required,
             "beat_sync": (
                 f"cuts guided by high-energy musical transients; estimated {music_analysis['bpm']} BPM"
