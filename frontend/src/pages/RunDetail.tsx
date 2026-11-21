@@ -575,7 +575,7 @@ function CampaignTimeline({
           </div>
           <div className="overflow-x-auto">
             <div className="relative h-9 min-w-[680px] overflow-hidden rounded-md bg-surface">
-              {musicAnalysis.energy_sections.map((section, index) => {
+              {(musicAnalysis.energy_sections ?? []).map((section, index) => {
                 const left = Math.max(0, section.start_seconds - 0.25 - musicStart)
                 const right = Math.min(total, section.end_seconds + 0.25 - musicStart)
                 if (right <= left) return null
@@ -865,7 +865,7 @@ function CampaignPlanCard({ plan, checks }: { plan: NonNullable<RunDetail['campa
         <div className="border-t border-line pt-3">
           <h3 className="label mb-3">Export checks</h3>
           <dl className="grid gap-3 sm:grid-cols-2">
-            {Object.entries(checks).map(([key, value]) => (
+            {Object.entries(checks).filter(([key]) => key !== 'music_analysis').map(([key, value]) => (
               <div key={key}>
                 <dt className="label text-muted">{key.replaceAll('_', ' ')}</dt>
                 <dd className="mt-1 text-sm">
