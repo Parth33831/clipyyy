@@ -11,6 +11,8 @@ pytestmark = pytest.mark.skipif(not find_ffmpeg().ffmpeg, reason="needs ffmpeg")
 
 
 @pytest.mark.parametrize("aspect,size", [("9:16", (1080, 1920)), ("1:1", (1080, 1080))])
+
+
 def test_render_synthetic_clip(tmp_path, transcript, aspect, size):
     source = tmp_path / "source.mp4"
     run_ffmpeg(
