@@ -170,7 +170,7 @@ def sample_faces(
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
     )
-    samples: list[tuple[float, Face | None]] = []
+    frame_detections: list[list[Face]] = []
     try:
         assert proc.stdout is not None
         while len(raw := proc.stdout.read(frame_bytes)) == frame_bytes:
@@ -185,12 +185,13 @@ def sample_faces(
                 )
                 for d in result.detections
             ]
-            samples.append((len(samples) / SAMPLE_FPS, dominant(faces)))
+            frame_detections.append(faces)
     finally:
         proc.stdout and proc.stdout.close()
         proc.wait()
         detector.close()
-    return samples
+    tracked = track_primary_faces(frame_detections)
+    return [(index / SAMPLE_FPS, face) for index, face in enumerate(tracked)]
 
 
 def detection_dimensions(width: int, height: int) -> tuple[int, int]:
@@ -199,6 +200,54 @@ def detection_dimensions(width: int, height: int) -> tuple[int, int]:
     sample_width = max(2, round(width * scale / 2) * 2)
     sample_height = max(2, round(height * scale / 2) * 2)
     return sample_width, sample_height
+
+
+def track_primary_faces(
+    frame_detections: list[list[Face]], max_missing_frames: int = 2
+) -> list[Face | None]:
+    """Follow a geometrically consistent primary face instead of switching to every largest face."""
+    tracked: list[Face | None] = []
+    previous: Face | None = None
+    missing = 0
+    for faces in frame_detections:
+        if not faces:
+            tracked.append(None)
+            missing += 1
+            if missing > max_missing_frames:
+                previous = None
+            continue
+
+        if previous is None:
+            current = dominant(faces)
+        else:
+            previous_x = previous.x + previous.width / 2
+            previous_y = previous.y + previous.height / 2
+            largest_area = max(face.width * face.height for face in faces)
+
+            def continuity_score(face: Face) -> float:
+                center_x = face.x + face.width / 2
+                center_y = face.y + face.height / 2
+                distance = ((center_x - previous_x) ** 2 + (center_y - previous_y) ** 2) ** 0.5
+                continuity = max(0.0, 1.0 - distance / 0.75)
+                relative_size = (face.width * face.height / largest_area) ** 0.5
+                return 0.72 * continuity + 0.28 * relative_size
+
+            nearest_distance = min(
+                (
+                    (
+                        (face.x + face.width / 2 - previous_x) ** 2
+                        + (face.y + face.height / 2 - previous_y) ** 2
+                    )
+                    ** 0.5
+                )
+                for face in faces
+            )
+            current = dominant(faces) if nearest_distance > 0.45 else max(faces, key=continuity_score)
+
+        tracked.append(current)
+        previous = current
+        missing = 0
+    return tracked
 
 
 def dominant(faces: list[Face]) -> Face | None:
