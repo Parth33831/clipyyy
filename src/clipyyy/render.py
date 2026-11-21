@@ -642,7 +642,7 @@ def render_campaign_montages(
             "music_track_added": bool(music_path),
             "official_sound_required": official_sound_required,
             "beat_sync": (
-                f"cuts aligned to detected musical transients; estimated {music_analysis['bpm']} BPM"
+                f"cuts guided by high-energy musical transients; estimated {music_analysis['bpm']} BPM"
                 if music_analysis and beat_times and music_analysis.get("bpm")
                 else "track analysed, but reliable beat transients were not detected"
                 if music_analysis
