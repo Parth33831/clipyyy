@@ -23,9 +23,9 @@
 ## Repository baseline (inspected 2026-11-21)
 
 - **Default branch:** `main`
-- **Latest main commit:** `5d2de67d5bd04bb480ef90de5d7a5ba145c74faf` — Add ready-to-post copy to clip exports (#31).
+- **Latest main commit:** `05a177f18d01565eabc88ff3dee5952c2dbb2407` — Filter black footage from campaign edits (#29).
 - Recent completed main work includes lyric animation previews, multi-colour lyric captions, configurable lyric colours, word-accurate song transcription, campaign dialogue/montage editing, stock-footage discovery, editable storyboards, optional cinematic camera movement and ready-to-post copy in clip export archives.
-- **Open work:** PR #29 (black-footage filter), PR #30 (brief-led storytelling), PR #31 (ready-to-post export kit) and PR #32 (scene-aware sampling + structured visual observations) are open; none is merged. PR #27 remains merged.
+- **Open work:** PR #32 (scene-aware sampling + structured visual observations) is open with an integration commit based on current main; CI is running. PRs #29, #30 and #31 are merged. PR #27 remains merged.
 - **Branches observed:** `automatic-word-timed-lyrics`, `campaign-dialogue-transcription`, `campaign-footage-discovery`, `campaign-shot-editor`, `campaign-shot-editor-integration`, `creative-anime-editing`, `fix/campaign-export-audio-duration`, `fix/campaign-scene-selection-ci-final`, `fix/campaign-scene-selection-final-ci`, `fix/campaign-scene-selection-pacing`, `fix/campaign-scene-selection-pacing-ci`, `fix/campaign-scene-selection-release-check`, `fix/campaign-scene-selection-tested`, `fix/campaign-scene-selection-validated`, `improve-multi-clip-selection`, `instant-lyrics-style-editor`, `instant-lyrics-style-editor-ci`, `instant-lyrics-style-editor-verified`, `lyric-style-previews-multicolor`, `lyric-words-on-screen`, `lyrics-captions-animation`, `lyrics-color-controls`, `main`, `music-intelligence-hooks`, `refresh-legacy-lyric-timings`, `reuse-campaign-transcript-on-dialogue-rebuild`.
 - Branch names alone do not prove whether work is merged or active; check branch heads and diffs before reusing them.
 - **Coordination document branch:** `docs/project-coordination` (this document is maintained separately from application code).
@@ -38,7 +38,7 @@
 | Local transcription | Existing implementation | Existing code | faster-whisper already provides word-level timestamps. |
 | Face-based vertical reframing | Existing implementation | Existing code | Future improvements must not regress current framing. |
 | Animated captions | Existing implementation | Feature Development | Recent lyric animation, colour and word-window work is on main. |
-| Campaign montage / music / lyrics | Existing implementation + active improvements | `main`, PRs #30 and #32 | Music analysis, beat alignment, hooks, lyrics, storyboard controls, Pexels discovery and cinematic camera movement are integrated. Brief-led story selection and scene-aware frame sampling are under review in separate PRs. |
+| Campaign montage / music / lyrics | Existing implementation + active improvements | `main`, PR #32 | Music analysis, beat alignment, hooks, lyrics, storyboard controls, Pexels discovery, cinematic camera movement, brief-led storytelling and black-footage filtering are integrated. Scene-aware visual sampling and structured visual evidence are in PR #32 CI. |
 | Cinematic campaign camera movement | V1 implemented | PR #27 / `main` | Optional subtle Ken Burns-style per-shot movement with a static-crop toggle; merged as `942a2db`. |
 | Virality scoring improvements | Not yet assessed | Unassigned | Existing selection already has hook, value, clarity and overall scores; assess before expanding. |
 | Advanced subject tracking | Not yet assessed | Unassigned | Avoid duplicating existing MediaPipe face tracking. |
@@ -54,12 +54,14 @@
 
 | Task | Branch / PR | Status | Notes |
 |---|---|---|---|
-| Brief-led campaign visual storytelling | `feature/campaign-storytelling-arc` / [PR #30](https://github.com/Parth33831/clipyyy/pull/30) | Open; Ruff formatting fixed; CI rerunning | Prompt guides the montage planner to prioritize the brief, mandatory content, creator footage and truthful story beats. Formatting-only commit `a491c428ea50853d7b0917704222b453d9c48936`; latest CI must pass before review. |
-| Scene-aware campaign frame sampling + structured visual observations | `feature/campaign-scene-aware-analysis` / [PR #32](https://github.com/Parth33831/clipyyy/pull/32) | Open; Ruff formatting fixed; CI rerunning | Vision-capable campaign analysis samples just-after-cut frames plus uniform coverage and adds bounded shot-scale/action/text/confidence observations. Text-only fallback remains unchanged. Formatting-only commits `92df5578493f50f3d8178b6f4c33341cc01e1623` and `6fe1fb536d117e9f539d8532e02df60a3106dc13`; latest CI must pass before review. |
+| Brief-led campaign visual storytelling | `feature/campaign-storytelling-arc` / [PR #30](https://github.com/Parth33831/clipyyy/pull/30) | Merged into main as `796e63e96f266e0c4c9bc032e98fdd6b71c802ed` | Campaign planner now prioritizes the actual brief, mandatory content, creator footage and truthful story progression. CI passed on latest PR head. |
+| Black-footage campaign filter | `feature/campaign-black-frame-filter-integration` / [PR #29](https://github.com/Parth33831/clipyyy/pull/29) | Merged into main as `05a177f18d01565eabc88ff3dee5952c2dbb2407` | FFmpeg blackdetect excludes sustained near-black ranges from campaign candidates and selected shots. CI passed on latest PR head. |
+| Ready-to-post export kit | `feature/post-ready-export-kit` / [PR #31](https://github.com/Parth33831/clipyyy/pull/31) | Merged into main as `5d2de67d5bd04bb480ef90de5d7a5ba145c74faf` | ZIP export includes `POSTING-COPY.txt` with title, filename, caption and hashtags. |
+| Scene-aware sampling + structured visual observations | `feature/campaign-scene-aware-analysis` / [PR #32](https://github.com/Parth33831/clipyyy/pull/32) | Integration commit `ec7a91c6728018abf159f6bfacf347078e27ffa3`; CI running | Rebased by rebuilding the PR branch on main after #29/#30 merges. Preserves black filtering + brief-led storytelling while adding cut-aware sampling and bounded shot-scale/action/text/confidence observations. |
 
-**Latest main baseline:** `5d2de67d5bd04bb480ef90de5d7a5ba145c74faf`.
+**Latest main baseline:** `05a177f18d01565eabc88ff3dee5952c2dbb2407`.
 
-**Validation honesty:** PR #29, #30, #31 and #32 all have passing fast-backend and frontend CI. Windows, macOS and full-backend jobs were skipped by workflow configuration; no local Windows test or real-media visual review was run. PR #29, #30 and #32 touch overlapping campaign/vision modules and require ordered integration plus post-merge CI. PR #31 was reviewed and squash-merged independently.
+**Validation honesty:** PR #29, #30 and #31 fast-backend and frontend checks passed; Windows, macOS and full-backend jobs were skipped. PR #32 has fast-backend and frontend checks in progress; do not merge until they pass. No local Windows media test or real-media visual review has been run. PR #32 integration is based on the merged #29/#30 code, so the campaign/vision overlap is resolved in the branch.
 
 ## Current work
 
@@ -294,7 +296,7 @@ STATUS: In progress / Ready for review / Merged
 - Ruff lint and format passed; frontend production build passed.
 - Fast backend suite: **99 passed, 17 skipped**.
 - Windows, macOS and full-backend/manual jobs were skipped; no local Windows media test is claimed.
-- **Status:** Ready for Architecture review; PR #29 is open and not merged.
+- **Status:** Squash-merged into `main` as `05a177f18d01565eabc88ff3dee5952c2dbb2407` on 2026-11-21.
 - PR #28 was closed as superseded after PR #27 merged while this work was underway. PR #29 is rebased on main commit `942a2db`.
 
 **Next priority:** Improve campaign source relevance with actual local visual understanding. First benchmark an appropriate small vision model against the user's CPU/RAM constraints and available B: drive storage; do not download it or alter local machine settings without explicit approval. Until then, the application must keep reporting text-only limitations accurately.
@@ -322,3 +324,7 @@ STATUS: In progress / Ready for review / Merged
 - **Status:** Merged into `main` as `5d2de67d5bd04bb480ef90de5d7a5ba145c74faf` on 2026-11-21.
 
 **Next:** After PR #31 CI/review, continue with visual footage relevance audit and a local vision-model feasibility check; do not download models or change the user's machine settings without approval.
+
+
+- 2026-11-21: Reviewed and squash-merged PR #30 (brief-led campaign storytelling) as `796e63e96f266e0c4c9bc032e98fdd6b71c802ed`, then PR #29 (black-footage filtering) as `05a177f18d01565eabc88ff3dee5952c2dbb2407`. Both had passing fast-backend and frontend CI; platform-specific/full-backend jobs were skipped.
+- 2026-11-21: Integrated PR #32 scene-aware sampling and structured visual observations on top of merged main, preserving black-frame filtering and brief-led storytelling. PR branch was rebuilt from current main to remove merge conflicts; latest head `ec7a91c6728018abf159f6bfacf347078e27ffa3`. Fast-backend and frontend CI are running; do not merge until they pass.
