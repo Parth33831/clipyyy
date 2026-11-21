@@ -47,9 +47,7 @@ def test_track_primary_faces_prefers_continuity_over_a_larger_background_face():
     primary_next = Face(0.13, 0.20, 0.18, 0.18)
     background_next = Face(0.60, 0.20, 0.28, 0.28)
 
-    tracked = track_primary_faces(
-        [[primary_first, background_first], [primary_next, background_next]]
-    )
+    tracked = track_primary_faces([[primary_first, background_first], [primary_next, background_next]])
 
     assert tracked == [primary_first, primary_next]
 
@@ -72,6 +70,7 @@ def test_track_primary_faces_keeps_missing_frames_for_fallback_ratio():
     face = Face(0.2, 0.2, 0.2, 0.2)
 
     assert track_primary_faces([[face], [], [face]]) == [face, None, face]
+
 
 def test_prepare_clips_skips_full_video_intermediate_without_broll(monkeypatch, tmp_path):
     import clipyyy.reframe as reframe
