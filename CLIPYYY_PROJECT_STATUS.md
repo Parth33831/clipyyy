@@ -258,3 +258,28 @@ STATUS: In progress / Ready for review / Merged
 
 
 - 2026-11-21: Reviewed and merged PR #27, cinematic campaign camera movement, into `main` as `942a2dbbd5ebf00fe89de9174fd3cf3c494db928`. PR CI passed: 96 backend tests passed, 17 skipped; Ruff lint/format and frontend production build passed. Post-merge CI was queued; local Windows/real-media visual review remains outstanding. Next priority is an audit-led AI visual storytelling/footage-to-brief matching improvement, with no duplicate music-analysis or vision-model implementation.
+
+### Feature Development update: Campaign black-footage quality filter
+
+**Objective:** Prevent sustained near-black sections from being selected as campaign shots, including in the honest text-only fallback.
+
+**Implementation**
+- Added FFmpeg `blackdetect` scanning for sustained near-black intervals (0.35 seconds minimum, conservative pixel threshold).
+- Filters black timestamps before local vision-model analysis and text-only scene candidate generation.
+- Rejects both LLM-proposed and fallback montage shots that overlap detected black intervals.
+- Merges overlapping black intervals and clamps them to source duration.
+- Detection failures are non-fatal; no new dependency, model, API key, or cloud inference is introduced.
+
+**Files changed**
+- `src/clipyyy/vision.py`
+- `src/clipyyy/campaign.py`
+- `tests/test_vision.py`
+- `tests/test_campaign.py`
+
+**PR:** [#29 — Avoid black footage in campaign edits](https://github.com/Parth33831/clipyyy/pull/29)
+- Branch: `feature/campaign-black-frame-filter-integration`
+- Latest commit: `e6f3647b9127f9442297638f90e9cfd9ca13c904`
+- Status: In progress; CI validation pending.
+- PR #28 was closed as superseded after PR #27 merged while this work was underway. PR #29 is rebased on main commit `942a2db`.
+
+**Next priority:** Improve campaign source relevance with actual local visual understanding. First benchmark an appropriate small vision model against the user's CPU/RAM constraints and available B: drive storage; do not download it or alter local machine settings without explicit approval. Until then, the application must keep reporting text-only limitations accurately.
