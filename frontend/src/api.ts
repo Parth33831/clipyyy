@@ -117,15 +117,33 @@ export interface CampaignSource {
   duration_seconds: number
 }
 
+export interface CampaignEnergySection {
+  start_seconds: number
+  end_seconds: number
+  level: 'low' | 'medium' | 'high'
+  average_energy: number
+}
+
+export interface CampaignMusicAnalysis {
+  duration_seconds: number
+  selected_start_seconds: number
+  selected_section: string
+  estimated_bpm: number | null
+  detected_beats: number
+  energy_sections: CampaignEnergySection[]
+}
+
+export interface CampaignQualityChecks {
+  [key: string]: string | boolean | number | null | CampaignMusicAnalysis | undefined
+  music_analysis?: CampaignMusicAnalysis | null
+}
+
 export interface RunDetail extends Run {
   campaign_plan: CampaignPlan | null
   campaign_edits: CampaignEdit[]
   campaign_original_edits: CampaignEdit[]
   campaign_sources: CampaignSource[]
-  campaign_quality_checks: Record<
-    string,
-    string | boolean | number | null | Record<string, string | number | null>
-  > | null
+  campaign_quality_checks: CampaignQualityChecks | null
   source_duration: number | null
   stages: Stage[]
   clips: Clip[]
