@@ -267,8 +267,7 @@ def test_detect_scene_changes_extracts_and_limits_ffmpeg_timestamps(tmp_path, mo
     assert timestamps[-1] == 28.0
 
 
-def test_montage_planner_builds_a_brief_led_story_instead_of_a_random_highlight_reel(
-):
+def test_montage_planner_builds_brief_led_story():
     from clipyyy.campaign import build_montage_plan
 
     class CapturingLLM:
