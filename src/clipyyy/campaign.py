@@ -217,7 +217,7 @@ def build_montage_plan(
             )
     # Text-only local models cannot inspect sampled frames. Never treat placeholder
     # observations as real visual descriptions; use an explicitly generic timestamp spread.
-    text_only_frames = all(
+    text_only_frames = bool(candidates) and all(
         "Visual content unavailable" in str(item.get("description", "")) for item in candidates
     )
     if candidates and text_only_frames:
