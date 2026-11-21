@@ -400,14 +400,16 @@ def _build_text_only_montage(
                     candidate for candidate in candidates if candidate[0] in preferred_indexes
                 ]
             candidate_pool = preferred_candidates or segment_candidates
-            def is_usable(candidate: tuple[int, float, bool]) -> bool:
+            def is_usable(
+                candidate: tuple[int, float, bool], shot_duration: float = shot_length
+            ) -> bool:
                 candidate_source, candidate_time, _ = candidate
                 candidate_duration = float(sources[candidate_source].get("duration_seconds") or 0)
                 candidate_start = min(
                     max(0.0, candidate_time + 0.06),
-                    max(0.0, candidate_duration - shot_length),
+                    max(0.0, candidate_duration - shot_duration),
                 )
-                candidate_end = min(candidate_duration, candidate_start + shot_length)
+                candidate_end = min(candidate_duration, candidate_start + shot_duration)
                 source_analysis = (
                     analyses[candidate_source]
                     if analyses and candidate_source < len(analyses)
