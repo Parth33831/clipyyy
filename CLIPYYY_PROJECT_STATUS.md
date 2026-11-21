@@ -403,3 +403,13 @@ STATUS: In progress / Ready for review / Merged
 - **Scope note:** This is a visual timeline overview, not yet a full multitrack editor with waveform scrubbing or drag-trimming. PR #39's duplicate energy summary was closed as superseded by this integrated timeline.
 
 - 2026-11-21: PR #40 merged the visual campaign timeline and music-energy lane into `main` as `a9521c877e40a376ae8372a75d1047d18580c96e`. Fast-backend passed (108 passed, 22 skipped), Ruff lint/format and frontend build passed. PR #39 was closed as superseded to avoid duplicating the same energy timeline.
+
+
+### Feature Development: Visual campaign timeline
+
+- **PR:** [#40 — Add a visual campaign timeline with music-energy track](https://github.com/Parth33831/clipyyy/pull/40)
+- **Branch:** `feature/campaign-visual-timeline`
+- **Merge commit:** `a9521c877e40a376ae8372a75d1047d18580c96e`
+- **Implementation:** Adds a clickable video shot timeline with source thumbnails and a music-energy track aligned to the selected music window. Shows BPM, detected transients and low/medium/high energy sections. Timeline blocks jump to the matching storyboard shot.
+- **Validation:** Fast-backend and frontend CI passed; Windows, macOS and full-backend jobs skipped. No local Windows/real-media review is claimed.
+- **Coordination:** PR #39 was closed as superseded because #40 provides the richer storyboard-level energy visualization.
