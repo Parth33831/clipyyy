@@ -141,8 +141,8 @@ def test_run_download_archive_is_persisted_under_clipyyy_home(client, tmp_path):
                 "duration_seconds": 10,
                 "title": "Test clip",
                 "post_title": "Test clip",
-                "caption": "",
-                "hashtags": "",
+                "caption": "A launch worth watching.",
+                "hashtags": ["#launch", "#brand"],
                 "rationale": "",
                 "transcript": "",
                 "file_path": str(clip_file),
@@ -160,6 +160,12 @@ def test_run_download_archive_is_persisted_under_clipyyy_home(client, tmp_path):
 
     with zipfile.ZipFile(archive) as zf:
         assert "rendered-clip.mp4" in zf.namelist()
+        assert "POSTING-COPY.txt" in zf.namelist()
+        posting_copy = zf.read("POSTING-COPY.txt").decode("utf-8")
+        assert "Test clip" in posting_copy
+        assert "A launch worth watching." in posting_copy
+        assert "#launch #brand" in posting_copy
+        assert "rendered-clip.mp4" in posting_copy
 
 
 def test_run_detail_exposes_filler_removal_count(client):
