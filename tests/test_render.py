@@ -86,7 +86,6 @@ def test_render_synthetic_clip(tmp_path, transcript, aspect, size, normalize_aud
     assert (tmp_path / "out" / "clip-01-test-clip.jpg").exists()
 
 
-
 @pytest.mark.parametrize("normalize_audio,expected", [(False, False), (True, True)])
 def test_render_speaker_only_applies_optional_loudness_normalization(
     tmp_path, monkeypatch, normalize_audio, expected
