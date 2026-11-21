@@ -48,6 +48,12 @@ class ClipOptions(BaseModel):
     campaign_camera_motion: bool = Field(
         True, description="Apply subtle per-shot camera movement to campaign montage footage"
     )
+    campaign_transition_style: Literal["auto", "cut", "cinematic", "dynamic"] = Field(
+        "auto",
+        description=(
+            "Choose campaign shot transitions; auto preserves beat-aware cuts and fallback dissolves"
+        ),
+    )
     campaign_lyrics: str = Field(
         "", max_length=12000, description="Optional creator-provided or locally transcribed lyric lines"
     )
