@@ -306,7 +306,7 @@ STATUS: In progress / Ready for review / Merged
 - Latest commit: `2aab80f87823a877673db58ef0b6f18099ebd2a1`
 - Base: `main` at `942a2dbbd5ebf00fe89de9174fd3cf3c494db928`
 - Added API test assertions for title, caption, hashtags and video filename in the posting sheet.
-- CI formatting corrections: two Ruff format-only failures were fixed in follow-up commits. Latest CI rerun is pending. Windows, macOS and full-backend jobs are skipped by workflow configuration; no local test run is claimed.
-- **Status:** Draft PR, awaiting CI and review. Not merged.
+- CI: Fast backend suite **96 passed, 17 skipped**; Ruff lint and format passed; frontend production build passed. Windows, macOS and full-backend jobs were skipped by workflow configuration. No local Windows test is claimed.
+- **Status:** Ready for review. PR #31 is open and not merged.
 
 **Next:** After PR #31 CI/review, continue with visual footage relevance audit and a local vision-model feasibility check; do not download models or change the user's machine settings without approval.
