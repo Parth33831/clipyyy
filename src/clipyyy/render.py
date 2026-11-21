@@ -410,6 +410,16 @@ def render_campaign_montages(
     music_analysis = analyze_campaign_music(music_path, target_duration) if music_path else None
     beat_times = music_analysis["beat_times"] if music_analysis else []
     music_start = float(music_analysis["best_start_seconds"]) if music_analysis else 0.0
+    transition_style = options.get("campaign_transition_style", "auto")
+    transition_seconds = 0.24
+    use_transitions = transition_style in {"cinematic", "dynamic"} or (
+        transition_style == "auto" and not beat_times
+    )
+    transition_names = (
+        ["fade", "smoothleft", "smoothright", "wipeleft", "wiperight", "slideleft", "slideright"]
+        if transition_style == "dynamic"
+        else ["fade"]
+    )
     hook = (
         str(options.get("campaign_hook_text") or campaign_plan.get("generated_hook") or "").strip()
         if options.get("include_campaign_hook", False)
@@ -435,7 +445,14 @@ def render_campaign_montages(
                     duration = end - start
                     if music_analysis and duration >= 1.5:
                         elapsed = sum(probe(item)[2] for item in segments) if segments else 0.0
-                        aligned_duration = select_music_cut_duration(elapsed, duration, music_analysis)
+                        if use_transitions and segments:
+                            elapsed -= (len(segments) - 1) * transition_seconds
+                        overlap = transition_seconds if use_transitions and segments else 0.0
+                        aligned_duration = select_music_cut_duration(
+                            elapsed - overlap,
+                            duration,
+                            music_analysis,
+                        )
                         if aligned_duration is not None:
                             end = min(
                                 float(sources[source_index]["duration_seconds"]),
@@ -477,7 +494,12 @@ def render_campaign_montages(
                 if len(segments) < 3:
                     raise RuntimeError("Fewer than three campaign shots could be rendered.")
                 # Hard cuts preserve the musical transient at each selected beat.
-                _crossfade_segments(segments, silent, fade_seconds=0.0 if beat_times else 0.28)
+                _crossfade_segments(
+                    segments,
+                    silent,
+                    fade_seconds=transition_seconds if use_transitions else 0.0,
+                    transition_names=transition_names,
+                )
             _, _, duration = probe(silent)
             target_duration = float(campaign_plan.get("target_duration_seconds") or 0)
             if target_duration > 0 and abs(duration - target_duration) > 0.05:
@@ -639,6 +661,7 @@ def render_campaign_montages(
             ),
             "lyrics_overlay": bool(lyrics),
             "camera_motion": bool(options.get("campaign_camera_motion", True)),
+            "transition_style": transition_style,
             "music_track_added": bool(music_path),
             "official_sound_required": official_sound_required,
             "beat_sync": (
@@ -1016,8 +1039,13 @@ def write_campaign_lyrics(
     return path
 
 
-def _crossfade_segments(segments: list[Path], output: Path, fade_seconds: float = 0.28) -> None:
-    """Join shots with short visual dissolves instead of abrupt hard cuts."""
+def _crossfade_segments(
+    segments: list[Path],
+    output: Path,
+    fade_seconds: float = 0.28,
+    transition_names: list[str] | None = None,
+) -> None:
+    """Join shots with a controlled sequence of short FFmpeg visual transitions."""
     if len(segments) < 2:
         raise ValueError("At least two shots are required for a campaign montage.")
     durations = [probe(segment)[2] for segment in segments]
@@ -1050,14 +1078,18 @@ def _crossfade_segments(segments: list[Path], output: Path, fade_seconds: float 
             ]
         )
         return
+    allowed = {"fade", "smoothleft", "smoothright", "wipeleft", "wiperight", "slideleft", "slideright"}
+    names = transition_names or ["fade"]
+    names = [name if name in allowed else "fade" for name in names]
     filters = []
     previous = "[0:v]"
     total = durations[0]
     for index, duration in enumerate(durations[1:], start=1):
         output_label = f"[v{index}]"
         offset = max(0.0, total - fade_seconds)
+        transition = names[(index - 1) % len(names)]
         filters.append(
-            f"{previous}[{index}:v]xfade=transition=fade:"
+            f"{previous}[{index}:v]xfade=transition={transition}:"
             f"duration={fade_seconds}:offset={offset:.3f}{output_label}"
         )
         previous = output_label

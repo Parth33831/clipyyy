@@ -394,6 +394,17 @@ export function NewRunPage() {
                 label="Add cinematic camera movement"
                 hint="Adds subtle alternating push and pan movement to each shot for a more dynamic edit. Turn it off for a completely static crop."
               />
+              <Field label="Shot transitions" hint="Auto keeps music-beat cuts when reliable beats are detected and uses soft dissolves otherwise. Dynamic adds restrained directional transitions between shots.">
+                <Select
+                  value={options.campaign_transition_style}
+                  onChange={(e) => set('campaign_transition_style', e.target.value as ClipOptions['campaign_transition_style'])}
+                >
+                  <option value="auto">Auto · music-aware</option>
+                  <option value="cut">Clean hard cuts</option>
+                  <option value="cinematic">Cinematic fades</option>
+                  <option value="dynamic">Dynamic transitions</option>
+                </Select>
+              </Field>
               <Field label="Lyrics / exact on-screen text (optional)" hint="Paste only the lines you are allowed to use. They will be displayed in sequence across the edit.">
                 <Textarea rows={3} value={options.campaign_lyrics} onChange={(e) => set('campaign_lyrics', e.target.value)} placeholder="One line per screen..." />
               </Field>
