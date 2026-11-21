@@ -278,3 +278,9 @@ def test_campaign_shot_edit_requires_three_valid_shots(tmp_path, monkeypatch):
 
     with pytest.raises(ValueError, match="at least 3 shots"):
         pipeline.update_campaign_montage(run["id"], [invalid])
+
+
+def test_campaign_camera_motion_is_enabled_by_default_and_can_be_disabled():
+    assert pipeline.ClipOptions(campaign_mode=True).campaign_camera_motion is True
+    options = pipeline.ClipOptions(campaign_mode=True, campaign_camera_motion=False)
+    assert options.campaign_camera_motion is False

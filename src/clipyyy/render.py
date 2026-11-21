@@ -366,6 +366,26 @@ def _interpolate_expression(points: list[tuple[float, float]]) -> str:
     return expression
 
 
+def campaign_shot_filter(width: int, height: int, shot_index: int, camera_motion: bool = True) -> str:
+    """Create a clean campaign crop with subtle alternating Ken Burns movement."""
+    base_grade = ",eq=contrast=1.06:saturation=1.12"
+    if not camera_motion:
+        return fill_filter(width, height) + base_grade
+
+    # A small overscan gives the crop room to drift without exposing empty borders.
+    zoom_width = round(width * 1.08)
+    zoom_height = round(height * 1.08)
+    phase = (shot_index % 4) * math.pi / 2
+    return (
+        f"scale={zoom_width}:{zoom_height}:force_original_aspect_ratio=increase,"
+        f"crop={zoom_width}:{zoom_height},"
+        f"crop={width}:{height}:"
+        f"x='(iw-ow)*(0.5+0.24*sin(t*0.32+{phase:.4f}))':"
+        f"y='(ih-oh)*(0.5+0.18*cos(t*0.26+{phase:.4f}))':eval=frame,"
+        f"setsar=1,fps={FPS},format=yuv420p{base_grade}"
+    )
+
+
 def render_campaign_montages(
     source: dict,
     selection: dict,
@@ -433,7 +453,9 @@ def render_campaign_montages(
                     if duration < 1.0:
                         continue
                     segment = edit_dir / f"shot-{shot_index:03d}.mp4"
-                    vf = fill_filter(width, height) + ",eq=contrast=1.06:saturation=1.12"
+                    vf = campaign_shot_filter(
+                        width, height, shot_index, options.get("campaign_camera_motion", True)
+                    )
                     run_ffmpeg(
                         [
                             "-ss",
@@ -624,6 +646,7 @@ def render_campaign_montages(
                 f"{max(item['duration_seconds'] for item in renders):.1f} seconds"
             ),
             "lyrics_overlay": bool(lyrics),
+            "camera_motion": bool(options.get("campaign_camera_motion", True)),
             "music_track_added": bool(music_path),
             "official_sound_required": official_sound_required,
             "beat_sync": (

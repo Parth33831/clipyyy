@@ -412,3 +412,27 @@ def test_remove_timed_intervals_keeps_audio_and_video_synchronized(tmp_path):
     assert (width, height) == (320, 240)
     assert duration == pytest.approx(5.0, abs=0.15)
     assert has_audio(source)
+
+
+def test_campaign_shot_filter_adds_subtle_movement_and_can_disable_it():
+    from clipyyy.render import campaign_shot_filter, fill_filter
+
+    moving = campaign_shot_filter(1080, 1920, shot_index=2)
+    static = campaign_shot_filter(1080, 1920, shot_index=2, camera_motion=False)
+
+    assert "sin(t*0.32" in moving
+    assert "cos(t*0.26" in moving
+    assert "eval=frame" in moving
+    assert "eq=contrast=1.06:saturation=1.12" in moving
+    assert static == fill_filter(1080, 1920) + ",eq=contrast=1.06:saturation=1.12"
+
+
+def test_campaign_shot_filter_varies_direction_between_shots():
+    from clipyyy.render import campaign_shot_filter
+
+    first = campaign_shot_filter(1080, 1920, shot_index=0)
+    second = campaign_shot_filter(1080, 1920, shot_index=1)
+
+    assert first != second
+    assert "sin(t*0.32+0.0000)" in first
+    assert "sin(t*0.32+1.5708)" in second
