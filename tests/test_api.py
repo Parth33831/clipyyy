@@ -205,6 +205,76 @@ def test_run_detail_exposes_filler_removal_count(client):
     assert detail["clips"][0]["filler_words_removed"] == 2
 
 
+def test_campaign_frame_endpoint_returns_and_caches_source_thumbnail(client, tmp_path, monkeypatch):
+    from pathlib import Path
+
+    run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
+    source = tmp_path / "campaign-source.mp4"
+    source.write_bytes(b"fake-video")
+    work_dir = pipeline.run_dir(run["id"]) / "work"
+    work_dir.mkdir(parents=True, exist_ok=True)
+    (work_dir / "download.json").write_text(
+        json.dumps(
+            {
+                "sources": [
+                    {
+                        "video_path": str(source),
+                        "duration_seconds": 12.0,
+                        "title": "Campaign source",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    calls = []
+
+    def fake_run_ffmpeg(args):
+        calls.append(args)
+        Path(args[-1]).write_bytes(b"fake-jpeg")
+
+    monkeypatch.setattr("clipyyy.media.run_ffmpeg", fake_run_ffmpeg)
+    url = f"/api/runs/{run['id']}/campaign-frame?source_index=0&timestamp=4.2"
+
+    first = client.get(url)
+    second = client.get(url)
+
+    assert first.status_code == 200
+    assert first.headers["content-type"] == "image/jpeg"
+    assert first.content == b"fake-jpeg"
+    assert second.content == b"fake-jpeg"
+    assert len(calls) == 1
+    assert "scale=480:-2" in calls[0]
+
+
+def test_campaign_frame_endpoint_rejects_invalid_source_and_timestamp(client, tmp_path):
+    run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
+    source = tmp_path / "campaign-source.mp4"
+    source.write_bytes(b"fake-video")
+    work_dir = pipeline.run_dir(run["id"]) / "work"
+    work_dir.mkdir(parents=True, exist_ok=True)
+    (work_dir / "download.json").write_text(
+        json.dumps(
+            {
+                "sources": [
+                    {
+                        "video_path": str(source),
+                        "duration_seconds": 12.0,
+                        "title": "Campaign source",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    invalid_source = client.get(f"/api/runs/{run['id']}/campaign-frame?source_index=3&timestamp=4.2")
+    invalid_timestamp = client.get(f"/api/runs/{run['id']}/campaign-frame?source_index=0&timestamp=12")
+
+    assert invalid_source.status_code == 404
+    assert invalid_timestamp.status_code == 400
+
+
 def test_campaign_montage_endpoint_accepts_creator_storyboard(client, monkeypatch):
     run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
     captured = {}

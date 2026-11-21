@@ -304,6 +304,7 @@ export function RunDetailPage() {
 
       {data.options.campaign_mode && !busy && campaignEdits.length > 0 && (
         <CampaignStoryboardEditor
+          runId={runId}
           edits={campaignEdits}
           savedEdits={data.campaign_edits}
           originalEdits={data.campaign_original_edits ?? data.campaign_edits}
@@ -353,6 +354,7 @@ export function RunDetailPage() {
 }
 
 function CampaignStoryboardEditor({
+  runId,
   edits,
   savedEdits,
   originalEdits,
@@ -362,6 +364,7 @@ function CampaignStoryboardEditor({
   onSave,
   onReset,
 }: {
+  runId: string
   edits: CampaignEdit[]
   savedEdits: CampaignEdit[]
   originalEdits: CampaignEdit[]
@@ -429,7 +432,13 @@ function CampaignStoryboardEditor({
             {edit.shots.map((shot, shotIndex) => {
               const source = sourceByIndex.get(shot.source_index)
               return (
-                <li key={`${edit.rank}-${shotIndex}-${shot.source_index}`} className="grid gap-3 rounded-lg border border-line bg-panel p-3 md:grid-cols-[minmax(0,1fr)_150px_150px_auto] md:items-center">
+                <li key={`${edit.rank}-${shotIndex}-${shot.source_index}`} className="grid gap-3 rounded-lg border border-line bg-panel p-3 md:grid-cols-[112px_minmax(0,1fr)_150px_150px_auto] md:items-center">
+                  <img
+                    src={`/api/runs/${runId}/campaign-frame?source_index=${shot.source_index}&timestamp=${shot.start_seconds.toFixed(1)}`}
+                    alt={`Preview of shot ${shotIndex + 1}`}
+                    loading="lazy"
+                    className="h-20 w-28 rounded-md border border-line bg-surface object-cover"
+                  />
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="label shrink-0 text-faint">SHOT {String(shotIndex + 1).padStart(2, '0')}</span>

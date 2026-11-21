@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import shutil
 import zipfile
@@ -252,6 +253,66 @@ def create_app(start_worker: bool = True) -> FastAPI:
     @app.get("/api/runs/{run_id}")
     def get_run(run_id: str) -> dict:
         return run_detail(run_id)
+
+    @app.get("/api/runs/{run_id}/campaign-frame")
+    def campaign_frame(run_id: str, source_index: int, timestamp: float) -> FileResponse:
+        """Return a cached still frame from one of this run's campaign source videos."""
+        run = _run_or_404(run_id)
+        if not run["options"].get("campaign_mode"):
+            raise HTTPException(400, "Frame previews are only available for campaign runs.")
+        if source_index < 0 or not math.isfinite(timestamp) or timestamp < 0:
+            raise HTTPException(400, "Choose a valid source and non-negative timestamp.")
+
+        work_dir = pipeline.run_dir(run_id) / "work"
+        source_file = work_dir / "download.json"
+        if not source_file.is_file():
+            raise HTTPException(404, "Campaign source footage is not available yet.")
+        source_data = json.loads(source_file.read_text(encoding="utf-8"))
+        select_file = work_dir / "select.json"
+        selection_data = json.loads(select_file.read_text(encoding="utf-8")) if select_file.is_file() else {}
+        source_items = selection_data.get("campaign_sources") or source_data.get("sources") or [source_data]
+        if source_index >= len(source_items):
+            raise HTTPException(404, "Campaign source not found.")
+        source = source_items[source_index]
+        video_path = Path(str(source.get("video_path") or ""))
+        duration = float(source.get("duration_seconds") or 0)
+        if not video_path.is_file():
+            raise HTTPException(404, "Campaign source video is missing.")
+        if duration <= 0 or timestamp >= duration:
+            raise HTTPException(400, "Preview timestamp is outside the source video.")
+
+        preview_dir = work_dir / "campaign-thumbnails"
+        preview_dir.mkdir(parents=True, exist_ok=True)
+        cache_tick = round(timestamp * 10)
+        preview_path = preview_dir / f"source-{source_index:02d}-{cache_tick:08d}.jpg"
+        if not preview_path.is_file():
+            from clipyyy.media import run_ffmpeg
+
+            try:
+                run_ffmpeg(
+                    [
+                        "-ss",
+                        f"{timestamp:.3f}",
+                        "-i",
+                        str(video_path),
+                        "-frames:v",
+                        "1",
+                        "-vf",
+                        "scale=480:-2",
+                        "-q:v",
+                        "6",
+                        str(preview_path),
+                    ]
+                )
+            except Exception as exc:
+                raise HTTPException(500, f"Could not create the campaign frame preview: {exc}") from exc
+            if not preview_path.is_file() or preview_path.stat().st_size == 0:
+                raise HTTPException(500, "FFmpeg did not produce a campaign frame preview.")
+        return FileResponse(
+            preview_path,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "private, max-age=3600"},
+        )
 
     @app.post("/api/runs/{run_id}/retry")
     def retry_run(run_id: str, body: RetryRun | None = None) -> dict:
