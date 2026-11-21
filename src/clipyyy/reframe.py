@@ -202,9 +202,7 @@ def detection_dimensions(width: int, height: int) -> tuple[int, int]:
     return sample_width, sample_height
 
 
-def track_primary_faces(
-    frame_detections: list[list[Face]], max_missing_frames: int = 2
-) -> list[Face | None]:
+def track_primary_faces(frame_detections: list[list[Face]], max_missing_frames: int = 2) -> list[Face | None]:
     """Follow a geometrically consistent primary face instead of switching to every largest face."""
     tracked: list[Face | None] = []
     previous: Face | None = None
