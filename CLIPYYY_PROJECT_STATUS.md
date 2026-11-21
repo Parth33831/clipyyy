@@ -23,9 +23,9 @@
 ## Repository baseline (inspected 2026-11-21)
 
 - **Default branch:** `main`
-- **Latest main commit:** `e852f7f5e795111516a5a70a051b942a7ee4c229` — Add campaign storyboard frame previews (#38).
+- **Latest main commit:** `a9521c877e40a376ae8372a75d1047d18580c96e` — Add a visual campaign timeline with music-energy track (#40).
 - Recent completed main work includes lyric animation previews, multi-colour lyric captions, configurable lyric colours, word-accurate song transcription, campaign dialogue/montage editing, stock-footage discovery, editable storyboards, optional cinematic camera movement and ready-to-post copy in clip export archives.
-- **Open work:** PR #39 adds a readable campaign music-energy timeline in Run Detail; CI is running. PRs #29, #30, #31, #32, #34, #36, #37 and #38 are merged. PRs #33 and #35 were closed as superseded. PR #27 remains merged.
+- **Open work:** No active PRs in this development batch. PRs #29, #30, #31, #32, #34, #36, #37, #38 and #40 are merged. PRs #33, #35 and #39 were closed as superseded. PR #27 remains merged.
 - **Branches observed:** `automatic-word-timed-lyrics`, `campaign-dialogue-transcription`, `campaign-footage-discovery`, `campaign-shot-editor`, `campaign-shot-editor-integration`, `creative-anime-editing`, `fix/campaign-export-audio-duration`, `fix/campaign-scene-selection-ci-final`, `fix/campaign-scene-selection-final-ci`, `fix/campaign-scene-selection-pacing`, `fix/campaign-scene-selection-pacing-ci`, `fix/campaign-scene-selection-release-check`, `fix/campaign-scene-selection-tested`, `fix/campaign-scene-selection-validated`, `improve-multi-clip-selection`, `instant-lyrics-style-editor`, `instant-lyrics-style-editor-ci`, `instant-lyrics-style-editor-verified`, `lyric-style-previews-multicolor`, `lyric-words-on-screen`, `lyrics-captions-animation`, `lyrics-color-controls`, `main`, `music-intelligence-hooks`, `refresh-legacy-lyric-timings`, `reuse-campaign-transcript-on-dialogue-rebuild`.
 - Branch names alone do not prove whether work is merged or active; check branch heads and diffs before reusing them.
 - **Coordination document branch:** `docs/project-coordination` (this document is maintained separately from application code).
@@ -43,12 +43,12 @@
 | Campaign shot transitions | V1 implemented | [PR #36](https://github.com/Parth33831/clipyyy/pull/36) / `main` | Auto preserves beat-aware hard cuts and fallback dissolves; creators can also choose clean cuts, cinematic fades or dynamic directional transitions. Beat timing accounts for overlap. |
 | Visual campaign storyboard | V1 implemented | [PR #38](https://github.com/Parth33831/clipyyy/pull/38) / `main` | Each selected shot now shows a cached source-frame thumbnail; preview endpoint validates source/timestamp and keeps local paths private. |
 | Continuity-aware primary subject tracking | V1 implemented | [PR #37](https://github.com/Parth33831/clipyyy/pull/37) / `main` | Tracks a consistent primary face across frames instead of switching to a larger background face; reacquires after a short disappearance. |
-| Campaign music energy timeline | In review | [PR #39](https://github.com/Parth33831/clipyyy/pull/39) | Displays estimated BPM, transients, selected track section and low/medium/high energy sections in the campaign intelligence panel. |
+| Campaign visual timeline + music energy lane | V1 implemented | [PR #40](https://github.com/Parth33831/clipyyy/pull/40) / `main` | Shows proportional shot thumbnail blocks, durations and the selected track's low/medium/high energy sections; clicking a shot jumps to its existing storyboard controls. |
 | Virality scoring improvements | Not yet assessed | Unassigned | Existing selection already has hook, value, clarity and overall scores; assess before expanding. |
 | Advanced subject tracking | V1 continuity-aware face tracking implemented | [PR #37](https://github.com/Parth33831/clipyyy/pull/37) / `main` | True active-speaker detection and semantic multi-person identity remain future work; do not duplicate existing MediaPipe face detection. |
 | Text-based editing / filler removal | V1 implemented | PR #23 / `main` | Conservative English filler-word removal is merged; full transcript editing remains a later feature. |
 | Campaign shot-level editor | V1 implemented | PR #26 / `main` | Reorder, trim and remove AI-selected campaign shots, reset to the AI plan, and rerender from cached creator/Pexels sources without rerunning analysis. |
-| Advanced timeline editor | Not yet assessed | Unassigned | A full multitrack/waveform timeline remains separate from this focused campaign storyboard editor. |
+| Advanced timeline editor | V1 campaign visual timeline implemented | [PR #40](https://github.com/Parth33831/clipyyy/pull/40) / `main` | Visual shot/music lanes are in place; full multitrack audio/video editing, waveform scrubbing and drag-trim remain future work. |
 | Audio enhancement / voiceover | Not yet assessed | Unassigned | Assess local/offline options and dependencies. |
 | Automatic campaign stock-footage discovery | V1 implemented | PR #24 / `main` | Opt-in Pexels discovery is merged; creator footage stays first and attribution is surfaced. |
 | AI B-roll improvements | Existing optional B-roll; future enhancements not assessed | Unassigned | Inspect current Pexels workflow before implementing alternatives. |
@@ -66,12 +66,15 @@
 | Selectable campaign transitions + music-aware timing | `feature/campaign-transitions-energy-integration` / [PR #36](https://github.com/Parth33831/clipyyy/pull/36) | Merged into main as `e26f53bb5e9ae625ee99e4aea60e11f5eb949221` | Adds Auto, Clean hard cuts, Cinematic fades and Dynamic directional transitions; accounts for overlap while preserving energy-aware transient selection and lyrics/audio timing. Fast-backend: 106 passed, 22 skipped; Ruff lint/format and frontend build passed. |
 | Continuity-aware primary-subject tracking | `feature/continuity-aware-subject-tracking` / [PR #37](https://github.com/Parth33831/clipyyy/pull/37) | Merged into main as `0e5a9d83109ffe2edb9fa15a43ad21d574fa2d1b` | Tracks a geometrically consistent face between frames, tolerates brief misses and reacquires after a longer disappearance or large position change. Fast-backend: 106 passed, 22 skipped; Ruff lint/format and frontend build passed. |
 | Campaign storyboard frame previews | `feature/campaign-storyboard-frame-previews` / [PR #38](https://github.com/Parth33831/clipyyy/pull/38) | Merged into main as `e852f7f5e795111516a5a70a051b942a7ee4c229` | Adds cached source-frame thumbnails to storyboard shots and a validated API endpoint; PR CI completed successfully. |
+| Campaign visual timeline + music energy lane | `feature/campaign-visual-timeline` / [PR #40](https://github.com/Parth33831/clipyyy/pull/40) | Merged into main as `a9521c877e40a376ae8372a75d1047d18580c96e` | Adds proportional shot thumbnails, durations and selected-track energy sections, with navigation to existing storyboard controls. Fast-backend: 108 passed, 22 skipped; Ruff lint/format and frontend build passed. |
+| Continuity-aware primary-subject tracking | `feature/continuity-aware-subject-tracking` / [PR #37](https://github.com/Parth33831/clipyyy/pull/37) | Merged into main as `0e5a9d83109ffe2edb9fa15a43ad21d574fa2d1b` | Tracks a geometrically consistent face between frames, tolerates brief misses and reacquires after a longer disappearance or large position change. Fast-backend: 106 passed, 22 skipped; Ruff lint/format and frontend build passed. |
+| Campaign storyboard frame previews | `feature/campaign-storyboard-frame-previews` / [PR #38](https://github.com/Parth33831/clipyyy/pull/38) | Merged into main as `e852f7f5e795111516a5a70a051b942a7ee4c229` | Adds cached source-frame thumbnails to storyboard shots and a validated API endpoint; PR CI completed successfully. |
 | Continuity-aware primary-subject tracking | `feature/continuity-aware-subject-tracking` / [PR #37](https://github.com/Parth33831/clipyyy/pull/37) | Merged into main as `0e5a9d83109ffe2edb9fa15a43ad21d574fa2d1b` | Tracks a geometrically consistent face between frames, tolerates brief misses and reacquires after a longer disappearance or large position change. Fast-backend: 106 passed, 22 skipped; Ruff lint/format and frontend build passed. |
 | Campaign storyboard frame previews | `feature/campaign-storyboard-frame-previews` / [PR #38](https://github.com/Parth33831/clipyyy/pull/38) | Merged into main as `e852f7f5e795111516a5a70a051b942a7ee4c229` | Adds cached source-frame thumbnails to storyboard shots and a validated API endpoint; PR CI completed successfully. |
 
-**Latest main baseline:** `e852f7f5e795111516a5a70a051b942a7ee4c229`.
+**Latest main baseline:** `a9521c877e40a376ae8372a75d1047d18580c96e`.
 
-**Validation honesty:** PR #29, #30, #31, #32, #34, #36, #37 and #38 fast-backend and frontend checks passed. Windows, macOS and full-backend jobs were skipped by workflow configuration. No local Windows media test or real-media visual review has been run. PR #32 was rebuilt on top of merged #29/#30 code; PR #36 consolidated music-energy cut selection with selectable transitions on top of PR #34.
+**Validation honesty:** PR #29, #30, #31, #32, #34, #36, #37, #38 and #40 fast-backend and frontend checks passed. Windows, macOS and full-backend jobs were skipped by workflow configuration. No local Windows media test or real-media visual review has been run. PR #32 was rebuilt on top of merged #29/#30 code; PR #36 consolidated music-energy cut selection with selectable transitions on top of PR #34; PR #40 adds the visual shot/music timeline.
 
 ## Current work
 
@@ -388,12 +391,15 @@ STATUS: In progress / Ready for review / Merged
 - 2026-11-21: PR #38 merged cached campaign storyboard frame previews into `main` as `e852f7f5e795111516a5a70a051b942a7ee4c229`; PR CI completed successfully.
 
 
-### Feature Development: Campaign music energy timeline
+### Completed feature: Campaign visual timeline + music-energy lane
 
-- **PR:** [#39 — Show the analyzed music energy timeline in campaign intelligence](https://github.com/Parth33831/clipyyy/pull/39)
-- **Branch:** `feature/music-energy-visual-summary`
-- **Head:** `dbc5e5ffe2185dca594ca9871a78faa35c9a6715`
+- **Branch:** `feature/campaign-visual-timeline`
+- **PR:** [#40 — Add a visual campaign timeline with music-energy track](https://github.com/Parth33831/clipyyy/pull/40)
 - **Base:** `main` at `0e5a9d83109ffe2edb9fa15a43ad21d574fa2d1b`
+- **Merge commit:** `a9521c877e40a376ae8372a75d1047d18580c96e`
 - **Files:** `frontend/src/api.ts`, `frontend/src/pages/RunDetail.tsx`.
-- **Implementation:** Replaces generic object text for `music_analysis` with a readable compact energy timeline, BPM, transient count and selected track section.
-- **Validation:** Frontend/backend CI running; merge only after required checks pass.
+- **Implementation:** Adds proportional shot blocks with cached thumbnails, shot durations and navigation to the existing storyboard controls. Adds a music-energy lane aligned to the selected track window and accounts for transition overlap in the estimated timeline duration. Older saved runs without energy sections remain supported.
+- **CI:** Fast backend **108 passed, 22 skipped**; Ruff lint/format and frontend production build passed. Windows, macOS and full-backend/manual jobs were skipped.
+- **Scope note:** This is a visual timeline overview, not yet a full multitrack editor with waveform scrubbing or drag-trimming. PR #39's duplicate energy summary was closed as superseded by this integrated timeline.
+
+- 2026-11-21: PR #40 merged the visual campaign timeline and music-energy lane into `main` as `a9521c877e40a376ae8372a75d1047d18580c96e`. Fast-backend passed (108 passed, 22 skipped), Ruff lint/format and frontend build passed. PR #39 was closed as superseded to avoid duplicating the same energy timeline.
