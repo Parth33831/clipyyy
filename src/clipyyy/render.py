@@ -81,7 +81,6 @@ def render_clips(
                     "height": out_h,
                     "duration_seconds": round(duration, 2),
                     "filler_words_removed": removed_fillers,
-                    "audio_normalized": bool(options.get("normalize_audio", False)),
                 }
             )
         except Exception as exc:  # one bad clip should not sink the others
