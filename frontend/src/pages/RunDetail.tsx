@@ -699,14 +699,11 @@ function MusicEnergySummary({ analysis }: { analysis: Record<string, unknown> })
     Math.max(0.25, Number(section.end_seconds ?? 0) - Number(section.start_seconds ?? 0)),
   )
   const totalDuration = durations.reduce((total, duration) => total + duration, 0)
-  const counts = sections.reduce(
-    (result, section) => {
-      const level = String(section.level ?? 'unknown')
-      result[level] = (result[level] ?? 0) + 1
-      return result
-    },
-    {} as Record<string, number>,
-  )
+  const counts = sections.reduce<Record<string, number>>((result, section) => {
+    const level = String(section.level ?? 'unknown')
+    result[level] = (result[level] ?? 0) + 1
+    return result
+  }, {})
   const bpm = typeof analysis.estimated_bpm === 'number' ? analysis.estimated_bpm : null
   const beats = typeof analysis.detected_beats === 'number' ? analysis.detected_beats : null
 
@@ -726,7 +723,7 @@ function MusicEnergySummary({ analysis }: { analysis: Record<string, unknown> })
                 level === 'high' ? 'bg-acid' : level === 'medium' ? 'bg-ink/50' : 'bg-line'
               const start = Number(section.start_seconds ?? 0)
               const end = Number(section.end_seconds ?? start)
-              const duration = durations[index]
+              const duration = durations[index] ?? 0.25
               return (
                 <div
                   key={index}
