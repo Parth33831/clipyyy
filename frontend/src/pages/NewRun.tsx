@@ -272,6 +272,15 @@ export function NewRunPage() {
             </div>}
           </Section>
 
+          <Section title="Audio">
+            <Toggle
+              checked={options.normalize_audio}
+              onChange={(v) => set('normalize_audio', v)}
+              label="Normalize audio"
+              hint="Balances source audio or campaign music toward -16 LUFS and limits peaks to -1.5 dBTP. Off by default."
+            />
+          </Section>
+
           <Section title="Format">
             <div className="grid grid-cols-3 gap-2">
               {ASPECTS.map((a) => {
