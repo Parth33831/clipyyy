@@ -223,3 +223,33 @@ STATUS: In progress / Ready for review / Merged
 - 2026-11-19: Inspected the latest `main` campaign pipeline and confirmed brief parsing, visual analysis, montage selection, music section/beat analysis, hooks and lyric overlays already exist. The historical music-intelligence branch maps to merged PR #10; avoid duplicating it. Assigned Campaign shot-level editor to Architecture on `feature/campaign-shot-editor`, based on `f6004eecccf5a676e34b2c8fa6fa35c9d2732000`; after PR #24 merged, reapplied the feature on `feature/campaign-shot-editor-integration` to integrate cleanly with the persisted stock-footage source list.
 - 2026-11-19: PR #24 added opt-in Pexels campaign footage discovery and was squash-merged into `main` as `45cf0a0653d11eceb56d8b104786f1821da9801c`; post-merge CI passed.
 - 2026-11-19: Implemented the campaign storyboard editor, integrated it on top of PR #24's persisted `campaign_sources` data, and merged PR #26 into `main` as `67f8ec1e00c6b622a56750df035c61df3629a8ec`. CI passed: 95 backend tests passed, 15 skipped; Ruff lint/format and frontend build passed. The earlier PR #25 was closed as superseded during integration. A real-media FFmpeg/Windows smoke test remains.
+
+### Feature Development update: Cinematic campaign camera motion
+
+**Objective:** Improve the visual energy of campaign edits with subtle per-shot camera movement while preserving fast CPU rendering and existing edit timing.
+
+**Implementation**
+- Added a deterministic Ken Burns-style crop filter with gentle alternating horizontal/vertical movement across shots.
+- Added a creator-facing toggle, enabled by default, with a static-crop fallback.
+- Preserved existing color treatment, beat-aligned cut selection, source order, campaign music, hook and lyric overlays.
+- Added a camera-motion quality-check field.
+
+**Files changed**
+- `src/clipyyy/render.py`
+- `src/clipyyy/pipeline.py`
+- `frontend/src/api.ts`
+- `frontend/src/pages/NewRun.tsx`
+- `tests/test_render.py`
+- `tests/test_pipeline.py`
+
+**Validation**
+- PR #27: [Add subtle cinematic camera movement to campaign edits](https://github.com/Parth33831/clipyyy/pull/27)
+- Branch: `feature/campaign-kinetic-visuals`
+- Latest commit: `841a91eb61d11a2f5a411e8a0c35db31fd5d1f4f`
+- Ruff lint and format passed.
+- Frontend production build passed.
+- Fast backend suite passed, including the real FFmpeg campaign montage render test.
+- Windows, macOS and full-backend/manual CI jobs were skipped; no local Windows test is claimed.
+- **Status:** Ready for Architecture review. Not merged.
+
+**Next priority after review:** Improve actual visual understanding and footage-to-brief matching. The current CPU-only local setup has a text-only Qwen model, so it cannot semantically inspect frames. Before adding a vision model, check available B: drive storage and benchmark a small local vision model; do not silently download a large model or use a paid/cloud fallback.
