@@ -729,9 +729,13 @@ function ClipCard({
           <h3 className="text-[17px] font-semibold leading-snug tracking-tight">{clip.title}</h3>
           <div className="label flex items-center gap-3 text-faint">
             {clip.score != null && (
-              <span className="flex items-center gap-2">
+              <span
+                className="flex items-center gap-2"
+                title="AI virality estimate based on hook, value, clarity, retention and shareability — not a performance guarantee."
+              >
                 <Squares total={10} filled={Math.round(clip.score)} size="h-1.5 w-1.5" />
                 <span className="text-ink">{clip.score.toFixed(1)}</span>
+                <span className="label text-faint">AI score</span>
               </span>
             )}
             <span>
