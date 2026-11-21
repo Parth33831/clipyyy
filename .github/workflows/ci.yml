@@ -22,7 +22,7 @@ jobs:
       - run: uv run ruff check src tests
       - run: uv run ruff format --check src tests
       # Keep campaign footage discovery regressions in the fast backend suite.
-      - run: uv run pytest -q tests/test_selection.py tests/test_render.py tests/test_transcribe.py tests/test_vision.py tests/test_llm.py tests/test_campaign.py tests/test_campaign_assets.py tests/test_campaign_link.py tests/test_api.py tests/test_pipeline.py tests/test_filler_words.py tests/test_doctor.py
+      - run: uv run pytest -q tests/test_selection.py tests/test_render.py tests/test_audio_normalization.py tests/test_transcribe.py tests/test_vision.py tests/test_llm.py tests/test_campaign.py tests/test_campaign_assets.py tests/test_campaign_link.py tests/test_api.py tests/test_pipeline.py tests/test_filler_words.py tests/test_doctor.py
 
   frontend:
     runs-on: ubuntu-latest
