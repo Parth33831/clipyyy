@@ -278,8 +278,11 @@ STATUS: In progress / Ready for review / Merged
 
 **PR:** [#29 — Avoid black footage in campaign edits](https://github.com/Parth33831/clipyyy/pull/29)
 - Branch: `feature/campaign-black-frame-filter-integration`
-- Latest commit: `e6f3647b9127f9442297638f90e9cfd9ca13c904`
-- Status: In progress; CI validation pending.
+- Latest commit: `d88ab1637df8fdc92c2c7d684741588726b90b10`
+- Ruff lint and format passed; frontend production build passed.
+- Fast backend suite: **99 passed, 17 skipped**.
+- Windows, macOS and full-backend/manual jobs were skipped; no local Windows media test is claimed.
+- **Status:** Ready for Architecture review; PR #29 is open and not merged.
 - PR #28 was closed as superseded after PR #27 merged while this work was underway. PR #29 is rebased on main commit `942a2db`.
 
 **Next priority:** Improve campaign source relevance with actual local visual understanding. First benchmark an appropriate small vision model against the user's CPU/RAM constraints and available B: drive storage; do not download it or alter local machine settings without explicit approval. Until then, the application must keep reporting text-only limitations accurately.
