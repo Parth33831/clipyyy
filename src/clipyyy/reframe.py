@@ -224,7 +224,12 @@ def track_primary_faces(
             previous_y = previous.y + previous.height / 2
             largest_area = max(face.width * face.height for face in faces)
 
-            def continuity_score(face: Face) -> float:
+            def continuity_score(
+                face: Face,
+                previous_x: float = previous_x,
+                previous_y: float = previous_y,
+                largest_area: float = largest_area,
+            ) -> float:
                 center_x = face.x + face.width / 2
                 center_y = face.y + face.height / 2
                 distance = ((center_x - previous_x) ** 2 + (center_y - previous_y) ** 2) ** 0.5
