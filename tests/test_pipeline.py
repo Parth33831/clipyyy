@@ -427,6 +427,9 @@ def test_campaign_text_overlay_pipeline_persists_only_valid_output_layers(monkey
                 "position_x": 45,
                 "position_y": 60,
                 "font_size_percent": 110,
+                "font_family": "Georgia",
+                "font_weight": "regular",
+                "text_effect": "outline",
                 "color": "#ff3b4f",
                 "animation": "slide",
                 "background": False,
@@ -438,6 +441,9 @@ def test_campaign_text_overlay_pipeline_persists_only_valid_output_layers(monkey
     assert saved["options"]["other_option"] == "keep"
     assert saved["options"]["campaign_text_overlays"][0]["text"] == "SHOP NOW"
     assert saved["options"]["campaign_text_overlays"][0]["color"] == "#FF3B4F"
+    assert saved["options"]["campaign_text_overlays"][0]["font_family"] == "Georgia"
+    assert saved["options"]["campaign_text_overlays"][0]["font_weight"] == "regular"
+    assert saved["options"]["campaign_text_overlays"][0]["text_effect"] == "outline"
 
 
 def test_campaign_text_overlay_normalizes_each_line_without_flattening_layout(monkeypatch):
@@ -475,4 +481,30 @@ def test_campaign_text_overlay_pipeline_rejects_out_of_bounds_timing(monkeypatch
         pipeline.update_campaign_text_overlays(
             "overlay-run",
             [{"rank": 1, "text": "Late", "start_seconds": 3.0, "end_seconds": 5.0}],
+        )
+
+
+def test_campaign_text_overlay_pipeline_rejects_unapproved_font_family(monkeypatch):
+    import pytest
+
+    run = {"id": "overlay-run", "status": "completed", "options": {"campaign_mode": True}}
+    monkeypatch.setattr(pipeline.db, "get_run", lambda run_id: run)
+    monkeypatch.setattr(
+        pipeline.db,
+        "list_clips",
+        lambda run_id: [{"rank": 1, "duration_seconds": 4.0}],
+    )
+
+    with pytest.raises(ValueError, match="unsupported font family"):
+        pipeline.update_campaign_text_overlays(
+            "overlay-run",
+            [
+                {
+                    "rank": 1,
+                    "text": "Title",
+                    "start_seconds": 0,
+                    "end_seconds": 2,
+                    "font_family": "Untrusted Font",
+                }
+            ],
         )

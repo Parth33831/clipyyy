@@ -688,6 +688,9 @@ def update_campaign_text_overlays(run_id: str, overlays: list[dict[str, Any]]) -
             " ".join(line.split()) for line in str(overlay.get("text") or "").splitlines()
         ).strip()
         color = str(overlay.get("color") or "#FFFFFF").upper()
+        font_family = str(overlay.get("font_family") or "Arial")
+        font_weight = str(overlay.get("font_weight") or "bold")
+        text_effect = str(overlay.get("text_effect") or "shadow")
         animation = str(overlay.get("animation") or "fade")
         if rank not in clips:
             raise ValueError(f"Text overlay {index} refers to an unknown campaign output.")
@@ -702,6 +705,12 @@ def update_campaign_text_overlays(run_id: str, overlays: list[dict[str, Any]]) -
             raise ValueError(f"Text overlay {index} size must stay between 60% and 200%.")
         if not re.fullmatch(r"#[0-9A-F]{6}", color):
             raise ValueError(f"Text overlay {index} has an invalid color.")
+        if font_family not in {"Arial", "Georgia", "Impact", "Trebuchet MS", "Verdana"}:
+            raise ValueError(f"Text overlay {index} has an unsupported font family.")
+        if font_weight not in {"regular", "bold"}:
+            raise ValueError(f"Text overlay {index} has an unsupported font weight.")
+        if text_effect not in {"none", "shadow", "outline"}:
+            raise ValueError(f"Text overlay {index} has an unsupported text effect.")
         if animation not in {"none", "fade", "pop", "slide"}:
             raise ValueError(f"Text overlay {index} has an unsupported animation.")
         normalized.append(
@@ -713,6 +722,9 @@ def update_campaign_text_overlays(run_id: str, overlays: list[dict[str, Any]]) -
                 "position_x": position_x,
                 "position_y": position_y,
                 "font_size_percent": font_size,
+                "font_family": font_family,
+                "font_weight": font_weight,
+                "text_effect": text_effect,
                 "color": color,
                 "animation": animation,
                 "background": bool(overlay.get("background", True)),
