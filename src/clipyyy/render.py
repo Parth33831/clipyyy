@@ -593,6 +593,7 @@ def _render_campaign_source_audio(
     )
     return output
 
+
 def render_campaign_montages(
     source: dict,
     selection: dict,
