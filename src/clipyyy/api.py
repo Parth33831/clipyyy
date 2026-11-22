@@ -382,6 +382,7 @@ def create_app(start_worker: bool = True) -> FastAPI:
             media_type=media_type,
             headers={"Cache-Control": "private, max-age=3600"},
         )
+
     @app.get("/api/runs/{run_id}/campaign-frame")
     def campaign_frame(run_id: str, source_index: int, timestamp: float) -> FileResponse:
         """Return a cached still frame from one of this run's campaign source videos."""
