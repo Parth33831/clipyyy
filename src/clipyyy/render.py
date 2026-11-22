@@ -511,6 +511,88 @@ def _campaign_audio_filter(
     return ",".join(filters)
 
 
+def _render_campaign_source_audio(
+    shots: list[dict],
+    sources: list[dict],
+    output: Path,
+    target_duration: float,
+    volume: float,
+    transition_seconds: float = 0.0,
+) -> Path:
+    """Rebuild source-footage audio in storyboard order, matching montage transitions."""
+    if not shots:
+        raise ValueError("Campaign source audio needs at least one storyboard shot.")
+    inputs: list[str] = []
+    filters: list[str] = []
+    durations: list[float] = []
+    for index, shot in enumerate(shots):
+        source_index = int(shot["source_index"])
+        if not 0 <= source_index < len(sources):
+            raise ValueError(f"Audio shot {index + 1} refers to a missing source video.")
+        source_path = Path(sources[source_index]["video_path"])
+        start = max(0.0, float(shot["start_seconds"]))
+        end = min(float(sources[source_index]["duration_seconds"]), float(shot["end_seconds"]))
+        shot_duration = end - start
+        if shot_duration < 1.0:
+            continue
+        durations.append(shot_duration)
+        if has_audio(source_path):
+            inputs.extend(["-ss", f"{start:.3f}", "-t", f"{shot_duration:.3f}", "-i", str(source_path)])
+        else:
+            inputs.extend(
+                [
+                    "-f",
+                    "lavfi",
+                    "-t",
+                    f"{shot_duration:.3f}",
+                    "-i",
+                    "anullsrc=channel_layout=stereo:sample_rate=48000",
+                ]
+            )
+        audio_index = len(durations) - 1
+        filters.append(
+            f"[{audio_index}:a]atrim=duration={shot_duration:.3f},asetpts=PTS-STARTPTS,"
+            f"aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[a{audio_index}]"
+        )
+    if not durations:
+        raise ValueError("No valid campaign shots were available for source audio.")
+    previous = "[a0]"
+    if transition_seconds > 0 and len(durations) > 1:
+        for index in range(1, len(durations)):
+            label = f"[mix{index}]"
+            filters.append(
+                f"{previous}[a{index}]"
+                f"acrossfade=d={min(transition_seconds, durations[index] / 2):.3f}:c1=tri:c2=tri{label}"
+            )
+            previous = label
+    elif len(durations) > 1:
+        joined = "".join(f"[a{index}]" for index in range(len(durations)))
+        filters.append(f"{joined}concat=n={len(durations)}:v=0:a=1[audio]")
+        previous = "[audio]"
+    filters.append(
+        f"{previous}volume={max(0.0, min(2.0, float(volume))):.3f},apad,"
+        f"atrim=duration={target_duration:.3f}[aout]"
+    )
+    run_ffmpeg(
+        [
+            *inputs,
+            "-filter_complex",
+            ";".join(filters),
+            "-map",
+            "[aout]",
+            "-vn",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-movflags",
+            "+faststart",
+            str(output),
+        ]
+    )
+    return output
+
+
 def render_campaign_montages(
     source: dict,
     selection: dict,
@@ -560,6 +642,7 @@ def render_campaign_montages(
         edit_dir.mkdir(parents=True, exist_ok=True)
         output = out_dir / f"campaign-{rank:02d}-{slugify(edit['title'])}.mp4"
         try:
+            audio_shots = list(edit.get("shots", []))
             silent = edit_dir / "montage-silent.mp4"
             # Reuse the assembled montage for instant style-only changes.
             if not (options.get("reuse_campaign_montage") and silent.exists()):
@@ -797,6 +880,18 @@ def render_campaign_montages(
                     ]
                 )
                 visual = overlaid
+            source_audio_volume = max(0.0, min(2.0, float(options.get("campaign_source_audio_volume", 1.0))))
+            source_audio = None
+            if source_audio_volume > 0:
+                source_audio = edit_dir / "campaign-source-audio.m4a"
+                _render_campaign_source_audio(
+                    audio_shots,
+                    sources,
+                    source_audio,
+                    duration,
+                    source_audio_volume,
+                    transition_seconds if use_transitions else 0.0,
+                )
             if music_path:
                 music_input = []
                 if music_analysis and music_analysis["duration_seconds"] - music_start < duration:
@@ -808,15 +903,55 @@ def render_campaign_montages(
                     float(options.get("campaign_music_fade_in_seconds", 0.4)),
                     float(options.get("campaign_music_fade_out_seconds", 0.8)),
                 )
+                mix_filter = f"[1:a]{audio_filter}[music]"
+                if source_audio:
+                    mix_filter += (
+                        ";[2:a]anull[src];[music][src]"
+                        "amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]"
+                    )
+                else:
+                    mix_filter += ";[music]anull[aout]"
+                command = [
+                    "-i",
+                    str(visual),
+                    *music_input,
+                    "-ss",
+                    f"{music_start:.3f}",
+                    "-i",
+                    str(music_path),
+                ]
+                if source_audio:
+                    command.extend(["-i", str(source_audio)])
+                command.extend(
+                    [
+                        "-filter_complex",
+                        mix_filter,
+                        "-map",
+                        "0:v:0",
+                        "-map",
+                        "[aout]",
+                        "-t",
+                        f"{duration:.3f}",
+                        "-c:v",
+                        "copy",
+                        "-c:a",
+                        "aac",
+                        "-b:a",
+                        "192k",
+                        "-shortest",
+                        "-movflags",
+                        "+faststart",
+                        str(output),
+                    ]
+                )
+                run_ffmpeg(command)
+            elif source_audio:
                 run_ffmpeg(
                     [
                         "-i",
                         str(visual),
-                        *music_input,
-                        "-ss",
-                        f"{music_start:.3f}",
                         "-i",
-                        str(music_path),
+                        str(source_audio),
                         "-map",
                         "0:v:0",
                         "-map",
@@ -826,11 +961,7 @@ def render_campaign_montages(
                         "-c:v",
                         "copy",
                         "-c:a",
-                        "aac",
-                        "-b:a",
-                        "192k",
-                        "-af",
-                        audio_filter,
+                        "copy",
                         "-shortest",
                         "-movflags",
                         "+faststart",
