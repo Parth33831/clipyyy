@@ -570,3 +570,33 @@ def test_campaign_text_overlay_rejects_timing_outside_output(client, monkeypatch
 
     assert response.status_code == 400
     assert "inside output #1" in response.json()["detail"]
+
+
+def test_campaign_source_video_can_be_streamed_for_editor_preview(client, tmp_path, monkeypatch):
+    run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+    video_path = tmp_path / "source.mp4"
+    video_path.write_bytes(b"video-bytes")
+    (work_dir / "download.json").write_text(
+        json.dumps({"sources": [{"video_path": str(video_path), "duration_seconds": 12.0}]}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(pipeline, "run_dir", lambda run_id: tmp_path)
+
+    response = client.get("/api/runs/" + run["id"] + "/campaign-source?source_index=0")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("video/mp4")
+    assert response.content == b"video-bytes"
+
+
+def test_campaign_source_preview_rejects_invalid_sources(client, tmp_path, monkeypatch):
+    run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+    (work_dir / "download.json").write_text(json.dumps({"sources": []}), encoding="utf-8")
+    monkeypatch.setattr(pipeline, "run_dir", lambda run_id: tmp_path)
+
+    assert client.get("/api/runs/" + run["id"] + "/campaign-source?source_index=-1").status_code == 400
+    response = client.get("/api/runs/" + run["id"] + "/campaign-source?source_index=0")
+    assert response.status_code == 404
