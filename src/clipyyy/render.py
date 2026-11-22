@@ -942,6 +942,10 @@ def write_campaign_word_lyrics(
             style=style,
             text_color=text_color,
             highlight_color=highlight_color,
+            position_x=position_x,
+            position_y=position_y,
+            scale_percent=scale_percent,
+            rotation_degrees=rotation_degrees,
         )
 
     groups: list[list[dict]] = []
