@@ -34,6 +34,10 @@ export interface ClipOptions {
   campaign_lyrics_color?: string
   campaign_lyrics_highlight_color?: string
   campaign_lyrics_words_on_screen?: 1 | 2 | 3
+  campaign_lyrics_position_x?: number
+  campaign_lyrics_position_y?: number
+  campaign_lyrics_scale_percent?: number
+  campaign_lyrics_rotation_degrees?: number
   campaign_lyrics_behind_subject?: boolean
   campaign_hook_text?: string
   include_campaign_hook?: boolean
@@ -251,10 +255,14 @@ export const api = {
     highlightColor: string,
     wordsOnScreen: 1 | 2 | 3,
     lyricsBehindSubject: boolean,
+    positionX: number,
+    positionY: number,
+    scalePercent: number,
+    rotationDegrees: number,
   ) =>
     request<{ saved: boolean; rendered: boolean; characters: number; outputs: number }>(`/api/runs/${id}/campaign-lyrics`, {
       method: 'PUT',
-      body: JSON.stringify({ lyrics, lyrics_style: lyricsStyle, hook_text: hookText, include_hook: includeHook, lyrics_color: lyricsColor, highlight_color: highlightColor, words_on_screen: wordsOnScreen, lyrics_behind_subject: lyricsBehindSubject }),
+      body: JSON.stringify({ lyrics, lyrics_style: lyricsStyle, hook_text: hookText, include_hook: includeHook, lyrics_color: lyricsColor, highlight_color: highlightColor, words_on_screen: wordsOnScreen, lyrics_behind_subject: lyricsBehindSubject, position_x: positionX, position_y: positionY, scale_percent: scalePercent, rotation_degrees: rotationDegrees }),
     }),
   saveCampaignMontage: (id: string, edits: CampaignEdit[]) =>
     request<{ saved: boolean; rendered: boolean; outputs: number }>(`/api/runs/${id}/campaign-montage`, {
