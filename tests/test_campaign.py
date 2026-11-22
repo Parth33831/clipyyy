@@ -604,6 +604,7 @@ def test_montage_planner_uses_timed_lyric_cues_without_claiming_exact_sync():
     assert "seconds relative to the selected music segment" in llm.user
     assert "do not claim" in llm.user
 
+
 def test_lyric_scene_matcher_ranks_only_grounded_visual_keyword_evidence():
     from clipyyy.campaign import _rank_lyric_scene_matches
 
