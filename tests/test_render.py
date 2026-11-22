@@ -671,17 +671,32 @@ def test_lyrics_behind_subject_composites_text_between_background_and_person(tmp
     video = tmp_path / "base.mp4"
     run_ffmpeg(
         [
-            "-f", "lavfi", "-i", "color=c=blue:s=540x960:r=30:d=2",
-            "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(video),
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=blue:s=540x960:r=30:d=2",
+            "-an",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            str(video),
         ]
     )
 
     def fake_mask(video_path, mask_path):
         run_ffmpeg(
             [
-                "-f", "lavfi",
-                "-i", "color=c=black:s=270x480:r=12:d=2,drawbox=x=95:y=120:w=80:h=240:color=white:t=fill",
-                "-an", "-c:v", "ffv1", "-pix_fmt", "gray", str(mask_path),
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=black:s=270x480:r=12:d=2,drawbox=x=95:y=120:w=80:h=240:color=white:t=fill",
+                "-an",
+                "-c:v",
+                "ffv1",
+                "-pix_fmt",
+                "gray",
+                str(mask_path),
             ]
         )
         return mask_path
