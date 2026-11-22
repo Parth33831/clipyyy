@@ -41,7 +41,8 @@ class CampaignAudioUpdate(BaseModel):
     fade_out_seconds: float = Field(0.8, ge=0, le=10)
 
 
-class CampaignLyricsUpdate(BaseModel):\n    phrases: list[pipeline.CampaignLyricPhrase] | None = Field(None, max_length=500)
+class CampaignLyricsUpdate(BaseModel):
+    phrases: list[pipeline.CampaignLyricPhrase] | None = Field(None, max_length=500)
     lyrics: str = Field("", max_length=12000)
     lyrics_style: Literal[
         "dynamic", "cinematic", "minimal", "karaoke", "zoom", "bounce", "pulse", "glitch"
@@ -171,7 +172,12 @@ def create_app(start_worker: bool = True) -> FastAPI:
         lyrics_unchanged = body.lyrics == run["options"].get("campaign_lyrics", "")
         options = {
             **run["options"],
-            "campaign_lyrics": body.lyrics,\n            "campaign_lyric_phrases": (\n                [phrase.model_dump() for phrase in body.phrases]\n                if body.phrases is not None\n                else (run["options"].get("campaign_lyric_phrases", []) if lyrics_unchanged else [])\n            ),
+            "campaign_lyrics": body.lyrics,
+            "campaign_lyric_phrases": (
+                [phrase.model_dump() for phrase in body.phrases]
+                if body.phrases is not None
+                else (run["options"].get("campaign_lyric_phrases", []) if lyrics_unchanged else [])
+            ),
             "campaign_lyrics_source": (
                 run["options"].get("campaign_lyrics_source", "Local Whisper draft")
                 if lyrics_unchanged
