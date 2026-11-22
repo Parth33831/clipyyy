@@ -38,6 +38,12 @@ class CampaignLyricPhrase(BaseModel):
     rotation_degrees: int = Field(0, ge=-30, le=30)
     animation: Literal["dynamic", "cinematic", "minimal", "karaoke", "zoom", "bounce", "pulse", "glitch"] = "dynamic"
 
+    @model_validator(mode="after")
+    def _valid_timing(self) -> CampaignLyricPhrase:
+        if self.end_seconds <= self.start_seconds:
+            raise ValueError("Phrase end_seconds must be after start_seconds")
+        return self
+
 
 class ClipOptions(BaseModel):
     clip_count: int = Field(3, ge=1, le=10, description="Maximum number of clips")
