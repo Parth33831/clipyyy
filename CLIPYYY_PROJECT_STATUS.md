@@ -523,3 +523,11 @@ STATUS: In progress / Ready for review / Merged
 - Tests cover the tracked crop filter and the no-model fallback. Corrected-head CI passed: Ruff lint, Ruff format, fast backend tests and frontend build. Full backend, Windows and macOS jobs were skipped by the workflow; real campaign footage/Windows smoke testing remains required.
 - Real campaign footage/Windows smoke testing remains required.
 - Next editor audit: inspect the existing storyboard editor's capabilities and define the smallest safe step toward multi-layer, non-destructive timeline editing. Avoid replacing the current editor or duplicating its drag/trim/split/reorder operations.
+
+
+### 2026-11-22 follow-up: timed lyric reference track in the editor
+
+- PR #62: \`feature/campaign-lyric-timeline-track\` exposes persisted music-relative phrase cues in the run-detail API and displays them as a dedicated reference track below music energy in the campaign timeline.
+- The track is read-only in this step and explicitly not presented as a separate editable typography layer. Existing lyric styling and storyboard editing are unchanged.
+- Backend API regression test added; CI is pending.
+- Next editor milestone: move from the reference track toward actual independent overlay/text layers with timing, position and styling controls, while preserving the current lyric system and storyboard edit contract.
