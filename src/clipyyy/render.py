@@ -632,6 +632,18 @@ def _render_campaign_source_audio(
     return output
 
 
+def _campaign_music_start_seconds(music_analysis: dict | None, options: dict, target_duration: float) -> float:
+    """Use a manual soundtrack offset when set; otherwise keep the AI-selected section."""
+    if not music_analysis:
+        return max(0.0, float(options.get("campaign_music_start_seconds", 0.0)))
+    automatic_start = float(music_analysis.get("best_start_seconds", 0.0))
+    requested_start = options.get("campaign_music_start_seconds")
+    start = automatic_start if requested_start is None else float(requested_start)
+    track_duration = max(0.0, float(music_analysis.get("duration_seconds", 0.0)))
+    latest_start = max(0.0, track_duration - max(0.0, target_duration))
+    return round(min(max(0.0, start), latest_start), 3)
+
+
 def render_campaign_montages(
     source: dict,
     selection: dict,
@@ -659,7 +671,7 @@ def render_campaign_montages(
             music_path, target_duration
         )
     beat_times = music_analysis["beat_times"] if music_analysis else []
-    music_start = float(music_analysis["best_start_seconds"]) if music_analysis else 0.0
+    music_start = _campaign_music_start_seconds(music_analysis, options, target_duration)
     transition_style = options.get("campaign_transition_style", "auto")
     transition_seconds = 0.24
     use_transitions = transition_style in {"cinematic", "dynamic"} or (
