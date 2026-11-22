@@ -7,6 +7,21 @@ import { api, type CampaignEdit, type CampaignLyricPhrase, type CampaignMusicAna
 import { PublishDialog } from '../components/PublishDialog'
 import { Button, Eyebrow, Panel, Squares, StatusChip, cn, formatDuration, sourceHost, sourceLabel, timeAgo } from '../components/ui'
 
+function parseCampaignLyricPhrases(lyrics: string): CampaignLyricPhrase[] {
+  const parsed = lyrics.split(/\\r?\\n/).flatMap((line, index) => {
+    const match = line.trim().match(/^\\[(\\d{1,2}):(\\d{2})(?:\\.(\\d{1,2}))?\\]\\s*(.+)$/)
+    if (!match) return []
+    const [, minutes, seconds, fraction, text] = match
+    const start = Number(minutes) * 60 + Number(seconds) + Number((fraction ?? '0').padEnd(2, '0').slice(0, 2)) / 100
+    if (!text.trim()) return []
+    return [{ id: `lyric-${index}-${Math.round(start * 1000)}`, text: text.trim(), start_seconds: start, end_seconds: start + 3, position_x: 50, position_y: 84, scale_percent: 100, rotation_degrees: 0, animation: 'dynamic' as const }]
+  })
+  return parsed.map((phrase, index) => ({
+    ...phrase,
+    end_seconds: parsed[index + 1] ? Math.max(phrase.start_seconds + 0.05, parsed[index + 1].start_seconds) : phrase.end_seconds,
+  }))
+}
+
 export function RunDetailPage() {
   const { runId = '' } = useParams()
   const navigate = useNavigate()
