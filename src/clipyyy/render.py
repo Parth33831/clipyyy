@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import math
 import re
 import shutil
@@ -12,11 +13,56 @@ from statistics import median
 
 from clipyyy.captions import ass_filter, clip_words, write_ass
 from clipyyy.filler_words import filler_intervals
+from clipyyy.foreground import create_foreground_mask
 from clipyyy.media import ffmpeg_bin, has_audio, probe, run_ffmpeg
+
+logger = logging.getLogger(__name__)
 
 FPS = 30
 AUDIO_NORMALIZATION_FILTER = "loudnorm=I=-16:TP=-1.5:LRA=11"
 SIZES = {"9:16": (1080, 1920), "4:5": (1080, 1350), "1:1": (1080, 1080)}
+
+
+def render_lyrics_behind_subject(
+    video_path: Path,
+    overlay_path: Path,
+    output_path: Path,
+    work_dir: Path,
+    width: int,
+    height: int,
+    duration: float,
+) -> Path:
+    """Composite lyrics between the background and a segmented foreground person."""
+    mask_path = work_dir / "lyrics-foreground-mask.mkv"
+    create_foreground_mask(video_path, mask_path)
+    transparent_canvas = f"color=c=black@0.0:s={width}x{height}:r={FPS}:d={duration:.3f}"
+    graph = (
+        f"[2:v]format=rgba,{ass_filter(overlay_path)}[lyrics];"
+        f"[1:v]fps={FPS},scale={width}:{height}:flags=bicubic,format=gray[mask];"
+        "[mask]negate[inverse];"
+        "[lyrics][inverse]alphamerge[lyrics_behind];"
+        "[0:v][lyrics_behind]overlay=shortest=1:format=auto[background_with_lyrics];"
+        "[0:v][mask]alphamerge[foreground];"
+        "[background_with_lyrics][foreground]overlay=shortest=1:format=auto[outv]"
+    )
+    run_ffmpeg(
+        [
+            "-i", str(video_path),
+            "-i", str(mask_path),
+            "-f", "lavfi", "-i", transparent_canvas,
+            "-filter_complex", graph,
+            "-map", "[outv]",
+            "-an",
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "19",
+            "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
+            str(output_path),
+        ]
+    )
+    return output_path
+
 
 
 def render_clips(
@@ -598,26 +644,32 @@ def render_campaign_montages(
                         highlight_color=options.get("campaign_lyrics_highlight_color", "#00D7FF"),
                     )
                 captioned = edit_dir / "montage-lyrics.mp4"
-                run_ffmpeg(
-                    [
-                        "-i",
-                        str(visual),
-                        "-vf",
-                        ass_filter(overlay),
-                        "-an",
-                        "-c:v",
-                        "libx264",
-                        "-preset",
-                        "veryfast",
-                        "-crf",
-                        "19",
-                        "-pix_fmt",
-                        "yuv420p",
-                        "-movflags",
-                        "+faststart",
-                        str(captioned),
-                    ]
-                )
+                if options.get("campaign_lyrics_behind_subject", False):
+                    try:
+                        render_lyrics_behind_subject(
+                            visual, overlay, captioned, edit_dir, width, height, duration
+                        )
+                        lyrics_behind_subject_applied = True
+                    except Exception as exc:
+                        logger.warning(
+                            "Foreground lyric compositing unavailable; using normal lyric overlay: %s",
+                            exc,
+                        )
+                        run_ffmpeg(
+                            [
+                                "-i", str(visual), "-vf", ass_filter(overlay), "-an",
+                                "-c:v", "libx264", "-preset", "veryfast", "-crf", "19",
+                                "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(captioned),
+                            ]
+                        )
+                else:
+                    run_ffmpeg(
+                        [
+                            "-i", str(visual), "-vf", ass_filter(overlay), "-an",
+                            "-c:v", "libx264", "-preset", "veryfast", "-crf", "19",
+                            "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(captioned),
+                        ]
+                    )
                 visual = captioned
             if music_path:
                 music_input = []
@@ -680,6 +732,7 @@ def render_campaign_montages(
                         else "silent; add official campaign sound on the publishing platform if required"
                     ),
                     "lyrics_overlay": bool(lyrics),
+                    "lyrics_behind_subject": lyrics_behind_subject_applied,
                     "beat_synced": bool(beat_times),
                     "music_start_seconds": round(music_start, 2),
                     "music_bpm_estimate": music_analysis.get("bpm") if music_analysis else None,
@@ -703,6 +756,10 @@ def render_campaign_montages(
                 f"{max(item['duration_seconds'] for item in renders):.1f} seconds"
             ),
             "lyrics_overlay": bool(lyrics),
+            "lyrics_behind_subject_requested": bool(options.get("campaign_lyrics_behind_subject", False)),
+            "lyrics_behind_subject_applied": all(
+                item.get("lyrics_behind_subject", False) for item in renders
+            ) if options.get("campaign_lyrics_behind_subject", False) and lyrics else False,
             "camera_motion": bool(options.get("campaign_camera_motion", True)),
             "transition_style": transition_style,
             "music_track_added": bool(music_path),
