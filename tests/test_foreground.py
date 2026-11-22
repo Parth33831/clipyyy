@@ -45,9 +45,7 @@ def test_foreground_mask_streams_frames_through_mediapipe(monkeypatch, tmp_path)
 
     media_pipe = SimpleNamespace(
         solutions=SimpleNamespace(
-            selfie_segmentation=SimpleNamespace(
-                SelfieSegmentation=lambda model_selection: FakeSegmenter()
-            )
+            selfie_segmentation=SimpleNamespace(SelfieSegmentation=lambda model_selection: FakeSegmenter())
         )
     )
     processes = []
