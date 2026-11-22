@@ -1081,7 +1081,7 @@ def write_campaign_word_lyrics(
     # across preview/export at the selected aspect ratio.
     x = round(width * position_x / 100)
     y = round(height * position_y / 100)
-    transform = f"{{\\\\pos({x},{y})\\\\fscx{scale_percent}\\\\fscy{scale_percent}\\\\frz{rotation_degrees}}}"
+    transform = f"{{\\pos({x},{y})\\fscx{scale_percent}\\fscy{scale_percent}\\frz{rotation_degrees}}}"
     transformed_script = []
     for line in script:
         if line.startswith("Dialogue:"):
