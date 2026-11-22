@@ -684,4 +684,3 @@ def test_lyric_scene_matcher_does_not_force_unmatched_or_text_only_scenes():
             "matches": [],
         }
     ]
-
