@@ -54,23 +54,49 @@ def create_foreground_mask(
     mask_path.parent.mkdir(parents=True, exist_ok=True)
 
     decoder_command = [
-        ffmpeg_bin(), "-hide_banner", "-loglevel", "error", "-i", str(video_path),
-        "-vf", f"fps={fps},scale={mask_width}:{mask_height}",
-        "-an", "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1",
+        ffmpeg_bin(),
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-i",
+        str(video_path),
+        "-vf",
+        f"fps={fps},scale={mask_width}:{mask_height}",
+        "-an",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgb24",
+        "pipe:1",
     ]
     encoder_command = [
-        ffmpeg_bin(), "-hide_banner", "-loglevel", "error", "-y",
-        "-f", "rawvideo", "-pix_fmt", "gray", "-s", f"{mask_width}x{mask_height}",
-        "-r", str(fps), "-i", "pipe:0", "-an", "-c:v", "ffv1",
-        "-level", "3", "-pix_fmt", "gray", str(mask_path),
+        ffmpeg_bin(),
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "gray",
+        "-s",
+        f"{mask_width}x{mask_height}",
+        "-r",
+        str(fps),
+        "-i",
+        "pipe:0",
+        "-an",
+        "-c:v",
+        "ffv1",
+        "-level",
+        "3",
+        "-pix_fmt",
+        "gray",
+        str(mask_path),
     ]
 
-    decoder = subprocess.Popen(
-        decoder_command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
-    )
-    encoder = subprocess.Popen(
-        encoder_command, stdin=subprocess.PIPE, stderr=subprocess.DEVNULL
-    )
+    decoder = subprocess.Popen(decoder_command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    encoder = subprocess.Popen(encoder_command, stdin=subprocess.PIPE, stderr=subprocess.DEVNULL)
     frame_bytes = mask_width * mask_height * 3
     frame_count = 0
     try:
@@ -79,9 +105,7 @@ def create_foreground_mask(
                 raw_frame = _read_exact(decoder.stdout, frame_bytes)
                 if len(raw_frame) != frame_bytes:
                     break
-                frame = np.frombuffer(raw_frame, dtype=np.uint8).reshape(
-                    (mask_height, mask_width, 3)
-                )
+                frame = np.frombuffer(raw_frame, dtype=np.uint8).reshape((mask_height, mask_width, 3))
                 result = segmenter.process(frame)
                 segmentation = result.segmentation_mask
                 if segmentation is None:
