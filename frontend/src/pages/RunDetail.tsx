@@ -21,6 +21,9 @@ export function RunDetailPage() {
   const [publishing, setPublishing] = useState<Clip | null>(null)
   const [focused, setFocused] = useState<number | null>(null)
   const [musicFile, setMusicFile] = useState<File | null>(null)
+  const [musicVolume, setMusicVolume] = useState(90)
+  const [musicFadeIn, setMusicFadeIn] = useState(0.4)
+  const [musicFadeOut, setMusicFadeOut] = useState(0.8)
   const [lyricsText, setLyricsText] = useState('')
   const [lyricsStyle, setLyricsStyle] = useState<
     'dynamic' | 'cinematic' | 'minimal' | 'karaoke' | 'zoom' | 'bounce' | 'pulse' | 'glitch'
@@ -32,6 +35,9 @@ export function RunDetailPage() {
   const [lyricsWordsOnScreen, setLyricsWordsOnScreen] = useState<1 | 2 | 3>(3)
   const [campaignEdits, setCampaignEdits] = useState<CampaignEdit[]>([])
   useEffect(() => {
+    setMusicVolume(Math.round((run.data?.options.campaign_music_volume ?? 0.9) * 100))
+    setMusicFadeIn(run.data?.options.campaign_music_fade_in_seconds ?? 0.4)
+    setMusicFadeOut(run.data?.options.campaign_music_fade_out_seconds ?? 0.8)
     setLyricsText(run.data?.options.campaign_lyrics ?? '')
     setLyricsStyle(run.data?.options.campaign_lyrics_style ?? 'dynamic')
     setHookText(run.data?.options.campaign_hook_text ?? String(run.data?.campaign_plan?.generated_hook ?? ''))
@@ -40,7 +46,7 @@ export function RunDetailPage() {
     setLyricsHighlightColor(run.data?.options.campaign_lyrics_highlight_color ?? '#00D7FF')
     setLyricsWordsOnScreen(run.data?.options.campaign_lyrics_words_on_screen ?? 3)
     setCampaignEdits(run.data?.campaign_edits ?? [])
-  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.campaign_plan?.generated_hook])
+  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.campaign_plan?.generated_hook])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -59,6 +65,14 @@ export function RunDetailPage() {
     onSuccess: (result) => {
       toast.success(`Attached ${result.name}. Choose Pick again to render the campaign with music.`)
       setMusicFile(null)
+      refresh()
+    },
+    onError: (e) => toast.error(e.message),
+  })
+  const saveCampaignAudio = useMutation({
+    mutationFn: () => api.saveCampaignAudio(runId, musicVolume / 100, musicFadeIn, musicFadeOut),
+    onSuccess: (result) => {
+      toast.success(`Applied music mix to ${result.outputs} campaign edit(s).`)
       refresh()
     },
     onError: (e) => toast.error(e.message),
@@ -100,6 +114,10 @@ export function RunDetailPage() {
     )
   const data = run.data
   const busy = data.status === 'queued' || data.status === 'running'
+  const savedMusicVolume = Math.round((data.options.campaign_music_volume ?? 0.9) * 100)
+  const savedMusicFadeIn = data.options.campaign_music_fade_in_seconds ?? 0.4
+  const savedMusicFadeOut = data.options.campaign_music_fade_out_seconds ?? 0.8
+  const musicSettingsChanged = musicVolume !== savedMusicVolume || musicFadeIn !== savedMusicFadeIn || musicFadeOut !== savedMusicFadeOut
   const readyClips = data.clips.filter((c) => c.status === 'ready')
 
   return (
@@ -204,6 +222,36 @@ export function RunDetailPage() {
             Attach music
           </Button>
           </div>
+          {data.options.campaign_music_path && (
+            <div className="flex flex-col gap-4 rounded-lg border border-line bg-panel p-3 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium">Music mix</span>
+                <span className="text-xs text-muted">Adjust the attached track, then re-render</span>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <label className="flex flex-col gap-2">
+                  <span className="flex justify-between gap-2"><span className="font-medium">Music volume</span><span className="font-mono text-muted">{musicVolume}%</span></span>
+                  <input type="range" min={0} max={200} step={5} value={musicVolume} onChange={(event) => setMusicVolume(Number(event.target.value))} className="w-full accent-current" />
+                  <span className="text-xs text-muted">0% mute · 100% original level · 200% boost</span>
+                </label>
+                <label className="flex flex-col gap-2">
+                  <span className="flex justify-between gap-2"><span className="font-medium">Fade in</span><span className="font-mono text-muted">{musicFadeIn.toFixed(1)}s</span></span>
+                  <input type="range" min={0} max={5} step={0.1} value={musicFadeIn} onChange={(event) => setMusicFadeIn(Number(event.target.value))} className="w-full accent-current" />
+                  <span className="text-xs text-muted">How quickly music reaches its set level</span>
+                </label>
+                <label className="flex flex-col gap-2">
+                  <span className="flex justify-between gap-2"><span className="font-medium">Fade out</span><span className="font-mono text-muted">{musicFadeOut.toFixed(1)}s</span></span>
+                  <input type="range" min={0} max={5} step={0.1} value={musicFadeOut} onChange={(event) => setMusicFadeOut(Number(event.target.value))} className="w-full accent-current" />
+                  <span className="text-xs text-muted">How quickly music fades at the end</span>
+                </label>
+              </div>
+              <div className="flex justify-end">
+                <Button variant="ink" disabled={!musicSettingsChanged || saveCampaignAudio.isPending} loading={saveCampaignAudio.isPending} onClick={() => saveCampaignAudio.mutate()}>
+                  Apply music mix &amp; re-render
+                </Button>
+              </div>
+            </div>
+          )}
           <div className="flex flex-col gap-3 text-sm">
             <span className="font-medium">Lyrics animation preset</span>
             <div className="grid gap-2 sm:grid-cols-2">
