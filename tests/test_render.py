@@ -443,6 +443,32 @@ def test_campaign_word_lyrics_show_configurable_rolling_word_window(tmp_path):
     assert "Three" not in two_events[0]
 
 
+def test_campaign_audio_filter_uses_custom_music_volume_and_fades():
+    from clipyyy.render import _campaign_audio_filter
+
+    audio_filter = _campaign_audio_filter(
+        12.0,
+        False,
+        music_volume=1.25,
+        fade_in_seconds=1.2,
+        fade_out_seconds=2.5,
+    )
+
+    assert audio_filter == "volume=1.250,afade=t=in:st=0:d=1.200,afade=t=out:st=9.500:d=2.500"
+
+
+def test_campaign_audio_filter_clamps_fades_to_duration_and_allows_no_fades():
+    from clipyyy.render import _campaign_audio_filter
+
+    assert _campaign_audio_filter(2.0, False, music_volume=0, fade_in_seconds=5, fade_out_seconds=5) == (
+        "volume=0.000,afade=t=in:st=0:d=2.000,afade=t=out:st=0.000:d=2.000"
+    )
+    assert (
+        _campaign_audio_filter(10.0, False, music_volume=1.0, fade_in_seconds=0, fade_out_seconds=0)
+        == "volume=1.000"
+    )
+
+
 def test_remove_timed_intervals_keeps_audio_and_video_synchronized(tmp_path):
     from clipyyy.render import remove_timed_intervals
 

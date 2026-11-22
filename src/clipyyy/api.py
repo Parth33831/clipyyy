@@ -35,6 +35,12 @@ class RetryRun(BaseModel):
     from_stage: str | None = None
 
 
+class CampaignAudioUpdate(BaseModel):
+    music_volume: float = Field(0.9, ge=0, le=2)
+    fade_in_seconds: float = Field(0.4, ge=0, le=10)
+    fade_out_seconds: float = Field(0.8, ge=0, le=10)
+
+
 class CampaignLyricsUpdate(BaseModel):
     lyrics: str = Field("", max_length=12000)
     lyrics_style: Literal[
@@ -188,6 +194,28 @@ def create_app(start_worker: bool = True) -> FastAPI:
             "characters": len(body.lyrics),
             "outputs": len(result.get("renders", [])),
         }
+
+    @app.put("/api/runs/{run_id}/campaign-audio")
+    def update_campaign_audio(run_id: str, body: CampaignAudioUpdate) -> dict:
+        run = _run_or_404(run_id)
+        if not run["options"].get("campaign_mode"):
+            raise HTTPException(400, "Music settings are only available for campaign runs.")
+        if not run["options"].get("campaign_music_path"):
+            raise HTTPException(400, "Attach a campaign music track before changing its mix.")
+        if run["status"] in {"queued", "running"}:
+            raise HTTPException(409, "Wait for the campaign run to finish before changing its music mix.")
+        options = {
+            **run["options"],
+            "campaign_music_volume": body.music_volume,
+            "campaign_music_fade_in_seconds": body.fade_in_seconds,
+            "campaign_music_fade_out_seconds": body.fade_out_seconds,
+        }
+        db.update_run(run_id, options=options)
+        try:
+            result = pipeline.rerender_campaign(run_id)
+        except Exception as exc:
+            raise HTTPException(500, f"Could not apply the campaign music mix: {exc}") from exc
+        return {"saved": True, "rendered": True, "outputs": len(result.get("renders", []))}
 
     @app.put("/api/runs/{run_id}/campaign-montage")
     def update_campaign_montage(run_id: str, body: CampaignMontageUpdate) -> dict:
