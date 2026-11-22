@@ -590,6 +590,7 @@ def render_campaign_montages(
                 silent = normalized
                 _, _, duration = probe(silent)
             visual = silent
+            lyrics_behind_subject_applied = False
             if hook:
                 hook_overlay = edit_dir / "campaign-hook.ass"
                 write_campaign_hook(hook, min(2.6, duration), hook_overlay, width, height)
