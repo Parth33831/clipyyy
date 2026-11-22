@@ -180,20 +180,8 @@ export function RunDetailPage() {
     onError: (e) => toast.error(e.message),
   })
 
-  if (run.isLoading) return <p className="text-muted">Loading…</p>
-  if (run.error || !run.data)
-    return (
-      <div className="flex flex-col gap-3">
-        <p className="display text-3xl">Run not found</p>
-        <Link to="/runs" className="label underline underline-offset-4">
-          Back to runs
-        </Link>
-      </div>
-    )
-  const data = run.data
-  const busy = data.status === 'queued' || data.status === 'running'
   useEffect(() => {
-    if (!data.options.campaign_mode || busy) return
+    if (!run.data?.options.campaign_mode || ['queued', 'running'].includes(run.data.status)) return
     const handleEditorShortcut = (event: KeyboardEvent) => {
       if (!event.ctrlKey && !event.metaKey) return
       const target = event.target as HTMLElement | null
@@ -215,7 +203,21 @@ export function RunDetailPage() {
     }
     window.addEventListener('keydown', handleEditorShortcut)
     return () => window.removeEventListener('keydown', handleEditorShortcut)
-  }, [data.options.campaign_mode, busy, canUndoCampaignEdits, canRedoCampaignEdits, undoCampaignEdits, redoCampaignEdits])
+  }, [run.data?.options.campaign_mode, run.data?.status, canUndoCampaignEdits, canRedoCampaignEdits, undoCampaignEdits, redoCampaignEdits])
+
+  if (run.isLoading) return <p className="text-muted">Loading…</p>
+  if (run.error || !run.data)
+    return (
+      <div className="flex flex-col gap-3">
+        <p className="display text-3xl">Run not found</p>
+        <Link to="/runs" className="label underline underline-offset-4">
+          Back to runs
+        </Link>
+      </div>
+    )
+  const data = run.data
+  const busy = data.status === 'queued' || data.status === 'running'
+
   const savedMusicVolume = Math.round((data.options.campaign_music_volume ?? 0.9) * 100)
   const savedMusicFadeIn = data.options.campaign_music_fade_in_seconds ?? 0.4
   const savedMusicFadeOut = data.options.campaign_music_fade_out_seconds ?? 0.8
