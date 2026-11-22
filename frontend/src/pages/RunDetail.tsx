@@ -435,7 +435,7 @@ export function RunDetailPage() {
             {lyricsPhrases.length ? (
               <>
                 <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto">
-                  {lyricsPhrases.map((phrase, index) => (
+                  {lyricsPhrases.map((phrase) => (
                     <button key={phrase.id} type="button" onClick={() => setSelectedPhraseId(phrase.id)}
                       aria-pressed={selectedPhrase?.id === phrase.id}
                       className={cn('rounded-md border px-3 py-2 text-left transition-colors',
