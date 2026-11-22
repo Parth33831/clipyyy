@@ -460,9 +460,53 @@ def stage_broll(ctx: Context) -> dict:
     )
 
 
+def _build_campaign_crop_plans(
+    sources: list[dict], edits: list[dict], aspect: float, enabled: bool
+) -> list[dict]:
+    """Track faces per campaign shot without downloading the optional detector model."""
+    if not enabled:
+        return []
+    from clipyyy.reframe import plan_crop
+
+    crop_plans = []
+    for edit in edits:
+        for shot in edit["shots"]:
+            source_index = int(shot["source_index"])
+            if not 0 <= source_index < len(sources):
+                continue
+            source = sources[source_index]
+            plan = plan_crop(
+                Path(source["video_path"]),
+                aspect,
+                float(shot["start_seconds"]),
+                float(shot["end_seconds"]),
+                allow_model_download=False,
+            )
+            if plan.get("crop_mode") == "face" and plan.get("crop_boxes"):
+                crop_plans.append(
+                    {
+                        "edit_rank": int(edit["rank"]),
+                        "source_index": source_index,
+                        "start_seconds": round(float(shot["start_seconds"]), 3),
+                        "end_seconds": round(float(shot["end_seconds"]), 3),
+                        "crop_boxes": plan["crop_boxes"],
+                    }
+                )
+    return crop_plans
+
+
 def stage_reframe(ctx: Context) -> dict:
     if ctx.options.get("campaign_mode"):
-        return {"clips": []}
+        sources = ctx.state["select"].get("campaign_sources") or ctx.state["download"].get("sources") or [
+            ctx.state["download"]
+        ]
+        crop_plans = _build_campaign_crop_plans(
+            sources,
+            ctx.state["select"].get("campaign_edits", []),
+            ASPECTS[ctx.options["aspect_ratio"]],
+            bool(ctx.options.get("face_tracking", True)),
+        )
+        return {"clips": [], "campaign_crop_plans": crop_plans}
     from clipyyy.reframe import prepare_clips
 
     return prepare_clips(
@@ -558,8 +602,21 @@ def stage_render(ctx: Context) -> dict:
         render_source = dict(ctx.state["download"])
         if ctx.state["select"].get("campaign_sources"):
             render_source["sources"] = ctx.state["select"]["campaign_sources"]
+        render_selection = dict(ctx.state["select"])
+        render_selection["campaign_crop_plans"] = ctx.state.get("reframe", {}).get(
+            "campaign_crop_plans", []
+        )
+        select_file = ctx.work_dir / "select.json"
+        if select_file.is_file():
+            saved_selection = json.loads(select_file.read_text(encoding="utf-8"))
+            saved_selection["campaign_crop_plans"] = render_selection["campaign_crop_plans"]
+            temporary = select_file.with_suffix(".tmp")
+            temporary.write_text(
+                json.dumps(saved_selection, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
+            temporary.replace(select_file)
         result = render_campaign_montages(
-            render_source, ctx.state["select"], ctx.work_dir, ctx.out_dir, render_options
+            render_source, render_selection, ctx.work_dir, ctx.out_dir, render_options
         )
     else:
         from clipyyy.render import render_clips
@@ -727,6 +784,12 @@ def update_campaign_montage(run_id: str, edits: list[dict[str, Any]]) -> dict:
         normalized.append({"rank": rank, "title": title, "shots": clean_shots})
 
     selection["campaign_edits"] = normalized
+    selection["campaign_crop_plans"] = _build_campaign_crop_plans(
+        sources,
+        normalized,
+        ASPECTS.get(run["options"].get("aspect_ratio", "9:16"), ASPECTS["9:16"]),
+        bool(run["options"].get("face_tracking", False)),
+    )
     clips_by_rank = {int(clip["rank"]): clip for clip in selection.get("clips", [])}
     for edit in normalized:
         clip = clips_by_rank.get(edit["rank"])
