@@ -1036,7 +1036,9 @@ def render_campaign_montages(
                     ),
                     "source_audio_included": bool(source_audio),
                     "source_audio_volume": source_audio_volume,
-                    "music_ducking": bool(music_path and source_audio and options.get("campaign_music_ducking", False)),
+                    "music_ducking": bool(
+                        music_path and source_audio and options.get("campaign_music_ducking", False)
+                    ),
                     "lyrics_overlay": bool(lyrics),
                     "lyrics_behind_subject": lyrics_behind_subject_applied,
                     "beat_synced": bool(beat_times),
