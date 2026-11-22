@@ -483,11 +483,13 @@ def run_detail(run_id: str) -> dict:
     campaign_original_edits = []
     campaign_sources = []
     campaign_quality_checks = None
+    campaign_lyric_cues = []
     if select_file.exists():
         selection_data = json.loads(select_file.read_text(encoding="utf-8"))
         campaign_plan = selection_data.get("campaign_plan")
         campaign_edits = selection_data.get("campaign_edits", [])
         campaign_original_edits = selection_data.get("campaign_original_edits") or campaign_edits
+        campaign_lyric_cues = selection_data.get("campaign_lyric_cues") or []
     if source_file.exists() and run["options"].get("campaign_mode"):
         source_data = json.loads(source_file.read_text(encoding="utf-8"))
         source_items = selection_data.get("campaign_sources") or source_data.get("sources") or [source_data]
@@ -519,6 +521,7 @@ def run_detail(run_id: str) -> dict:
         "campaign_original_edits": campaign_original_edits,
         "campaign_sources": campaign_sources,
         "campaign_quality_checks": campaign_quality_checks,
+        "campaign_lyric_cues": campaign_lyric_cues,
         "stages": stages,
         "clips": [
             {**_clip_public(c), "filler_words_removed": filler_counts.get(int(c["rank"]), 0)}
