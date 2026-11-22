@@ -47,11 +47,30 @@ def render_lyrics_behind_subject(
     )
     run_ffmpeg(
         [
-            "-i", str(video_path), "-i", str(mask_path),
-            "-f", "lavfi", "-i", transparent_canvas,
-            "-filter_complex", graph, "-map", "[outv]", "-an",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "19",
-            "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(output_path),
+            "-i",
+            str(video_path),
+            "-i",
+            str(mask_path),
+            "-f",
+            "lavfi",
+            "-i",
+            transparent_canvas,
+            "-filter_complex",
+            graph,
+            "-map",
+            "[outv]",
+            "-an",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "19",
+            "-pix_fmt",
+            "yuv420p",
+            "-movflags",
+            "+faststart",
+            str(output_path),
         ]
     )
     return output_path
