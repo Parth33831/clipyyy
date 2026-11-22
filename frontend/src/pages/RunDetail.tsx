@@ -1230,6 +1230,10 @@ function CampaignTimeline({
         const wordWindowStart = activeWordIndex < 0 ? 0 : Math.max(0, activeWordIndex - Math.floor((wordsOnScreen - 1) / 2))
         const activeWordWindow = activeWordIndex < 0 ? [] : lyricWords.slice(wordWindowStart, wordWindowStart + wordsOnScreen)
         const seekToTimeline = (targetSeconds: number) => {
+          if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current)
+          transitionTimerRef.current = null
+          advancingShotRef.current = false
+          setTransitionPhase('idle')
           const boundedTime = Math.max(0, Math.min(total, targetSeconds))
           let elapsed = 0
           let targetIndex = Math.max(0, shots.length - 1)
@@ -1342,7 +1346,7 @@ function CampaignTimeline({
                       if (preview.index < shots.length - 1) {
                         setPreviewShotIndex(preview.index + 1)
                       } else {
-                        event.currentTarget.pause()
+                        videoRef.current?.pause()
                         audio?.pause()
                         setIsPlaying(false)
                         setTransitionPhase('idle')
