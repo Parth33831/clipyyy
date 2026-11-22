@@ -713,6 +713,32 @@ export function RunDetailPage() {
   )
 }
 
+function getBeatSnappedShotEnd(
+  edit: CampaignEdit,
+  shotIndex: number,
+  musicAnalysis: CampaignMusicAnalysis | null,
+  sourceDuration: number | undefined,
+): number | null {
+  const shot = edit.shots[shotIndex]
+  const markers = musicAnalysis?.beat_markers ?? []
+  if (!shot || !sourceDuration || markers.length === 0) return null
+  const elapsed = edit.shots.slice(0, shotIndex).reduce(
+    (sum, previous) => sum + Math.max(0, previous.end_seconds - previous.start_seconds),
+    0,
+  )
+  const desired = shot.end_seconds - shot.start_seconds
+  const available = sourceDuration - shot.start_seconds
+  const candidates = markers
+    .map((marker) => ({
+      duration: marker.time_seconds - elapsed,
+      score: Math.abs(marker.time_seconds - elapsed - desired) - 0.55 * marker.energy - 0.35 * marker.strength,
+    }))
+    .filter((candidate) => candidate.duration >= 1.5 && candidate.duration <= 5.0 && candidate.duration <= available)
+    .sort((left, right) => left.score - right.score)
+  if (candidates.length === 0) return null
+  return Math.round((shot.start_seconds + candidates[0].duration) * 1000) / 1000
+}
+
 function CampaignStoryboardEditor({
   runId,
   edits,
@@ -874,7 +900,20 @@ function CampaignStoryboardEditor({
                       className="w-full rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
                   </label>
                   <label className="flex flex-col gap-1 text-xs text-muted">
-                    End (seconds)
+                    <span className="flex items-center justify-between gap-1">
+                      End (seconds)
+                      {(() => {
+                        const snappedEnd = getBeatSnappedShotEnd(edit, shotIndex, musicAnalysis, source?.duration_seconds)
+                        return (
+                          <button type="button" disabled={saving || snappedEnd === null}
+                            onClick={() => snappedEnd !== null && updateShot(editIndex, shotIndex, { end_seconds: snappedEnd })}
+                            className="rounded border border-line px-1.5 py-0.5 text-[10px] text-ink hover:bg-surface disabled:opacity-30"
+                            title="Align this shot's end with the nearest suitable music beat">
+                            Snap to beat
+                          </button>
+                        )
+                      })()}
+                    </span>
                     <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.end_seconds}
                       onChange={(event) => updateShot(editIndex, shotIndex, { end_seconds: Number(event.target.value) })} disabled={saving}
                       className="w-full rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
@@ -1669,7 +1708,7 @@ function CampaignTimeline({
       {hasMusic && (
         <div className="flex flex-col gap-2 border-t border-line pt-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="label text-muted">Soundtrack waveform</span>
+            <span className="label text-muted">Soundtrack waveform · beat markers</span>
             <span className="font-mono text-[11px] text-faint">
               {waveformQuery.isLoading ? 'Analyzing audio…' : waveformQuery.isError ? 'Waveform unavailable' : waveform ? formatDuration(waveform.duration_seconds) : 'Waiting for audio'}
             </span>
@@ -1710,6 +1749,17 @@ function CampaignTimeline({
                   title={`Audio peak ${Math.round(peak * 100)}%`}
                   className="min-w-0 flex-1 rounded-sm bg-acid/80"
                   style={{ height: `${Math.max(3, peak * 100)}%` }}
+                />
+              ))}
+              {(musicAnalysis?.beat_markers ?? []).map((marker, index) => (
+                <span
+                  key={`beat-${index}`}
+                  title={`Beat · ${formatDuration(marker.time_seconds)} · strength ${Math.round(marker.strength * 100)}%`}
+                  className={cn(
+                    'pointer-events-none absolute inset-y-1 z-[5]',
+                    marker.strength >= 0.65 ? 'w-0.5 bg-white shadow-[0_0_4px_rgba(255,255,255,0.8)]' : 'w-px bg-sunk/90',
+                  )}
+                  style={{ left: `${(marker.time_seconds / total) * 100}%` }}
                 />
               ))}
               <span
