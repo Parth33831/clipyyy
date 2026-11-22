@@ -575,3 +575,11 @@ STATUS: In progress / Ready for review / Merged
 - PR #70 CI is in progress / formatting corrections were applied; do not merge until the latest-head Ruff, backend and frontend checks pass and the diff is reviewed.
 - Remaining editor work: visual preview for independent overlay layers, drag-to-position for each overlay, per-layer font family/weight/effects, and a proper multitrack timeline with non-destructive undo/redo. Do not claim these are implemented yet.
 - Real-media Windows campaign test remains outstanding. No local media smoke test has been claimed.
+
+### 2026-11-22 follow-up: independent campaign text overlays rebased after lyric editor upgrades
+
+- Main advanced with PR #69 (individual lyric phrase transforms) and PR #71 (per-phrase lyric animation styles), so the first overlay PR #70 became dirty and was closed.
+- PR #72 is the refreshed implementation based on latest main `a3927bac00e534dc0fee1819a2350c32c3ad00a7`. It keeps all latest lyric phrase controls and adds an independent overlay track/editor, separate from lyrics.
+- PR #72 adds API and pipeline validation/persistence, an ASS overlay renderer, per-output timing/position/size/colour/animation/background controls, and create/edit/remove UI.
+- CI and review are pending. Do not merge until the latest-head Ruff, backend tests and frontend build pass. Full Windows and real-media testing remain outstanding.
+- PRs #68 and #70 are closed as stale/dirty superseded attempts; use PR #72 as the only active independent-overlay implementation.
