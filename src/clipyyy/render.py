@@ -678,7 +678,18 @@ def render_campaign_montages(
                 visual = hooked
             if lyrics:
                 overlay = edit_dir / "campaign-lyrics.ass"
-                if options.get("campaign_lyric_words"):
+                if options.get("campaign_lyric_phrases"):
+                    write_campaign_phrase_lyrics(
+                        options["campaign_lyric_phrases"],
+                        duration,
+                        overlay,
+                        width,
+                        height,
+                        offset_seconds=music_start,
+                        text_color=options.get("campaign_lyrics_color", "#FFFFFF"),
+                        highlight_color=options.get("campaign_lyrics_highlight_color", "#00D7FF"),
+                    )
+                elif options.get("campaign_lyric_words"):
                     write_campaign_word_lyrics(
                         options["campaign_lyric_words"],
                         duration,
@@ -890,6 +901,62 @@ def render_campaign_montages(
             ),
         },
     }
+
+
+def write_campaign_phrase_lyrics(
+    phrases: list[dict],
+    duration: float,
+    path: Path,
+    width: int,
+    height: int,
+    offset_seconds: float = 0.0,
+    text_color: str = "#FFFFFF",
+    highlight_color: str = "#00D7FF",
+) -> Path:
+    """Render individually timed and transformed lyric phrases as editable ASS events."""
+    from clipyyy.captions import _ass_color, _escape, _ts
+
+    primary = _ass_color(text_color)
+    accent = _ass_color(highlight_color)
+    font_size = round(height * 0.047)
+    script = [
+        "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {width}",
+        f"PlayResY: {height}", "WrapStyle: 0", "ScaledBorderAndShadow: yes", "",
+        "[V4+ Styles]",
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+        f"Style: Default,Arial,{font_size},{primary},{accent},&H00000000,&H64000000,1,0,0,0,100,100,0,0,1,4,2,2,{round(width * 0.07)},{round(width * 0.07)},{round(height * 0.16)},1",
+        "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+    ]
+    animation_tags = {
+        "dynamic": r"\fad(70,100)\fscx72\fscy72\t(0,160,\fscx100\fscy100)",
+        "zoom": r"\fad(60,90)\fscx55\fscy55\t(0,180,\fscx115\fscy115)\t(180,260,\fscx100\fscy100)",
+        "bounce": r"\fad(60,100)\fscx88\fscy125\t(0,110,\fscx108\fscy92)\t(110,220,\fscx100\fscy100)",
+        "pulse": r"\fad(60,100)\t(0,160,\fscx115\fscy115)\t(160,320,\fscx100\fscy100)",
+        "glitch": r"\fad(35,90)\fscx88\fscy110\frz-2\t(0,90,\fscx108\fscy92\frz2)\t(90,180,\fscx100\fscy100\frz0)",
+        "cinematic": r"\fad(220,220)",
+        "minimal": r"\fad(100,120)",
+        "karaoke": r"\fad(80,100)",
+    }
+    for phrase in phrases:
+        try:
+            text = str(phrase.get("text", "")).strip()
+            start = max(0.0, float(phrase.get("start_seconds", 0)) - offset_seconds)
+            end = min(duration, float(phrase.get("end_seconds", 0)) - offset_seconds)
+            x = round(width * max(5, min(95, int(phrase.get("position_x", 50)))) / 100)
+            y = round(height * max(5, min(95, int(phrase.get("position_y", 84)))) / 100)
+            scale = max(50, min(200, int(phrase.get("scale_percent", 100))))
+            rotation = max(-30, min(30, int(phrase.get("rotation_degrees", 0))))
+            animation = str(phrase.get("animation", "dynamic"))
+        except (TypeError, ValueError):
+            continue
+        if not text or end <= start or start >= duration:
+            continue
+        tags = animation_tags.get(animation, animation_tags["dynamic"])
+        color = accent if animation in {"dynamic", "zoom", "bounce", "glitch"} else primary
+        transform = f"{{\\pos({x},{y})\\fscx{scale}\\fscy{scale}\\frz{rotation}\\c{color}{tags}}}"
+        script.append(f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,{transform}{_escape(text)}")
+    path.write_text("\\n".join(script) + "\\n", encoding="utf-8")
+    return path
 
 
 def write_campaign_word_lyrics(
