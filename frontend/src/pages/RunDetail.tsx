@@ -589,10 +589,15 @@ function CampaignTimeline({
                 key={`${edit.rank}-timeline-${index}`}
                 data-shot-index={index}
                 title={`Shot ${index + 1}: ${source?.title ?? `Source ${shot.source_index + 1}`} · ${formatDuration(shot.end_seconds - shot.start_seconds)}`}
+                role="group"
                 aria-label={`Shot ${index + 1}; drag to reorder or drag either edge to trim`}
                 draggable
                 onClick={() => document.getElementById(`campaign-shot-${edit.rank}-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
                 onDragStart={(event) => {
+                  if ((event.target as HTMLElement).closest('button')) {
+                    event.preventDefault()
+                    return
+                  }
                   event.dataTransfer.effectAllowed = 'move'
                   event.dataTransfer.setData('text/plain', String(index))
                 }}
