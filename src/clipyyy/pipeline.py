@@ -338,9 +338,11 @@ def stage_select(ctx: Context) -> dict:
         if cue_words and music_analysis:
             lyric_offset = float((music_analysis or {}).get("best_start_seconds") or 0.0)
             _, lyric_cues = _campaign_lyric_draft(cue_words, lyric_offset, target)
-        elif music_path and not creator_edited_lyrics and not lyric_options[
-            "campaign_lyric_transcription_attempted"
-        ]:
+        elif (
+            music_path
+            and not creator_edited_lyrics
+            and not lyric_options["campaign_lyric_transcription_attempted"]
+        ):
             try:
                 from clipyyy.transcribe import transcribe_music
 
@@ -504,8 +506,10 @@ def stage_render(ctx: Context) -> dict:
         has_lyrics = bool(render_options.get("campaign_lyrics", "").strip())
         has_word_timings = bool(render_options.get("campaign_lyric_words"))
         creator_edited = render_options.get("campaign_lyrics_source") == "Creator-edited"
-        if music_path and not render_options.get("campaign_lyric_transcription_attempted") and (
-            not has_lyrics or (not has_word_timings and not creator_edited)
+        if (
+            music_path
+            and not render_options.get("campaign_lyric_transcription_attempted")
+            and (not has_lyrics or (not has_word_timings and not creator_edited))
         ):
             # Draft lyric captions locally from the supplied music. Singing recognition is
             # imperfect, so the result is explicitly labelled as an editable Whisper draft.
