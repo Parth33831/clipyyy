@@ -594,3 +594,5 @@ STATUS: In progress / Ready for review / Merged
 
 - PR #75 passed latest-head CI: Ruff lint/format, fast backend **136 passed, 41 skipped**, and frontend production build. Full-backend, Windows and macOS jobs were skipped by workflow configuration.
 - Reviewed and squash-merged PR #75 into main as `49dadf85e0eb2e711eaf5a6da03dff0edfa9ee10`. Independent timed text overlays are now on main. Real Windows/media smoke test remains outstanding.
+
+- 2026-11-22: PR #76 stacks on PR #72 and adds a visual 9:16 text-overlay position preview using the selected output poster, with pointer dragging synchronized to X/Y controls. CI is pending. Merge #72 first; review and merge #76 only after its checks pass.
