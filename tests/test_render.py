@@ -642,3 +642,29 @@ def test_campaign_subject_shot_filter_uses_tracked_crop_path():
     assert result.startswith("crop=")
     assert "scale=1080:1920" in result
     assert "setsar=1" in result
+
+
+def test_campaign_subject_shot_filter_uses_tracked_crop_path():
+    from clipyyy.render import campaign_subject_shot_filter
+
+    boxes = [{"t": 0.0, "x": 900, "y": 100, "width": 300, "height": 500}]
+    result = campaign_subject_shot_filter(1080, 1920, 1920, 1080, boxes, camera_motion=False)
+
+    assert result.startswith("crop=")
+    assert "scale=1080:1920" in result
+    assert "setsar=1" in result
+
+
+def test_campaign_subject_shot_filter_keeps_optional_camera_motion():
+    from clipyyy.render import campaign_subject_shot_filter
+
+    result = campaign_subject_shot_filter(
+        1080,
+        1920,
+        1920,
+        1080,
+        [{"t": 0.0, "x": 900, "y": 100, "width": 300, "height": 500}],
+    )
+
+    assert "scale=1123:1997" in result
+    assert "sin(t*0.28" in result
