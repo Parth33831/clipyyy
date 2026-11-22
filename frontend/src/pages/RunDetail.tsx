@@ -1169,6 +1169,7 @@ function CampaignTimeline({
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const pendingSeekRef = useRef<number | null>(null)
+  const seekToTimelineRef = useRef<(seconds: number) => void>(() => undefined)
   const advancingShotRef = useRef(false)
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [transitionPhase, setTransitionPhase] = useState<'idle' | 'out' | 'in'>('idle')
@@ -1273,6 +1274,7 @@ function CampaignTimeline({
           }
           if (audioRef.current) audioRef.current.currentTime = musicStart + boundedTime
         }
+        seekToTimelineRef.current = seekToTimeline
         const selectShot = (index: number) => {
           if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current)
           transitionTimerRef.current = null
@@ -1633,7 +1635,35 @@ function CampaignTimeline({
             </span>
           </div>
           {waveformPeaks.length > 0 ? (
-            <div className="relative flex h-14 min-w-[680px] items-center gap-px overflow-hidden rounded-md bg-surface px-2" role="img" aria-label="Soundtrack audio waveform aligned to the campaign timeline">
+            <div
+              className="relative flex h-14 min-w-[680px] touch-none cursor-crosshair items-center gap-px overflow-hidden rounded-md bg-surface px-2 outline-none focus-visible:ring-2 focus-visible:ring-ink"
+              role="slider"
+              tabIndex={0}
+              aria-label="Soundtrack waveform timeline scrubber"
+              aria-valuemin={0}
+              aria-valuemax={total}
+              aria-valuenow={playheadSeconds}
+              aria-valuetext={formatDuration(playheadSeconds)}
+              onPointerDown={(event) => {
+                event.currentTarget.setPointerCapture(event.pointerId)
+                const bounds = event.currentTarget.getBoundingClientRect()
+                seekToTimelineRef.current(((event.clientX - bounds.left) / bounds.width) * total)
+              }}
+              onPointerMove={(event) => {
+                if (event.buttons !== 1) return
+                const bounds = event.currentTarget.getBoundingClientRect()
+                seekToTimelineRef.current(((event.clientX - bounds.left) / bounds.width) * total)
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+                  event.preventDefault()
+                  seekToTimelineRef.current(playheadSeconds + (event.key === 'ArrowRight' ? 0.5 : -0.5))
+                } else if (event.key === 'Home' || event.key === 'End') {
+                  event.preventDefault()
+                  seekToTimelineRef.current(event.key === 'Home' ? 0 : total)
+                }
+              }}
+            >
               {waveformPeaks.map((peak, index) => (
                 <span
                   key={index}
