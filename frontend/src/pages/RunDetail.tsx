@@ -983,6 +983,7 @@ function CampaignTimeline({
   const [previewShotIndex, setPreviewShotIndex] = useState(0)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const advancingShotRef = useRef(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [playheadSeconds, setPlayheadSeconds] = useState(0)
   const [activeOverlayTrim, setActiveOverlayTrim] = useState<{
@@ -1072,6 +1073,7 @@ function CampaignTimeline({
                 preload="metadata"
                 src={"/api/runs/" + runId + "/campaign-source?source_index=" + preview.shot.source_index}
                 onLoadedMetadata={(event) => {
+                  advancingShotRef.current = false
                   event.currentTarget.currentTime = preview.shot.start_seconds
                   if (isPlaying) {
                     const audio = audioRef.current
@@ -1091,7 +1093,8 @@ function CampaignTimeline({
                     const target = musicStart + nextPlayhead
                     if (Math.abs(audio.currentTime - target) > 0.45) audio.currentTime = target
                   }
-                  if (event.currentTarget.currentTime >= preview.shot.end_seconds - 0.04) {
+                  if (event.currentTarget.currentTime >= preview.shot.end_seconds - 0.04 && !advancingShotRef.current) {
+                    advancingShotRef.current = true
                     if (preview.index < shots.length - 1) {
                       setPreviewShotIndex(preview.index + 1)
                     } else {
@@ -1110,7 +1113,7 @@ function CampaignTimeline({
                 className="max-h-64 w-full bg-black object-contain"
               />
               {activeOverlay && (
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-4"
+                <div className="pointer-events-none absolute flex items-center justify-center px-4"
                   style={{ left: activeOverlay.position_x + '%', top: activeOverlay.position_y + '%', transform: 'translate(-50%, -50%)', width: '90%' }}>
                   <span className="text-center font-extrabold leading-tight"
                     style={{
@@ -1152,7 +1155,7 @@ function CampaignTimeline({
         <audio ref={audioRef} preload="metadata" src={"/api/runs/" + runId + "/campaign-music"} className="hidden" />
       )}
       <div className="overflow-x-auto">
-        <div data-campaign-timeline-track className="flex min-w-[680px] gap-1 rounded-md bg-surface p-2">
+        <div data-campaign-timeline-track className="relative flex min-w-[680px] gap-1 rounded-md bg-surface p-2">
           {shots.map(({ shot, index, duration }) => {
             const source = sourceByIndex.get(shot.source_index)
             return (
@@ -1274,6 +1277,7 @@ function CampaignTimeline({
               </button>
             )
           })}
+          <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 z-20 w-0.5 bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.9)]" style={{ left: 'calc(' + Math.max(0, Math.min(100, (playheadSeconds / total) * 100)) + '%)' }} />
         </div>
       </div>
       <div className="label flex justify-between px-1 text-faint">
