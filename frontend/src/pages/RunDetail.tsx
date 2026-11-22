@@ -458,6 +458,7 @@ function CampaignStoryboardEditor({
             musicAnalysis={musicAnalysis}
             transitionStyle={transitionStyle}
             onMoveShot={(fromIndex, toIndex) => moveShotTo(editIndex, fromIndex, toIndex)}
+            onUpdateShot={(shotIndex, patch) => updateShot(editIndex, shotIndex, patch)}
           />
           <ol className="flex flex-col gap-2">
             {edit.shots.map((shot, shotIndex) => {
@@ -530,6 +531,7 @@ function CampaignTimeline({
   musicAnalysis,
   transitionStyle,
   onMoveShot,
+  onUpdateShot,
 }: {
   edit: CampaignEdit
   runId: string
@@ -537,7 +539,17 @@ function CampaignTimeline({
   musicAnalysis: CampaignMusicAnalysis | null
   transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
   onMoveShot: (fromIndex: number, toIndex: number) => void
+  onUpdateShot: (shotIndex: number, patch: Partial<CampaignShot>) => void
 }) {
+  const [activeTrim, setActiveTrim] = useState<{
+    pointerId: number
+    shotIndex: number
+    side: 'start' | 'end'
+    startX: number
+    initialStart: number
+    initialEnd: number
+    trackWidth: number
+  } | null>(null)
   const sourceByIndex = new Map(sources.map((source) => [source.index, source]))
   const hasBeats = (musicAnalysis?.detected_beats ?? 0) > 0
   const useFades = transitionStyle === 'cinematic' || transitionStyle === 'dynamic' || (transitionStyle === 'auto' && !hasBeats)
@@ -556,7 +568,7 @@ function CampaignTimeline({
         <span className="font-mono text-[11px] text-faint">{formatDuration(total)} estimated</span>
       </div>
       <div className="overflow-x-auto">
-        <div className="flex min-w-[680px] gap-1 rounded-md bg-surface p-2">
+        <div data-campaign-timeline-track className="flex min-w-[680px] gap-1 rounded-md bg-surface p-2">
           {shots.map(({ shot, index, duration }) => {
             const source = sourceByIndex.get(shot.source_index)
             return (
@@ -580,9 +592,81 @@ function CampaignTimeline({
                   const fromIndex = Number(event.dataTransfer.getData('text/plain'))
                   if (Number.isInteger(fromIndex)) onMoveShot(fromIndex, index)
                 }}
-                className="group min-w-[104px] flex-1 cursor-grab overflow-hidden rounded-md border border-line bg-paper text-left transition-colors hover:border-ink active:cursor-grabbing"
+                className="group relative min-w-[104px] flex-1 cursor-grab overflow-hidden rounded-md border border-line bg-paper text-left transition-colors hover:border-ink active:cursor-grabbing"
                 style={{ flex: `${duration} 1 0%` }}
               >
+                {(['start', 'end'] as const).map((side) => {
+                  const sourceDuration = source?.duration_seconds ?? Number.POSITIVE_INFINITY
+                  const value = side === 'start' ? shot.start_seconds : shot.end_seconds
+                  const min = side === 'start' ? Math.max(0, shot.end_seconds - 5) : shot.start_seconds + 1.5
+                  const max = side === 'start' ? shot.end_seconds - 1.5 : Math.min(sourceDuration, shot.start_seconds + 5)
+                  const applyTrim = (nextValue: number) => {
+                    const bounded = Math.max(min, Math.min(max, nextValue))
+                    onUpdateShot(index, side === 'start'
+                      ? { start_seconds: Math.round(bounded * 1000) / 1000 }
+                      : { end_seconds: Math.round(bounded * 1000) / 1000 })
+                  }
+                  return (
+                    <span
+                      key={side}
+                      role="slider"
+                      tabIndex={0}
+                      aria-label={`Shot ${index + 1} ${side === 'start' ? 'in' : 'out'} point`}
+                      aria-valuemin={min}
+                      aria-valuemax={max}
+                      aria-valuenow={value}
+                      aria-valuetext={formatDuration(value)}
+                      title={`Drag to adjust shot ${side === 'start' ? 'start' : 'end'} · use arrow keys for fine control`}
+                      onPointerDown={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        const track = event.currentTarget.closest('[data-campaign-timeline-track]')
+                        const trackWidth = track?.getBoundingClientRect().width ?? 0
+                        if (trackWidth <= 0) return
+                        event.currentTarget.setPointerCapture(event.pointerId)
+                        setActiveTrim({
+                          pointerId: event.pointerId,
+                          shotIndex: index,
+                          side,
+                          startX: event.clientX,
+                          initialStart: shot.start_seconds,
+                          initialEnd: shot.end_seconds,
+                          trackWidth,
+                        })
+                      }}
+                      onPointerMove={(event) => {
+                        if (!activeTrim || activeTrim.pointerId !== event.pointerId || activeTrim.shotIndex !== index || activeTrim.side !== side) return
+                        const delta = ((event.clientX - activeTrim.startX) / activeTrim.trackWidth) * total
+                        const start = activeTrim.initialStart
+                        const end = activeTrim.initialEnd
+                        const next = side === 'start'
+                          ? Math.max(0, Math.min(end - 1.5, Math.max(end - 5, start + delta)))
+                          : Math.max(start + 1.5, Math.min(Math.min(sourceDuration, start + 5), end + delta))
+                        onUpdateShot(index, side === 'start'
+                          ? { start_seconds: Math.round(next * 1000) / 1000 }
+                          : { end_seconds: Math.round(next * 1000) / 1000 })
+                      }}
+                      onPointerUp={(event) => {
+                        if (activeTrim?.pointerId !== event.pointerId) return
+                        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+                        setActiveTrim(null)
+                      }}
+                      onPointerCancel={() => setActiveTrim(null)}
+                      onDragStart={(event) => event.preventDefault()}
+                      onClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+                        event.preventDefault()
+                        applyTrim(value + (event.key === 'ArrowRight' ? 0.1 : -0.1))
+                      }}
+                      className={cn(
+                        'absolute inset-y-0 z-10 w-3 touch-none border border-paper/80 bg-white/80 shadow-sm outline-none hover:bg-acid focus-visible:bg-acid',
+                        side === 'start' ? 'left-0 cursor-ew-resize rounded-l-md' : 'right-0 cursor-ew-resize rounded-r-md',
+                        activeTrim?.shotIndex === index && activeTrim.side === side ? 'bg-acid' : '',
+                      )}
+                    />
+                  )
+                })}
                 <img
                   src={`/api/runs/${runId}/campaign-frame?source_index=${shot.source_index}&timestamp=${shot.start_seconds.toFixed(1)}`}
                   alt=""
