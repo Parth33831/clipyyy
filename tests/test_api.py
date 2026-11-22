@@ -417,9 +417,6 @@ def test_campaign_run_detail_exposes_safe_storyboard_sources(client, monkeypatch
                 "campaign_plan": {"campaign_name": "Summer"},
                 "campaign_edits": [edit],
                 "campaign_original_edits": [edit],
-                "campaign_lyric_cues": [
-                    {"text": "We rise together", "start_seconds": 1.2, "end_seconds": 2.8}
-                ],
             }
         ),
         encoding="utf-8",
@@ -429,10 +426,39 @@ def test_campaign_run_detail_exposes_safe_storyboard_sources(client, monkeypatch
 
     assert detail["campaign_edits"] == [edit]
     assert detail["campaign_original_edits"] == [edit]
-    assert detail["campaign_lyric_cues"] == [
-        {"text": "We rise together", "start_seconds": 1.2, "end_seconds": 2.8}
-    ]
     assert detail["campaign_sources"] == [
         {"index": 0, "title": "Summer campaign footage", "duration_seconds": 40.0}
     ]
     assert "video_path" not in detail["campaign_sources"][0]
+
+
+def test_campaign_lyrics_update_persists_behind_subject_option(client, monkeypatch):
+    run = client.post(
+        "/api/runs",
+        json={
+            "sources": ["https://example.com/campaign.mp4"],
+            "options": {"campaign_mode": True, "campaign_brief": "Summer campaign"},
+        },
+    ).json()[0]
+    db.update_run(run["id"], status="completed")
+    monkeypatch.setattr(
+        pipeline,
+        "rerender_campaign",
+        lambda run_id: {"renders": [{"status": "ready"}]},
+    )
+
+    response = client.put(
+        f"/api/runs/{run['id']}/campaign-lyrics",
+        json={
+            "lyrics": "Stay with me",
+            "lyrics_style": "dynamic",
+            "lyrics_color": "#FFFFFF",
+            "highlight_color": "#FF3B4F",
+            "words_on_screen": 2,
+            "lyrics_behind_subject": True,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["rendered"] is True
+    assert db.get_run(run["id"])["options"]["campaign_lyrics_behind_subject"] is True

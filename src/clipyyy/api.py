@@ -49,6 +49,7 @@ class CampaignLyricsUpdate(BaseModel):
     lyrics_color: str = Field("#FFFFFF", pattern=r"^#[0-9A-Fa-f]{6}$")
     highlight_color: str = Field("#00D7FF", pattern=r"^#[0-9A-Fa-f]{6}$")
     words_on_screen: Literal[1, 2, 3] = 3
+    lyrics_behind_subject: bool = False
     hook_text: str = Field("", max_length=160)
     include_hook: bool = False
 
@@ -180,6 +181,7 @@ def create_app(start_worker: bool = True) -> FastAPI:
             "campaign_lyrics_color": body.lyrics_color.upper(),
             "campaign_lyrics_highlight_color": body.highlight_color.upper(),
             "campaign_lyrics_words_on_screen": body.words_on_screen,
+            "campaign_lyrics_behind_subject": body.lyrics_behind_subject,
             "campaign_hook_text": body.hook_text.strip(),
             "include_campaign_hook": body.include_hook,
         }
@@ -483,13 +485,11 @@ def run_detail(run_id: str) -> dict:
     campaign_original_edits = []
     campaign_sources = []
     campaign_quality_checks = None
-    campaign_lyric_cues = []
     if select_file.exists():
         selection_data = json.loads(select_file.read_text(encoding="utf-8"))
         campaign_plan = selection_data.get("campaign_plan")
         campaign_edits = selection_data.get("campaign_edits", [])
         campaign_original_edits = selection_data.get("campaign_original_edits") or campaign_edits
-        campaign_lyric_cues = selection_data.get("campaign_lyric_cues") or []
     if source_file.exists() and run["options"].get("campaign_mode"):
         source_data = json.loads(source_file.read_text(encoding="utf-8"))
         source_items = selection_data.get("campaign_sources") or source_data.get("sources") or [source_data]
@@ -521,7 +521,6 @@ def run_detail(run_id: str) -> dict:
         "campaign_original_edits": campaign_original_edits,
         "campaign_sources": campaign_sources,
         "campaign_quality_checks": campaign_quality_checks,
-        "campaign_lyric_cues": campaign_lyric_cues,
         "stages": stages,
         "clips": [
             {**_clip_public(c), "filler_words_removed": filler_counts.get(int(c["rank"]), 0)}
