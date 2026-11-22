@@ -549,6 +549,7 @@ function CampaignTimeline({
     initialStart: number
     initialEnd: number
     trackWidth: number
+    initialTotal: number
   } | null>(null)
   const sourceByIndex = new Map(sources.map((source) => [source.index, source]))
   const hasBeats = (musicAnalysis?.detected_beats ?? 0) > 0
@@ -589,14 +590,16 @@ function CampaignTimeline({
                 }}
                 onDrop={(event) => {
                   event.preventDefault()
-                  const fromIndex = Number(event.dataTransfer.getData('text/plain'))
+                  const draggedIndex = event.dataTransfer.getData('text/plain')
+                  if (!draggedIndex.trim()) return
+                  const fromIndex = Number(draggedIndex)
                   if (Number.isInteger(fromIndex)) onMoveShot(fromIndex, index)
                 }}
                 className="group relative min-w-[104px] flex-1 cursor-grab overflow-hidden rounded-md border border-line bg-paper text-left transition-colors hover:border-ink active:cursor-grabbing"
                 style={{ flex: `${duration} 1 0%` }}
               >
                 {(['start', 'end'] as const).map((side) => {
-                  const sourceDuration = source?.duration_seconds ?? Number.POSITIVE_INFINITY
+                  const sourceDuration = source?.duration_seconds ?? shot.end_seconds
                   const value = side === 'start' ? shot.start_seconds : shot.end_seconds
                   const min = side === 'start' ? Math.max(0, shot.end_seconds - 5) : shot.start_seconds + 1.5
                   const max = side === 'start' ? shot.end_seconds - 1.5 : Math.min(sourceDuration, shot.start_seconds + 5)
@@ -632,11 +635,12 @@ function CampaignTimeline({
                           initialStart: shot.start_seconds,
                           initialEnd: shot.end_seconds,
                           trackWidth,
+                          initialTotal: total,
                         })
                       }}
                       onPointerMove={(event) => {
                         if (!activeTrim || activeTrim.pointerId !== event.pointerId || activeTrim.shotIndex !== index || activeTrim.side !== side) return
-                        const delta = ((event.clientX - activeTrim.startX) / activeTrim.trackWidth) * total
+                        const delta = ((event.clientX - activeTrim.startX) / activeTrim.trackWidth) * activeTrim.initialTotal
                         const start = activeTrim.initialStart
                         const end = activeTrim.initialEnd
                         const next = side === 'start'
