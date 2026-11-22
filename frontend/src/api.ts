@@ -22,6 +22,9 @@ export interface ClipOptions {
   campaign_brief: string
   campaign_url: string
   campaign_music_path: string | null
+  campaign_music_volume?: number
+  campaign_music_fade_in_seconds?: number
+  campaign_music_fade_out_seconds?: number
   campaign_auto_broll: boolean
   campaign_camera_motion: boolean
   campaign_transition_style: 'auto' | 'cut' | 'cinematic' | 'dynamic'
@@ -232,6 +235,11 @@ export const api = {
     form.append('file', file)
     return request<{ name: string; attached: boolean }>(`/api/runs/${id}/campaign-music`, { method: 'POST', body: form })
   },
+  saveCampaignAudio: (id: string, musicVolume: number, fadeInSeconds: number, fadeOutSeconds: number) =>
+    request<{ saved: boolean; rendered: boolean; outputs: number }>(`/api/runs/${id}/campaign-audio`, {
+      method: 'PUT',
+      body: JSON.stringify({ music_volume: musicVolume, fade_in_seconds: fadeInSeconds, fade_out_seconds: fadeOutSeconds }),
+    }),
   saveCampaignLyrics: (
     id: string,
     lyrics: string,
