@@ -583,3 +583,11 @@ STATUS: In progress / Ready for review / Merged
 - PR #72 adds API and pipeline validation/persistence, an ASS overlay renderer, per-output timing/position/size/colour/animation/background controls, and create/edit/remove UI.
 - CI and review are pending. Do not merge until the latest-head Ruff, backend tests and frontend build pass. Full Windows and real-media testing remain outstanding.
 - PRs #68 and #70 are closed as stale/dirty superseded attempts; use PR #72 as the only active independent-overlay implementation.
+
+### 2026-11-22 follow-up: text overlay PR refreshed after per-phrase timing update
+
+- Main advanced with independent per-phrase lyric timing controls after PR #72 was created, so PR #72 was closed as a stale-base attempt.
+- PR #75 is the refreshed independent campaign text-overlay implementation, based on latest main `c9c628c1401a11b26c28b94c2ad7442d81548773`.
+- It preserves the latest per-phrase lyric timing, position, transform and animation controls while keeping separate creator text overlays independent.
+- Latest validation on the preceding overlay head passed Ruff and frontend build; fast backend reached **136 passed, 41 skipped** before the final timing-normalization test fix. PR #75's latest-head CI is pending.
+- PRs #68, #70 and #72 are closed stale attempts; PR #75 is the only active independent text-overlay implementation. Do not merge until latest-head CI passes.
