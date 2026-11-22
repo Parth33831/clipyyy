@@ -981,13 +981,21 @@ def render_campaign_montages(
                     "height": out_h,
                     "duration_seconds": round(final_duration, 2),
                     "audio": (
-                        "user-provided campaign track included; select the official campaign sound "
-                        "separately in TikTok if required"
+                        "campaign music mixed with original footage audio; select the official campaign "
+                        "sound separately in TikTok if required"
+                        if music_path and source_audio and official_sound_required
+                        else "campaign music mixed with original footage audio"
+                        if music_path and source_audio
+                        else "campaign music included; select the official campaign sound separately in TikTok"
                         if music_path and official_sound_required
-                        else "user-provided campaign track included"
+                        else "campaign music included"
                         if music_path
+                        else "original footage audio included"
+                        if source_audio
                         else "silent; add official campaign sound on the publishing platform if required"
                     ),
+                    "source_audio_included": bool(source_audio),
+                    "source_audio_volume": source_audio_volume,
                     "lyrics_overlay": bool(lyrics),
                     "lyrics_behind_subject": lyrics_behind_subject_applied,
                     "beat_synced": bool(beat_times),
@@ -1022,6 +1030,10 @@ def render_campaign_montages(
             "camera_motion": bool(options.get("campaign_camera_motion", True)),
             "transition_style": transition_style,
             "music_track_added": bool(music_path),
+            "source_audio_included": all(item.get("source_audio_included", False) for item in renders),
+            "source_audio_volume": round(
+                max(0.0, min(2.0, float(options.get("campaign_source_audio_volume", 1.0)))), 2
+            ),
             "audio_normalized": bool(music_path and options.get("normalize_audio", False)),
             "official_sound_required": official_sound_required,
             "beat_sync": (
