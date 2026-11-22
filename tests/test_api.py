@@ -472,6 +472,7 @@ def test_campaign_lyrics_update_persists_behind_subject_option(client, monkeypat
     assert saved["campaign_lyrics_scale_percent"] == 135
     assert saved["campaign_lyrics_rotation_degrees"] == -8
 
+
 def test_campaign_text_overlays_are_validated_saved_and_rerendered(client, monkeypatch):
     run = client.post(
         "/api/runs",
