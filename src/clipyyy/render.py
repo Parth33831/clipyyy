@@ -518,6 +518,8 @@ def _render_campaign_source_audio(
     target_duration: float,
     volume: float,
     transition_seconds: float = 0.0,
+    music_analysis: dict | None = None,
+    lyric_cues: list[dict] | None = None,
 ) -> Path:
     """Rebuild source-footage audio in storyboard order, matching montage transitions."""
     if not shots:
@@ -533,6 +535,21 @@ def _render_campaign_source_audio(
         start = max(0.0, float(shot["start_seconds"]))
         end = min(float(sources[source_index]["duration_seconds"]), float(shot["end_seconds"]))
         shot_duration = end - start
+        if music_analysis and shot_duration >= 1.5:
+            elapsed = sum(durations) - max(0, len(durations) - 1) * transition_seconds
+            overlap = transition_seconds if durations else 0.0
+            aligned_duration = select_music_cut_duration(
+                elapsed - overlap,
+                shot_duration,
+                music_analysis,
+                lyric_cues,
+            )
+            if aligned_duration is not None:
+                end = min(
+                    float(sources[source_index]["duration_seconds"]),
+                    start + aligned_duration,
+                )
+                shot_duration = end - start
         if shot_duration < 1.0:
             continue
         durations.append(shot_duration)
@@ -569,9 +586,14 @@ def _render_campaign_source_audio(
         joined = "".join(f"[a{index}]" for index in range(len(durations)))
         filters.append(f"{joined}concat=n={len(durations)}:v=0:a=1[audio]")
         previous = "[audio]"
+    assembled_duration = sum(durations) - (
+        transition_seconds * (len(durations) - 1) if transition_seconds > 0 else 0.0
+    )
+    speed = assembled_duration / target_duration if target_duration > 0 else 1.0
+    timing_filter = f"atempo={speed:.5f}," if 0.5 <= speed <= 2.0 and abs(speed - 1.0) > 0.001 else ""
     filters.append(
-        f"{previous}volume={max(0.0, min(2.0, float(volume))):.3f},apad,"
-        f"atrim=duration={target_duration:.3f}[aout]"
+        f"{previous}volume={max(0.0, min(2.0, float(volume))):.3f},"
+        f"{timing_filter}apad,atrim=duration={target_duration:.3f}[aout]"
     )
     run_ffmpeg(
         [
@@ -891,6 +913,8 @@ def render_campaign_montages(
                     duration,
                     source_audio_volume,
                     transition_seconds if use_transitions else 0.0,
+                    music_analysis,
+                    selection.get("campaign_lyric_cues"),
                 )
             if music_path:
                 music_input = []
