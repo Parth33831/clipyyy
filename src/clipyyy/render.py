@@ -632,7 +632,9 @@ def _render_campaign_source_audio(
     return output
 
 
-def _campaign_music_start_seconds(music_analysis: dict | None, options: dict, target_duration: float) -> float:
+def _campaign_music_start_seconds(
+    music_analysis: dict | None, options: dict, target_duration: float
+) -> float:
     """Use a manual soundtrack offset when set; otherwise keep the AI-selected section."""
     if not music_analysis:
         return max(0.0, float(options.get("campaign_music_start_seconds", 0.0)))
