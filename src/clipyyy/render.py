@@ -1165,6 +1165,11 @@ def write_campaign_lyrics(
     position_y = max(5, min(95, int(position_y)))
     scale_percent = max(50, min(200, int(scale_percent)))
     rotation_degrees = max(-30, min(30, int(rotation_degrees)))
+    phrase_overrides = {
+        int(item.get("phrase_index", -1)): item
+        for item in (phrase_edits or [])
+        if isinstance(item, dict) and 0 <= int(item.get("phrase_index", -1)) < 200
+    }
 
     font_size = round(height * 0.047)
     script = [
@@ -1202,11 +1207,12 @@ def write_campaign_lyrics(
     has_lrc_timestamps = any(re.match(r"^\[\d{1,2}:\d{2}(?:\.\d{1,2})?\]", line) for line in lines)
     if timed_lines:
         for index, (start, line) in enumerate(timed_lines):
+            phrase_style = phrase_overrides.get(index, {}).get("animation_style", style)
             end = timed_lines[index + 1][0] if index + 1 < len(timed_lines) else duration
             start = max(0.0, min(start, duration))
             end = min(duration, max(start + 0.2, min(end, duration)))
             dialogue = f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,"
-            if style == "karaoke":
+            if phrase_style == "karaoke":
                 words = line.split()
                 weights = [max(1, len(word)) for word in words]
                 total_weight = sum(weights) or 1
@@ -1233,19 +1239,20 @@ def write_campaign_lyrics(
                     "{\\fad(90,120)\\fscx82\\fscy82\\t(0,150,\\fscx100\\fscy100)\\c&H66E6FF&\\bord4\\shad2}",
                     "{\\fad(90,120)\\fscx76\\fscy76\\t(0,190,\\fscx100\\fscy100)\\c&H99CCFF&\\bord4\\shad2}",
                 )[index % 3]
-                if style == "dynamic"
+                if phrase_style == "dynamic"
                 else "{\\fad(220,220)\\c&HFFFFFF&\\bord2\\shad3\\fsp1}"
-                if style == "cinematic"
+                if phrase_style == "cinematic"
                 else "{\\fad(120,140)\\c&HFFFFFF&\\bord2\\shad1}"
             )
             script.append(dialogue + treatment + _escape(line))
     elif not has_lrc_timestamps:
         interval = duration / max(1, len(lines))
         for index, line in enumerate(lines):
+            phrase_style = phrase_overrides.get(index, {}).get("animation_style", style)
             start = index * interval
             end = duration if index == len(lines) - 1 else (index + 1) * interval
             dialogue = f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,"
-            if style == "karaoke":
+            if phrase_style == "karaoke":
                 words = line.split()
                 weights = [max(1, len(word)) for word in words]
                 total_weight = sum(weights) or 1
@@ -1265,9 +1272,9 @@ def write_campaign_lyrics(
             else:
                 treatment = (
                     "{\\fad(90,120)\\fscx75\\fscy75\\t(0,170,\\fscx100\\fscy100)\\c&H00D7FF&\\bord4\\shad2}"
-                    if style == "dynamic"
+                    if phrase_style == "dynamic"
                     else "{\\fad(220,220)\\c&HFFFFFF&\\bord2\\shad3\\fsp1}"
-                    if style == "cinematic"
+                    if phrase_style == "cinematic"
                     else "{\\fad(120,140)\\c&HFFFFFF&\\bord2\\shad1}"
                 )
                 caption_text = treatment + _escape(line)
@@ -1285,11 +1292,6 @@ def write_campaign_lyrics(
             line = line.replace(original, chosen)
         script[index] = line
     transformed_script = []
-    phrase_overrides = {
-        int(item.get("phrase_index", -1)): item
-        for item in (phrase_edits or [])
-        if isinstance(item, dict) and 0 <= int(item.get("phrase_index", -1)) < 200
-    }
     dialogue_index = 0
     for line in script:
         if line.startswith("Dialogue:"):

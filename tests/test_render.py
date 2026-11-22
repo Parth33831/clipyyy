@@ -318,8 +318,15 @@ def test_campaign_lyrics_apply_individual_phrase_transforms(tmp_path):
         position_x=50,
         position_y=84,
         scale_percent=100,
+        style="dynamic",
         phrase_edits=[
-            {"phrase_index": 0, "position_x": 25, "position_y": 40, "scale_percent": 150},
+            {
+                "phrase_index": 0,
+                "position_x": 25,
+                "position_y": 40,
+                "scale_percent": 150,
+                "animation_style": "minimal",
+            },
         ],
     )
     dialogue = [
@@ -327,8 +334,10 @@ def test_campaign_lyrics_apply_individual_phrase_transforms(tmp_path):
     ]
     assert "\\pos(270,768)" in dialogue[0]
     assert "\\fscx150\\fscy150" in dialogue[0]
+    assert "\\t(0,170" not in dialogue[0]
     assert "\\pos(540,1613)" in dialogue[1]
     assert "\\fscx100\\fscy100" in dialogue[1]
+    assert "\\t(0,150" in dialogue[1]
 
 
 def test_campaign_hook_overlay_is_written(tmp_path):

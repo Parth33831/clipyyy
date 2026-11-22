@@ -365,6 +365,20 @@ export function RunDetailPage() {
                   )
                 })}
               </div>
+              <label className="flex flex-col gap-2">
+                <span className="text-xs text-muted">Animation style</span>
+                <select
+                  value={selectedPhraseEdit?.animation_style ?? 'global'}
+                  onChange={(event) => updateSelectedPhrase({ animation_style: event.target.value === 'global' ? undefined : event.target.value as CampaignLyricPhraseEdit['animation_style'] })}
+                  className="rounded-lg border border-line bg-panel p-2 text-ink"
+                >
+                  <option value="global">Use global style</option>
+                  <option value="dynamic">Dynamic pop</option>
+                  <option value="cinematic">Cinematic fade</option>
+                  <option value="minimal">Minimal fade</option>
+                  <option value="karaoke">Karaoke highlight</option>
+                </select>
+              </label>
               <div className="flex justify-end">
                 <button type="button" className="text-xs underline text-muted"
                   onClick={() => setPhraseEdits((current) => current.filter((edit) => edit.phrase_index !== selectedLyricPhrase))}>

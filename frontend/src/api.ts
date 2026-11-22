@@ -121,6 +121,7 @@ export interface CampaignLyricPhraseEdit {
   position_y?: number
   scale_percent?: number
   rotation_degrees?: number
+  animation_style?: "dynamic" | "cinematic" | "minimal" | "karaoke"
 }
 
 export interface CampaignEdit {
