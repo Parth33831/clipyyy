@@ -676,11 +676,10 @@ def test_lyric_scene_matcher_does_not_force_unmatched_or_text_only_scenes():
         ],
     )
 
-    assert result == [
-        {
-            "cue_text": "A brighter tomorrow",
-            "cue_start_seconds": 0.0,
-            "cue_end_seconds": 1.0,
-            "matches": [],
-        }
-    ]
+    expected = {
+        "cue_text": "A brighter tomorrow",
+        "cue_start_seconds": 0.0,
+        "cue_end_seconds": 1.0,
+        "matches": [],
+    }
+    assert result == [expected]
