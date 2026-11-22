@@ -534,6 +534,51 @@ def create_app(start_worker: bool = True) -> FastAPI:
             headers={"Cache-Control": "private, max-age=3600"},
         )
 
+    @app.get("/api/runs/{run_id}/campaign-mask")
+    def campaign_subject_mask(run_id: str, source_index: int, timestamp: float) -> FileResponse:
+        """Return a cached alpha mask for live lyrics-behind-subject preview."""
+        run = _run_or_404(run_id)
+        if not run["options"].get("campaign_mode"):
+            raise HTTPException(400, "Subject masks are only available for campaign runs.")
+        if source_index < 0 or not math.isfinite(timestamp) or timestamp < 0:
+            raise HTTPException(400, "Choose a valid source and non-negative timestamp.")
+
+        work_dir = pipeline.run_dir(run_id) / "work"
+        source_file = work_dir / "download.json"
+        if not source_file.is_file():
+            raise HTTPException(404, "Campaign source footage is not available yet.")
+        source_data = json.loads(source_file.read_text(encoding="utf-8"))
+        select_file = work_dir / "select.json"
+        selection_data = json.loads(select_file.read_text(encoding="utf-8")) if select_file.is_file() else {}
+        source_items = selection_data.get("campaign_sources") or source_data.get("sources") or [source_data]
+        if source_index >= len(source_items):
+            raise HTTPException(404, "Campaign source not found.")
+        source = source_items[source_index]
+        video_path = Path(str(source.get("video_path") or ""))
+        duration = float(source.get("duration_seconds") or 0)
+        if not video_path.is_file():
+            raise HTTPException(404, "Campaign source video is missing.")
+        if duration <= 0 or timestamp >= duration:
+            raise HTTPException(400, "Preview timestamp is outside the source video.")
+
+        # Four cached samples per second keep segmentation responsive while scrubbing.
+        cache_tick = round(timestamp * 4)
+        frame_timestamp = min(cache_tick / 4, max(0.0, duration - 0.001))
+        mask_dir = work_dir / "campaign-subject-masks"
+        mask_path = mask_dir / f"source-{source_index:02d}-{cache_tick:08d}.png"
+        if not mask_path.is_file():
+            from clipyyy.foreground import create_foreground_mask_frame
+
+            try:
+                create_foreground_mask_frame(video_path, frame_timestamp, mask_path)
+            except Exception as exc:
+                raise HTTPException(503, f"Could not prepare the subject mask: {exc}") from exc
+        return FileResponse(
+            mask_path,
+            media_type="image/png",
+            headers={"Cache-Control": "private, max-age=3600"},
+        )
+
     @app.post("/api/runs/{run_id}/retry")
     def retry_run(run_id: str, body: RetryRun | None = None) -> dict:
         run = _run_or_404(run_id)

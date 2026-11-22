@@ -649,6 +649,7 @@ export function RunDetailPage() {
           sources={data.campaign_sources ?? []}
           musicAnalysis={data.campaign_quality_checks?.music_analysis ?? null}
           hasMusic={Boolean(data.options.campaign_music_path)}
+          lyricsBehindSubject={lyricsBehindSubject}
           lyrics={campaignTimelineLyrics}
           lyricWords={campaignTimelineWords}
           wordsOnScreen={data.options.campaign_lyrics_words_on_screen ?? 3}
@@ -720,6 +721,7 @@ function CampaignStoryboardEditor({
   sources,
   musicAnalysis,
   hasMusic,
+  lyricsBehindSubject,
   lyrics,
   lyricWords,
   wordsOnScreen,
@@ -740,6 +742,7 @@ function CampaignStoryboardEditor({
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
   hasMusic: boolean
+  lyricsBehindSubject: boolean
   lyrics: CampaignPreviewLyric[]
   lyricWords: CampaignPreviewWord[]
   wordsOnScreen: 1 | 2 | 3
@@ -830,6 +833,7 @@ function CampaignStoryboardEditor({
             sources={sources}
             musicAnalysis={musicAnalysis}
             hasMusic={hasMusic}
+            lyricsBehindSubject={lyricsBehindSubject}
             lyrics={lyrics}
             lyricWords={lyricWords}
             wordsOnScreen={wordsOnScreen}
@@ -1155,6 +1159,7 @@ function CampaignTimeline({
   sources,
   musicAnalysis,
   hasMusic,
+  lyricsBehindSubject,
   lyrics,
   lyricWords,
   wordsOnScreen,
@@ -1171,6 +1176,7 @@ function CampaignTimeline({
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
   hasMusic: boolean
+  lyricsBehindSubject: boolean
   lyrics: CampaignPreviewLyric[]
   lyricWords: CampaignPreviewWord[]
   wordsOnScreen: 1 | 2 | 3
@@ -1196,6 +1202,7 @@ function CampaignTimeline({
   }, [])
   const [isPlaying, setIsPlaying] = useState(false)
   const [playheadSeconds, setPlayheadSeconds] = useState(0)
+  const [maskTimestamp, setMaskTimestamp] = useState(0)
   const waveformQuery = useQuery({
     queryKey: ['campaign-waveform', runId],
     queryFn: () => api.campaignWaveform(runId),
@@ -1262,6 +1269,9 @@ function CampaignTimeline({
         )
         const wordWindowStart = activeWordIndex < 0 ? 0 : Math.max(0, activeWordIndex - Math.floor((wordsOnScreen - 1) / 2))
         const activeWordWindow = activeWordIndex < 0 ? [] : lyricWords.slice(wordWindowStart, wordWindowStart + wordsOnScreen)
+        const subjectMaskUrl = lyricsBehindSubject
+          ? "/api/runs/" + runId + "/campaign-mask?source_index=" + preview.shot.source_index + "&timestamp=" + maskTimestamp.toFixed(2)
+          : null
         const seekToTimeline = (targetSeconds: number) => {
           if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current)
           transitionTimerRef.current = null
@@ -1346,6 +1356,7 @@ function CampaignTimeline({
                     transitionTimerRef.current = setTimeout(() => setTransitionPhase('idle'), transitionDurationMs)
                   }
                   const targetSourceTime = pendingSeekRef.current ?? preview.shot.start_seconds
+                  setMaskTimestamp(Math.round(targetSourceTime * 4) / 4)
                   event.currentTarget.currentTime = targetSourceTime
                   pendingSeekRef.current = null
                   if (isPlaying) {
@@ -1359,6 +1370,7 @@ function CampaignTimeline({
                 }}
                 onTimeUpdate={(event) => {
                   const localElapsed = Math.max(0, event.currentTarget.currentTime - preview.shot.start_seconds)
+                  setMaskTimestamp(Math.round(event.currentTarget.currentTime * 4) / 4)
                   const nextPlayhead = shotTimelineStart + localElapsed
                   setPlayheadSeconds(nextPlayhead)
                   const audio = audioRef.current
@@ -1411,13 +1423,22 @@ function CampaignTimeline({
               />
               {activeLyric && (
                 <div
-                  className="pointer-events-none absolute flex w-[90%] justify-center px-3"
-                  style={{
-                    left: activeLyric.position_x + '%',
-                    top: activeLyric.position_y + '%',
-                    transform: 'translate(-50%, -50%) rotate(' + activeLyric.rotation_degrees + 'deg)',
-                  }}
+                  className="pointer-events-none absolute inset-0"
+                  style={subjectMaskUrl ? {
+                    maskImage: 'url("' + subjectMaskUrl + '")',
+                    WebkitMaskImage: 'url("' + subjectMaskUrl + '")',
+                    maskSize: '100% 100%',
+                    WebkitMaskSize: '100% 100%',
+                  } : undefined}
                 >
+                  <div
+                    className="absolute flex w-[90%] justify-center px-3"
+                    style={{
+                      left: activeLyric.position_x + '%',
+                      top: activeLyric.position_y + '%',
+                      transform: 'translate(-50%, -50%) rotate(' + activeLyric.rotation_degrees + 'deg)',
+                    }}
+                  >
                   <span
                     className="text-center font-extrabold leading-tight"
                     style={{
@@ -1435,6 +1456,7 @@ function CampaignTimeline({
                       ))
                       : activeLyric.text}
                   </span>
+                  </div>
                 </div>
               )}
               {activeOverlay && (
@@ -1488,6 +1510,7 @@ function CampaignTimeline({
                   className="rounded-md border border-line px-3 py-2 text-sm disabled:opacity-40">Next</button>
               </div>
               <p className="mt-1 text-xs text-muted">One controller keeps footage, soundtrack and timed text together. Preview transitions follow the selected style; final export remains the exact render reference.</p>
+              {lyricsBehindSubject && <p className="text-xs text-muted">Subject-aware lyric masking is on · cached masks refresh while you scrub and play.</p>}
             </div>
           </div>
         )

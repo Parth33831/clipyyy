@@ -668,3 +668,54 @@ def test_campaign_source_preview_rejects_invalid_sources(client, tmp_path, monke
     assert client.get("/api/runs/" + run["id"] + "/campaign-source?source_index=-1").status_code == 400
     response = client.get("/api/runs/" + run["id"] + "/campaign-source?source_index=0")
     assert response.status_code == 404
+
+
+def test_campaign_subject_mask_endpoint_caches_alpha_preview(client, tmp_path, monkeypatch):
+    from pathlib import Path
+
+    run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
+    source = tmp_path / "campaign-source.mp4"
+    source.write_bytes(b"fake-video")
+    work_dir = pipeline.run_dir(run["id"]) / "work"
+    work_dir.mkdir(parents=True, exist_ok=True)
+    (work_dir / "download.json").write_text(
+        json.dumps({"sources": [{"video_path": str(source), "duration_seconds": 12.0}]}),
+        encoding="utf-8",
+    )
+    calls = []
+
+    def fake_mask(video_path, timestamp, mask_path):
+        calls.append((video_path, timestamp))
+        Path(mask_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(mask_path).write_bytes(b"fake-png")
+        return Path(mask_path)
+
+    monkeypatch.setattr("clipyyy.foreground.create_foreground_mask_frame", fake_mask)
+    url = f"/api/runs/{run['id']}/campaign-mask?source_index=0&timestamp=4.13"
+    first = client.get(url)
+    second = client.get(url)
+
+    assert first.status_code == 200
+    assert first.headers["content-type"] == "image/png"
+    assert first.content == b"fake-png"
+    assert second.content == b"fake-png"
+    assert len(calls) == 1
+    assert calls[0][1] == 4.25
+
+
+def test_campaign_subject_mask_endpoint_rejects_invalid_source_and_timestamp(client, tmp_path):
+    run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
+    source = tmp_path / "campaign-source.mp4"
+    source.write_bytes(b"fake-video")
+    work_dir = pipeline.run_dir(run["id"]) / "work"
+    work_dir.mkdir(parents=True, exist_ok=True)
+    (work_dir / "download.json").write_text(
+        json.dumps({"sources": [{"video_path": str(source), "duration_seconds": 12.0}]}),
+        encoding="utf-8",
+    )
+
+    invalid_source = client.get(f"/api/runs/{run['id']}/campaign-mask?source_index=2&timestamp=4.2")
+    invalid_timestamp = client.get(f"/api/runs/{run['id']}/campaign-mask?source_index=0&timestamp=12")
+
+    assert invalid_source.status_code == 404
+    assert invalid_timestamp.status_code == 400
