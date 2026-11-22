@@ -534,7 +534,6 @@ def create_app(start_worker: bool = True) -> FastAPI:
             headers={"Cache-Control": "private, max-age=3600"},
         )
 
-
     @app.get("/api/runs/{run_id}/campaign-mask")
     def campaign_subject_mask(run_id: str, source_index: int, timestamp: float) -> FileResponse:
         """Return a cached alpha mask for live lyrics-behind-subject preview."""
@@ -564,7 +563,7 @@ def create_app(start_worker: bool = True) -> FastAPI:
 
         # Four cached samples per second keep segmentation responsive while scrubbing.
         cache_tick = round(timestamp * 4)
-        frame_timestamp = cache_tick / 4
+        frame_timestamp = min(cache_tick / 4, max(0.0, duration - 0.001))
         mask_dir = work_dir / "campaign-subject-masks"
         mask_path = mask_dir / f"source-{source_index:02d}-{cache_tick:08d}.png"
         if not mask_path.is_file():
