@@ -575,7 +575,7 @@ def test_campaign_word_lyrics_pulse_on_detected_music_beats(tmp_path):
     )
 
     content = path.read_text(encoding="utf-8")
-    assert "\\c&H003BFF&" in content
+    assert "\\c&H004F3BFF&" in content
     assert "\\t(100,175,\\fscx116\\fscy116)" in content
     assert "\\t(300,375,\\fscx116\\fscy116)" in content
     assert "Hello" in content
