@@ -355,6 +355,25 @@ def create_app(start_worker: bool = True) -> FastAPI:
     def get_run(run_id: str) -> dict:
         return run_detail(run_id)
 
+    @app.get("/api/runs/{run_id}/campaign-music")
+    def campaign_music_preview(run_id: str) -> FileResponse:
+        """Stream the attached campaign soundtrack for in-editor listening."""
+        run = _run_or_404(run_id)
+        if not run["options"].get("campaign_mode"):
+            raise HTTPException(400, "Music previews are only available for campaign runs.")
+        music_path = run["options"].get("campaign_music_path")
+        if not music_path:
+            raise HTTPException(404, "No campaign music track is attached.")
+        audio_file = Path(str(music_path))
+        if not audio_file.is_file():
+            raise HTTPException(404, "The attached campaign music file is missing.")
+        media_type = mimetypes.guess_type(audio_file.name)[0] or "application/octet-stream"
+        return FileResponse(
+            audio_file,
+            media_type=media_type,
+            headers={"Cache-Control": "private, max-age=3600"},
+        )
+
     @app.get("/api/runs/{run_id}/campaign-source")
     def campaign_source(run_id: str, source_index: int) -> FileResponse:
         """Stream one validated source video for in-editor playback."""
