@@ -109,11 +109,12 @@ export function NewRunPage() {
       <header className="flex flex-col gap-4">
         <Eyebrow>New run</Eyebrow>
         <h1 className="display max-w-3xl text-[44px] sm:text-[56px]">
-          Long video in, shorts out.
+          {options.campaign_mode ? "Create your campaign video." : "Long video in, shorts out."}
         </h1>
         <p className="max-w-xl text-[15px] leading-relaxed text-body">
-          Paste a link or drop a recording. clipyyy transcribes it on your machine, lets an AI pick the moments worth posting, then
-          reframes and captions each one.
+          {options.campaign_mode
+            ? "Start with your campaign requirements, add your footage and music, then let AI build the first edit. You can fine-tune it afterwards."
+            : "Paste a link or drop a recording. clipyyy transcribes it on your machine, lets an AI pick the moments worth posting, then reframes and captions each one."}
         </p>
       </header>
 
@@ -133,6 +134,73 @@ export function NewRunPage() {
               {c.label}: {c.detail}
             </Panel>
           ))}
+
+          <Section title="What are you creating?">
+            <Toggle
+              checked={options.campaign_mode}
+              onChange={(v) => set('campaign_mode', v)}
+              label="Create a campaign edit"
+              hint="Combine your footage with a song and brief. AI will choose the strongest moments and assemble one complete video."
+            />
+            {options.campaign_mode && (
+              <>
+              <Field label="Campaign reference link (optional)" hint="Paste the public campaign page. Clipyyy will read available rules and discover linked reference videos. Pages requiring login or app-only access may need a manual brief.">
+                <Input
+                  value={options.campaign_url}
+                  onChange={(e) => set('campaign_url', e.target.value)}
+                  placeholder="https://..."
+                  type="url"
+                />
+              </Field>
+              <Field label="Describe the video you want" hint="Tell AI the mood, story, important moments, style and any rules. You can paste the campaign requirements here.">
+                <Textarea
+                  rows={7}
+                  value={options.campaign_brief}
+                  onChange={(e) => set('campaign_brief', e.target.value)}
+                  placeholder={"Example: Create an energetic cinematic promo. Use the most exciting moments, sync cuts to the music, add bold English lyrics, and keep the subject clearly visible."}
+                />
+              </Field>
+              <Field label="Campaign music (optional)" hint="Upload a track you have permission to use. If the campaign requires an official TikTok/Instagram sound, leave this empty and add that sound inside the platform after export.">
+                <input type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] ?? null)} className="block w-full text-sm text-muted file:mr-3 file:border file:border-line file:bg-surface file:px-3 file:py-2 file:text-ink" />
+                {musicFile && <p className="text-xs text-muted">{musicFile.name}</p>}
+              </Field>
+              <details className="border-t border-line pt-4">
+                <summary className="cursor-pointer text-sm font-medium text-ink">More campaign options</summary>
+                <div className="mt-4 flex flex-col gap-4">
+              <Toggle
+                checked={options.campaign_auto_broll}
+                onChange={(v) => set('campaign_auto_broll', v)}
+                disabled={!checks.broll?.ok}
+                label="Find matching stock footage automatically"
+                hint={checks.broll?.ok
+                  ? 'Searches Pexels for supporting clips based on the campaign brief. Your own videos remain the primary sources.'
+                  : 'Add a free Pexels API key in Settings to enable. Your supplied source videos work without it.'}
+              />
+              <Toggle
+                checked={options.campaign_camera_motion}
+                onChange={(v) => set('campaign_camera_motion', v)}
+                label="Add cinematic camera movement"
+                hint="Adds subtle alternating push and pan movement to each shot for a more dynamic edit. Turn it off for a completely static crop."
+              />
+              <Field label="Shot transitions" hint="Auto keeps music-beat cuts when reliable beats are detected and uses soft dissolves otherwise. Dynamic adds restrained directional transitions between shots.">
+                <Select
+                  value={options.campaign_transition_style}
+                  onChange={(e) => set('campaign_transition_style', e.target.value as ClipOptions['campaign_transition_style'])}
+                >
+                  <option value="auto">Auto · music-aware</option>
+                  <option value="cut">Clean hard cuts</option>
+                  <option value="cinematic">Cinematic fades</option>
+                  <option value="dynamic">Dynamic transitions</option>
+                </Select>
+              </Field>
+              <Field label="Lyrics / exact on-screen text (optional)" hint="Paste only the lines you are allowed to use. They will be displayed in sequence across the edit.">
+                <Textarea rows={3} value={options.campaign_lyrics} onChange={(e) => set('campaign_lyrics', e.target.value)} placeholder="One line per screen..." />
+              </Field>
+                </div>
+              </details>
+              </>
+            )}
+          </Section>
 
           <section
             className={cn('px flex flex-col bg-ink text-white transition-shadow', dragging && 'shadow-[0_0_0_4px_var(--color-acid)]')}
@@ -359,67 +427,8 @@ export function NewRunPage() {
             </Field>
           </Section>}
 
-          <Section title="Campaign editor">
-            <Toggle
-              checked={options.campaign_mode}
-              onChange={(v) => set('campaign_mode', v)}
-              label="Use campaign requirements"
-              hint="AI samples scenes from every source, selects matching moments and assembles a complete campaign montage. Multiple source videos become one edit run."
-            />
-            {options.campaign_mode && (
-              <>
-              <Field label="Campaign link" hint="Paste the public campaign page. Clipyyy will read available rules and discover linked reference videos. Pages requiring login or app-only access may need a manual brief.">
-                <Input
-                  value={options.campaign_url}
-                  onChange={(e) => set('campaign_url', e.target.value)}
-                  placeholder="https://..."
-                  type="url"
-                />
-              </Field>
-              <Field label="Campaign brief (optional)" hint="Add extra instructions or paste the brief if the campaign page cannot be read. Campaign editing uses your local Ollama model. Choose a vision-capable model in Settings for source-frame analysis.">
-                <Textarea
-                  rows={7}
-                  value={options.campaign_brief}
-                  onChange={(e) => set('campaign_brief', e.target.value)}
-                  placeholder={"Example: Anime edit for Midnight Sunlight by Pyo. Music is the focus. Use emotional anime moments that fit the song's mood. Show a lyric line on screen. English text only. No voice audio."}
-                />
-              </Field>
-              <Field label="Campaign music (optional)" hint="Upload a track you have permission to use. If the campaign requires an official TikTok/Instagram sound, leave this empty and add that sound inside the platform after export.">
-                <input type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] ?? null)} className="block w-full text-sm text-muted file:mr-3 file:border file:border-line file:bg-surface file:px-3 file:py-2 file:text-ink" />
-                {musicFile && <p className="text-xs text-muted">{musicFile.name}</p>}
-              </Field>
-              <Toggle
-                checked={options.campaign_auto_broll}
-                onChange={(v) => set('campaign_auto_broll', v)}
-                disabled={!checks.broll?.ok}
-                label="Find matching stock footage automatically"
-                hint={checks.broll?.ok
-                  ? 'Searches Pexels for supporting clips based on the campaign brief. Your own videos remain the primary sources.'
-                  : 'Add a free Pexels API key in Settings to enable. Your supplied source videos work without it.'}
-              />
-              <Toggle
-                checked={options.campaign_camera_motion}
-                onChange={(v) => set('campaign_camera_motion', v)}
-                label="Add cinematic camera movement"
-                hint="Adds subtle alternating push and pan movement to each shot for a more dynamic edit. Turn it off for a completely static crop."
-              />
-              <Field label="Shot transitions" hint="Auto keeps music-beat cuts when reliable beats are detected and uses soft dissolves otherwise. Dynamic adds restrained directional transitions between shots.">
-                <Select
-                  value={options.campaign_transition_style}
-                  onChange={(e) => set('campaign_transition_style', e.target.value as ClipOptions['campaign_transition_style'])}
-                >
-                  <option value="auto">Auto · music-aware</option>
-                  <option value="cut">Clean hard cuts</option>
-                  <option value="cinematic">Cinematic fades</option>
-                  <option value="dynamic">Dynamic transitions</option>
-                </Select>
-              </Field>
-              <Field label="Lyrics / exact on-screen text (optional)" hint="Paste only the lines you are allowed to use. They will be displayed in sequence across the edit.">
-                <Textarea rows={3} value={options.campaign_lyrics} onChange={(e) => set('campaign_lyrics', e.target.value)} placeholder="One line per screen..." />
-              </Field>
-              </>
-            )}
-          </Section>
+
+          {!options.campaign_mode && (
           <Section title="AI" last>
             <Field label="Instructions" hint="Optional. e.g. “Only funny moments” or “End captions with: Follow for part 2”">
               <Textarea rows={2} value={options.instructions} onChange={(e) => set('instructions', e.target.value)} />
@@ -428,6 +437,7 @@ export function NewRunPage() {
               <ModelInput placeholder={defaultModel} value={options.model ?? ''} onChange={(v) => set('model', v.trim() || null)} />
             </Field>
           </Section>
+          )}
         </Panel>
       </div>
     </div>
