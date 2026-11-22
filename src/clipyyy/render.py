@@ -1408,20 +1408,21 @@ def write_campaign_text_overlays(
         font_size = max(12, round(height * 0.052 * size_percent / 100))
         if font_family not in {"Arial", "Georgia", "Impact", "Trebuchet MS", "Verdana"}:
             font_family = "Arial"
+        bold = 1 if font_weight == "bold" else 0
         tags = (
             f"{{\\an5\\pos({x},{y})\\fs{font_size}\\fn{font_family}"
-            f"\\b{1 if font_weight == \"bold\" else 0}\\c{_ass_color(text_color)}}}"
+            f"\\b{bold}\\c{_ass_color(text_color)}}}"
         )
         if text_effect == "outline":
-            tags = tags[:-1] + r"\\bord2\\shad0}"
+            tags = tags[:-1] + r"\bord2\shad0}"
         elif text_effect == "none":
-            tags = tags[:-1] + r"\\bord0\\shad0}"
+            tags = tags[:-1] + r"\bord0\shad0}"
         else:
-            tags = tags[:-1] + r"\\bord0\\shad2}"
+            tags = tags[:-1] + r"\bord0\shad2}"
         if animation == "fade":
-            tags = tags[:-1] + r"\\fad(160,160)}"
+            tags = tags[:-1] + r"\fad(160,160)}"
         elif animation == "pop":
-            tags = tags[:-1] + r"\\fscx70\\fscy70\\t(0,180,\\fscx100\\fscy100)\\fad(100,120)}"
+            tags = tags[:-1] + r"\fscx70\fscy70\t(0,180,\fscx100\fscy100)\fad(100,120)}"
         elif animation == "slide":
             offset_y = min(height - 1, y + round(height * 0.045))
             tags = (
