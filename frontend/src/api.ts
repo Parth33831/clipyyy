@@ -4,6 +4,19 @@ export type AspectRatio = '9:16' | '4:5' | '1:1'
 export type CaptionStyle = 'bold' | 'highlight' | 'minimal'
 export type PublishMode = 'queue' | 'now' | 'schedule' | 'draft'
 
+export interface CampaignTextOverlay {
+  rank: number
+  text: string
+  start_seconds: number
+  end_seconds: number
+  position_x: number
+  position_y: number
+  font_size_percent: number
+  color: string
+  animation: 'none' | 'fade' | 'pop' | 'slide'
+  background: boolean
+}
+
 export interface ClipOptions {
   clip_count: number
   min_seconds: number
@@ -40,6 +53,7 @@ export interface ClipOptions {
   campaign_lyrics_rotation_degrees?: number
   campaign_lyric_phrase_edits?: CampaignLyricPhraseEdit[]
   campaign_lyrics_behind_subject?: boolean
+  campaign_text_overlays?: CampaignTextOverlay[]
   campaign_hook_text?: string
   include_campaign_hook?: boolean
   model: string | null
@@ -274,6 +288,11 @@ export const api = {
     request<{ saved: boolean; rendered: boolean; characters: number; outputs: number }>(`/api/runs/${id}/campaign-lyrics`, {
       method: 'PUT',
       body: JSON.stringify({ lyrics, lyrics_style: lyricsStyle, hook_text: hookText, include_hook: includeHook, lyrics_color: lyricsColor, highlight_color: highlightColor, words_on_screen: wordsOnScreen, lyrics_behind_subject: lyricsBehindSubject, position_x: positionX, position_y: positionY, scale_percent: scalePercent, rotation_degrees: rotationDegrees, phrase_edits: phraseEdits }),
+    }),
+  saveCampaignTextOverlays: (id: string, overlays: CampaignTextOverlay[]) =>
+    request<{ saved: boolean; rendered: boolean; overlays: number; outputs: number }>(`/api/runs/${id}/campaign-text-overlays`, {
+      method: 'PUT',
+      body: JSON.stringify({ overlays }),
     }),
   saveCampaignMontage: (id: string, edits: CampaignEdit[]) =>
     request<{ saved: boolean; rendered: boolean; outputs: number }>(`/api/runs/${id}/campaign-montage`, {
