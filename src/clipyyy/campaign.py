@@ -411,8 +411,9 @@ def build_montage_plan(
             + json.dumps(lyric_scene_matches, ensure_ascii=False)
             + "\nUse a listed scene only when its actual visual evidence supports the cue and the campaign "
             "story. Scores represent literal keyword overlap adjusted by observation confidence, not model "
-            "certainty. An empty match list means no direct wording evidence was found; do not invent a match. "
-            "Cue times are relative to the music segment and source timestamps are relative to source videos; "
+            "certainty. An empty match list means no direct wording evidence was found; do not "
+            "invent a match. Cue times are relative to the music segment and source timestamps are "
+            "relative to source videos; "
             "they are different clocks and must not be compared as if they were aligned.\n"
         )
     user = (
