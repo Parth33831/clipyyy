@@ -168,7 +168,9 @@ def test_campaign_audio_settings_require_an_attached_music_track(client):
 
 
 def test_campaign_audio_settings_reject_out_of_range_values(client):
-    run = db.create_run("campaign", {"campaign_mode": True, "campaign_music_path": "track.mp3"}, status="completed")
+    run = db.create_run(
+        "campaign", {"campaign_mode": True, "campaign_music_path": "track.mp3"}, status="completed"
+    )
     response = client.put(
         f"/api/runs/{run['id']}/campaign-audio",
         json={"music_volume": 2.1, "fade_in_seconds": 0.4, "fade_out_seconds": 0.8},
