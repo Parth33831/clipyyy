@@ -546,3 +546,9 @@ STATUS: In progress / Ready for review / Merged
 - Review note posted on PR #64: preserve the already-merged timed lyric phrase track in \`RunDetail\`. The current PR diff removes \`campaign_lyric_cues\` from the run detail API and removes the Lyric phrase track from the timeline UI; this is an unrelated regression and must be restored before merge.
 - Draft PR #63 for campaign face-aware framing was closed after discovering the latest main already contains \`_campaign_subject_crop\` with a no-download fallback. Do not duplicate that implementation.
 - Current main baseline at this audit: \`eb01c092706847e63dbdd40bba90c70732899911\`. Recheck latest main and PR state before further integration work.
+
+
+### 2026-11-22 follow-up: duplicate depth-effect PR cleanup
+
+- Closed stale PR #61; PR #64 is the single current lyrics-behind-subject implementation based on latest main.
+- PR #64 CI is passing, but the previously reported deletion of the timed lyric phrase track is still present in its diff at the latest review. Do not merge until that existing timeline feature is restored.
