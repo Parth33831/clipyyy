@@ -564,3 +564,14 @@ STATUS: In progress / Ready for review / Merged
 - PR #61 was closed as a duplicate; PR #64 merged the optional lyrics-behind-subject effect into main as `dfe17edbc69d453e290a58e0efef19989d27a3b2`. PR #65 changes only `campaign.py` and `tests/test_campaign.py`, so it does not overlap the merged foreground-rendering files.
 
 - 2026-11-22: PR #64 merged after PR #65's branch was created, advancing main to `dfe17edbc69d453e290a58e0efef19989d27a3b2`. PR #65 remains mergeable with no file conflicts; its changed files are separate from #64. Review before merging.
+
+### 2026-11-22 follow-up: lyric creative controls and independent text layers
+
+- PR #66 merged lyric-layer placement, scale and rotation controls into main as `f3da259604779f7e52a9b52e5b1038cdc42698a0`.
+- PR #67 merged a draggable lyric placement preview and LRC timestamp parsing fix; latest main at this update is `68569b9a9920a69a8981b34aae2702a66be6f317`.
+- Feature Development implemented the next P3 editor increment in PR #70: independent timed text overlays separate from the lyric track. Each overlay has output rank, text, start/end timing, horizontal/vertical placement, size, colour, entrance animation and optional background panel. Up to 30 layers are supported.
+- Overlay edits are validated against actual output duration, saved in run options, and rendered as a separate ASS layer after lyrics and before audio muxing. Style-only re-renders reuse the cached campaign montage.
+- PR #68 was closed as a stale stacked PR after main advanced with #67. PR #70 is based on latest main and preserves the draggable lyric placement preview.
+- PR #70 CI is in progress / formatting corrections were applied; do not merge until the latest-head Ruff, backend and frontend checks pass and the diff is reviewed.
+- Remaining editor work: visual preview for independent overlay layers, drag-to-position for each overlay, per-layer font family/weight/effects, and a proper multitrack timeline with non-destructive undo/redo. Do not claim these are implemented yet.
+- Real-media Windows campaign test remains outstanding. No local media smoke test has been claimed.
