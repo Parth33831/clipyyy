@@ -473,4 +473,15 @@ STATUS: In progress / Ready for review / Merged
 - Any conversation picking up CLIPYYY must read this section and the latest GitHub main/PR state first. If another task is already active, coordinate through this document rather than duplicating it.
 
 
-- 2026-11-22: Product owner clarified the CLIPYYY north star: an integrated AI campaign-video creator/editor that analyzes uploaded footage, campaign music, lyrics and requirements; selects the strongest story-relevant moments; synchronizes edits and kinetic typography to music; and keeps the result editable in-app. Updated the shared roadmap and assigned Feature Development the next non-overlapping P1 audit-led footage-to-story/music matching task. Latest main is `5e179affb50f3be65a9ec8916d707e7497ec78d4` (PR #47); no open PRs were present at handoff.
+- 2026-11-22: Product owner clarified the CLIPYYY north star: an integrated AI campaign-video creator/editor that analyzes uploaded footage, campaign music, lyrics and requirements; selects the strongest story-relevant moments; synchronizes edits and kinetic typography to music; and keeps the result editable in-app. Updated the shared roadmap and assigned Feature Development the next non-overlapping P1 audit-led footage-to-story/music matching task. Latest main is `d724383e2dfd7a2bc347202bde0e4cb09371cd2c` (PR #48); no open PRs are currently present.
+
+
+### 2026-11-22 follow-up: PR #48 and remaining P1 verification
+
+- PR #48 (\`feature/ai-music-to-footage-sync\`) was merged into main as \`d724383e2dfd7a2bc347202bde0e4cb09371cd2c\`.
+- It reuses campaign music analysis during storyboard planning, supplies BPM, selected section, strong transients and energy sections to the montage-planning prompt, and persists the analysis for rendering/rerendering. No-music compatibility tests were added.
+- This is a useful P1 integration step, but it is **not yet proof of semantic lyric-to-shot matching or deterministic story/music scoring**: the music structure currently guides the LLM prompt, while the renderer performs beat-aware timing refinement. Do not describe it as full lyric-semantic synchronization.
+- Current verified repository state: main \`d724383e2dfd7a2bc347202bde0e4cb09371cd2c\`; no open PRs.
+- Next P1 work must audit lyric word timestamps and scene observation fields, then add a bounded, testable relevance/timing alignment layer only where evidence supports it. Keep the existing planner and beat analysis; do not duplicate them. Add explicit fallback behavior for text-only vision observations and absent/uncertain lyrics. Run backend tests, Ruff and frontend build before proposing a PR.
+- P2 typography and P3 editor work remain roadmap items; existing lyric styles/colour controls and storyboard/timeline editing are partial foundations, not the complete expressive multi-layer editor described in the product vision.
+- Real-media Windows verification remains outstanding. CI success is not a substitute for checking an actual campaign song and multiple source videos on the target PC.
