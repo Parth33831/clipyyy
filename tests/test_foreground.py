@@ -98,4 +98,4 @@ def test_lyrics_depth_composite_places_text_between_background_and_subject(monke
     assert "[lyrics][inverse]alphamerge[lyrics_behind]" in graph
     assert "[0:v][mask]alphamerge[foreground]" in graph
     assert "[background_with_lyrics][foreground]overlay" in graph
-    assert "1080x1920" in args[args.index("-i", args.index("-i") + 1) + 2] if False else True
+    assert args[7] == "color=c=black@0.0:s=1080x1920:r=30:d=8.000"
