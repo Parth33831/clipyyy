@@ -291,7 +291,7 @@ def build_montage_plan(
         f"Campaign brief:\n{brief}\n\nExtracted requirements:\n"
         f"{format_campaign_plan(campaign_plan)}"
         f"{music_guidance}"
-        f"\n\nAdditional creator instructions:\n{additional_instructions or 'None'}
+        f"\n\nAdditional creator instructions:\n{additional_instructions or 'None'}"
         f"\n\nCreate {output_count} distinct edits, each approximately "
         f"{target_seconds:.1f} seconds. "
         "Choose enough shots to approach the target duration. Every source_index is zero-based. "
