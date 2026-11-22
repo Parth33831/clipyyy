@@ -436,6 +436,26 @@ def test_campaign_text_overlay_pipeline_persists_only_valid_output_layers(monkey
     assert saved["options"]["campaign_text_overlays"][0]["color"] == "#FF3B4F"
 
 
+def test_campaign_text_overlay_normalizes_each_line_without_flattening_layout(monkeypatch):
+    run = {"id": "overlay-run", "status": "completed", "options": {"campaign_mode": True}}
+    saved = {}
+    monkeypatch.setattr(pipeline.db, "get_run", lambda run_id: run)
+    monkeypatch.setattr(
+        pipeline.db,
+        "list_clips",
+        lambda run_id: [{"rank": 1, "duration_seconds": 8.0}],
+    )
+    monkeypatch.setattr(pipeline.db, "update_run", lambda run_id, **fields: saved.update(fields))
+    monkeypatch.setattr(pipeline, "rerender_campaign", lambda run_id: {"renders": []})
+
+    pipeline.update_campaign_text_overlays(
+        "overlay-run",
+        [{"rank": 1, "text": "  SUMMER   SALE  \\n TODAY ", "start_seconds": 0, "end_seconds": 2}],
+    )
+
+    assert saved["options"]["campaign_text_overlays"][0]["text"] == "SUMMER SALE\\nTODAY"
+
+
 def test_campaign_text_overlay_pipeline_rejects_out_of_bounds_timing(monkeypatch):
     import pytest
 
