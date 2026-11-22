@@ -531,3 +531,10 @@ STATUS: In progress / Ready for review / Merged
 - The track is read-only in this step and explicitly not presented as a separate editable typography layer. Existing lyric styling and storyboard editing are unchanged.
 - Backend API regression test added; CI passed: fast backend checks and frontend production build. Full backend, Windows and macOS jobs were skipped by the workflow.
 - Next editor milestone: move from the reference track toward actual independent overlay/text layers with timing, position and styling controls, while preserving the current lyric system and storyboard edit contract.
+
+
+### 2026-11-22 follow-up: avoid duplicate campaign face-tracking work
+
+- A new mainline audit found campaign rendering already has an existing subject-aware face crop path in \`render.py::_campaign_subject_crop\`, with an explicit check that MediaPipe and its model are already installed before calling the existing tracker. If unavailable, it falls back to the existing crop.
+- Draft PR #63 was closed as duplicate/unnecessary; do not merge its extra reframe/render pipeline.
+- Remaining framing gap is product/object-aware composition and creator-adjustable focal points, not primary-face tracking. Reassess after the active lyrics-behind-subject PR #61 is resolved.
