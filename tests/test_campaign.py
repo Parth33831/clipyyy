@@ -542,7 +542,7 @@ def test_montage_planner_omits_lyric_guidance_when_no_lyrics_are_supplied():
     analysis = {
         "frames": [
             {"timestamp": 1, "description": "Opening"},
-            {"timestamp": 5, "description": "Action"},
+            {"timestamp": 5, "description": "We rise together"},
             {"timestamp": 8, "description": "Payoff"},
         ]
     }
@@ -603,6 +603,8 @@ def test_montage_planner_uses_timed_lyric_cues_without_claiming_exact_sync():
     assert '"start_seconds": 3.0' in llm.user
     assert "seconds relative to the selected music segment" in llm.user
     assert "do not claim" in llm.user
+    assert "LYRIC-TO-SCENE EVIDENCE HINTS" in llm.user
+    assert '"matched_terms": ["together"]' in llm.user
 
 
 def test_lyric_scene_matcher_ranks_only_grounded_visual_keyword_evidence():
