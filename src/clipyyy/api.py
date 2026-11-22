@@ -47,6 +47,7 @@ class CampaignLyricPhraseEdit(BaseModel):
     position_y: int | None = Field(None, ge=5, le=95)
     scale_percent: int | None = Field(None, ge=50, le=200)
     rotation_degrees: int | None = Field(None, ge=-30, le=30)
+    animation_style: Literal["dynamic", "cinematic", "minimal", "karaoke"] | None = None
 
 
 class CampaignLyricsUpdate(BaseModel):
