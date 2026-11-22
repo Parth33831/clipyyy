@@ -527,6 +527,7 @@ export function RunDetailPage() {
           sources={data.campaign_sources ?? []}
           musicAnalysis={data.campaign_quality_checks?.music_analysis ?? null}
           textOverlays={campaignTextOverlays}
+          onUpdateTextOverlay={(overlayIndex, patch) => setCampaignTextOverlays((current) => current.map((overlay, index) => index === overlayIndex ? { ...overlay, ...patch } : overlay))}
           transitionStyle={data.options.campaign_transition_style ?? 'auto'}
           saving={saveMontage.isPending}
           onChange={setCampaignEdits}
@@ -591,6 +592,7 @@ function CampaignStoryboardEditor({
   sources,
   musicAnalysis,
   textOverlays,
+  onUpdateTextOverlay,
   transitionStyle,
   saving,
   onChange,
@@ -604,6 +606,7 @@ function CampaignStoryboardEditor({
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
   textOverlays: CampaignTextOverlay[]
+  onUpdateTextOverlay: (overlayIndex: number, patch: Partial<CampaignTextOverlay>) => void
   transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
   saving: boolean
   onChange: (edits: CampaignEdit[]) => void
@@ -687,6 +690,7 @@ function CampaignStoryboardEditor({
             sources={sources}
             musicAnalysis={musicAnalysis}
             textOverlays={textOverlays}
+            onUpdateTextOverlay={onUpdateTextOverlay}
             transitionStyle={transitionStyle}
             onMoveShot={(fromIndex, toIndex) => moveShotTo(editIndex, fromIndex, toIndex)}
             onUpdateShot={(shotIndex, patch) => updateShot(editIndex, shotIndex, patch)}
@@ -914,6 +918,7 @@ function CampaignTimeline({
   sources,
   musicAnalysis,
   textOverlays,
+  onUpdateTextOverlay,
   transitionStyle,
   onMoveShot,
   onUpdateShot,
@@ -923,10 +928,21 @@ function CampaignTimeline({
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
   textOverlays: CampaignTextOverlay[]
+  onUpdateTextOverlay: (overlayIndex: number, patch: Partial<CampaignTextOverlay>) => void
   transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
   onMoveShot: (fromIndex: number, toIndex: number) => void
   onUpdateShot: (shotIndex: number, patch: Partial<CampaignShot>) => void
 }) {
+  const [activeOverlayTrim, setActiveOverlayTrim] = useState<{
+    pointerId: number
+    overlayIndex: number
+    side: 'move' | 'start' | 'end'
+    startX: number
+    initialStart: number
+    initialEnd: number
+    trackWidth: number
+    initialTotal: number
+  } | null>(null)
   const [activeTrim, setActiveTrim] = useState<{
     pointerId: number
     shotIndex: number
@@ -1079,73 +1095,98 @@ function CampaignTimeline({
       </div>
       {musicAnalysis && (
         <div className="flex flex-col gap-2 border-t border-line pt-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="label text-muted">Music energy track</span>
-            <span className="font-mono text-[11px] text-faint">
-              {musicAnalysis.estimated_bpm ? `${musicAnalysis.estimated_bpm} BPM` : 'Energy profile'}
-              {' · '}{musicAnalysis.detected_beats} transients
-            </span>
-          </div>
-          {(musicAnalysis.energy_sections ?? []).length > 0 ? (
-            <div className="overflow-x-auto">
-              <div className="relative h-9 min-w-[680px] overflow-hidden rounded-md bg-surface">
-                {(musicAnalysis.energy_sections ?? []).map((section, index) => {
-                  const left = Math.max(0, section.start_seconds - 0.25 - musicStart)
-                  const right = Math.min(total, section.end_seconds + 0.25 - musicStart)
-                  if (right <= left) return null
-                  return (
-                    <div
-                      key={`energy-${index}`}
-                      title={`${section.level} energy · ${formatDuration(section.start_seconds)}–${formatDuration(section.end_seconds)}`}
-                      className={cn(
-                        'absolute inset-y-0 flex items-center overflow-hidden border-r border-paper/40 px-1',
-                        section.level === 'high' ? 'bg-acid text-ink' : section.level === 'medium' ? 'bg-sunk text-ink' : 'bg-line text-muted',
-                      )}
-                      style={{ left: `${(left / total) * 100}%`, width: `${Math.max(0.5, ((right - left) / total) * 100)}%` }}
-                    >
-                      <span className="label truncate !text-[9px]">{section.level}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs text-faint">Energy detail is unavailable for this saved run.</p>
-          )}
-          <div className="flex flex-wrap gap-3 text-[10px] text-faint">
-            <span>Selected track window: {musicAnalysis.selected_section}</span>
-            <span>High energy · Medium energy · Low energy</span>
-          </div>
-        </div>
-      )}
-      <div className="flex flex-col gap-2 border-t border-line pt-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="label text-muted">Independent text overlay track</span>
-          <span className="text-[10px] text-faint">Times are relative to this finished edit</span>
+          <span className="text-[10px] text-faint">Drag a block to move it · drag either edge to trim</span>
         </div>
         <div className="overflow-x-auto">
-          <div className="relative h-10 min-w-[680px] overflow-hidden rounded-md border border-line bg-surface">
-            {textOverlays.filter((overlay) => overlay.rank === edit.rank).map((overlay, index) => {
-              const left = Math.max(0, Math.min(total, overlay.start_seconds))
-              const right = Math.max(left, Math.min(total, overlay.end_seconds))
-              if (right <= left) return null
-              return (
-                <div
-                  key={"text-overlay-" + edit.rank + "-" + index}
-                  title={overlay.text + " · " + formatDuration(overlay.start_seconds) + "–" + formatDuration(overlay.end_seconds)}
-                  className="absolute inset-y-1 flex min-w-0 items-center overflow-hidden rounded border px-1.5"
-                  style={{
-                    left: String((left / total) * 100) + "%",
-                    width: String(Math.max(0.8, ((right - left) / total) * 100)) + "%",
-                    borderColor: overlay.color,
-                    color: overlay.color,
-                    backgroundColor: overlay.background ? "rgba(0, 0, 0, 0.78)" : "rgba(255, 255, 255, 0.06)",
-                  }}
-                >
-                  <span className="truncate text-[10px] font-semibold">{overlay.text}</span>
-                </div>
-              )
-            })}
+          <div
+            data-campaign-overlay-track
+            className="relative h-10 min-w-[680px] touch-none overflow-hidden rounded-md border border-line bg-surface"
+            onPointerMove={(event) => {
+              if (!activeOverlayTrim || event.pointerId !== activeOverlayTrim.pointerId) return
+              const delta = ((event.clientX - activeOverlayTrim.startX) / activeOverlayTrim.trackWidth) * activeOverlayTrim.initialTotal
+              const length = activeOverlayTrim.initialEnd - activeOverlayTrim.initialStart
+              if (activeOverlayTrim.side === 'move') {
+                const start = Math.max(0, Math.min(activeOverlayTrim.initialTotal - length, activeOverlayTrim.initialStart + delta))
+                onUpdateTextOverlay(activeOverlayTrim.overlayIndex, {
+                  start_seconds: Math.round(start * 100) / 100,
+                  end_seconds: Math.round((start + length) * 100) / 100,
+                })
+              } else if (activeOverlayTrim.side === 'start') {
+                const start = Math.max(0, Math.min(activeOverlayTrim.initialEnd - 0.1, activeOverlayTrim.initialStart + delta))
+                onUpdateTextOverlay(activeOverlayTrim.overlayIndex, { start_seconds: Math.round(start * 100) / 100 })
+              } else {
+                const end = Math.max(activeOverlayTrim.initialStart + 0.1, Math.min(activeOverlayTrim.initialTotal, activeOverlayTrim.initialEnd + delta))
+                onUpdateTextOverlay(activeOverlayTrim.overlayIndex, { end_seconds: Math.round(end * 100) / 100 })
+              }
+            }}
+            onPointerUp={(event) => {
+              if (activeOverlayTrim?.pointerId === event.pointerId) setActiveOverlayTrim(null)
+            }}
+            onPointerCancel={() => setActiveOverlayTrim(null)}
+          >
+            {textOverlays.map((overlay, overlayIndex) => ({ overlay, overlayIndex }))
+              .filter(({ overlay }) => overlay.rank === edit.rank)
+              .map(({ overlay, overlayIndex }) => {
+                const left = Math.max(0, Math.min(total, overlay.start_seconds))
+                const right = Math.max(left, Math.min(total, overlay.end_seconds))
+                if (right <= left) return null
+                const beginDrag = (event: React.PointerEvent<HTMLDivElement>, side: 'move' | 'start' | 'end') => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  const track = event.currentTarget.closest('[data-campaign-overlay-track]') as HTMLDivElement | null
+                  if (!track) return
+                  const trackWidth = track.getBoundingClientRect().width
+                  if (trackWidth <= 0) return
+                  track.setPointerCapture(event.pointerId)
+                  setActiveOverlayTrim({
+                    pointerId: event.pointerId,
+                    overlayIndex,
+                    side,
+                    startX: event.clientX,
+                    initialStart: overlay.start_seconds,
+                    initialEnd: overlay.end_seconds,
+                    trackWidth,
+                    initialTotal: total,
+                  })
+                }
+                return (
+                  <div
+                    key={"text-overlay-" + edit.rank + "-" + overlayIndex}
+                    title={overlay.text + " · " + formatDuration(overlay.start_seconds) + "–" + formatDuration(overlay.end_seconds)}
+                    onPointerDown={(event) => beginDrag(event, 'move')}
+                    className="group absolute inset-y-1 flex min-w-0 cursor-grab touch-none items-center overflow-hidden rounded border px-1.5 active:cursor-grabbing"
+                    style={{
+                      left: String((left / total) * 100) + "%",
+                      width: String(Math.max(1.2, ((right - left) / total) * 100)) + "%",
+                      borderColor: overlay.color,
+                      color: overlay.color,
+                      backgroundColor: overlay.background ? "rgba(0, 0, 0, 0.78)" : "rgba(255, 255, 255, 0.06)",
+                    }}
+                  >
+                    <div
+                      role="slider"
+                      aria-label={"Trim start of " + overlay.text}
+                      aria-valuemin={0}
+                      aria-valuemax={overlay.end_seconds - 0.1}
+                      aria-valuenow={overlay.start_seconds}
+                      onPointerDown={(event) => beginDrag(event, 'start')}
+                      className="absolute inset-y-0 left-0 z-10 w-2 cursor-ew-resize bg-white/40 opacity-0 transition-opacity group-hover:opacity-100"
+                    />
+                    <span className="pointer-events-none truncate text-[10px] font-semibold">{overlay.text}</span>
+                    <div
+                      role="slider"
+                      aria-label={"Trim end of " + overlay.text}
+                      aria-valuemin={overlay.start_seconds + 0.1}
+                      aria-valuemax={total}
+                      aria-valuenow={overlay.end_seconds}
+                      onPointerDown={(event) => beginDrag(event, 'end')}
+                      className="absolute inset-y-0 right-0 z-10 w-2 cursor-ew-resize bg-white/40 opacity-0 transition-opacity group-hover:opacity-100"
+                    />
+                  </div>
+                )
+              })}
             {textOverlays.every((overlay) => overlay.rank !== edit.rank) && (
               <span className="absolute inset-0 flex items-center px-3 text-[10px] text-faint">
                 No independent text layers on this edit yet
