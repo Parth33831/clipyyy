@@ -432,7 +432,6 @@ def test_campaign_run_detail_exposes_safe_storyboard_sources(client, monkeypatch
     assert "video_path" not in detail["campaign_sources"][0]
 
 
-
 def test_campaign_lyrics_update_persists_behind_subject_option(client, monkeypatch):
     run = client.post(
         "/api/runs",
