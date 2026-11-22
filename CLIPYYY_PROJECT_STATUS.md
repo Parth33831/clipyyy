@@ -9,7 +9,7 @@
 - **Repository:** https://github.com/Parth33831/clipyyy
 - **Local path:** `B:\\CLIPSTUDIO\\clipyyy`
 - **Default branch:** `main`
-- **Product goal:** A stable, professional AI video creation and repurposing application with capabilities approaching OpusClip.
+- **Product goal:** CLIPYYY is an AI-powered campaign video creator and in-app editor: users upload footage, campaign music, lyrics and a brief; CLIPYYY analyzes assets, selects the strongest moments, matches visuals to the campaign story and music, synchronizes cuts/effects/animated typography to beats and lyrics, then provides a fully editable project and polished export.
 - **Data directory:** `B:\\CLIPSTUDIO\\clipyyy-data` (keep user data separate from source code).
 
 ## Team / conversation responsibilities
@@ -23,7 +23,7 @@
 ## Repository baseline (inspected 2026-11-22)
 
 - **Default branch:** `main`
-- **Latest main commit:** `6beb639a80577830919fbac8ed5ea79f44cdfb1e` — Add drag trimming to campaign timeline (#46).
+- **Latest main commit:** `5e179affb50f3be65a9ec8916d707e7497ec78d4` — Add editable campaign music mix controls (#47).
 - Recent completed main work includes lyric animation previews, multi-colour lyric captions, configurable lyric colours, word-accurate song transcription, campaign dialogue/montage editing, stock-footage discovery, editable storyboards, optional cinematic camera movement and ready-to-post copy in clip export archives.
 - **Open work:** No active PRs at the latest check. PRs #29, #30, #31, #32, #34, #36, #37, #38, #40, #41, #42, #43, #44 and #46 are merged. PRs #33, #35 and #39 were closed as superseded. PR #27 remains merged.
 - **Branches observed:** `automatic-word-timed-lyrics`, `campaign-dialogue-transcription`, `campaign-footage-discovery`, `campaign-shot-editor`, `campaign-shot-editor-integration`, `creative-anime-editing`, `fix/campaign-export-audio-duration`, `fix/campaign-scene-selection-ci-final`, `fix/campaign-scene-selection-final-ci`, `fix/campaign-scene-selection-pacing`, `fix/campaign-scene-selection-pacing-ci`, `fix/campaign-scene-selection-release-check`, `fix/campaign-scene-selection-tested`, `fix/campaign-scene-selection-validated`, `improve-multi-clip-selection`, `instant-lyrics-style-editor`, `instant-lyrics-style-editor-ci`, `instant-lyrics-style-editor-verified`, `lyric-style-previews-multicolor`, `lyric-words-on-screen`, `lyrics-captions-animation`, `lyrics-color-controls`, `main`, `music-intelligence-hooks`, `refresh-legacy-lyric-timings`, `reuse-campaign-transcript-on-dialogue-rebuild`.
@@ -70,7 +70,7 @@
 | Retention-aware virality scoring | `feature/retention-aware-virality-scoring` / [PR #41](https://github.com/Parth33831/clipyyy/pull/41) | Merged into main as `5d638f47dbf420cb3bd830299c37944ef5e9264d` | Scores hook, value, clarity, retention and shareability with a bounded weighted formula; older models retain the legacy score fallback. Fast-backend: 112 passed, 22 skipped; Ruff lint/format and frontend build passed. |
 | Opt-in social audio normalization | `feature/social-audio-normalization` / [PR #42](https://github.com/Parth33831/clipyyy/pull/42) | Merged into main as `e948f0dbefa3ce0e5ae6c5ad2a1e7a34b88dd5f2` | Adds an OFF-by-default Normalize audio control for spoken clips and campaign music, using FFmpeg loudnorm (-16 LUFS, -1.5 dBTP). Silent sources are untouched. Fast-backend: 118 passed, 24 skipped; Ruff lint/format and frontend build passed. |
 
-**Latest main baseline:** `6beb639a80577830919fbac8ed5ea79f44cdfb1e`.
+**Latest main baseline (2026-11-22):** `5e179affb50f3be65a9ec8916d707e7497ec78d4` (PR #47, editable campaign music mix controls).
 
 **Validation honesty:** PR #29, #30, #31, #32, #34, #36, #37, #38, #40, #41 and #42 fast-backend and frontend checks passed. Windows, macOS and full-backend jobs were skipped by workflow configuration. No local Windows media test or real-media visual review has been run. PR #32 was rebuilt on top of merged #29/#30 code; PR #36 consolidated music-energy cut selection with selectable transitions on top of PR #34; PR #40 adds the visual shot/music timeline; PR #41 adds retention/shareability to the AI virality score; PR #42 adds opt-in loudness normalization.
 
@@ -435,3 +435,42 @@ STATUS: In progress / Ready for review / Merged
 - PR #44 added drag-and-drop shot reordering to the campaign visual timeline. Reviewed the one-file frontend diff and confirmed fast-backend and frontend CI passed; squash-merged into `main` as `b711e1c4316d9b4a339b1a44c854cca3048bc362`.
 - PR #46 (`feature/campaign-timeline-drag-trim`) added pointer-driven in/out handles to trim shots directly on the timeline, keeps numeric inputs and keyboard controls as alternatives, enforces the backend 1.5–5 second range and source duration, and rejects empty external drag payloads. Frontend and fast-backend CI passed; squash-merged into `main` as `6beb639a80577830919fbac8ed5ea79f44cdfb1e`.
 - No local Windows or real-media visual/audio smoke test has been performed. Current machine constraints remain CPU-only Intel Iris Xe / 7.65 GB RAM; do not download a vision model or move media/cache data to C:.
+
+
+## Master product direction — clarified by product owner (2026-11-22)
+
+**This is the north star for every CLIPYYY conversation.** Do not optimize only for isolated feature count or treat CLIPYYY as merely a long-video clipper. Build toward one cohesive AI campaign-video creation and editing workflow.
+
+### Intended creator workflow
+
+1. **Brief + assets:** User uploads multiple source videos, a campaign song/music track, supplied lyrics or requests transcription, and campaign requirements (message, audience, duration, aspect ratio, platform, mood, required scenes/branding).
+2. **Understand assets:** Analyze source footage for usable moments, scene/action/shot scale, subjects and framing; analyze the track for beats, transients, energy, sections and lyric timing. Be honest about model limitations: text-only models do not understand pixels. Prefer efficient local processing and do not download large models or use paid/cloud inference without explicit approval.
+3. **Plan the edit:** Select the strongest truthful moments and arrange them to communicate the brief. Match visual actions and scene changes to lyric meaning, music energy and beat structure—not merely arbitrary cuts near transients. Keep important subjects/products inside the output frame.
+4. **Create a music-video-style edit:** Synchronize cuts, transitions, zooms, motion, speed changes and emphasis to the music. Provide expressive kinetic typography/lyrics (large, animated, word/phrase timing, colour/style controls, foreground/background placement with subject-aware occlusion where feasible) plus readable captions. Lyric animation should feel like part of the edit, not ordinary subtitles.
+5. **Edit inside CLIPYYY:** The generated project remains editable in the app: preview, timeline, shot reorder/trim/split, text/lyric layers, styling, effects/transitions, audio mix, undo/redo and re-render. Preserve the user's ability to override AI decisions.
+6. **Export:** Render reliable, polished deliverables in chosen aspect ratio/resolution with synchronized audio, typography and effects.
+
+### Product principles
+- One integrated workflow, not disconnected demos or duplicated implementations.
+- AI-generated edits are a starting point; creator remains in control.
+- Reuse existing music intelligence, word timestamps, lyric animation, campaign storyboard, shot editing, transitions, subject tracking, and music mix features before adding alternatives.
+- Distinguish actual visual understanding from metadata/text-only heuristics; never claim semantic footage understanding unless a vision-capable path supplied it.
+- Keep local data, models, caches and exports under `B:\\CLIPSTUDIO\\clipyyy-data` / configured CLIPYYY home; do not move user data to C:.
+- Maintain compatibility with the user's CPU-only, low-memory Windows machine; no surprise large model downloads, paid APIs or cloud inference.
+- Protect existing spoken-clip workflows while improving the campaign-video workflow.
+
+### Roadmap (ordered)
+- **P0 — Integration truth audit:** Verify the complete upload → brief → footage analysis → song/lyric analysis → edit plan → render → in-app editing flow end-to-end. Identify disconnected or placeholder steps and real-media validation gaps.
+- **P1 — Footage-to-story/music matching:** Audit current scene observations and campaign planning; improve selection so moments are relevant to brief/lyrics and beat/energy while preserving source truth and CPU constraints. Do not duplicate existing beat analysis or lyric transcription.
+- **P2 — Music-video typography:** Audit existing lyric animation and colour controls; evolve toward expressive, configurable kinetic typography with beat/word timing and safe subject-aware placement.
+- **P3 — Unified in-app editor:** Evolve current storyboard/timeline into an integrated preview + multi-layer editing workspace, incrementally preserving current controls and saved-run compatibility.
+- **P4 — Render quality and verification:** Real-media Windows tests for framing, audio sync, lyric timing, transitions, performance and export quality.
+
+### Cross-chat assignment / ownership
+- **Architecture & Master Plan:** Own this north star, roadmap, dependency decisions and coordination. Do not create competing implementations.
+- **Feature Development:** Next assigned implementation is **P1: audit-led footage-to-story/music matching** on a dedicated feature branch from the latest main. First inspect existing `vision.py`, `campaign.py`, `pipeline.py`, lyric/transcript timing and their tests. Reuse existing structured scene observations and music/lyric analysis. Define a bounded, testable matching/scoring improvement before coding. Do not add/download a vision model, alter lyric rendering or redesign the editor in this assignment.
+- **Testing & Integration:** Verify feature contracts, CI and real-media Windows smoke-test instructions; never merge unreviewed work.
+- Any conversation picking up CLIPYYY must read this section and the latest GitHub main/PR state first. If another task is already active, coordinate through this document rather than duplicating it.
+
+
+- 2026-11-22: Product owner clarified the CLIPYYY north star: an integrated AI campaign-video creator/editor that analyzes uploaded footage, campaign music, lyrics and requirements; selects the strongest story-relevant moments; synchronizes edits and kinetic typography to music; and keeps the result editable in-app. Updated the shared roadmap and assigned Feature Development the next non-overlapping P1 audit-led footage-to-story/music matching task. Latest main is `5e179affb50f3be65a9ec8916d707e7497ec78d4` (PR #47); no open PRs were present at handoff.
