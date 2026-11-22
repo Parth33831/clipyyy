@@ -435,6 +435,7 @@ def test_campaign_text_overlay_pipeline_persists_only_valid_output_layers(monkey
     assert saved["options"]["campaign_text_overlays"][0]["text"] == "SHOP NOW"
     assert saved["options"]["campaign_text_overlays"][0]["color"] == "#FF3B4F"
 
+
 def test_campaign_text_overlay_pipeline_rejects_out_of_bounds_timing(monkeypatch):
     import pytest
 
