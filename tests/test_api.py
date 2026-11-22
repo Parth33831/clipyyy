@@ -515,6 +515,7 @@ def test_campaign_text_overlays_are_validated_saved_and_rerendered(client, monke
     saved = db.get_run(run["id"])["options"]["campaign_text_overlays"]
     assert saved == [overlay]
 
+
 def test_campaign_text_overlay_rejects_timing_outside_output(client, monkeypatch):
     run = client.post(
         "/api/runs",
