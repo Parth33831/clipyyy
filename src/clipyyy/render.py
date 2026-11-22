@@ -1804,9 +1804,7 @@ def _campaign_music_beat_markers(analysis: dict, music_start: float, target_dura
         relative = float(beat) - music_start
         if not 0.0 <= relative <= target_duration:
             continue
-        strength = (
-            max(0.0, min(1.0, float(strengths[index]))) if index < len(strengths) else 0.0
-        )
+        strength = max(0.0, min(1.0, float(strengths[index]))) if index < len(strengths) else 0.0
         energy = 0.5
         if profile:
             nearest = min(
