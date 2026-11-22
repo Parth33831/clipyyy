@@ -711,6 +711,7 @@ def render_campaign_montages(
                         position_y=options.get("campaign_lyrics_position_y", 84),
                         scale_percent=options.get("campaign_lyrics_scale_percent", 100),
                         rotation_degrees=options.get("campaign_lyrics_rotation_degrees", 0),
+                        phrase_edits=options.get("campaign_lyric_phrase_edits", []),
                     )
                 captioned = edit_dir / "montage-lyrics.mp4"
                 if options.get("campaign_lyrics_behind_subject", False):
@@ -1153,6 +1154,7 @@ def write_campaign_lyrics(
     position_y: int = 84,
     scale_percent: int = 100,
     rotation_degrees: int = 0,
+    phrase_edits: list[dict] | None = None,
 ) -> Path:
     """Burn timed lyrics with editable placement and dynamic styling."""
     from clipyyy.captions import _ass_color, _escape, _ts
@@ -1286,12 +1288,28 @@ def write_campaign_lyrics(
     y = round(height * position_y / 100)
     transform = f"{{\\pos({x},{y})\\fscx{scale_percent}\\fscy{scale_percent}\\frz{rotation_degrees}}}"
     transformed_script = []
+    phrase_overrides = {
+        int(item.get("phrase_index", -1)): item
+        for item in (phrase_edits or [])
+        if isinstance(item, dict) and 0 <= int(item.get("phrase_index", -1)) < 200
+    }
+    dialogue_index = 0
     for line in script:
         if line.startswith("Dialogue:"):
             fields = line.split(",", 9)
             if len(fields) == 10:
-                fields[9] = transform + fields[9]
+                override = phrase_overrides.get(dialogue_index, {})
+                phrase_x = max(5, min(95, int(override.get("position_x", position_x))))
+                phrase_y = max(5, min(95, int(override.get("position_y", position_y))))
+                phrase_scale = max(50, min(200, int(override.get("scale_percent", scale_percent))))
+                phrase_rotation = max(-30, min(30, int(override.get("rotation_degrees", rotation_degrees))))
+                phrase_transform = (
+                    f"{{\\pos({round(width * phrase_x / 100)},{round(height * phrase_y / 100)})"
+                    f"\\fscx{phrase_scale}\\fscy{phrase_scale}\\frz{phrase_rotation}}}"
+                )
+                fields[9] = phrase_transform + fields[9]
                 line = ",".join(fields)
+            dialogue_index += 1
         transformed_script.append(line)
     path.write_text("\n".join(transformed_script) + "\n", encoding="utf-8")
     return path
