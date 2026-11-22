@@ -58,6 +58,23 @@ class CampaignLyricsUpdate(BaseModel):
     include_hook: bool = False
 
 
+class CampaignTextOverlay(BaseModel):
+    rank: int = Field(..., ge=1, le=10)
+    text: str = Field(..., min_length=1, max_length=160)
+    start_seconds: float = Field(..., ge=0)
+    end_seconds: float = Field(..., gt=0)
+    position_x: int = Field(50, ge=5, le=95)
+    position_y: int = Field(50, ge=5, le=95)
+    font_size_percent: int = Field(100, ge=60, le=200)
+    color: str = Field("#FFFFFF", pattern=r"^#[0-9A-Fa-f]{6}$")
+    animation: Literal["none", "fade", "pop", "slide"] = "fade"
+    background: bool = True
+
+
+class CampaignTextOverlaysUpdate(BaseModel):
+    overlays: list[CampaignTextOverlay] = Field(default_factory=list, max_length=30)
+
+
 class CampaignShotEdit(BaseModel):
     source_index: int = Field(..., ge=0)
     start_seconds: float = Field(..., ge=0)
@@ -202,6 +219,28 @@ def create_app(start_worker: bool = True) -> FastAPI:
             "saved": True,
             "rendered": True,
             "characters": len(body.lyrics),
+            "outputs": len(result.get("renders", [])),
+        }
+
+    @app.put("/api/runs/{run_id}/campaign-text-overlays")
+    def update_campaign_text_overlays(run_id: str, body: CampaignTextOverlaysUpdate) -> dict:
+        run = _run_or_404(run_id)
+        if not run["options"].get("campaign_mode"):
+            raise HTTPException(400, "Text overlays are only available for campaign runs.")
+        if run["status"] in {"queued", "running"}:
+            raise HTTPException(409, "Wait for the campaign run to finish before editing text overlays.")
+        try:
+            result = pipeline.update_campaign_text_overlays(
+                run_id, [overlay.model_dump() for overlay in body.overlays]
+            )
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(500, f"Could not apply campaign text overlays: {exc}") from exc
+        return {
+            "saved": True,
+            "rendered": True,
+            "overlays": len(body.overlays),
             "outputs": len(result.get("renders", [])),
         }
 
