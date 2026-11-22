@@ -157,7 +157,7 @@ export function RunDetailPage() {
   }).filter((phrase) => phrase.text)
   const lyricPhrases = lyricRows.map((phrase) => phrase.text)
   const lyricPhraseTimes = lyricRows.map((phrase) => phrase.start)
-  const lyricOffset = run.data?.campaign_quality_checks?.music_analysis?.selected_start_seconds ?? 0
+  const lyricOffset = musicStartSeconds
   const campaignTimelineLyrics: CampaignPreviewLyric[] = lyricRows.flatMap((phrase, index) => {
     if (phrase.start == null) return []
     const phraseEdit = phraseEdits.find((edit) => edit.phrase_index === index)
