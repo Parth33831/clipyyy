@@ -38,6 +38,7 @@ class RetryRun(BaseModel):
 
 class CampaignAudioUpdate(BaseModel):
     music_volume: float = Field(0.9, ge=0, le=2)
+    source_audio_volume: float = Field(1.0, ge=0, le=2)
     fade_in_seconds: float = Field(0.4, ge=0, le=10)
     fade_out_seconds: float = Field(0.8, ge=0, le=10)
 
@@ -276,13 +277,12 @@ def create_app(start_worker: bool = True) -> FastAPI:
         run = _run_or_404(run_id)
         if not run["options"].get("campaign_mode"):
             raise HTTPException(400, "Music settings are only available for campaign runs.")
-        if not run["options"].get("campaign_music_path"):
-            raise HTTPException(400, "Attach a campaign music track before changing its mix.")
         if run["status"] in {"queued", "running"}:
             raise HTTPException(409, "Wait for the campaign run to finish before changing its music mix.")
         options = {
             **run["options"],
             "campaign_music_volume": body.music_volume,
+            "campaign_source_audio_volume": body.source_audio_volume,
             "campaign_music_fade_in_seconds": body.fade_in_seconds,
             "campaign_music_fade_out_seconds": body.fade_out_seconds,
         }
