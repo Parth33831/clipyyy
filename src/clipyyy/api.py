@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import mimetypes
 import os
 import shutil
 import zipfile
@@ -354,6 +355,33 @@ def create_app(start_worker: bool = True) -> FastAPI:
     def get_run(run_id: str) -> dict:
         return run_detail(run_id)
 
+    @app.get("/api/runs/{run_id}/campaign-source")
+    def campaign_source(run_id: str, source_index: int) -> FileResponse:
+        """Stream one validated source video for in-editor playback."""
+        run = _run_or_404(run_id)
+        if not run["options"].get("campaign_mode"):
+            raise HTTPException(400, "Source previews are only available for campaign runs.")
+        if source_index < 0:
+            raise HTTPException(400, "Choose a valid campaign source.")
+        work_dir = pipeline.run_dir(run_id) / "work"
+        source_file = work_dir / "download.json"
+        if not source_file.is_file():
+            raise HTTPException(404, "Campaign source footage is not available yet.")
+        source_data = json.loads(source_file.read_text(encoding="utf-8"))
+        select_file = work_dir / "select.json"
+        selection_data = json.loads(select_file.read_text(encoding="utf-8")) if select_file.is_file() else {}
+        source_items = selection_data.get("campaign_sources") or source_data.get("sources") or [source_data]
+        if source_index >= len(source_items):
+            raise HTTPException(404, "Campaign source not found.")
+        video_path = Path(str(source_items[source_index].get("video_path") or ""))
+        if not video_path.is_file():
+            raise HTTPException(404, "Campaign source video is missing.")
+        media_type = mimetypes.guess_type(video_path.name)[0] or "application/octet-stream"
+        return FileResponse(
+            video_path,
+            media_type=media_type,
+            headers={"Cache-Control": "private, max-age=3600"},
+        )
     @app.get("/api/runs/{run_id}/campaign-frame")
     def campaign_frame(run_id: str, source_index: int, timestamp: float) -> FileResponse:
         """Return a cached still frame from one of this run's campaign source videos."""
