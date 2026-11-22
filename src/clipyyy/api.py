@@ -377,8 +377,12 @@ def create_app(start_worker: bool = True) -> FastAPI:
         if not video_path.is_file():
             raise HTTPException(404, "Campaign source video is missing.")
         media_type = mimetypes.guess_type(video_path.name)[0] or "application/octet-stream"
-        return FileResponse(video_path, media_type=media_type, filename=video_path.name,
-                            headers={"Cache-Control": "private, max-age=3600"})
+        return FileResponse(
+            video_path,
+            media_type=media_type,
+            filename=video_path.name,
+            headers={"Cache-Control": "private, max-age=3600"},
+        )
     @app.get("/api/runs/{run_id}/campaign-frame")
     def campaign_frame(run_id: str, source_index: int, timestamp: float) -> FileResponse:
         """Return a cached still frame from one of this run's campaign source videos."""
