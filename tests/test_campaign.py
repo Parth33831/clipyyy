@@ -603,3 +603,82 @@ def test_montage_planner_uses_timed_lyric_cues_without_claiming_exact_sync():
     assert '"start_seconds": 3.0' in llm.user
     assert "seconds relative to the selected music segment" in llm.user
     assert "do not claim" in llm.user
+
+def test_lyric_scene_matcher_ranks_only_grounded_visual_keyword_evidence():
+    from clipyyy.campaign import _rank_lyric_scene_matches
+
+    cues = [
+        {
+            "text": "Together we rise",
+            "start_seconds": 2.0,
+            "end_seconds": 3.0,
+        }
+    ]
+    candidates = [
+        {
+            "source_index": 0,
+            "source_title": "Celebration footage",
+            "timestamp": 7.5,
+            "description": "A group of friends celebrating together",
+            "visible_action": "people raising their hands",
+            "subjects": "group of friends",
+            "confidence": 0.95,
+        },
+        {
+            "source_index": 1,
+            "source_title": "Unrelated footage",
+            "timestamp": 4.0,
+            "description": "A close-up of a red car on a road",
+            "visible_action": "car driving",
+            "confidence": 0.99,
+        },
+        {
+            "source_index": 2,
+            "source_title": "Text-only footage",
+            "timestamp": 5.0,
+            "description": "Visual content unavailable for this text-only model",
+            "visible_action": "unknown",
+            "confidence": 0.0,
+        },
+    ]
+
+    result = _rank_lyric_scene_matches(cues, candidates)
+
+    assert len(result) == 1
+    assert result[0]["cue_text"] == "Together we rise"
+    assert result[0]["cue_start_seconds"] == 2.0
+    assert len(result[0]["matches"]) == 1
+    assert result[0]["matches"][0]["source_index"] == 0
+    assert "together" in result[0]["matches"][0]["matched_terms"]
+    assert result[0]["matches"][0]["score"] > 0.0
+
+
+def test_lyric_scene_matcher_does_not_force_unmatched_or_text_only_scenes():
+    from clipyyy.campaign import _rank_lyric_scene_matches
+
+    result = _rank_lyric_scene_matches(
+        [{"text": "A brighter tomorrow", "start_seconds": 0, "end_seconds": 1}],
+        [
+            {
+                "source_index": 0,
+                "timestamp": 2,
+                "description": "Visual content unavailable for this text-only model",
+            },
+            {
+                "source_index": 1,
+                "timestamp": 3,
+                "description": "A person walking beside a lake",
+                "visible_action": "walking",
+            },
+        ],
+    )
+
+    assert result == [
+        {
+            "cue_text": "A brighter tomorrow",
+            "cue_start_seconds": 0.0,
+            "cue_end_seconds": 1.0,
+            "matches": [],
+        }
+    ]
+
