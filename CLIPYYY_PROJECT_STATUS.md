@@ -614,3 +614,5 @@ STATUS: In progress / Ready for review / Merged
   - PR #76: draggable live preview for campaign text overlays (currently stacked on an older overlay branch; it must be rebased onto main before merge).
   - PR #77: live source playback in the campaign timeline.
 - Avoid duplicating draggable overlay preview or live source playback. The next independent editor improvement is direct drag-to-move/trim for overlay blocks on the timeline, with separate left/right handles. This is distinct from preview positioning.
+
+- 2026-11-22: PR #80 stacks on PR #76 and adds per-overlay font family, regular/bold weight and none/shadow/outline effects. It also fixes ASS script escaping/newline output and keeps typography settings intact for slide animations. CI is pending. Merge #72, then #76, then #80; do not merge out of order.
