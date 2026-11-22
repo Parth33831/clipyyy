@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, Download, RotateCcw, Scissors, Send, Trash2 } from 'lucide-react'
-import { useCallback, useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useUndoRedo } from '../hooks/useUndoRedo'
 import { toast } from 'sonner'
@@ -1039,6 +1039,11 @@ function CampaignTimeline({
   onUpdateShot: (shotIndex: number, patch: Partial<CampaignShot>) => void
 }) {
   const [previewShotIndex, setPreviewShotIndex] = useState(0)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const advancingShotRef = useRef(false)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [playheadSeconds, setPlayheadSeconds] = useState(0)
   const [activeOverlayTrim, setActiveOverlayTrim] = useState<{
     pointerId: number
     overlayIndex: number
@@ -1079,42 +1084,128 @@ function CampaignTimeline({
       {shots.length > 0 && (() => {
         const preview = shots[previewShotIndex] ?? shots[0]
         const source = sourceByIndex.get(preview.shot.source_index)
+        const shotTimelineStart = shots.slice(0, preview.index).reduce((sum, item) => sum + item.duration, 0)
+        const activeOverlay = textOverlays.find((overlay) =>
+          overlay.rank === edit.rank && playheadSeconds >= overlay.start_seconds && playheadSeconds <= overlay.end_seconds
+        )
+        const selectShot = (index: number) => {
+          videoRef.current?.pause()
+          audioRef.current?.pause()
+          setIsPlaying(false)
+          const bounded = Math.max(0, Math.min(shots.length - 1, index))
+          setPreviewShotIndex(bounded)
+          setPlayheadSeconds(shots.slice(0, bounded).reduce((sum, item) => sum + item.duration, 0))
+        }
+        const togglePlayback = async () => {
+          const video = videoRef.current
+          const audio = audioRef.current
+          if (!video) return
+          if (isPlaying) {
+            video.pause()
+            audio?.pause()
+            setIsPlaying(false)
+            return
+          }
+          if (video.currentTime < preview.shot.start_seconds || video.currentTime >= preview.shot.end_seconds) {
+            video.currentTime = preview.shot.start_seconds
+          }
+          if (audio) {
+            audio.currentTime = musicStart + playheadSeconds
+            try { await audio.play() } catch { /* Video preview can still be reviewed if audio is unavailable. */ }
+          }
+          try {
+            await video.play()
+            setIsPlaying(true)
+          } catch {
+            audio?.pause()
+            setIsPlaying(false)
+          }
+        }
         return (
           <div className="grid gap-3 rounded-md border border-line bg-surface p-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(180px,1fr)] sm:items-center">
-            <video
-              key={String(preview.index) + "-" + String(preview.shot.source_index) + "-" + String(preview.shot.start_seconds)}
-              controls
-              playsInline
-              preload="metadata"
-              src={"/api/runs/" + runId + "/campaign-source?source_index=" + preview.shot.source_index}
-              onLoadedMetadata={(event) => { event.currentTarget.currentTime = preview.shot.start_seconds }}
-              onTimeUpdate={(event) => {
-                if (event.currentTarget.currentTime >= preview.shot.end_seconds) event.currentTarget.pause()
-              }}
-              className="max-h-64 w-full rounded-md bg-black"
-            />
-            <div className="flex flex-col gap-1">
-              <span className="label text-muted">Live source preview · shot {preview.index + 1}</span>
+            <div className="relative overflow-hidden rounded-md bg-black">
+              <video
+                ref={videoRef}
+                key={String(preview.index) + "-" + String(preview.shot.source_index) + "-" + String(preview.shot.start_seconds)}
+                playsInline
+                preload="metadata"
+                src={"/api/runs/" + runId + "/campaign-source?source_index=" + preview.shot.source_index}
+                onLoadedMetadata={(event) => {
+                  advancingShotRef.current = false
+                  event.currentTarget.currentTime = preview.shot.start_seconds
+                  if (isPlaying) {
+                    const audio = audioRef.current
+                    if (audio) {
+                      audio.currentTime = musicStart + shotTimelineStart
+                      void audio.play().catch(() => undefined)
+                    }
+                    void event.currentTarget.play().catch(() => setIsPlaying(false))
+                  }
+                }}
+                onTimeUpdate={(event) => {
+                  const localElapsed = Math.max(0, event.currentTarget.currentTime - preview.shot.start_seconds)
+                  const nextPlayhead = shotTimelineStart + localElapsed
+                  setPlayheadSeconds(nextPlayhead)
+                  const audio = audioRef.current
+                  if (audio && isPlaying) {
+                    const target = musicStart + nextPlayhead
+                    if (Math.abs(audio.currentTime - target) > 0.45) audio.currentTime = target
+                  }
+                  if (event.currentTarget.currentTime >= preview.shot.end_seconds - 0.04 && !advancingShotRef.current) {
+                    advancingShotRef.current = true
+                    if (preview.index < shots.length - 1) {
+                      setPreviewShotIndex(preview.index + 1)
+                    } else {
+                      event.currentTarget.pause()
+                      audio?.pause()
+                      setIsPlaying(false)
+                    }
+                  }
+                }}
+                className="max-h-64 w-full bg-black object-contain"
+              />
+              {activeOverlay && (
+                <div className="pointer-events-none absolute flex items-center justify-center px-4"
+                  style={{ left: activeOverlay.position_x + '%', top: activeOverlay.position_y + '%', transform: 'translate(-50%, -50%)', width: '90%' }}>
+                  <span className="text-center font-extrabold leading-tight"
+                    style={{
+                      color: activeOverlay.color,
+                      fontSize: 'clamp(14px, ' + (activeOverlay.font_size_percent * 0.22) + 'vw, 44px)',
+                      textShadow: activeOverlay.background ? 'none' : '0 2px 8px #000',
+                      background: activeOverlay.background ? 'rgba(0,0,0,.62)' : 'transparent',
+                      padding: activeOverlay.background ? '0.25em 0.5em' : 0,
+                      borderRadius: '0.3em',
+                    }}>{activeOverlay.text}</span>
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <span className="label text-muted">Synchronized campaign preview · shot {preview.index + 1} of {shots.length}</span>
               <span className="text-sm font-medium">{source?.title ?? "Source " + (preview.shot.source_index + 1)}</span>
               <span className="font-mono text-xs text-faint">
                 {formatDuration(preview.shot.start_seconds)} → {formatDuration(preview.shot.end_seconds)}
+                {' · '}Timeline {formatDuration(playheadSeconds)} / {formatDuration(total)}
               </span>
-              <p className="mt-1 text-xs text-muted">Play the actual footage for this shot. Playback pauses at its selected out-point; choose another block to preview it.</p>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => void togglePlayback()}
+                  className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-paper">
+                  {isPlaying ? 'Pause preview' : 'Play synchronized preview'}
+                </button>
+                <button type="button" onClick={() => selectShot(Math.max(0, preview.index - 1))}
+                  disabled={preview.index === 0}
+                  className="rounded-md border border-line px-3 py-2 text-sm disabled:opacity-40">Previous</button>
+                <button type="button" onClick={() => selectShot(Math.min(shots.length - 1, preview.index + 1))}
+                  disabled={preview.index === shots.length - 1}
+                  className="rounded-md border border-line px-3 py-2 text-sm disabled:opacity-40">Next</button>
+              </div>
+              <p className="mt-1 text-xs text-muted">One controller plays the selected footage and soundtrack together, automatically advancing through the remaining shots. Timed campaign text appears over the preview.</p>
             </div>
           </div>
         )
       })()}
-      {hasMusic && (
-        <div className="flex flex-col gap-2 rounded-md border border-line bg-surface p-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="label text-muted">Campaign soundtrack preview</span>
-            <span className="text-xs text-muted">Listen while reviewing the selected footage</span>
-          </div>
-          <audio controls preload="metadata" src={"/api/runs/" + runId + "/campaign-music"} className="w-full" />
-        </div>
-      )}
+      {hasMusic && <audio ref={audioRef} preload="metadata" src={"/api/runs/" + runId + "/campaign-music"} className="hidden" />}
       <div className="overflow-x-auto">
-        <div data-campaign-timeline-track className="flex min-w-[680px] gap-1 rounded-md bg-surface p-2">
+        <div data-campaign-timeline-track className="relative flex min-w-[680px] gap-1 rounded-md bg-surface p-2">
           {shots.map(({ shot, index, duration }) => {
             const source = sourceByIndex.get(shot.source_index)
             return (
@@ -1123,7 +1214,14 @@ function CampaignTimeline({
                 type="button"
                 title={`Shot ${index + 1}: ${source?.title ?? `Source ${shot.source_index + 1}`} · ${formatDuration(shot.end_seconds - shot.start_seconds)}`}
                 aria-label={`Jump to shot ${index + 1} in the storyboard editor`}
-                onClick={() => { setPreviewShotIndex(index); document.getElementById(`campaign-shot-${edit.rank}-${index}`)?.scrollIntoView({ behavior: "smooth", block: "center" }) }}
+                onClick={() => {
+                  videoRef.current?.pause()
+                  audioRef.current?.pause()
+                  setIsPlaying(false)
+                  setPreviewShotIndex(index)
+                  setPlayheadSeconds(shots.slice(0, index).reduce((sum, item) => sum + item.duration, 0))
+                  document.getElementById(`campaign-shot-${edit.rank}-${index}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
+                }}
                 draggable
                 onDragStart={(event) => {
                   event.dataTransfer.effectAllowed = 'move'
@@ -1229,6 +1327,7 @@ function CampaignTimeline({
               </button>
             )
           })}
+          <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 z-20 w-0.5 bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.9)]" style={{ left: 'calc(' + Math.max(0, Math.min(100, (playheadSeconds / total) * 100)) + '%)' }} />
         </div>
       </div>
       <div className="label flex justify-between px-1 text-faint">
