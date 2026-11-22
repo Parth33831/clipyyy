@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, Download, RotateCcw, Scissors, Send, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { api, type CampaignEdit, type CampaignTextOverlay, type CampaignMusicAnalysis, type CampaignLyricPhraseEdit, type CampaignShot, type CampaignSource, type Clip, type Post, type RunDetail } from '../api'
@@ -540,7 +540,7 @@ export function RunDetailPage() {
         <CampaignTextOverlayEditor
           overlays={campaignTextOverlays}
           savedOverlays={data.options.campaign_text_overlays ?? []}
-          outputs={readyClips.map((clip) => ({ rank: clip.rank, duration_seconds: clip.duration_seconds ?? 0 }))}
+          outputs={readyClips.map((clip) => ({ rank: clip.rank, duration_seconds: clip.duration_seconds ?? 0, poster_url: clip.poster_url }))}
           saving={saveCampaignTextOverlays.isPending}
           onChange={setCampaignTextOverlays}
           onSave={() => saveCampaignTextOverlays.mutate()}
@@ -769,7 +769,7 @@ function CampaignTextOverlayEditor({
 }: {
   overlays: CampaignTextOverlay[]
   savedOverlays: CampaignTextOverlay[]
-  outputs: { rank: number; duration_seconds: number }[]
+  outputs: { rank: number; duration_seconds: number; poster_url?: string }[]
   saving: boolean
   onChange: (overlays: CampaignTextOverlay[]) => void
   onSave: () => void
@@ -788,6 +788,9 @@ function CampaignTextOverlayEditor({
         position_x: 50,
         position_y: 50,
         font_size_percent: 100,
+        font_family: 'Arial',
+        font_weight: 'bold',
+        text_effect: 'shadow',
         color: '#FFFFFF',
         animation: 'fade',
         background: true,
@@ -840,6 +843,66 @@ function CampaignTextOverlayEditor({
                     onChange={(event) => update(index, { text: event.target.value })}
                     className="w-full resize-y rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink" />
                 </label>
+                <div className="flex flex-wrap items-center gap-4 rounded-lg border border-line bg-surface p-3">
+                  <div className="w-full max-w-[210px]">
+                    <div
+                      className="relative mx-auto aspect-[9/16] w-full touch-none select-none overflow-hidden rounded-lg border border-white/15 bg-gradient-to-br from-slate-800 via-slate-950 to-black shadow-lg"
+                      onPointerDown={(event: ReactPointerEvent<HTMLDivElement>) => {
+                        event.preventDefault()
+                        event.currentTarget.setPointerCapture(event.pointerId)
+                        const bounds = event.currentTarget.getBoundingClientRect()
+                        update(index, {
+                          position_x: Math.max(5, Math.min(95, Math.round(((event.clientX - bounds.left) / bounds.width) * 100))),
+                          position_y: Math.max(5, Math.min(95, Math.round(((event.clientY - bounds.top) / bounds.height) * 100))),
+                        })
+                      }}
+                      onPointerMove={(event: ReactPointerEvent<HTMLDivElement>) => {
+                        if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
+                        const bounds = event.currentTarget.getBoundingClientRect()
+                        update(index, {
+                          position_x: Math.max(5, Math.min(95, Math.round(((event.clientX - bounds.left) / bounds.width) * 100))),
+                          position_y: Math.max(5, Math.min(95, Math.round(((event.clientY - bounds.top) / bounds.height) * 100))),
+                        })
+                      }}
+                      onPointerUp={(event: ReactPointerEvent<HTMLDivElement>) => {
+                        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+                      }}
+                      onPointerCancel={(event: ReactPointerEvent<HTMLDivElement>) => {
+                        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+                      }}
+                      aria-label="Drag the text overlay to change its position"
+                    >
+                      {output?.poster_url && (
+                        <img src={output.poster_url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover" />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-black/25" />
+                      <div className="absolute left-2 top-2 rounded bg-black/55 px-2 py-1 text-[9px] font-semibold tracking-widest text-white/80">
+                        POSITION PREVIEW
+                      </div>
+                      <div
+                        className="pointer-events-none absolute max-w-[84%] -translate-x-1/2 -translate-y-1/2 whitespace-pre-wrap break-words rounded-md px-2 py-1 text-center leading-tight shadow-lg"
+                        style={{
+                          left: '`${overlay.position_x}%`',
+                          top: '`${overlay.position_y}%`',
+                          color: overlay.color,
+                          fontSize: '`${Math.max(12, 15 * overlay.font_size_percent / 100)}px`',
+                          fontFamily: overlay.font_family ?? 'Arial',
+                          fontWeight: overlay.font_weight === 'regular' ? 400 : 700,
+                          backgroundColor: overlay.background ? 'rgba(0,0,0,0.62)' : 'transparent',
+                          textShadow: overlay.text_effect === 'outline' ? '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000' : overlay.text_effect === 'shadow' ? '0 2px 8px rgba(0,0,0,0.9)' : 'none',
+                        }}
+                      >
+                        {overlay.text || 'YOUR MESSAGE'}
+                      </div>
+                    </div>
+                    <p className="mt-2 text-center text-[10px] text-muted">Drag the text to position it · 9:16 preview</p>
+                  </div>
+                  <div className="min-w-[180px] flex-1 text-xs text-muted">
+                    <p className="font-semibold text-ink">Direct positioning</p>
+                    <p className="mt-1">Move the message inside the frame. The X/Y controls below update immediately and stay in sync with this preview.</p>
+                    <p className="mt-2 font-mono tabular-nums">X {overlay.position_x}% · Y {overlay.position_y}%</p>
+                  </div>
+                </div>
                 <div className="grid gap-3 sm:grid-cols-3">
                   <label className="flex flex-col gap-1 text-xs text-muted">
                     Output
@@ -898,6 +961,36 @@ function CampaignTextOverlayEditor({
                     <input type="checkbox" checked={overlay.background}
                       onChange={(event) => update(index, { background: event.target.checked })} />
                     Background panel
+                  </label>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <label className="flex flex-col gap-1 text-xs text-muted">
+                    Font family
+                    <select value={overlay.font_family ?? 'Arial'} onChange={(event) => update(index, { font_family: event.target.value as CampaignTextOverlay['font_family'] })}
+                      className="rounded-md border border-line bg-surface px-2 py-2 text-sm text-ink">
+                      <option value="Arial">Arial · clean</option>
+                      <option value="Georgia">Georgia · editorial</option>
+                      <option value="Impact">Impact · bold display</option>
+                      <option value="Trebuchet MS">Trebuchet MS · modern</option>
+                      <option value="Verdana">Verdana · readable</option>
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-xs text-muted">
+                    Font weight
+                    <select value={overlay.font_weight ?? 'bold'} onChange={(event) => update(index, { font_weight: event.target.value as CampaignTextOverlay['font_weight'] })}
+                      className="rounded-md border border-line bg-surface px-2 py-2 text-sm text-ink">
+                      <option value="regular">Regular</option>
+                      <option value="bold">Bold</option>
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-xs text-muted">
+                    Text effect
+                    <select value={overlay.text_effect ?? 'shadow'} onChange={(event) => update(index, { text_effect: event.target.value as CampaignTextOverlay['text_effect'] })}
+                      className="rounded-md border border-line bg-surface px-2 py-2 text-sm text-ink">
+                      <option value="none">None</option>
+                      <option value="shadow">Soft shadow</option>
+                      <option value="outline">Outline</option>
+                    </select>
                   </label>
                 </div>
                 <p className="text-[11px] text-muted">
