@@ -591,6 +591,7 @@ function CampaignStoryboardEditor({
   originalEdits,
   sources,
   musicAnalysis,
+  hasMusic,
   textOverlays,
   onUpdateTextOverlay,
   transitionStyle,
@@ -605,6 +606,7 @@ function CampaignStoryboardEditor({
   originalEdits: CampaignEdit[]
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
+  hasMusic: boolean
   textOverlays: CampaignTextOverlay[]
   onUpdateTextOverlay: (overlayIndex: number, patch: Partial<CampaignTextOverlay>) => void
   transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
@@ -689,6 +691,7 @@ function CampaignStoryboardEditor({
             runId={runId}
             sources={sources}
             musicAnalysis={musicAnalysis}
+            hasMusic={Boolean(data.options.campaign_music_path)}
             textOverlays={textOverlays}
             onUpdateTextOverlay={onUpdateTextOverlay}
             transitionStyle={transitionStyle}
@@ -999,6 +1002,15 @@ function CampaignTimeline({
           </div>
         )
       })()}
+      {hasMusic && (
+        <div className="flex flex-col gap-2 rounded-md border border-line bg-surface p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="label text-muted">Campaign soundtrack preview</span>
+            <span className="text-xs text-muted">Listen while reviewing the selected footage</span>
+          </div>
+          <audio controls preload="metadata" src={"/api/runs/" + runId + "/campaign-music"} className="w-full" />
+        </div>
+      )}
       <div className="overflow-x-auto">
         <div data-campaign-timeline-track className="flex min-w-[680px] gap-1 rounded-md bg-surface p-2">
           {shots.map(({ shot, index, duration }) => {
