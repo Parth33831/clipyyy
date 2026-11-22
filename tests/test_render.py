@@ -811,7 +811,6 @@ def test_campaign_text_overlay_script_has_independent_timing_and_style(tmp_path)
     assert "Dialogue: 0,0:00:04.00,0:00:05.00,Overlay" in script
     assert r"\move(756,1622,756,1536,0,220)" in script
 
-
 def test_campaign_text_overlay_script_skips_empty_or_out_of_range_layers(tmp_path):
     from clipyyy.render import write_campaign_text_overlays
 
