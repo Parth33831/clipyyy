@@ -986,7 +986,9 @@ def render_campaign_montages(
                         if music_path and source_audio and official_sound_required
                         else "campaign music mixed with original footage audio"
                         if music_path and source_audio
-                        else "campaign music included; select the official campaign sound separately in TikTok"
+                        else (
+                            "campaign music included; select the official campaign sound separately in TikTok"
+                        )
                         if music_path and official_sound_required
                         else "campaign music included"
                         if music_path
