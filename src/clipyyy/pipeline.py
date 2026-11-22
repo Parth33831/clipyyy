@@ -660,7 +660,6 @@ def execute(run: dict[str, Any], on_stage: Callable[[str], None] | None = None) 
     db.update_run(run_id, status="completed", current_stage=None, error=None)
 
 
-
 def update_campaign_text_overlays(run_id: str, overlays: list[dict[str, Any]]) -> dict:
     """Validate and persist independent timed text layers, then re-render cached campaign footage."""
     run = db.get_run(run_id)
