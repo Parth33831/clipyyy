@@ -631,3 +631,7 @@ STATUS: In progress / Ready for review / Merged
 - PR #86 rebased the draggable live overlay preview onto latest main after PR #83 soundtrack preview, then passed Ruff, fast backend and frontend production build. It was squash-merged as `abbb7b5a52704013645b82450a6293a734deaad5`.
 - PR #76 was closed as a stale stacked attempt; its live placement preview is now integrated via PR #86. Do not re-open or duplicate it.
 - Current overlay editor supports independent layers, timeline lane, drag-to-move/trim, live 9:16 placement preview, and shared undo/redo history. Remaining work: keyboard shortcuts, preview/playhead synchronization, per-overlay typography options, and real Windows campaign smoke test.
+
+- PR #88 synchronized campaign preview playback was merged into main as `66a1aecc2ce0ae85cc9022721268d55c48b6a684`. It keeps the playback cursor aligned to the cut-based preview duration.
+- PR #89 keyboard shortcuts was superseded because #88 advanced main; refreshed PR #90 reapplies Ctrl/Cmd+Z undo and Ctrl/Cmd+Shift+Z / Ctrl/Cmd+Y redo on latest main.
+- PRs #80 and #84 both propose per-layer typography controls and touch the same API/pipeline/render/frontend files, but are based on different stale branches. Consolidate into one latest-main PR before merging; do not merge both independently.
