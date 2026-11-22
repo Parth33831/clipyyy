@@ -407,22 +407,22 @@ def build_montage_plan(
     lyric_match_guidance = ""
     if lyric_scene_matches:
         lyric_match_guidance = (
-            "\\n\\nLYRIC-TO-SCENE EVIDENCE HINTS (lexical overlap only; not semantic proof):\\n"
+            "\n\nLYRIC-TO-SCENE EVIDENCE HINTS (lexical overlap only; not semantic proof):\n"
             + json.dumps(lyric_scene_matches, ensure_ascii=False)
-            + "\\nUse a listed scene only when its actual visual evidence supports the cue and the campaign "
+            + "\nUse a listed scene only when its actual visual evidence supports the cue and the campaign "
             "story. Scores represent literal keyword overlap adjusted by observation confidence, not model "
             "certainty. An empty match list means no direct wording evidence was found; do not invent a match. "
             "Cue times are relative to the music segment and source timestamps are relative to source videos; "
-            "they are different clocks and must not be compared as if they were aligned.\\n"
+            "they are different clocks and must not be compared as if they were aligned.\n"
         )
     user = (
-        f"Campaign brief:\\n{brief}\\n\\nExtracted requirements:\\n"
+        f"Campaign brief:\n{brief}\n\nExtracted requirements:\n"
         f"{format_campaign_plan(campaign_plan)}"
         f"{music_guidance}"
         f"{lyric_guidance}"
         f"{timed_lyric_guidance}"
         f"{lyric_match_guidance}"
-        f"\\n\\nAdditional creator instructions:\\n{additional_instructions or 'None'}"
+        f"\n\nAdditional creator instructions:\n{additional_instructions or 'None'}"
         f"\n\nCreate {output_count} distinct edits, each approximately "
         f"{target_seconds:.1f} seconds. "
         "Choose enough shots to approach the target duration. Every source_index is zero-based. "
