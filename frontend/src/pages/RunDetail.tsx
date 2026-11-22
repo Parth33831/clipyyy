@@ -622,7 +622,6 @@ function CampaignTimeline({
                 <button
                   type="button"
                   draggable={false}
-                  disabled={false}
                   aria-label={`Trim start of shot ${index + 1}`}
                   title="Drag to adjust shot start"
                   onPointerDown={(event) => {
@@ -633,7 +632,6 @@ function CampaignTimeline({
                     event.currentTarget.setPointerCapture(event.pointerId)
                     setTrimDrag({ shotIndex: index, edge: 'start', startX: event.clientX, width, originalStart: shot.start_seconds, originalEnd: shot.end_seconds })
                   }}
-                  onPointerMove={(event) => event.stopPropagation()}
                   onPointerUp={(event) => { event.stopPropagation(); setTrimDrag(null) }}
                   className="absolute inset-y-0 left-0 z-10 w-3 cursor-ew-resize border-r-2 border-acid bg-ink/70 touch-none"
                 />
