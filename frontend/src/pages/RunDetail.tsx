@@ -35,6 +35,7 @@ export function RunDetailPage() {
   const [focused, setFocused] = useState<number | null>(null)
   const [musicFile, setMusicFile] = useState<File | null>(null)
   const [musicVolume, setMusicVolume] = useState(90)
+  const [sourceAudioVolume, setSourceAudioVolume] = useState(100)
   const [musicFadeIn, setMusicFadeIn] = useState(0.4)
   const [musicFadeOut, setMusicFadeOut] = useState(0.8)
   const [lyricsText, setLyricsText] = useState('')
@@ -82,6 +83,7 @@ export function RunDetailPage() {
   }, [setCampaignHistory])
   useEffect(() => {
     setMusicVolume(Math.round((run.data?.options.campaign_music_volume ?? 0.9) * 100))
+    setSourceAudioVolume(Math.round((run.data?.options.campaign_source_audio_volume ?? 1) * 100))
     setMusicFadeIn(run.data?.options.campaign_music_fade_in_seconds ?? 0.4)
     setMusicFadeOut(run.data?.options.campaign_music_fade_out_seconds ?? 0.8)
     setLyricsText(run.data?.options.campaign_lyrics ?? '')
@@ -102,7 +104,7 @@ export function RunDetailPage() {
       edits: run.data?.campaign_edits ?? [],
       overlays: run.data?.options.campaign_text_overlays ?? [],
     })
-  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.options.campaign_text_overlays, run.data?.campaign_plan?.generated_hook, resetCampaignHistory])
+  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_source_audio_volume, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.options.campaign_text_overlays, run.data?.campaign_plan?.generated_hook, resetCampaignHistory])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -126,7 +128,7 @@ export function RunDetailPage() {
     onError: (e) => toast.error(e.message),
   })
   const saveCampaignAudio = useMutation({
-    mutationFn: () => api.saveCampaignAudio(runId, musicVolume / 100, musicFadeIn, musicFadeOut),
+    mutationFn: () => api.saveCampaignAudio(runId, musicVolume / 100, sourceAudioVolume / 100, musicFadeIn, musicFadeOut),
     onSuccess: (result) => {
       toast.success(`Applied music mix to ${result.outputs} campaign edit(s).`)
       refresh()
@@ -257,9 +259,11 @@ export function RunDetailPage() {
   const data = run.data
   const busy = data.status === 'queued' || data.status === 'running'
   const savedMusicVolume = Math.round((data.options.campaign_music_volume ?? 0.9) * 100)
+  const savedSourceAudioVolume = Math.round((data.options.campaign_source_audio_volume ?? 1) * 100)
   const savedMusicFadeIn = data.options.campaign_music_fade_in_seconds ?? 0.4
   const savedMusicFadeOut = data.options.campaign_music_fade_out_seconds ?? 0.8
   const musicSettingsChanged = musicVolume !== savedMusicVolume || musicFadeIn !== savedMusicFadeIn || musicFadeOut !== savedMusicFadeOut
+  const sourceAudioSettingsChanged = sourceAudioVolume !== savedSourceAudioVolume
   const readyClips = data.clips.filter((c) => c.status === 'ready')
 
   return (
@@ -370,7 +374,7 @@ export function RunDetailPage() {
                 <span className="font-medium">Music mix</span>
                 <span className="text-xs text-muted">Adjust the attached track, then re-render</span>
               </div>
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <label className="flex flex-col gap-2">
                   <span className="flex justify-between gap-2"><span className="font-medium">Music volume</span><span className="font-mono text-muted">{musicVolume}%</span></span>
                   <input type="range" min={0} max={200} step={5} value={musicVolume} onChange={(event) => setMusicVolume(Number(event.target.value))} className="w-full accent-current" />
@@ -394,6 +398,19 @@ export function RunDetailPage() {
               </div>
             </div>
           )}
+          <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-medium">Original video audio</span>
+              <span className="font-mono text-muted">{sourceAudioVolume}%</span>
+            </div>
+            <input type="range" min={0} max={200} step={5} value={sourceAudioVolume} onChange={(event) => setSourceAudioVolume(Number(event.target.value))} className="w-full accent-current" aria-label="Original video audio volume" />
+            <span className="text-xs text-muted">0% mutes the source footage · 100% keeps its original level · 200% boosts it. Mixes with campaign music when attached.</span>
+            <div className="flex justify-end">
+              <Button variant="ink" disabled={!sourceAudioSettingsChanged || saveCampaignAudio.isPending} loading={saveCampaignAudio.isPending} onClick={() => saveCampaignAudio.mutate()}>
+                Apply original audio mix
+              </Button>
+            </div>
+          </div>
           <div className="flex flex-col gap-3 text-sm">
             <span className="font-medium">Lyrics animation preset</span>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -1172,7 +1189,7 @@ function CampaignTimeline({
   const advancingShotRef = useRef(false)
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [transitionPhase, setTransitionPhase] = useState<'idle' | 'out' | 'in'>('idle')
-  const transitionDurationMs = transitionStyle === 'cut' || (transitionStyle === 'auto' && (musicAnalysis?.detected_beats ?? 0) > 0) ? 0 : 240
+  const transitionDurationMs = transitionStyle === 'cut' ? 0 : transitionStyle === 'cinematic' ? 420 : transitionStyle === 'dynamic' ? 140 : 240
   useEffect(() => () => {
     if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current)
   }, [])
@@ -1202,7 +1219,7 @@ function CampaignTimeline({
   const shots = edit.shots.map((shot, index) => ({
     shot,
     index,
-    // Timeline duration is the selected source range; export may overlap shots for transitions.
+    // Preview playback uses hard cuts; transition overlap is not composited in this player.
     duration: Math.max(0.1, shot.end_seconds - shot.start_seconds),
   }))
   const total = Math.max(0.1, shots.reduce((sum, item) => sum + item.duration, 0))
@@ -1216,8 +1233,6 @@ function CampaignTimeline({
       </div>
       {shots.length > 0 && (() => {
         const preview = shots[previewShotIndex] ?? shots[0]
-        const dynamicTransitionNames = ['fade', 'smoothleft', 'smoothright', 'wipeleft', 'wiperight', 'slideleft', 'slideright']
-        const activeTransition = transitionStyle === 'dynamic' ? dynamicTransitionNames[Math.max(0, preview.index - 1) % dynamicTransitionNames.length] : 'fade'
         const source = sourceByIndex.get(preview.shot.source_index)
         const shotTimelineStart = shots.slice(0, preview.index).reduce((sum, item) => sum + item.duration, 0)
         const activeOverlay = textOverlays.find((overlay) =>
@@ -1346,7 +1361,6 @@ function CampaignTimeline({
                     }
                     transitionTimerRef.current = setTimeout(() => {
                       if (preview.index < shots.length - 1) {
-                        setTransitionPhase('in')
                         setPreviewShotIndex(preview.index + 1)
                       } else {
                         videoRef.current?.pause()
@@ -1358,22 +1372,9 @@ function CampaignTimeline({
                   }
                 }}
                 style={{
-                  opacity: activeTransition === 'fade' && (transitionPhase === 'out' || transitionPhase === 'in') ? 0 : 1,
-                  transform: transitionPhase === 'idle' ? 'translateX(0) scale(1)' : (
-                    activeTransition === 'smoothleft' ? (transitionPhase === 'out' ? 'translateX(-14%)' : 'translateX(14%)') :
-                    activeTransition === 'smoothright' ? (transitionPhase === 'out' ? 'translateX(14%)' : 'translateX(-14%)') :
-                    activeTransition === 'slideleft' ? (transitionPhase === 'out' ? 'translateX(-100%)' : 'translateX(100%)') :
-                    activeTransition === 'slideright' ? (transitionPhase === 'out' ? 'translateX(100%)' : 'translateX(-100%)') :
-                    transitionPhase === 'out' && transitionStyle === 'dynamic' ? 'scale(1.035)' : 'scale(1)'
-                  ),
-                  clipPath: activeTransition === 'wipeleft' && transitionPhase !== 'idle'
-                    ? (transitionPhase === 'out' ? 'inset(0 100% 0 0)' : 'inset(0 0 0 100%)')
-                    : activeTransition === 'wiperight' && transitionPhase !== 'idle'
-                      ? (transitionPhase === 'out' ? 'inset(0 0 0 100%)' : 'inset(0 100% 0 0)')
-                      : 'inset(0 0 0 0)',
-                  transition: transitionDurationMs > 0
-                    ? 'opacity ' + transitionDurationMs + 'ms ease, transform ' + transitionDurationMs + 'ms ease, clip-path ' + transitionDurationMs + 'ms ease'
-                    : 'none',
+                  opacity: transitionPhase === 'out' ? 0 : 1,
+                  transform: transitionPhase === 'out' && transitionStyle === 'dynamic' ? 'scale(1.035)' : 'scale(1)',
+                  transition: transitionDurationMs > 0 ? 'opacity ' + transitionDurationMs + 'ms ease, transform ' + transitionDurationMs + 'ms ease' : 'none',
                 }}
                 className="max-h-64 w-full bg-black object-contain"
               />
@@ -1455,7 +1456,7 @@ function CampaignTimeline({
                   disabled={preview.index === shots.length - 1}
                   className="rounded-md border border-line px-3 py-2 text-sm disabled:opacity-40">Next</button>
               </div>
-              <p className="mt-1 text-xs text-muted">One controller keeps footage, soundtrack and timed text together. Preview transitions follow the selected style; final export remains the exact render reference.</p>
+              <p className="mt-1 text-xs text-muted">One controller plays the selected footage and soundtrack together, automatically advancing through the remaining shots. Timed campaign text appears over the preview.</p>
             </div>
           </div>
         )
