@@ -493,3 +493,14 @@ STATUS: In progress / Ready for review / Merged
 - P1 implementation is in PR #51: \`feature/lyric-story-campaign-selection\`. It passes creator-supplied lyric text into the existing montage planner as an optional semantic story cue, with explicit guardrails against inventing visuals or guessing lyric timestamps. Tests cover supplied lyrics and the no-lyrics path.
 - An earlier PR #50 was closed as a stale duplicate because main advanced when PR #49 merged; PR #51 is based on the latest main.
 - PR #51 CI is pending at handoff. Do not merge until backend formatting/tests pass and the PR is reviewed. The lyric cue is semantic-only; timestamp-accurate lyric-to-shot matching remains future work.
+
+
+### 2026-11-22 follow-up: timed lyric cues are now available during campaign planning
+
+- PR #57 merged into main as \`ddf82b8b7708c9d696f00473aaf7510e653dd7c7\`.
+- Campaign selection now runs the same local Whisper music transcription before montage planning (using the existing configured model and existing local workflow), groups word timestamps into phrase cues relative to the selected music segment, and supplies those cues to the campaign planner.
+- Creator-entered lyrics are preserved. Whisper recognition is used as a timing/story reference rather than silently replacing exact on-screen copy. Detected timings and transcription-attempt state are persisted so retries avoid repeating the same work.
+- Existing local lyric transcription remains available as a render fallback if selection-time transcription fails.
+- CI passed: Ruff lint, Ruff format, backend test suite, and frontend production build.
+- Important limitation: these timestamps guide the LLM's story progression; the current montage output schema still does not position each shot at an exact music-relative time. Do not describe this as frame-accurate lyric-to-shot sync. Real campaign media on Windows still needs a smoke test.
+- Next priority: define a renderer-supported music-relative shot placement contract (shot timeline positions or explicit duration/transition targets), then implement and test deterministic placement against lyric phrases and strong beats without sacrificing story relevance.
