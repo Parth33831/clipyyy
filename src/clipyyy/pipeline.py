@@ -135,7 +135,9 @@ def stage_transcribe(ctx: Context) -> dict:
     )
 
 
-def _campaign_lyric_draft(words: list[dict], music_start: float, target_seconds: float) -> tuple[str, list[dict]]:
+def _campaign_lyric_draft(
+    words: list[dict], music_start: float, target_seconds: float
+) -> tuple[str, list[dict]]:
     """Build editable LRC-style lines and timed semantic cues from local Whisper words."""
     groups: list[list[dict]] = []
     current: list[dict] = []
@@ -333,7 +335,7 @@ def stage_select(ctx: Context) -> dict:
             if creator_edited_lyrics
             else lyric_options["campaign_detected_lyric_words"] or lyric_options["campaign_lyric_words"]
         )
-        if cue_words:
+        if cue_words and music_analysis:
             lyric_offset = float((music_analysis or {}).get("best_start_seconds") or 0.0)
             _, lyric_cues = _campaign_lyric_draft(cue_words, lyric_offset, target)
         elif music_path and not creator_edited_lyrics and not lyric_options[
@@ -479,7 +481,9 @@ def stage_render(ctx: Context) -> dict:
             **ctx.options,
             "campaign_plan": ctx.state["select"].get("campaign_plan"),
             "campaign_music_analysis": ctx.state["select"].get("campaign_music_analysis"),
-            "campaign_lyrics": ctx.state["select"].get("campaign_lyrics", ctx.options.get("campaign_lyrics", "")),
+            "campaign_lyrics": ctx.state["select"].get(
+                "campaign_lyrics", ctx.options.get("campaign_lyrics", "")
+            ),
             "campaign_lyrics_source": ctx.state["select"].get(
                 "campaign_lyrics_source", ctx.options.get("campaign_lyrics_source")
             ),
@@ -522,10 +526,12 @@ def stage_render(ctx: Context) -> dict:
                         "Creator-supplied lyrics; local Whisper timing reference"
                     )
                 else:
+                    music_analysis = render_options.get("campaign_music_analysis") or {}
+                    campaign_plan = render_options.get("campaign_plan") or {}
                     draft_text, _ = _campaign_lyric_draft(
                         words,
-                        float((render_options.get("campaign_music_analysis") or {}).get("best_start_seconds") or 0.0),
-                        float((render_options.get("campaign_plan") or {}).get("target_duration_seconds") or 30.0),
+                        float(music_analysis.get("best_start_seconds") or 0.0),
+                        float(campaign_plan.get("target_duration_seconds") or 30.0),
                     )
                     render_options["campaign_lyric_words"] = words
                     if draft_text:
