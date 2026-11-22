@@ -475,7 +475,7 @@ def test_montage_planner_uses_creator_supplied_lyrics_as_truthful_story_cues():
         [analysis],
         1,
         6,
-        campaign_lyrics="When the lights go down\\nWe rise together",
+        campaign_lyrics="When the lights go down\nWe rise together",
     )
 
     assert len(edits) == 1
