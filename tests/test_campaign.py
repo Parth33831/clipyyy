@@ -578,7 +578,7 @@ def test_montage_planner_uses_timed_lyric_cues_without_claiming_exact_sync():
     analysis = {
         "frames": [
             {"timestamp": 1, "description": "Opening"},
-            {"timestamp": 5, "description": "Action"},
+            {"timestamp": 5, "description": "We rise together"},
             {"timestamp": 8, "description": "Payoff"},
         ]
     }
