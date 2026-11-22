@@ -435,3 +435,85 @@ def test_montage_planner_remains_compatible_without_music_analysis():
     }
     edits = build_montage_plan(llm, "Campaign", {}, sources, [analysis, analysis], 1, 6)
     assert len(edits) == 1
+
+
+def test_montage_planner_uses_creator_supplied_lyrics_as_truthful_story_cues():
+    from clipyyy.campaign import build_montage_plan
+
+    class LyricAwareLLM:
+        user = ""
+
+        def complete_json(self, system, user, schema, name):
+            self.user = user
+            return {
+                "edits": [
+                    {
+                        "title": "Lyric-aware story",
+                        "shots": [
+                            {
+                                "source_index": 0,
+                                "start_seconds": 1,
+                                "end_seconds": 3,
+                                "reason": "Opening",
+                            },
+                            {
+                                "source_index": 0,
+                                "start_seconds": 4,
+                                "end_seconds": 6,
+                                "reason": "Build",
+                            },
+                            {
+                                "source_index": 0,
+                                "start_seconds": 7,
+                                "end_seconds": 9,
+                                "reason": "Payoff",
+                            },
+                        ],
+                    }
+                ]
+            }
+
+    llm = LyricAwareLLM()
+    source = {"title": "Campaign footage", "duration_seconds": 12}
+    analysis = {
+        "frames": [
+            {"timestamp": 1, "description": "A person looks uncertain"},
+            {"timestamp": 5, "description": "A person starts working with a device"},
+            {"timestamp": 8, "description": "A person celebrates with friends"},
+        ]
+    }
+
+    edits = build_montage_plan(
+        llm,
+        "Show a person overcoming a challenge.",
+        {},
+        [source],
+        [analysis],
+        1,
+        6,
+        campaign_lyrics="When the lights go down\nWe rise together",
+    )
+
+    assert len(edits) == 1
+    assert "CREATOR-SUPPLIED CAMPAIGN LYRICS" in llm.user
+    assert "We rise together" in llm.user
+    assert "no word timestamps supplied" in llm.user
+    assert "do not assume the lyric is sung at a particular timestamp" in llm.user
+
+
+def test_montage_planner_omits_lyric_guidance_when_no_lyrics_are_supplied():
+    from clipyyy.campaign import build_montage_plan
+
+    llm = FakeMontageLLM()
+    sources = [{"title": "Footage", "duration_seconds": 12}]
+    analysis = {
+        "frames": [
+            {"timestamp": 1, "description": "Opening"},
+            {"timestamp": 5, "description": "Action"},
+            {"timestamp": 8, "description": "Payoff"},
+        ]
+    }
+
+    build_montage_plan(llm, "Campaign", {}, sources, [analysis], 1, 6)
+
+    assert "CREATOR-SUPPLIED CAMPAIGN LYRICS" not in llm.user
