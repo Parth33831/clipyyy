@@ -598,4 +598,5 @@ def test_campaign_source_preview_rejects_invalid_sources(client, tmp_path, monke
     monkeypatch.setattr(pipeline, "run_dir", lambda run_id: tmp_path)
 
     assert client.get("/api/runs/" + run["id"] + "/campaign-source?source_index=-1").status_code == 400
-    assert client.get("/api/runs/" + run["id"] + "/campaign-source?source_index=0").status_code == 404
+    response = client.get("/api/runs/" + run["id"] + "/campaign-source?source_index=0")
+    assert response.status_code == 404
