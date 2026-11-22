@@ -513,3 +513,13 @@ STATUS: In progress / Ready for review / Merged
 - No cues or malformed cues preserve the previous beat-selection behavior. Tests cover both the preference and fallback.
 - CI passed: Ruff lint/format, backend tests and frontend build.
 - Next audit: campaign smart framing. Verify whether the current campaign shot filter uses subject-aware focal points or a fixed center crop, and reuse the existing reframe/face-tracking implementation where compatible rather than adding a duplicate tracker.
+
+
+### 2026-11-22 follow-up: campaign subject-aware framing
+
+- PR #60: \`feature/campaign-subject-aware-framing\` reuses the existing \`reframe.py\` MediaPipe face tracker for campaign montage shots.
+- When face tracking is enabled and MediaPipe plus its model are already installed, each selected source/time range gets a smoothed subject-following crop. When unavailable, CLIPYYY keeps the existing centre/Ken Burns fallback.
+- Campaign rendering does not trigger an automatic model download; no new model or dependency was added.
+- Tests cover the tracked crop filter and the no-model fallback. Ruff lint passed on the first CI run; Ruff format failed due to excess test blank-line spacing, which was corrected in the follow-up commit. Latest CI for the corrected head is running; do not merge until format and backend tests pass.
+- Real campaign footage/Windows smoke testing remains required.
+- Next editor audit: inspect the existing storyboard editor's capabilities and define the smallest safe step toward multi-layer, non-destructive timeline editing. Avoid replacing the current editor or duplicating its drag/trim/split/reorder operations.
