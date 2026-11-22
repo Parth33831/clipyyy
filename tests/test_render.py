@@ -324,9 +324,9 @@ def test_campaign_lyrics_apply_individual_phrase_transforms(tmp_path):
     )
     dialogue = [line for line in path.read_text(encoding="utf-8").splitlines() if line.startswith("Dialogue:")]
     assert "\\pos(270,768)" in dialogue[0]
-    assert "\\fscx150\\\\fscy150" in dialogue[0]
-    assert "\\\\pos(540,1613)" in dialogue[1]
-    assert "\\\\fscx100\\\\fscy100" in dialogue[1]
+    assert "\\fscx150\\fscy150" in dialogue[0]
+    assert "\\pos(540,1613)" in dialogue[1]
+    assert "\\fscx100\\fscy100" in dialogue[1]
 
 
 def test_campaign_hook_overlay_is_written(tmp_path):
