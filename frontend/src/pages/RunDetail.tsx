@@ -151,7 +151,7 @@ export function RunDetailPage() {
   }).filter((phrase) => phrase.text)
   const lyricPhrases = lyricRows.map((phrase) => phrase.text)
   const lyricPhraseTimes = lyricRows.map((phrase) => phrase.start)
-  const lyricOffset = data?.campaign_quality_checks?.music_analysis?.selected_start_seconds ?? 0
+  const lyricOffset = run.data?.campaign_quality_checks?.music_analysis?.selected_start_seconds ?? 0
   const campaignTimelineLyrics: CampaignPreviewLyric[] = lyricRows.flatMap((phrase, index) => {
     if (phrase.start == null) return []
     const phraseEdit = phraseEdits.find((edit) => edit.phrase_index === index)
@@ -171,29 +171,12 @@ export function RunDetailPage() {
       rotation_degrees: phraseEdit?.rotation_degrees ?? lyricsRotation,
     }]
   })
-  const campaignTimelineWords: CampaignPreviewWord[] = (data?.options.campaign_lyric_words ?? []).flatMap((item) => {
+  const campaignTimelineWords: CampaignPreviewWord[] = (run.data?.options.campaign_lyric_words ?? []).flatMap((item) => {
     const start = Number(item.start) - lyricOffset
     const end = Number(item.end) - lyricOffset
     const word = String(item.word ?? '').trim()
     if (!word || end <= 0 || end <= start) return []
     return [{ word, start_seconds: Math.max(0, start), end_seconds: end }]
-  })
-  const campaignTimelineLyrics: CampaignPreviewLyric[] = lyricRows.flatMap((phrase, index) => {
-    if (phrase.start == null) return []
-    const phraseEdit = phraseEdits.find((edit) => edit.phrase_index === index)
-    const start = phraseEdit?.start_seconds ?? phrase.start
-    const nextTimedStart = lyricRows.slice(index + 1).find((row) => row.start != null)?.start
-    const end = phraseEdit?.end_seconds ?? nextTimedStart ?? start + 3
-    if (end <= start) return []
-    return [{
-      text: phrase.text,
-      start_seconds: start,
-      end_seconds: end,
-      position_x: phraseEdit?.position_x ?? lyricsPositionX,
-      position_y: phraseEdit?.position_y ?? lyricsPositionY,
-      scale_percent: phraseEdit?.scale_percent ?? lyricsScale,
-      rotation_degrees: phraseEdit?.rotation_degrees ?? lyricsRotation,
-    }]
   })
   const selectedPhraseEdit = phraseEdits.find((edit) => edit.phrase_index === selectedLyricPhrase)
   const selectedPhraseStart = selectedPhraseEdit?.start_seconds ?? lyricPhraseTimes[selectedLyricPhrase]
