@@ -20,12 +20,12 @@
 | Feature Development | Implement the feature(s) explicitly assigned to that conversation | Work on a dedicated branch; preserve unrelated work; provide a complete handoff. |
 | Testing & Integration | Review branches/PRs, inspect diffs, run tests and coordinate safe integration | Never merge unreviewed or conflicting changes. |
 
-## Repository baseline (inspected 2026-11-21)
+## Repository baseline (inspected 2026-11-22)
 
 - **Default branch:** `main`
-- **Latest main commit:** `e948f0dbefa3ce0e5ae6c5ad2a1e7a34b88dd5f2` — Add opt-in social audio loudness normalization (#42).
+- **Latest main commit:** `b711e1c4316d9b4a339b1a44c854cca3048bc362` — Enable drag-and-drop campaign shot reordering (#44).
 - Recent completed main work includes lyric animation previews, multi-colour lyric captions, configurable lyric colours, word-accurate song transcription, campaign dialogue/montage editing, stock-footage discovery, editable storyboards, optional cinematic camera movement and ready-to-post copy in clip export archives.
-- **Open work:** No active PRs in this development batch. PRs #29, #30, #31, #32, #34, #36, #37, #38, #40, #41 and #42 are merged. PRs #33, #35 and #39 were closed as superseded. PR #27 remains merged.
+- **Open work:** PR #46 — direct drag trimming on the campaign timeline — is open and awaiting CI. PRs #29, #30, #31, #32, #34, #36, #37, #38, #40, #41, #42, #43 and #44 are merged. PRs #33, #35 and #39 were closed as superseded. PR #27 remains merged.
 - **Branches observed:** `automatic-word-timed-lyrics`, `campaign-dialogue-transcription`, `campaign-footage-discovery`, `campaign-shot-editor`, `campaign-shot-editor-integration`, `creative-anime-editing`, `fix/campaign-export-audio-duration`, `fix/campaign-scene-selection-ci-final`, `fix/campaign-scene-selection-final-ci`, `fix/campaign-scene-selection-pacing`, `fix/campaign-scene-selection-pacing-ci`, `fix/campaign-scene-selection-release-check`, `fix/campaign-scene-selection-tested`, `fix/campaign-scene-selection-validated`, `improve-multi-clip-selection`, `instant-lyrics-style-editor`, `instant-lyrics-style-editor-ci`, `instant-lyrics-style-editor-verified`, `lyric-style-previews-multicolor`, `lyric-words-on-screen`, `lyrics-captions-animation`, `lyrics-color-controls`, `main`, `music-intelligence-hooks`, `refresh-legacy-lyric-timings`, `reuse-campaign-transcript-on-dialogue-rebuild`.
 - Branch names alone do not prove whether work is merged or active; check branch heads and diffs before reusing them.
 - **Coordination document branch:** `docs/project-coordination` (this document is maintained separately from application code).
@@ -48,7 +48,7 @@
 | Advanced subject tracking | V1 continuity-aware face tracking implemented | [PR #37](https://github.com/Parth33831/clipyyy/pull/37) / `main` | True active-speaker detection and semantic multi-person identity remain future work; do not duplicate existing MediaPipe face detection. |
 | Text-based editing / filler removal | V1 implemented | PR #23 / `main` | Conservative English filler-word removal is merged; full transcript editing remains a later feature. |
 | Campaign shot-level editor | V1 implemented | PR #26 / `main` | Reorder, trim and remove AI-selected campaign shots, reset to the AI plan, and rerender from cached creator/Pexels sources without rerunning analysis. |
-| Advanced timeline editor | V1 campaign visual timeline implemented | [PR #40](https://github.com/Parth33831/clipyyy/pull/40) / `main` | Visual shot/music lanes are in place; full multitrack audio/video editing, waveform scrubbing and drag-trim remain future work. |
+| Advanced timeline editor | V1 campaign visual timeline + drag reorder + split-shot editing | [PR #40](https://github.com/Parth33831/clipyyy/pull/40), [#43](https://github.com/Parth33831/clipyyy/pull/43), [#44](https://github.com/Parth33831/clipyyy/pull/44) / `main` | Visual shot/music lanes, drag reorder, split, numeric trim, and remove are implemented. Direct drag-trim is proposed in PR #46; full multitrack editing and waveform scrubbing remain future work. |
 | Audio enhancement / voiceover | V1 opt-in loudness normalization implemented | [PR #42](https://github.com/Parth33831/clipyyy/pull/42) / `main` | Applies FFmpeg loudnorm at -16 LUFS/-1.5 dBTP to spoken audio or campaign music when enabled; default OFF. AI voiceover and separate narration mixing remain future work. |
 | Automatic campaign stock-footage discovery | V1 implemented | PR #24 / `main` | Opt-in Pexels discovery is merged; creator footage stays first and attribution is surfaced. |
 | AI B-roll improvements | Existing optional B-roll; future enhancements not assessed | Unassigned | Inspect current Pexels workflow before implementing alternatives. |
@@ -70,7 +70,7 @@
 | Retention-aware virality scoring | `feature/retention-aware-virality-scoring` / [PR #41](https://github.com/Parth33831/clipyyy/pull/41) | Merged into main as `5d638f47dbf420cb3bd830299c37944ef5e9264d` | Scores hook, value, clarity, retention and shareability with a bounded weighted formula; older models retain the legacy score fallback. Fast-backend: 112 passed, 22 skipped; Ruff lint/format and frontend build passed. |
 | Opt-in social audio normalization | `feature/social-audio-normalization` / [PR #42](https://github.com/Parth33831/clipyyy/pull/42) | Merged into main as `e948f0dbefa3ce0e5ae6c5ad2a1e7a34b88dd5f2` | Adds an OFF-by-default Normalize audio control for spoken clips and campaign music, using FFmpeg loudnorm (-16 LUFS, -1.5 dBTP). Silent sources are untouched. Fast-backend: 118 passed, 24 skipped; Ruff lint/format and frontend build passed. |
 
-**Latest main baseline:** `e948f0dbefa3ce0e5ae6c5ad2a1e7a34b88dd5f2`.
+**Latest main baseline:** `b711e1c4316d9b4a339b1a44c854cca3048bc362`.
 
 **Validation honesty:** PR #29, #30, #31, #32, #34, #36, #37, #38, #40, #41 and #42 fast-backend and frontend checks passed. Windows, macOS and full-backend jobs were skipped by workflow configuration. No local Windows media test or real-media visual review has been run. PR #32 was rebuilt on top of merged #29/#30 code; PR #36 consolidated music-energy cut selection with selectable transitions on top of PR #34; PR #40 adds the visual shot/music timeline; PR #41 adds retention/shareability to the AI virality score; PR #42 adds opt-in loudness normalization.
 
@@ -427,3 +427,11 @@ STATUS: In progress / Ready for review / Merged
 - **Implementation:** Adds an OFF-by-default Normalize audio control. When enabled, source speech or campaign music is processed with FFmpeg `loudnorm` targeting -16 LUFS and -1.5 dBTP. Silent sources remain untouched. Campaign quality checks record when music was normalized.
 - **CI:** Fast backend **118 passed, 24 skipped**; Ruff lint/format and frontend production build passed. Windows, macOS and full-backend/manual jobs were skipped.
 - **Known limitation:** No local Windows or real-media loudness listening test has been performed. The filter is one-pass loudnorm; it is a safe general social-video target, not a per-platform mastering preset.
+
+
+### 2026-11-22 continuation handoff
+
+- PR #43 added split-shot editing to the campaign storyboard and was merged into `main` as `d0670413cb68dc0148dfb3ca3b1815a557839406`.
+- PR #44 added drag-and-drop shot reordering to the campaign visual timeline. Reviewed the one-file frontend diff and confirmed fast-backend and frontend CI passed; squash-merged into `main` as `b711e1c4316d9b4a339b1a44c854cca3048bc362`.
+- PR #46 (`feature/campaign-timeline-drag-trim`) adds pointer-driven in/out handles to trim shots directly on the timeline, keeps numeric inputs and keyboard controls as alternatives, enforces the backend 1.5–5 second range and source duration, and rejects empty external drag payloads. It is open and awaiting CI; do not merge until checks pass.
+- No local Windows or real-media visual/audio smoke test has been performed. Current machine constraints remain CPU-only Intel Iris Xe / 7.65 GB RAM; do not download a vision model or move media/cache data to C:.
