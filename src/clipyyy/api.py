@@ -58,7 +58,6 @@ class CampaignLyricsUpdate(BaseModel):
     include_hook: bool = False
 
 
-
 class CampaignTextOverlay(BaseModel):
     rank: int = Field(..., ge=1, le=10)
     text: str = Field(..., min_length=1, max_length=160)
