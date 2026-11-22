@@ -396,11 +396,25 @@ def campaign_shot_filter(width: int, height: int, shot_index: int, camera_motion
     )
 
 
-def _campaign_audio_filter(duration: float, normalize_audio: bool) -> str:
-    filters = f"volume=0.9,afade=t=in:st=0:d=0.4,afade=t=out:st={max(0.0, duration - 0.8):.3f}:d=0.8"
+def _campaign_audio_filter(
+    duration: float,
+    normalize_audio: bool,
+    music_volume: float = 0.9,
+    fade_in_seconds: float = 0.4,
+    fade_out_seconds: float = 0.8,
+) -> str:
+    """Build the campaign music filter while preserving the historical mix defaults."""
+    volume = max(0.0, min(2.0, float(music_volume)))
+    fade_in = min(max(0.0, float(fade_in_seconds)), duration)
+    fade_out = min(max(0.0, float(fade_out_seconds)), duration)
+    filters = [f"volume={volume:.3f}"]
+    if fade_in > 0:
+        filters.append(f"afade=t=in:st=0:d={fade_in:.3f}")
+    if fade_out > 0:
+        filters.append(f"afade=t=out:st={max(0.0, duration - fade_out):.3f}:d={fade_out:.3f}")
     if normalize_audio:
-        filters += f",{AUDIO_NORMALIZATION_FILTER}"
-    return filters
+        filters.append(AUDIO_NORMALIZATION_FILTER)
+    return ",".join(filters)
 
 
 def render_campaign_montages(
@@ -603,7 +617,13 @@ def render_campaign_montages(
                 music_input = []
                 if music_analysis and music_analysis["duration_seconds"] - music_start < duration:
                     music_input = ["-stream_loop", "-1"]
-                audio_filter = _campaign_audio_filter(duration, bool(options.get("normalize_audio")))
+                audio_filter = _campaign_audio_filter(
+                    duration,
+                    bool(options.get("normalize_audio")),
+                    float(options.get("campaign_music_volume", 0.9)),
+                    float(options.get("campaign_music_fade_in_seconds", 0.4)),
+                    float(options.get("campaign_music_fade_out_seconds", 0.8)),
+                )
                 run_ffmpeg(
                     [
                         "-i",
