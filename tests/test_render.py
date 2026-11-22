@@ -626,3 +626,41 @@ def test_music_cut_selection_ignores_malformed_lyric_cues():
     }
 
     assert select_music_cut_duration(0.0, 3.4, analysis, [{"start_seconds": "bad"}]) == 3.0
+
+
+def test_campaign_shot_filter_uses_tracked_subject_crop_when_available():
+    from clipyyy.render import campaign_shot_filter
+
+    crop_boxes = [
+        {"t": 0.0, "x": 1000, "y": 100, "width": 600, "height": 1066},
+        {"t": 1.0, "x": 1100, "y": 120, "width": 600, "height": 1066},
+    ]
+    result = campaign_shot_filter(
+        1080,
+        1920,
+        0,
+        camera_motion=True,
+        crop_boxes=crop_boxes,
+        source_width=1920,
+        source_height=1080,
+    )
+
+    assert result.startswith("crop=600:1066:")
+    assert "scale=1080:1920" in result
+    assert "sin(t*0.32" not in result
+
+
+def test_campaign_subject_crop_skips_model_download_when_not_installed(monkeypatch, tmp_path):
+    import importlib.util
+
+    import clipyyy.config
+    import clipyyy.render as render
+
+    monkeypatch.setattr(clipyyy.config, "home", lambda: tmp_path)
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name: None)
+
+    boxes, width, height = render._campaign_subject_crop(tmp_path / "source.mp4", 0, 4, 9 / 16)
+
+    assert boxes is None
+    assert width is None
+    assert height is None
