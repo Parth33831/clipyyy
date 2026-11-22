@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, Download, R
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
-import { api, type CampaignEdit, type CampaignMusicAnalysis, type CampaignShot, type CampaignSource, type Clip, type Post, type RunDetail } from '../api'
+import { api, type CampaignEdit, type CampaignMusicAnalysis, type CampaignLyricPhraseEdit, type CampaignShot, type CampaignSource, type Clip, type Post, type RunDetail } from '../api'
 import { PublishDialog } from '../components/PublishDialog'
 import { Button, Eyebrow, Panel, Squares, StatusChip, cn, formatDuration, sourceHost, sourceLabel, timeAgo } from '../components/ui'
 
@@ -38,6 +38,8 @@ export function RunDetailPage() {
   const [lyricsPositionY, setLyricsPositionY] = useState(84)
   const [lyricsScale, setLyricsScale] = useState(100)
   const [lyricsRotation, setLyricsRotation] = useState(0)
+  const [phraseEdits, setPhraseEdits] = useState<CampaignLyricPhraseEdit[]>([])
+  const [selectedLyricPhrase, setSelectedLyricPhrase] = useState(0)
   const [campaignEdits, setCampaignEdits] = useState<CampaignEdit[]>([])
   useEffect(() => {
     setMusicVolume(Math.round((run.data?.options.campaign_music_volume ?? 0.9) * 100))
@@ -55,8 +57,10 @@ export function RunDetailPage() {
     setLyricsPositionY(run.data?.options.campaign_lyrics_position_y ?? 84)
     setLyricsScale(run.data?.options.campaign_lyrics_scale_percent ?? 100)
     setLyricsRotation(run.data?.options.campaign_lyrics_rotation_degrees ?? 0)
+    setPhraseEdits(run.data?.options.campaign_lyric_phrase_edits ?? [])
+    setSelectedLyricPhrase(0)
     setCampaignEdits(run.data?.campaign_edits ?? [])
-  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.campaign_plan?.generated_hook])
+  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.campaign_plan?.generated_hook])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -88,13 +92,22 @@ export function RunDetailPage() {
     onError: (e) => toast.error(e.message),
   })
   const saveLyrics = useMutation({
-    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook, lyricsColor, lyricsHighlightColor, lyricsWordsOnScreen, lyricsBehindSubject, lyricsPositionX, lyricsPositionY, lyricsScale, lyricsRotation),
+    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook, lyricsColor, lyricsHighlightColor, lyricsWordsOnScreen, lyricsBehindSubject, lyricsPositionX, lyricsPositionY, lyricsScale, lyricsRotation, phraseEdits),
     onSuccess: (result) => {
       toast.success(`Applied to ${result.outputs} existing edit(s) — no re-picking or lyric transcription.`)
       refresh()
     },
     onError: (e) => toast.error(e.message),
   })
+  const lyricPhrases = lyricsText.split(/\\r?\\n/).map((line) => line.replace(/^\\[\\d{1,2}:\\d{2}(?:\\.\\d{1,2})?\\]\\s*/, '').trim()).filter(Boolean)
+  const selectedPhraseEdit = phraseEdits.find((edit) => edit.phrase_index === selectedLyricPhrase)
+  const updateSelectedPhrase = (patch: Partial<CampaignLyricPhraseEdit>) => {
+    setPhraseEdits((current) => {
+      const existing = current.find((edit) => edit.phrase_index === selectedLyricPhrase)
+      const next = { phrase_index: selectedLyricPhrase, ...existing, ...patch }
+      return [...current.filter((edit) => edit.phrase_index !== selectedLyricPhrase), next].sort((left, right) => left.phrase_index - right.phrase_index)
+    })
+  }
   const saveMontage = useMutation({
     mutationFn: () => api.saveCampaignMontage(runId, campaignEdits),
     onSuccess: (result) => {
@@ -317,6 +330,46 @@ export function RunDetailPage() {
             aspectRatio={data.options.aspect_ratio}
             onPositionChange={(x, y) => { setLyricsPositionX(x); setLyricsPositionY(y) }}
           />
+          {lyricPhrases.length > 0 && (
+            <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium">Individual lyric phrase</span>
+                <span className="text-xs text-muted">Overrides only the selected phrase</span>
+              </div>
+              <label className="flex flex-col gap-2">
+                <span className="text-xs text-muted">Select phrase</span>
+                <select value={selectedLyricPhrase} onChange={(event) => setSelectedLyricPhrase(Number(event.target.value))}
+                  className="rounded-lg border border-line bg-panel p-2 text-ink">
+                  {lyricPhrases.map((phrase, index) => <option key={index} value={index}>{index + 1}. {phrase.slice(0, 70)}</option>)}
+                </select>
+              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {([
+                  ['position_x', 'Horizontal position', 5, 95, lyricsPositionX, '%'],
+                  ['position_y', 'Vertical position', 5, 95, lyricsPositionY, '%'],
+                  ['scale_percent', 'Text size', 50, 200, lyricsScale, '%'],
+                  ['rotation_degrees', 'Rotation', -30, 30, lyricsRotation, '°'],
+                ] as const).map(([key, label, min, max, fallback, suffix]) => {
+                  const value = selectedPhraseEdit?.[key] ?? fallback
+                  return (
+                    <label key={key} className="flex flex-col gap-2">
+                      <span className="flex justify-between"><span>{label}</span><span className="font-mono text-muted">{value}{suffix}</span></span>
+                      <input type="range" min={min} max={max} step={key === 'scale_percent' ? 5 : 1} value={value}
+                        onChange={(event) => updateSelectedPhrase({ [key]: Number(event.target.value) })}
+                        className="w-full accent-current" />
+                    </label>
+                  )
+                })}
+              </div>
+              <div className="flex justify-end">
+                <button type="button" className="text-xs underline text-muted"
+                  onClick={() => setPhraseEdits((current) => current.filter((edit) => edit.phrase_index !== selectedLyricPhrase))}>
+                  Reset this phrase to global settings
+                </button>
+              </div>
+              <p className="text-xs text-muted">Phrase-level transforms currently apply to line-timed lyrics (LRC or manually entered lines). Word-by-word Whisper timing continues to use the global lyric transform.</p>
+            </div>
+          )}
           <div className="grid gap-4 rounded-lg border border-line bg-panel p-3 text-sm sm:grid-cols-2">
             <label className="flex flex-col gap-2">
               <span className="flex justify-between"><span className="font-medium">Horizontal position</span><span className="font-mono text-muted">{lyricsPositionX}%</span></span>
