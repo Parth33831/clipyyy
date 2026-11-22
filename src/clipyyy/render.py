@@ -574,10 +574,23 @@ def _render_campaign_source_audio(
         f"{previous}volume={max(0.0, min(2.0, float(volume))):.3f},apad,"
         f"atrim=duration={target_duration:.3f}[aout]"
     )
-    run_ffmpeg([
-        *inputs, "-filter_complex", ";".join(filters), "-map", "[aout]", "-vn",
-        "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(output),
-    ])
+    run_ffmpeg(
+        [
+            *inputs,
+            "-filter_complex",
+            ";".join(filters),
+            "-map",
+            "[aout]",
+            "-vn",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-movflags",
+            "+faststart",
+            str(output),
+        ]
+    )
     return output
 
 def render_campaign_montages(
@@ -872,7 +885,11 @@ def render_campaign_montages(
             if source_audio_volume > 0:
                 source_audio = edit_dir / "campaign-source-audio.m4a"
                 _render_campaign_source_audio(
-                    audio_shots, sources, source_audio, duration, source_audio_volume,
+                    audio_shots,
+                    sources,
+                    source_audio,
+                    duration,
+                    source_audio_volume,
                     transition_seconds if use_transitions else 0.0,
                 )
             if music_path:
@@ -880,7 +897,8 @@ def render_campaign_montages(
                 if music_analysis and music_analysis["duration_seconds"] - music_start < duration:
                     music_input = ["-stream_loop", "-1"]
                 audio_filter = _campaign_audio_filter(
-                    duration, bool(options.get("normalize_audio")),
+                    duration,
+                    bool(options.get("normalize_audio")),
                     float(options.get("campaign_music_volume", 0.9)),
                     float(options.get("campaign_music_fade_in_seconds", 0.4)),
                     float(options.get("campaign_music_fade_out_seconds", 0.8)),
@@ -904,18 +922,52 @@ def render_campaign_montages(
                 ]
                 if source_audio:
                     command.extend(["-i", str(source_audio)])
-                command.extend([
-                    "-filter_complex", mix_filter, "-map", "0:v:0", "-map", "[aout]",
-                    "-t", f"{duration:.3f}", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
-                    "-shortest", "-movflags", "+faststart", str(output),
-                ])
+                command.extend(
+                    [
+                        "-filter_complex",
+                        mix_filter,
+                        "-map",
+                        "0:v:0",
+                        "-map",
+                        "[aout]",
+                        "-t",
+                        f"{duration:.3f}",
+                        "-c:v",
+                        "copy",
+                        "-c:a",
+                        "aac",
+                        "-b:a",
+                        "192k",
+                        "-shortest",
+                        "-movflags",
+                        "+faststart",
+                        str(output),
+                    ]
+                )
                 run_ffmpeg(command)
             elif source_audio:
-                run_ffmpeg([
-                    "-i", str(visual), "-i", str(source_audio), "-map", "0:v:0", "-map", "1:a:0",
-                    "-t", f"{duration:.3f}", "-c:v", "copy", "-c:a", "copy", "-shortest",
-                    "-movflags", "+faststart", str(output),
-                ])
+                run_ffmpeg(
+                    [
+                        "-i",
+                        str(visual),
+                        "-i",
+                        str(source_audio),
+                        "-map",
+                        "0:v:0",
+                        "-map",
+                        "1:a:0",
+                        "-t",
+                        f"{duration:.3f}",
+                        "-c:v",
+                        "copy",
+                        "-c:a",
+                        "copy",
+                        "-shortest",
+                        "-movflags",
+                        "+faststart",
+                        str(output),
+                    ]
+                )
             else:
                 shutil.copy2(visual, output)
             out_w, out_h, final_duration = probe(output)
