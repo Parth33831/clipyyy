@@ -278,6 +278,7 @@ def stage_select(ctx: Context) -> dict:
             options.get("instructions", ""),
             reference_analyses=reference_analyses,
             music_analysis=music_analysis,
+            campaign_lyrics=options.get("campaign_lyrics", ""),
         )
         db.update_run(ctx.run_id, title=plan.get("campaign_name") or source.get("title") or "Campaign edit")
         clips = []
