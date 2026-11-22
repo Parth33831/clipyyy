@@ -572,6 +572,24 @@ def test_campaign_text_overlay_rejects_timing_outside_output(client, monkeypatch
     assert "inside output #1" in response.json()["detail"]
 
 
+def test_campaign_music_can_be_streamed_for_editor_preview(client, tmp_path):
+    run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
+    audio_path = tmp_path / "campaign-track.mp3"
+    audio_path.write_bytes(b"audio-bytes")
+    db.update_run(run["id"], options={"campaign_mode": True, "campaign_music_path": str(audio_path)})
+
+    response = client.get("/api/runs/" + run["id"] + "/campaign-music")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("audio/mpeg")
+    assert response.content == b"audio-bytes"
+
+
+def test_campaign_music_preview_requires_an_attached_track(client):
+    run = db.create_run("campaign", {"campaign_mode": True, "campaign_music_path": None}, status="completed")
+    response = client.get("/api/runs/" + run["id"] + "/campaign-music")
+    assert response.status_code == 404
+
+
 def test_campaign_source_video_can_be_streamed_for_editor_preview(client, tmp_path, monkeypatch):
     run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
     work_dir = tmp_path / "work"

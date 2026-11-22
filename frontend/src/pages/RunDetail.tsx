@@ -567,6 +567,7 @@ export function RunDetailPage() {
           originalEdits={data.campaign_original_edits ?? data.campaign_edits}
           sources={data.campaign_sources ?? []}
           musicAnalysis={data.campaign_quality_checks?.music_analysis ?? null}
+          hasMusic={Boolean(data.options.campaign_music_path)}
           textOverlays={campaignTextOverlays}
           onUpdateTextOverlay={(overlayIndex, patch) => setCampaignTextOverlays((current) => current.map((overlay, index) => index === overlayIndex ? { ...overlay, ...patch } : overlay))}
           transitionStyle={data.options.campaign_transition_style ?? 'auto'}
@@ -632,6 +633,7 @@ function CampaignStoryboardEditor({
   originalEdits,
   sources,
   musicAnalysis,
+  hasMusic,
   textOverlays,
   onUpdateTextOverlay,
   transitionStyle,
@@ -646,6 +648,7 @@ function CampaignStoryboardEditor({
   originalEdits: CampaignEdit[]
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
+  hasMusic: boolean
   textOverlays: CampaignTextOverlay[]
   onUpdateTextOverlay: (overlayIndex: number, patch: Partial<CampaignTextOverlay>) => void
   transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
@@ -730,6 +733,7 @@ function CampaignStoryboardEditor({
             runId={runId}
             sources={sources}
             musicAnalysis={musicAnalysis}
+            hasMusic={hasMusic}
             textOverlays={textOverlays}
             onUpdateTextOverlay={onUpdateTextOverlay}
             transitionStyle={transitionStyle}
@@ -958,6 +962,7 @@ function CampaignTimeline({
   runId,
   sources,
   musicAnalysis,
+  hasMusic,
   textOverlays,
   onUpdateTextOverlay,
   transitionStyle,
@@ -968,6 +973,7 @@ function CampaignTimeline({
   runId: string
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
+  hasMusic: boolean
   textOverlays: CampaignTextOverlay[]
   onUpdateTextOverlay: (overlayIndex: number, patch: Partial<CampaignTextOverlay>) => void
   transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
@@ -1040,6 +1046,15 @@ function CampaignTimeline({
           </div>
         )
       })()}
+      {hasMusic && (
+        <div className="flex flex-col gap-2 rounded-md border border-line bg-surface p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="label text-muted">Campaign soundtrack preview</span>
+            <span className="text-xs text-muted">Listen while reviewing the selected footage</span>
+          </div>
+          <audio controls preload="metadata" src={"/api/runs/" + runId + "/campaign-music"} className="w-full" />
+        </div>
+      )}
       <div className="overflow-x-auto">
         <div data-campaign-timeline-track className="flex min-w-[680px] gap-1 rounded-md bg-surface p-2">
           {shots.map(({ shot, index, duration }) => {
