@@ -377,13 +377,27 @@ def _interpolate_expression(points: list[tuple[float, float]]) -> str:
 
 
 def campaign_subject_shot_filter(
-    width: int, height: int, source_width: int, source_height: int, crop_boxes: list[dict]
+    width: int,
+    height: int,
+    source_width: int,
+    source_height: int,
+    crop_boxes: list[dict],
+    shot_index: int = 0,
+    camera_motion: bool = True,
 ) -> str:
-    """Reframe a campaign shot around the tracked primary face instead of a fixed centre crop."""
+    """Reframe around the tracked primary face, with optional subtle secondary camera drift."""
     crop = crop_filter(crop_boxes, source_width, source_height, width / height)
+    if not camera_motion:
+        return f"{crop},scale={width}:{height},setsar=1,fps={FPS},format=yuv420p,eq=contrast=1.06:saturation=1.12"
+    zoom_width = round(width * 1.04)
+    zoom_height = round(height * 1.04)
+    phase = (shot_index % 4) * math.pi / 2
     return (
-        f"{crop},scale={width}:{height},setsar=1,fps={FPS},format=yuv420p,"
-        "eq=contrast=1.06:saturation=1.12"
+        f"{crop},scale={zoom_width}:{zoom_height},"
+        f"crop={width}:{height}:"
+        f"x='(iw-ow)*(0.5+0.08*sin(t*0.28+{phase:.4f}))':"
+        f"y='(ih-oh)*(0.5+0.08*cos(t*0.24+{phase:.4f}))':eval=frame,"
+        f"setsar=1,fps={FPS},format=yuv420p,eq=contrast=1.06:saturation=1.12"
     )
 
 
@@ -531,6 +545,8 @@ def render_campaign_montages(
                             source_width,
                             source_height,
                             crop_plan["crop_boxes"],
+                            shot_index,
+                            options.get("campaign_camera_motion", True),
                         )
                     else:
                         vf = campaign_shot_filter(
