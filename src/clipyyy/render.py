@@ -1396,7 +1396,10 @@ def write_campaign_text_overlays(
             tags = tags[:-1] + r"\\fscx70\\fscy70\\t(0,180,\\fscx100\\fscy100)\\fad(100,120)}"
         elif animation == "slide":
             offset_y = min(height - 1, y + round(height * 0.045))
-            tags = f"{{\\an5\\move({x},{offset_y},{x},{y},0,220)\\fs{font_size}\\c{_ass_color(text_color)}\\fad(100,120)}}"
+            tags = (
+                f"{{\\an5\\move({x},{offset_y},{x},{y},0,220)\\fs{font_size}"
+                f"\\c{_ass_color(text_color)}\\fad(100,120)}}"
+            )
         style = "OverlayBox" if overlay.get("background", True) else "Overlay"
         escaped = r"\N".join(_escape(part) for part in text.splitlines())
         script.append(
