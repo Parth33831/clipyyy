@@ -25,6 +25,20 @@ logger = logging.getLogger(__name__)
 ASPECTS = {"9:16": 9 / 16, "4:5": 4 / 5, "1:1": 1.0}
 
 
+class CampaignLyricPhrase(BaseModel):
+    """One independently editable, timed lyric phrase."""
+
+    id: str = Field(..., min_length=1, max_length=80)
+    text: str = Field(..., min_length=1, max_length=500)
+    start_seconds: float = Field(..., ge=0)
+    end_seconds: float = Field(..., gt=0)
+    position_x: int = Field(50, ge=5, le=95)
+    position_y: int = Field(84, ge=5, le=95)
+    scale_percent: int = Field(100, ge=50, le=200)
+    rotation_degrees: int = Field(0, ge=-30, le=30)
+    animation: Literal["dynamic", "cinematic", "minimal", "karaoke", "zoom", "bounce", "pulse", "glitch"] = "dynamic"
+
+
 class ClipOptions(BaseModel):
     clip_count: int = Field(3, ge=1, le=10, description="Maximum number of clips")
     min_seconds: float = Field(20, ge=5, le=170)
@@ -67,7 +81,7 @@ class ClipOptions(BaseModel):
     campaign_lyrics: str = Field(
         "", max_length=12000, description="Optional creator-provided or locally transcribed lyric lines"
     )
-    campaign_lyric_words: list[dict[str, Any]] = Field(default_factory=list)
+    campaign_lyric_words: list[dict[str, Any]] = Field(default_factory=list)\n    campaign_lyric_phrases: list[CampaignLyricPhrase] = Field(default_factory=list, max_length=500)
     campaign_detected_lyric_words: list[dict[str, Any]] = Field(default_factory=list)
     campaign_lyric_transcription_attempted: bool = False
     campaign_lyrics_source: str | None = Field(None, description="Origin of the campaign lyric draft")
