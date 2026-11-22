@@ -456,9 +456,18 @@ def test_campaign_lyrics_update_persists_behind_subject_option(client, monkeypat
             "highlight_color": "#FF3B4F",
             "words_on_screen": 2,
             "lyrics_behind_subject": True,
+            "position_x": 42,
+            "position_y": 61,
+            "scale_percent": 135,
+            "rotation_degrees": -8,
         },
     )
 
     assert response.status_code == 200
     assert response.json()["rendered"] is True
-    assert db.get_run(run["id"])["options"]["campaign_lyrics_behind_subject"] is True
+    saved = db.get_run(run["id"])["options"]
+    assert saved["campaign_lyrics_behind_subject"] is True
+    assert saved["campaign_lyrics_position_x"] == 42
+    assert saved["campaign_lyrics_position_y"] == 61
+    assert saved["campaign_lyrics_scale_percent"] == 135
+    assert saved["campaign_lyrics_rotation_degrees"] == -8
