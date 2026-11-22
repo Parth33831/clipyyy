@@ -554,3 +554,45 @@ def test_campaign_transition_style_defaults_to_auto_and_rejects_unknown_values()
     assert ClipOptions(campaign_transition_style="dynamic").campaign_transition_style == "dynamic"
     with pytest.raises(ValueError):
         ClipOptions(campaign_transition_style="flashy")
+
+
+def test_campaign_word_lyrics_pulse_on_detected_music_beats(tmp_path):
+    from clipyyy.render import write_campaign_word_lyrics
+
+    path = tmp_path / "beat-lyrics.ass"
+    write_campaign_word_lyrics(
+        [{"word": "Hello", "start": 2.0, "end": 2.5}],
+        4.0,
+        path,
+        1080,
+        1920,
+        offset_seconds=1.0,
+        style="dynamic",
+        text_color="#FFFFFF",
+        highlight_color="#FF3B4F",
+        beat_times=[0.8, 2.1, 2.3, 3.5],
+    )
+
+    content = path.read_text(encoding="utf-8")
+    assert "\\c&H004F3BFF&" in content
+    assert "\\t(100,175,\\fscx116\\fscy116)" in content
+    assert "\\t(300,375,\\fscx116\\fscy116)" in content
+    assert "Hello" in content
+
+
+def test_campaign_word_lyrics_keep_existing_timing_without_beats(tmp_path):
+    from clipyyy.render import write_campaign_word_lyrics
+
+    path = tmp_path / "plain-lyrics.ass"
+    write_campaign_word_lyrics(
+        [{"word": "Hello", "start": 0.5, "end": 1.0}],
+        3.0,
+        path,
+        1080,
+        1920,
+        beat_times=[],
+    )
+
+    content = path.read_text(encoding="utf-8")
+    assert "Dialogue: 0,0:00:00.50" in content
+    assert "\\t(0,75,\\fscx116\\fscy116)" not in content

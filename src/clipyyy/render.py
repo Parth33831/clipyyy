@@ -582,6 +582,7 @@ def render_campaign_montages(
                         text_color=options.get("campaign_lyrics_color", "#FFFFFF"),
                         highlight_color=options.get("campaign_lyrics_highlight_color", "#00D7FF"),
                         words_on_screen=options.get("campaign_lyrics_words_on_screen", 3),
+                        beat_times=music_analysis.get("beat_times", []) if music_analysis else [],
                     )
                 else:
                     write_campaign_lyrics(
@@ -747,8 +748,9 @@ def write_campaign_word_lyrics(
     text_color: str = "#FFFFFF",
     highlight_color: str = "#00D7FF",
     words_on_screen: int = 3,
+    beat_times: list[float] | None = None,
 ) -> Path:
-    """Render rolling 1–3 word captions using Whisper's actual per-word timings."""
+    """Render rolling word captions with Whisper timing and optional music-beat accents."""
     from clipyyy.captions import _ass_color, _escape, _ts
 
     primary = _ass_color(text_color)
@@ -832,19 +834,31 @@ def write_campaign_word_lyrics(
                 if word_end <= word_start:
                     continue
                 animation = (
-                    "{\\fad(45,75)\\fscx55\\fscy55\\t(0,110,\\fscx118\\fscy118)"
-                    "\\t(110,220,\\fscx100\\fscy100)\\c&H00D7FF&\\bord4\\shad3}"
+                    f"{{\\fad(45,75)\\fscx55\\fscy55\\t(0,110,\\fscx118\\fscy118)"
+                    f"\\t(110,220,\\fscx100\\fscy100)\\c{accent}\\bord4\\shad3}}"
                     if style in {"dynamic", "zoom"}
-                    else "{\\fad(45,75)\\fscx88\\fscy125\\t(0,100,\\fscx108\\fscy92)"
-                    "\\t(100,200,\\fscx100\\fscy100)\\c&H66E6FF&\\bord4\\shad3}"
+                    else f"{{\\fad(45,75)\\fscx88\\fscy125\\t(0,100,\\fscx108\\fscy92)"
+                    f"\\t(100,200,\\fscx100\\fscy100)\\c{accent}\\bord4\\shad3}}"
                     if style == "bounce"
-                    else "{\\fad(45,75)\\t(0,120,\\fscx115\\fscy115)"
-                    "\\t(120,240,\\fscx100\\fscy100)\\c&HFFFFFF&\\bord4\\shad3}"
+                    else f"{{\\fad(45,75)\\t(0,120,\\fscx115\\fscy115)"
+                    f"\\t(120,240,\\fscx100\\fscy100)\\c{primary}\\bord4\\shad3}}"
                     if style == "pulse"
-                    else "{\\fad(25,70)\\fscx85\\fscy112\\frz-3"
-                    "\\t(0,90,\\fscx110\\fscy92\\frz3)\\t(90,180,\\fscx100\\fscy100\\frz0)"
-                    "\\c&H00D7FF&\\bord4\\shad3}"
+                    else f"{{\\fad(25,70)\\fscx85\\fscy112\\frz-3"
+                    f"\\t(0,90,\\fscx110\\fscy92\\frz3)\\t(90,180,\\fscx100\\fscy100\\frz0)"
+                    f"\\c{accent}\\bord4\\shad3}}"
                 )
+                if beat_times:
+                    pulse_tags = []
+                    for beat in beat_times:
+                        relative_beat = float(beat) - offset_seconds
+                        if word_start <= relative_beat < word_end:
+                            beat_ms = max(0, round((relative_beat - word_start) * 1000))
+                            pulse_tags.append(
+                                f"\\t({beat_ms},{beat_ms + 75},\\fscx116\\fscy116)"
+                                f"\\t({beat_ms + 75},{beat_ms + 180},\\fscx100\\fscy100)"
+                            )
+                    if pulse_tags:
+                        animation = animation[:-1] + "".join(pulse_tags) + "}"
                 # Animated word events alternate the selected main and highlight colors.
                 # This keeps both chosen colors visible instead of hard-coding a cyan accent.
                 visible_words = usable[
