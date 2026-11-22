@@ -8,8 +8,8 @@ import mimetypes
 import os
 import shutil
 import subprocess
-from array import array
 import zipfile
+from array import array
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -396,7 +396,8 @@ def create_app(start_worker: bool = True) -> FastAPI:
 
         work_dir = pipeline.run_dir(run_id) / "work"
         work_dir.mkdir(parents=True, exist_ok=True)
-        cache_path = work_dir / f"campaign-waveform-{bins}.json"
+        audio_stat = audio_file.stat()
+        cache_path = work_dir / f"campaign-waveform-{bins}-{audio_stat.st_mtime_ns}-{audio_stat.st_size}.json"
         if cache_path.is_file():
             try:
                 return json.loads(cache_path.read_text(encoding="utf-8"))
