@@ -606,3 +606,11 @@ STATUS: In progress / Ready for review / Merged
 - PR #78 is open; CI is queued/pending. No backend or render behavior changes in this small frontend increment.
 - Current main at this update: `c07633aa09df4328a59e75a8a6792e4041da9ff0`.
 - Remaining editor work: direct drag-to-position for independent overlays, preview each overlay over representative footage, multitrack undo/redo, and Windows real-media campaign validation.
+
+### 2026-11-22 follow-up: overlay timeline and parallel work
+
+- PR #78 added the independent text overlay lane to each campaign output timeline and was squash-merged as `9668c675d15666f0c4f8541389a2234ec41be0d4`. CI passed, including Ruff, fast backend and frontend build.
+- Two other conversations are now working on:
+  - PR #76: draggable live preview for campaign text overlays (currently stacked on an older overlay branch; it must be rebased onto main before merge).
+  - PR #77: live source playback in the campaign timeline.
+- Avoid duplicating draggable overlay preview or live source playback. The next independent editor improvement is direct drag-to-move/trim for overlay blocks on the timeline, with separate left/right handles. This is distinct from preview positioning.
