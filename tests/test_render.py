@@ -463,7 +463,10 @@ def test_campaign_audio_filter_clamps_fades_to_duration_and_allows_no_fades():
     assert _campaign_audio_filter(2.0, False, music_volume=0, fade_in_seconds=5, fade_out_seconds=5) == (
         "volume=0.000,afade=t=in:st=0:d=2.000,afade=t=out:st=0.000:d=2.000"
     )
-    assert _campaign_audio_filter(10.0, False, music_volume=1.0, fade_in_seconds=0, fade_out_seconds=0) == "volume=1.000"
+    assert (
+        _campaign_audio_filter(10.0, False, music_volume=1.0, fade_in_seconds=0, fade_out_seconds=0)
+        == "volume=1.000"
+    )
 
 
 def test_remove_timed_intervals_keeps_audio_and_video_synchronized(tmp_path):
