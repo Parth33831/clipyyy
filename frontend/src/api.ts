@@ -42,6 +42,7 @@ export interface ClipOptions {
   campaign_camera_motion: boolean
   campaign_transition_style: 'auto' | 'cut' | 'cinematic' | 'dynamic'
   campaign_lyrics: string
+  campaign_lyric_words?: { word: string; start: number; end: number; track_start?: number }[]
   campaign_lyrics_source?: string | null
   campaign_lyrics_style?: 'dynamic' | 'cinematic' | 'minimal' | 'karaoke'
   campaign_lyrics_color?: string
