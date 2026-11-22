@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, Download, RotateCcw, Send, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, Download, RotateCcw, Scissors, Send, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
@@ -407,6 +407,20 @@ function CampaignStoryboardEditor({
       shots: edit.shots.filter((_, position) => position !== shotIndex),
     }))
   }
+  const splitShot = (editIndex: number, shotIndex: number) => {
+    onChange(edits.map((edit, index) => {
+      if (index !== editIndex || edit.shots.length >= 40) return edit
+      const shot = edit.shots[shotIndex]
+      if (!shot || shot.end_seconds - shot.start_seconds < 3) return edit
+      const midpoint = Math.round(((shot.start_seconds + shot.end_seconds) / 2) * 1000) / 1000
+      const first = { ...shot, end_seconds: midpoint }
+      const second = { ...shot, start_seconds: midpoint }
+      return {
+        ...edit,
+        shots: [...edit.shots.slice(0, shotIndex), first, second, ...edit.shots.slice(shotIndex + 1)],
+      }
+    }))
+  }
 
   return (
     <Panel className="flex flex-col gap-5 p-5">
@@ -415,7 +429,7 @@ function CampaignStoryboardEditor({
           <Eyebrow>Campaign editor</Eyebrow>
           <h2 className="display mt-1 text-2xl">Edit your storyboard</h2>
           <p className="mt-1 text-[13px] text-muted">
-            Reorder shots, adjust source in/out points or remove a shot. Saving rebuilds the montage from cached footage.
+            Reorder, trim, split or remove shots. Splitting keeps the original source range and creates two consecutive shots.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -483,6 +497,11 @@ function CampaignStoryboardEditor({
                     <button type="button" title="Move shot down" aria-label="Move shot down" disabled={saving || shotIndex === edit.shots.length - 1}
                       onClick={() => moveShot(editIndex, shotIndex, 1)} className="rounded-md border border-line p-2 text-muted hover:text-ink disabled:opacity-30">
                       <ArrowDown className="h-4 w-4" />
+                    </button>
+                    <button type="button" title="Split shot in half" aria-label="Split shot in half"
+                      disabled={saving || edit.shots.length >= 40 || shot.end_seconds - shot.start_seconds < 3}
+                      onClick={() => splitShot(editIndex, shotIndex)} className="rounded-md border border-line p-2 text-muted hover:text-ink disabled:opacity-30">
+                      <Scissors className="h-4 w-4" />
                     </button>
                     <button type="button" title="Remove shot" aria-label="Remove shot" disabled={saving}
                       onClick={() => removeShot(editIndex, shotIndex)} className="rounded-md border border-line p-2 text-muted hover:text-bad">
