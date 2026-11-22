@@ -485,3 +485,11 @@ STATUS: In progress / Ready for review / Merged
 - Next P1 work must audit lyric word timestamps and scene observation fields, then add a bounded, testable relevance/timing alignment layer only where evidence supports it. Keep the existing planner and beat analysis; do not duplicate them. Add explicit fallback behavior for text-only vision observations and absent/uncertain lyrics. Run backend tests, Ruff and frontend build before proposing a PR.
 - P2 typography and P3 editor work remain roadmap items; existing lyric styles/colour controls and storyboard/timeline editing are partial foundations, not the complete expressive multi-layer editor described in the product vision.
 - Real-media Windows verification remains outstanding. CI success is not a substitute for checking an actual campaign song and multiple source videos on the target PC.
+
+
+### 2026-11-22 follow-up: beat-reactive lyrics and P1 lyric-story handoff
+
+- PR #49 merged as \`5b6559a16411d30d4079f3ac1edcc133a27945bc\`, adding beat-reactive pulses to timed campaign lyric words and respecting the selected music offset and creator colours.
+- P1 implementation is in PR #51: \`feature/lyric-story-campaign-selection\`. It passes creator-supplied lyric text into the existing montage planner as an optional semantic story cue, with explicit guardrails against inventing visuals or guessing lyric timestamps. Tests cover supplied lyrics and the no-lyrics path.
+- An earlier PR #50 was closed as a stale duplicate because main advanced when PR #49 merged; PR #51 is based on the latest main.
+- PR #51 CI is pending at handoff. Do not merge until backend formatting/tests pass and the PR is reviewed. The lyric cue is semantic-only; timestamp-accurate lyric-to-shot matching remains future work.
