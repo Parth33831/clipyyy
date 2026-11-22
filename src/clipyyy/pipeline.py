@@ -486,6 +486,9 @@ def stage_render(ctx: Context) -> dict:
             "campaign_lyric_words": ctx.state["select"].get(
                 "campaign_lyric_words", ctx.options.get("campaign_lyric_words", [])
             ),
+            "campaign_detected_lyric_words": ctx.state["select"].get(
+                "campaign_detected_lyric_words", ctx.options.get("campaign_detected_lyric_words", [])
+            ),
             "campaign_lyric_transcription_attempted": ctx.state["select"].get(
                 "campaign_lyric_transcription_attempted",
                 ctx.options.get("campaign_lyric_transcription_attempted", False),
@@ -511,6 +514,7 @@ def stage_render(ctx: Context) -> dict:
                     Path(music_path), lyric_work, get_setting("whisper_model") or "tiny", "auto"
                 )
                 words = lyric_result.get("words", [])
+                render_options["campaign_detected_lyric_words"] = words
                 if has_lyrics:
                     # Never replace creator-entered copy with imperfect singing recognition.
                     render_options["campaign_lyric_words"] = []
@@ -535,6 +539,7 @@ def stage_render(ctx: Context) -> dict:
                     "campaign_lyrics": render_options["campaign_lyrics"],
                     "campaign_lyrics_source": render_options.get("campaign_lyrics_source"),
                     "campaign_lyric_words": render_options["campaign_lyric_words"],
+                    "campaign_detected_lyric_words": render_options["campaign_detected_lyric_words"],
                     "campaign_lyric_transcription_attempted": True,
                 }
                 db.update_run(ctx.run_id, options=updated_options)
