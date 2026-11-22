@@ -538,3 +538,11 @@ STATUS: In progress / Ready for review / Merged
 - A new mainline audit found campaign rendering already has an existing subject-aware face crop path in \`render.py::_campaign_subject_crop\`, with an explicit check that MediaPipe and its model are already installed before calling the existing tracker. If unavailable, it falls back to the existing crop.
 - Draft PR #63 was closed as duplicate/unnecessary; do not merge its extra reframe/render pipeline.
 - Remaining framing gap is product/object-aware composition and creator-adjustable focal points, not primary-face tracking. Reassess after the active lyrics-behind-subject PR #61 is resolved.
+
+
+### 2026-11-22 follow-up: active lyrics depth-effect PR review
+
+- The other development stream has rebased the optional lyrics-behind-subject feature into PR #64 (based on current main). PR #61 is an older stale attempt; do not merge both.
+- Review note posted on PR #64: preserve the already-merged timed lyric phrase track in \`RunDetail\`. The current PR diff removes \`campaign_lyric_cues\` from the run detail API and removes the Lyric phrase track from the timeline UI; this is an unrelated regression and must be restored before merge.
+- Draft PR #63 for campaign face-aware framing was closed after discovering the latest main already contains \`_campaign_subject_crop\` with a no-download fallback. Do not duplicate that implementation.
+- Current main baseline at this audit: \`eb01c092706847e63dbdd40bba90c70732899911\`. Recheck latest main and PR state before further integration work.
