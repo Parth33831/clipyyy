@@ -1387,6 +1387,9 @@ def write_campaign_text_overlays(
             x_percent = max(5, min(95, int(overlay.get("position_x", 50))))
             y_percent = max(5, min(95, int(overlay.get("position_y", 50))))
             size_percent = max(60, min(200, int(overlay.get("font_size_percent", 100))))
+            font_family = str(overlay.get("font_family") or "Arial")
+            font_weight = str(overlay.get("font_weight") or "bold")
+            text_effect = str(overlay.get("text_effect") or "shadow")
             text_color = str(overlay.get("color") or "#FFFFFF")
             animation = str(overlay.get("animation") or "fade")
         except (TypeError, ValueError):
@@ -1403,7 +1406,18 @@ def write_campaign_text_overlays(
         x = round(width * x_percent / 100)
         y = round(height * y_percent / 100)
         font_size = max(12, round(height * 0.052 * size_percent / 100))
-        tags = f"{{\\an5\\pos({x},{y})\\fs{font_size}\\c{_ass_color(text_color)}}}"
+        if font_family not in {"Arial", "Georgia", "Impact", "Trebuchet MS", "Verdana"}:
+            font_family = "Arial"
+        tags = (
+            f"{{\\an5\\pos({x},{y})\\fs{font_size}\\fn{font_family}"
+            f"\\b{1 if font_weight == \"bold\" else 0}\\c{_ass_color(text_color)}}}"
+        )
+        if text_effect == "outline":
+            tags = tags[:-1] + r"\\bord2\\shad0}"
+        elif text_effect == "none":
+            tags = tags[:-1] + r"\\bord0\\shad0}"
+        else:
+            tags = tags[:-1] + r"\\bord0\\shad2}"
         if animation == "fade":
             tags = tags[:-1] + r"\\fad(160,160)}"
         elif animation == "pop":
