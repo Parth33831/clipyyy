@@ -476,7 +476,6 @@ def render_campaign_montages(
             int(item["edit_rank"]),
             int(item["source_index"]),
             round(float(item["start_seconds"]), 3),
-            round(float(item["end_seconds"]), 3),
         ): item
         for item in selection.get("campaign_crop_plans", [])
     }
@@ -520,7 +519,7 @@ def render_campaign_montages(
                         continue
                     segment = edit_dir / f"shot-{shot_index:03d}.mp4"
                     crop_plan = crop_plan_map.get(
-                        (int(rank), source_index, round(start, 3), round(end, 3))
+                        (int(rank), source_index, round(start, 3))
                     )
                     if crop_plan and crop_plan.get("crop_boxes"):
                         if source_index not in source_dimensions:
