@@ -286,7 +286,6 @@ def test_campaign_camera_motion_is_enabled_by_default_and_can_be_disabled():
     assert options.campaign_camera_motion is False
 
 
-
 def test_campaign_lyric_draft_groups_words_and_offsets_to_selected_music():
     cues_text, cues = pipeline._campaign_lyric_draft(
         [
