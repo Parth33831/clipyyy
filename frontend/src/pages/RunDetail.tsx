@@ -100,6 +100,15 @@ export function RunDetailPage() {
     onError: (e) => toast.error(e.message),
   })
   const lyricPhrases = lyricsText.split(/\r?\n/).map((line) => line.replace(/^\[\d{1,2}:\d{2}(?:\.\d{1,2})?\]\s*/, '').trim()).filter(Boolean)
+  const lyricPhraseTimes = lyricsText.split(/\r?\n/).map((line) => {
+    const match = line.trim().match(/^\[(\d{1,2}):(\d{2})(?:\.(\d{1,2}))?\]/)
+    if (!match) return null
+    return Number(match[1]) * 60 + Number(match[2]) + Number((match[3] ?? '0').padEnd(2, '0').slice(0, 2)) / 100
+  })
+  const selectedPhraseStart = selectedPhraseEdit?.start_seconds ?? lyricPhraseTimes[selectedLyricPhrase]
+  const selectedPhraseEnd = selectedPhraseEdit?.end_seconds ?? (
+    lyricPhraseTimes[selectedLyricPhrase + 1] ?? (selectedPhraseStart == null ? null : selectedPhraseStart + 3)
+  )
   const selectedPhraseEdit = phraseEdits.find((edit) => edit.phrase_index === selectedLyricPhrase)
   const previewPositionX = selectedPhraseEdit?.position_x ?? lyricsPositionX
   const previewPositionY = selectedPhraseEdit?.position_y ?? lyricsPositionY
@@ -347,6 +356,26 @@ export function RunDetailPage() {
                   {lyricPhrases.map((phrase, index) => <option key={index} value={index}>{index + 1}. {phrase.slice(0, 70)}</option>)}
                 </select>
               </label>
+              {selectedPhraseStart != null && selectedPhraseEnd != null && (
+                <div className="grid gap-3 border-t border-line pt-3 sm:grid-cols-2">
+                  <label className="flex flex-col gap-1">
+                    <span className="font-medium">Phrase start (song seconds)</span>
+                    <input type="number" min={0} step={0.05} value={selectedPhraseStart}
+                      onChange={(event) => {
+                        const start = Math.max(0, Number(event.target.value))
+                        updateSelectedPhrase({ start_seconds: start, ...(selectedPhraseEnd <= start ? { end_seconds: start + 0.2 } : {}) })
+                      }}
+                      className="rounded-lg border border-line bg-panel p-2 text-ink" />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="font-medium">Phrase end (song seconds)</span>
+                    <input type="number" min={selectedPhraseStart + 0.05} step={0.05} value={selectedPhraseEnd}
+                      onChange={(event) => updateSelectedPhrase({ end_seconds: Math.max(selectedPhraseStart + 0.05, Number(event.target.value)) })}
+                      className="rounded-lg border border-line bg-panel p-2 text-ink" />
+                  </label>
+                  <p className="text-xs text-muted sm:col-span-2">Times are measured against the original song, so changing this phrase does not move the following phrases.</p>
+                </div>
+              )}
               <div className="grid gap-3 sm:grid-cols-2">
                 {([
                   ['position_x', 'Horizontal position', 5, 95, lyricsPositionX, '%'],
