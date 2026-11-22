@@ -826,3 +826,124 @@ def test_campaign_lyrics_apply_saved_transform_without_word_timing(tmp_path):
     script = path.read_text(encoding="utf-8")
     assert r"\pos(378,1344)" in script
     assert r"\fscx120\fscy120\frz6" in script
+
+
+def test_campaign_text_overlay_script_has_independent_timing_and_style(tmp_path):
+    from clipyyy.render import write_campaign_text_overlays
+
+    path = write_campaign_text_overlays(
+        [
+            {
+                "text": "SUMMER SALE",
+                "start_seconds": 1.25,
+                "end_seconds": 3.75,
+                "position_x": 40,
+                "position_y": 62,
+                "font_size_percent": 125,
+                "color": "#FF3B4F",
+                "animation": "pop",
+                "background": True,
+            },
+            {
+                "text": "Shop now",
+                "start_seconds": 4.0,
+                "end_seconds": 5.0,
+                "position_x": 70,
+                "position_y": 80,
+                "animation": "slide",
+                "background": False,
+            },
+        ],
+        6.0,
+        tmp_path / "campaign-overlays.ass",
+        1080,
+        1920,
+    )
+    script = path.read_text(encoding="utf-8")
+
+    assert "Dialogue: 0,0:00:01.25,0:00:03.75,OverlayBox" in script
+    assert r"\pos(432,1190)" in script
+    assert r"\fscx70\fscy70" in script
+    assert "Dialogue: 0,0:00:04.00,0:00:05.00,Overlay" in script
+    assert r"\move(756,1622,756,1536,0,220)" in script
+
+
+def test_campaign_text_overlay_script_skips_empty_or_out_of_range_layers(tmp_path):
+    from clipyyy.render import write_campaign_text_overlays
+
+    path = write_campaign_text_overlays(
+        [
+            {"text": "", "start_seconds": 0, "end_seconds": 1},
+            {"text": "After end", "start_seconds": 7, "end_seconds": 8},
+            {"text": "Visible", "start_seconds": 0, "end_seconds": 2},
+        ],
+        5.0,
+        tmp_path / "safe-overlays.ass",
+        1080,
+        1920,
+    )
+    script = path.read_text(encoding="utf-8")
+
+    assert script.count("Dialogue:") == 1
+    assert "Visible" in script
+    assert "After end" not in script
+
+
+def test_campaign_text_overlay_ass_layer_renders_on_synthetic_video(tmp_path):
+    from clipyyy.captions import ass_filter
+    from clipyyy.media import probe, run_ffmpeg
+    from clipyyy.render import write_campaign_text_overlays
+
+    source = tmp_path / "overlay-source.mp4"
+    run_ffmpeg(
+        [
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=black:s=270x480:r=12:d=2",
+            "-an",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            str(source),
+        ]
+    )
+    overlay = write_campaign_text_overlays(
+        [
+            {
+                "text": "A REAL CAMPAIGN TITLE",
+                "start_seconds": 0.2,
+                "end_seconds": 1.8,
+                "position_x": 50,
+                "position_y": 45,
+                "font_size_percent": 110,
+                "color": "#FFFFFF",
+                "animation": "fade",
+                "background": True,
+            }
+        ],
+        2.0,
+        tmp_path / "overlay.ass",
+        270,
+        480,
+    )
+    output = tmp_path / "overlay-render.mp4"
+    run_ffmpeg(
+        [
+            "-i",
+            str(source),
+            "-vf",
+            ass_filter(overlay),
+            "-an",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            str(output),
+        ]
+    )
+
+    width, height, duration = probe(output)
+    assert (width, height) == (270, 480)
+    assert duration == pytest.approx(2.0, abs=0.2)

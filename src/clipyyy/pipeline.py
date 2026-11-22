@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import re
 import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -84,6 +85,7 @@ class ClipOptions(BaseModel):
     campaign_lyrics_behind_subject: bool = False
     campaign_hook_text: str = Field("", max_length=160)
     include_campaign_hook: bool = False
+    campaign_text_overlays: list[dict[str, Any]] = Field(default_factory=list, max_length=30)
     model: str | None = Field(None, description="Override the default LLM model")
 
     @model_validator(mode="after")
@@ -656,6 +658,76 @@ def execute(run: dict[str, Any], on_stage: Callable[[str], None] | None = None) 
         ctx.state[name] = result
         db.set_stage(run_id, name, "done")
     db.update_run(run_id, status="completed", current_stage=None, error=None)
+
+
+def update_campaign_text_overlays(run_id: str, overlays: list[dict[str, Any]]) -> dict:
+    """Validate and persist independent timed text layers, then re-render cached campaign footage."""
+    run = db.get_run(run_id)
+    if run is None:
+        raise ValueError("Run not found.")
+    if not run["options"].get("campaign_mode"):
+        raise ValueError("Text overlays are only available for campaign runs.")
+    if run["status"] in {"queued", "running"}:
+        raise ValueError("Wait for the campaign run to finish before editing text overlays.")
+    if len(overlays) > 30:
+        raise ValueError("A campaign can contain at most 30 text overlays.")
+
+    clips = {int(clip["rank"]): clip for clip in db.list_clips(run_id)}
+    normalized = []
+    for index, overlay in enumerate(overlays, start=1):
+        try:
+            rank = int(overlay["rank"])
+            start = float(overlay["start_seconds"])
+            end = float(overlay["end_seconds"])
+            position_x = int(overlay.get("position_x", 50))
+            position_y = int(overlay.get("position_y", 50))
+            font_size = int(overlay.get("font_size_percent", 100))
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError(f"Text overlay {index} has invalid timing or placement.") from exc
+        text = "\n".join(
+            " ".join(line.split()) for line in str(overlay.get("text") or "").splitlines()
+        ).strip()
+        color = str(overlay.get("color") or "#FFFFFF").upper()
+        animation = str(overlay.get("animation") or "fade")
+        if rank not in clips:
+            raise ValueError(f"Text overlay {index} refers to an unknown campaign output.")
+        duration = float(clips[rank].get("duration_seconds") or 0.0)
+        if not math.isfinite(start) or not math.isfinite(end) or start < 0 or end <= start or end > duration:
+            raise ValueError(f"Text overlay {index} must have valid timing inside output #{rank}.")
+        if not text or len(text) > 160:
+            raise ValueError(f"Text overlay {index} must contain 1–160 characters.")
+        if not 5 <= position_x <= 95 or not 5 <= position_y <= 95:
+            raise ValueError(f"Text overlay {index} position must stay between 5% and 95%.")
+        if not 60 <= font_size <= 200:
+            raise ValueError(f"Text overlay {index} size must stay between 60% and 200%.")
+        if not re.fullmatch(r"#[0-9A-F]{6}", color):
+            raise ValueError(f"Text overlay {index} has an invalid color.")
+        if animation not in {"none", "fade", "pop", "slide"}:
+            raise ValueError(f"Text overlay {index} has an unsupported animation.")
+        normalized.append(
+            {
+                "rank": rank,
+                "text": text,
+                "start_seconds": round(start, 3),
+                "end_seconds": round(end, 3),
+                "position_x": position_x,
+                "position_y": position_y,
+                "font_size_percent": font_size,
+                "color": color,
+                "animation": animation,
+                "background": bool(overlay.get("background", True)),
+            }
+        )
+
+    db.update_run(
+        run_id,
+        options={**run["options"], "campaign_text_overlays": normalized},
+    )
+    try:
+        return rerender_campaign(run_id)
+    except Exception as exc:
+        db.update_run(run_id, status="failed", current_stage=None, error=f"campaign render: {exc}")
+        raise
 
 
 def update_campaign_montage(run_id: str, edits: list[dict[str, Any]]) -> dict:

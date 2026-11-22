@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, Download, R
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
-import { api, type CampaignEdit, type CampaignMusicAnalysis, type CampaignLyricPhraseEdit, type CampaignShot, type CampaignSource, type Clip, type Post, type RunDetail } from '../api'
+import { api, type CampaignEdit, type CampaignTextOverlay, type CampaignMusicAnalysis, type CampaignLyricPhraseEdit, type CampaignShot, type CampaignSource, type Clip, type Post, type RunDetail } from '../api'
 import { PublishDialog } from '../components/PublishDialog'
 import { Button, Eyebrow, Panel, Squares, StatusChip, cn, formatDuration, sourceHost, sourceLabel, timeAgo } from '../components/ui'
 
@@ -41,6 +41,7 @@ export function RunDetailPage() {
   const [phraseEdits, setPhraseEdits] = useState<CampaignLyricPhraseEdit[]>([])
   const [selectedLyricPhrase, setSelectedLyricPhrase] = useState(0)
   const [campaignEdits, setCampaignEdits] = useState<CampaignEdit[]>([])
+  const [campaignTextOverlays, setCampaignTextOverlays] = useState<CampaignTextOverlay[]>([])
   useEffect(() => {
     setMusicVolume(Math.round((run.data?.options.campaign_music_volume ?? 0.9) * 100))
     setMusicFadeIn(run.data?.options.campaign_music_fade_in_seconds ?? 0.4)
@@ -60,7 +61,8 @@ export function RunDetailPage() {
     setPhraseEdits(run.data?.options.campaign_lyric_phrase_edits ?? [])
     setSelectedLyricPhrase(0)
     setCampaignEdits(run.data?.campaign_edits ?? [])
-  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.campaign_plan?.generated_hook])
+    setCampaignTextOverlays(run.data?.options.campaign_text_overlays ?? [])
+  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.options.campaign_text_overlays, run.data?.campaign_plan?.generated_hook])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -125,6 +127,14 @@ export function RunDetailPage() {
       return [...current.filter((edit) => edit.phrase_index !== selectedLyricPhrase), next].sort((left, right) => left.phrase_index - right.phrase_index)
     })
   }
+  const saveCampaignTextOverlays = useMutation({
+    mutationFn: () => api.saveCampaignTextOverlays(runId, campaignTextOverlays),
+    onSuccess: (result) => {
+      toast.success(`Applied ${result.overlays} text overlay(s) to ${result.outputs} campaign edit(s).`)
+      refresh()
+    },
+    onError: (e) => toast.error(e.message),
+  })
   const saveMontage = useMutation({
     mutationFn: () => api.saveCampaignMontage(runId, campaignEdits),
     onSuccess: (result) => {
@@ -524,6 +534,17 @@ export function RunDetailPage() {
         />
       )}
 
+      {data.options.campaign_mode && !busy && campaignEdits.length > 0 && (
+        <CampaignTextOverlayEditor
+          overlays={campaignTextOverlays}
+          savedOverlays={data.options.campaign_text_overlays ?? []}
+          outputs={readyClips.map((clip) => ({ rank: clip.rank, duration_seconds: clip.duration_seconds ?? 0 }))}
+          saving={saveCampaignTextOverlays.isPending}
+          onChange={setCampaignTextOverlays}
+          onSave={() => saveCampaignTextOverlays.mutate()}
+        />
+      )}
+
       {data.campaign_plan && <CampaignPlanCard plan={data.campaign_plan} checks={data.campaign_quality_checks} />}
 
       {data.clips.length > 0 && data.source_duration && !data.options.campaign_mode ? (
@@ -726,6 +747,159 @@ function CampaignStoryboardEditor({
           {edit.shots.length < 3 && <p className="text-xs text-bad">Restore the AI plan or keep at least 3 shots in this output.</p>}
         </section>
       ))}
+    </Panel>
+  )
+}
+
+function CampaignTextOverlayEditor({
+  overlays,
+  savedOverlays,
+  outputs,
+  saving,
+  onChange,
+  onSave,
+}: {
+  overlays: CampaignTextOverlay[]
+  savedOverlays: CampaignTextOverlay[]
+  outputs: { rank: number; duration_seconds: number }[]
+  saving: boolean
+  onChange: (overlays: CampaignTextOverlay[]) => void
+  onSave: () => void
+}) {
+  const changed = JSON.stringify(overlays) !== JSON.stringify(savedOverlays)
+  const addOverlay = () => {
+    const output = outputs[0]
+    if (!output || output.duration_seconds < 0.2 || overlays.length >= 30) return
+    onChange([
+      ...overlays,
+      {
+        rank: output.rank,
+        text: 'YOUR MESSAGE',
+        start_seconds: 0,
+        end_seconds: Math.min(2.5, output.duration_seconds),
+        position_x: 50,
+        position_y: 50,
+        font_size_percent: 100,
+        color: '#FFFFFF',
+        animation: 'fade',
+        background: true,
+      },
+    ])
+  }
+  const update = (index: number, patch: Partial<CampaignTextOverlay>) => {
+    onChange(overlays.map((overlay, position) => position === index ? { ...overlay, ...patch } : overlay))
+  }
+
+  return (
+    <Panel className="flex flex-col gap-4 p-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <Eyebrow>Independent text layers</Eyebrow>
+          <h2 className="display mt-1 text-2xl">Add campaign titles &amp; messages</h2>
+          <p className="mt-1 text-[13px] text-muted">
+            Add timed titles, calls to action or labels separately from the song lyrics. Each layer has its own output, timing, position and style.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="line" disabled={saving || overlays.length >= 30 || outputs.length === 0} onClick={addOverlay}>
+            Add text layer
+          </Button>
+          <Button variant="ink" disabled={!changed || saving} loading={saving} onClick={onSave}>
+            Save &amp; re-render
+          </Button>
+        </div>
+      </div>
+      {overlays.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-line p-5 text-sm text-muted">
+          No extra text layers yet. Add a campaign title, product name, offer or call to action without changing the timed lyric captions.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {overlays.map((overlay, index) => {
+            const output = outputs.find((item) => item.rank === overlay.rank)
+            return (
+              <section key={index} className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="label text-muted">TEXT LAYER {String(index + 1).padStart(2, '0')}</span>
+                  <button type="button" disabled={saving} onClick={() => onChange(overlays.filter((_, position) => position !== index))}
+                    className="rounded-md border border-line px-3 py-1.5 text-xs text-muted hover:text-bad disabled:opacity-40">
+                    Remove
+                  </button>
+                </div>
+                <label className="flex flex-col gap-1 text-xs text-muted">
+                  Message
+                  <textarea maxLength={160} rows={2} value={overlay.text}
+                    onChange={(event) => update(index, { text: event.target.value })}
+                    className="w-full resize-y rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink" />
+                </label>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <label className="flex flex-col gap-1 text-xs text-muted">
+                    Output
+                    <select value={overlay.rank} onChange={(event) => update(index, { rank: Number(event.target.value) })}
+                      className="rounded-md border border-line bg-surface px-2 py-2 text-sm text-ink">
+                      {outputs.map((item) => <option key={item.rank} value={item.rank}>Edit #{item.rank}</option>)}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-xs text-muted">
+                    Starts (seconds)
+                    <input type="number" min={0} max={output?.duration_seconds ?? 0} step={0.1} value={overlay.start_seconds}
+                      onChange={(event) => update(index, { start_seconds: Number(event.target.value) })}
+                      className="rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
+                  </label>
+                  <label className="flex flex-col gap-1 text-xs text-muted">
+                    Ends (seconds)
+                    <input type="number" min={0.1} max={output?.duration_seconds ?? 0} step={0.1} value={overlay.end_seconds}
+                      onChange={(event) => update(index, { end_seconds: Number(event.target.value) })}
+                      className="rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
+                  </label>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <label className="flex flex-col gap-1 text-xs text-muted">
+                    Horizontal position · {overlay.position_x}%
+                    <input type="range" min={5} max={95} value={overlay.position_x}
+                      onChange={(event) => update(index, { position_x: Number(event.target.value) })} />
+                  </label>
+                  <label className="flex flex-col gap-1 text-xs text-muted">
+                    Vertical position · {overlay.position_y}%
+                    <input type="range" min={5} max={95} value={overlay.position_y}
+                      onChange={(event) => update(index, { position_y: Number(event.target.value) })} />
+                  </label>
+                  <label className="flex flex-col gap-1 text-xs text-muted">
+                    Text size · {overlay.font_size_percent}%
+                    <input type="range" min={60} max={200} step={5} value={overlay.font_size_percent}
+                      onChange={(event) => update(index, { font_size_percent: Number(event.target.value) })} />
+                  </label>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <label className="flex items-center justify-between gap-3 text-xs text-muted">
+                    Text color
+                    <input type="color" value={overlay.color} onChange={(event) => update(index, { color: event.target.value.toUpperCase() })}
+                      className="h-9 w-12 cursor-pointer rounded border border-line bg-transparent p-1" />
+                  </label>
+                  <label className="flex flex-col gap-1 text-xs text-muted">
+                    Entrance animation
+                    <select value={overlay.animation} onChange={(event) => update(index, { animation: event.target.value as CampaignTextOverlay['animation'] })}
+                      className="rounded-md border border-line bg-surface px-2 py-2 text-sm text-ink">
+                      <option value="none">None</option>
+                      <option value="fade">Fade</option>
+                      <option value="pop">Pop</option>
+                      <option value="slide">Slide up</option>
+                    </select>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs text-muted">
+                    <input type="checkbox" checked={overlay.background}
+                      onChange={(event) => update(index, { background: event.target.checked })} />
+                    Background panel
+                  </label>
+                </div>
+                <p className="text-[11px] text-muted">
+                  This is a separate text layer. It does not replace or retime the music lyrics.
+                </p>
+              </section>
+            )
+          })}
+        </div>
+      )}
     </Panel>
   )
 }
