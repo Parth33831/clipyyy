@@ -43,6 +43,8 @@ class CampaignAudioUpdate(BaseModel):
 
 class CampaignLyricPhraseEdit(BaseModel):
     phrase_index: int = Field(..., ge=0, le=199)
+    start_seconds: float | None = Field(None, ge=0)
+    end_seconds: float | None = Field(None, gt=0)
     position_x: int | None = Field(None, ge=5, le=95)
     position_y: int | None = Field(None, ge=5, le=95)
     scale_percent: int | None = Field(None, ge=50, le=200)
