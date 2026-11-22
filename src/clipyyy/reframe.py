@@ -81,10 +81,16 @@ def prepare_clips(
 
 
 def plan_crop(
-    clip_path: Path, aspect: float, start_seconds: float = 0.0, end_seconds: float | None = None
+    clip_path: Path,
+    aspect: float,
+    start_seconds: float = 0.0,
+    end_seconds: float | None = None,
+    allow_model_download: bool = True,
 ) -> dict:
     width, height, _ = probe(clip_path)
-    samples = sample_faces(clip_path, width, height, start_seconds, end_seconds)
+    samples = sample_faces(
+        clip_path, width, height, start_seconds, end_seconds, allow_model_download=allow_model_download
+    )
     if not samples:
         return center_plan(width, height, aspect, "face detector unavailable")
     tracked = [(t, f) for t, f in samples if f is not None]
@@ -131,6 +137,7 @@ def sample_faces(
     height: int,
     start_seconds: float = 0.0,
     end_seconds: float | None = None,
+    allow_model_download: bool = True,
 ) -> list[tuple[float, Face | None]]:
     os.environ.setdefault("GLOG_minloglevel", "2")  # silence MediaPipe/LiteRT info logs
     os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
@@ -139,9 +146,12 @@ def sample_faces(
         import numpy as np
     except ImportError:
         return []
+    model_path = _model_path(allow_download=allow_model_download)
+    if model_path is None:
+        return []
     detector = mp.tasks.vision.FaceDetector.create_from_options(
         mp.tasks.vision.FaceDetectorOptions(
-            base_options=mp.tasks.BaseOptions(model_asset_path=str(_model_path())),
+            base_options=mp.tasks.BaseOptions(model_asset_path=str(model_path)),
             min_detection_confidence=0.5,
         )
     )
@@ -279,9 +289,12 @@ def clamp(value: float, low: float, high: float) -> float:
     return low if low > high else max(low, min(high, value))
 
 
-def _model_path() -> Path:
+def _model_path(allow_download: bool = True) -> Path | None:
     path = home() / "models" / "blaze_face_short_range.tflite"
-    if not path.exists():
-        path.parent.mkdir(parents=True, exist_ok=True)
-        urllib.request.urlretrieve(MODEL_URL, path)
+    if path.exists():
+        return path
+    if not allow_download:
+        return None
+    path.parent.mkdir(parents=True, exist_ok=True)
+    urllib.request.urlretrieve(MODEL_URL, path)
     return path
