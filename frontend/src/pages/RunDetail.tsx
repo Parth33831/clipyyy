@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, Download, R
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
-import { api, type CampaignEdit, type CampaignMusicAnalysis, type CampaignShot, type CampaignSource, type Clip, type Post, type RunDetail } from '../api'
+import { api, type CampaignEdit, type CampaignLyricPhrase, type CampaignMusicAnalysis, type CampaignShot, type CampaignSource, type Clip, type Post, type RunDetail } from '../api'
 import { PublishDialog } from '../components/PublishDialog'
 import { Button, Eyebrow, Panel, Squares, StatusChip, cn, formatDuration, sourceHost, sourceLabel, timeAgo } from '../components/ui'
 
@@ -38,6 +38,8 @@ export function RunDetailPage() {
   const [lyricsPositionY, setLyricsPositionY] = useState(84)
   const [lyricsScale, setLyricsScale] = useState(100)
   const [lyricsRotation, setLyricsRotation] = useState(0)
+  const [lyricsPhrases, setLyricsPhrases] = useState<CampaignLyricPhrase[]>([])
+  const [selectedPhraseId, setSelectedPhraseId] = useState('')
   const [campaignEdits, setCampaignEdits] = useState<CampaignEdit[]>([])
   useEffect(() => {
     setMusicVolume(Math.round((run.data?.options.campaign_music_volume ?? 0.9) * 100))
@@ -55,8 +57,12 @@ export function RunDetailPage() {
     setLyricsPositionY(run.data?.options.campaign_lyrics_position_y ?? 84)
     setLyricsScale(run.data?.options.campaign_lyrics_scale_percent ?? 100)
     setLyricsRotation(run.data?.options.campaign_lyrics_rotation_degrees ?? 0)
+    const savedPhrases = run.data?.options.campaign_lyric_phrases ?? []
+    const initialPhrases = savedPhrases.length ? savedPhrases : parseCampaignLyricPhrases(run.data?.options.campaign_lyrics ?? '')
+    setLyricsPhrases(initialPhrases)
+    setSelectedPhraseId(initialPhrases[0]?.id ?? '')
     setCampaignEdits(run.data?.campaign_edits ?? [])
-  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.campaign_plan?.generated_hook])
+  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrases, run.data?.campaign_plan?.generated_hook])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -88,7 +94,7 @@ export function RunDetailPage() {
     onError: (e) => toast.error(e.message),
   })
   const saveLyrics = useMutation({
-    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook, lyricsColor, lyricsHighlightColor, lyricsWordsOnScreen, lyricsBehindSubject, lyricsPositionX, lyricsPositionY, lyricsScale, lyricsRotation),
+    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook, lyricsColor, lyricsHighlightColor, lyricsWordsOnScreen, lyricsBehindSubject, lyricsPositionX, lyricsPositionY, lyricsScale, lyricsRotation, lyricsPhrases),
     onSuccess: (result) => {
       toast.success(`Applied to ${result.outputs} existing edit(s) — no re-picking or lyric transcription.`)
       refresh()
@@ -127,6 +133,11 @@ export function RunDetailPage() {
   const savedMusicVolume = Math.round((data.options.campaign_music_volume ?? 0.9) * 100)
   const savedMusicFadeIn = data.options.campaign_music_fade_in_seconds ?? 0.4
   const savedMusicFadeOut = data.options.campaign_music_fade_out_seconds ?? 0.8
+  const selectedPhrase = lyricsPhrases.find((phrase) => phrase.id === selectedPhraseId) ?? null
+  const updateSelectedPhrase = (patch: Partial<CampaignLyricPhrase>) => {
+    if (!selectedPhrase) return
+    setLyricsPhrases((current) => current.map((phrase) => phrase.id === selectedPhrase.id ? { ...phrase, ...patch } : phrase))
+  }
   const musicSettingsChanged = musicVolume !== savedMusicVolume || musicFadeIn !== savedMusicFadeIn || musicFadeOut !== savedMusicFadeOut
   const readyClips = data.clips.filter((c) => c.status === 'ready')
 
@@ -309,13 +320,13 @@ export function RunDetailPage() {
           </div>
           <LyricsPositionPreview
             frameUrl={campaignEdits[0]?.shots[0] ? `/api/runs/${runId}/campaign-frame?source_index=${campaignEdits[0].shots[0].source_index}&timestamp=${campaignEdits[0].shots[0].start_seconds.toFixed(1)}` : null}
-            text={lyricsText.split(/\r?\n/).map((line) => line.replace(/^\[\d{1,2}:\d{2}(?:\.\d{1,2})?\]\s*/, '').trim()).find(Boolean) ?? 'Your lyrics appear here'}
-            x={lyricsPositionX}
-            y={lyricsPositionY}
-            scale={lyricsScale}
-            rotation={lyricsRotation}
+            text={selectedPhrase?.text ?? lyricsText.split(/\r?\n/).map((line) => line.replace(/^\[\d{1,2}:\d{2}(?:\.\d{1,2})?\]\s*/, '').trim()).find(Boolean) ?? 'Your lyrics appear here'}
+            x={selectedPhrase?.position_x ?? lyricsPositionX}
+            y={selectedPhrase?.position_y ?? lyricsPositionY}
+            scale={selectedPhrase?.scale_percent ?? lyricsScale}
+            rotation={selectedPhrase?.rotation_degrees ?? lyricsRotation}
             aspectRatio={data.options.aspect_ratio}
-            onPositionChange={(x, y) => { setLyricsPositionX(x); setLyricsPositionY(y) }}
+            onPositionChange={(x, y) => selectedPhrase ? updateSelectedPhrase({ position_x: x, position_y: y }) : (setLyricsPositionX(x), setLyricsPositionY(y))}
           />
           <div className="grid gap-4 rounded-lg border border-line bg-panel p-3 text-sm sm:grid-cols-2">
             <label className="flex flex-col gap-2">
@@ -383,7 +394,13 @@ export function RunDetailPage() {
             <span className="font-medium">Lyrics / timed captions</span>
             <textarea
               value={lyricsText}
-              onChange={(event) => setLyricsText(event.target.value)}
+              onChange={(event) => {
+                const value = event.target.value
+                setLyricsText(value)
+                const parsed = parseCampaignLyricPhrases(value)
+                setLyricsPhrases(parsed)
+                setSelectedPhraseId(parsed[0]?.id ?? '')
+              }}
               rows={5}
               maxLength={12000}
               placeholder={'Local Whisper will draft lyrics from the attached song. You can correct them here.\nFor precise timing, use LRC lines such as [00:12.40] lyric text.'}
@@ -394,7 +411,67 @@ export function RunDetailPage() {
               {' '}Singing recognition can be inaccurate; review the words before publishing.
             </span>
           </label>
-          <div className="flex justify-end">
+
+          <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-medium">Individual lyric phrases</span>
+              <span className="text-xs text-muted">{lyricsPhrases.length} timed phrases</span>
+            </div>
+            {lyricsPhrases.length ? (
+              <>
+                <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto">
+                  {lyricsPhrases.map((phrase, index) => (
+                    <button key={phrase.id} type="button" onClick={() => setSelectedPhraseId(phrase.id)}
+                      aria-pressed={selectedPhrase?.id === phrase.id}
+                      className={cn('rounded-md border px-3 py-2 text-left transition-colors',
+                        selectedPhrase?.id === phrase.id ? 'border-ink bg-sunk text-ink' : 'border-line bg-paper text-muted')}>
+                      <span className="mr-2 font-mono text-[10px]">{formatDuration(phrase.start_seconds)}</span>
+                      <span>{phrase.text}</span>
+                    </button>
+                  ))}
+                </div>
+                {selectedPhrase && (
+                  <div className="grid gap-3 border-t border-line pt-3 sm:grid-cols-2">
+                    <div className="flex flex-col gap-1 sm:col-span-2">
+                      <span className="font-medium">Editing: {selectedPhrase.text}</span>
+                      <span className="text-xs text-muted">Only this phrase changes. Other phrases keep their own settings.</span>
+                    </div>
+                    <label className="flex flex-col gap-1">Start time (seconds)
+                      <input type="number" min={0} step={0.05} value={selectedPhrase.start_seconds}
+                        onChange={(event) => updateSelectedPhrase({ start_seconds: Math.max(0, Number(event.target.value)) })}
+                        className="rounded border border-line bg-paper p-2" />
+                    </label>
+                    <label className="flex flex-col gap-1">End time (seconds)
+                      <input type="number" min={0.05} step={0.05} value={selectedPhrase.end_seconds}
+                        onChange={(event) => updateSelectedPhrase({ end_seconds: Math.max(selectedPhrase.start_seconds + 0.05, Number(event.target.value)) })}
+                        className="rounded border border-line bg-paper p-2" />
+                    </label>
+                    <label className="flex flex-col gap-1">Animation
+                      <select value={selectedPhrase.animation} onChange={(event) => updateSelectedPhrase({ animation: event.target.value as CampaignLyricPhrase['animation'] })}
+                        className="rounded border border-line bg-paper p-2">
+                        {(['dynamic', 'cinematic', 'minimal', 'karaoke', 'zoom', 'bounce', 'pulse', 'glitch'] as const).map((style) => <option key={style} value={style}>{style}</option>)}
+                      </select>
+                    </label>
+                    {([
+                      ['Horizontal position', 'position_x', 5, 95, 1],
+                      ['Vertical position', 'position_y', 5, 95, 1],
+                      ['Text size', 'scale_percent', 50, 200, 5],
+                      ['Rotation', 'rotation_degrees', -30, 30, 1],
+                    ] as const).map(([label, key, min, max, step]) => (
+                      <label key={key} className="flex flex-col gap-1">
+                        <span className="flex justify-between"><span>{label}</span><span className="font-mono text-muted">{selectedPhrase[key]}{key === 'rotation_degrees' ? '°' : key === 'scale_percent' ? '%' : ''}</span></span>
+                        <input type="range" min={min} max={max} step={step} value={selectedPhrase[key]}
+                          onChange={(event) => updateSelectedPhrase({ [key]: Number(event.target.value) })}
+                          className="w-full accent-current" />
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-xs text-muted">Add LRC timestamps to your lyric lines (for example [00:12.40] First phrase) to create selectable phrases with independent timing and styling.</p>
+            )}
+          </div>          <div className="flex justify-end">
             <Button variant="ink" loading={saveLyrics.isPending} onClick={() => saveLyrics.mutate()}>
               Apply to existing edit
             </Button>
