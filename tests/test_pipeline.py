@@ -299,9 +299,7 @@ def test_campaign_lyric_draft_groups_words_and_offsets_to_selected_music():
     )
 
     assert cues_text.startswith("[00:10.00] We rise together")
-    assert cues == [
-        {"text": "We rise together", "start_seconds": 0.0, "end_seconds": 1.6}
-    ]
+    assert cues == [{"text": "We rise together", "start_seconds": 0.0, "end_seconds": 1.6}]
 
 
 def test_campaign_selection_keeps_creator_lyrics_and_uses_whisper_timing_cues(monkeypatch, tmp_path):
@@ -332,9 +330,7 @@ def test_campaign_selection_keeps_creator_lyrics_and_uses_whisper_timing_cues(mo
             ]
         },
     )
-    monkeypatch.setattr(
-        render, "analyze_campaign_music", lambda path, target: {"best_start_seconds": 10.0}
-    )
+    monkeypatch.setattr(render, "analyze_campaign_music", lambda path, target: {"best_start_seconds": 10.0})
     monkeypatch.setattr(
         "clipyyy.transcribe.transcribe_music",
         lambda *args: {
@@ -389,12 +385,8 @@ def test_campaign_selection_keeps_creator_lyrics_and_uses_whisper_timing_cues(mo
     result = pipeline.stage_select(ctx)
 
     assert captured["campaign_lyrics"] == "My exact campaign line"
-    assert captured["lyric_cues"] == [
-        {"text": "We rise", "start_seconds": 0.0, "end_seconds": 0.6}
-    ]
+    assert captured["lyric_cues"] == [{"text": "We rise", "start_seconds": 0.0, "end_seconds": 0.6}]
     assert result["campaign_lyrics"] == "My exact campaign line"
     assert result["campaign_lyric_words"] == []
-    assert result["campaign_lyrics_source"] == (
-        "Creator-supplied lyrics; local Whisper timing reference"
-    )
+    assert result["campaign_lyrics_source"] == "Creator-supplied lyrics; local Whisper timing reference"
     assert result["campaign_lyric_transcription_attempted"] is True
