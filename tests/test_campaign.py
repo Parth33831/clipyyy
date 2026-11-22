@@ -550,3 +550,56 @@ def test_montage_planner_omits_lyric_guidance_when_no_lyrics_are_supplied():
     build_montage_plan(llm, "Campaign", {}, sources, [analysis], 1, 6)
 
     assert "CREATOR-SUPPLIED CAMPAIGN LYRICS" not in llm.user
+
+
+def test_montage_planner_uses_timed_lyric_cues_without_claiming_exact_sync():
+    from clipyyy.campaign import build_montage_plan
+
+    class TimedLyricLLM:
+        user = ""
+
+        def complete_json(self, system, user, schema, name):
+            self.user = user
+            return {
+                "edits": [
+                    {
+                        "title": "Timed lyric story",
+                        "shots": [
+                            {"source_index": 0, "start_seconds": 1, "end_seconds": 3, "reason": "Opening"},
+                            {"source_index": 0, "start_seconds": 4, "end_seconds": 6, "reason": "Build"},
+                            {"source_index": 0, "start_seconds": 7, "end_seconds": 9, "reason": "Payoff"},
+                        ],
+                    }
+                ]
+            }
+
+    llm = TimedLyricLLM()
+    source = {"title": "Campaign footage", "duration_seconds": 12}
+    analysis = {
+        "frames": [
+            {"timestamp": 1, "description": "Opening"},
+            {"timestamp": 5, "description": "Action"},
+            {"timestamp": 8, "description": "Payoff"},
+        ]
+    }
+    cues = [
+        {"text": "We rise", "start_seconds": 0.0, "end_seconds": 1.2},
+        {"text": "Together", "start_seconds": 3.0, "end_seconds": 4.0},
+    ]
+
+    edits = build_montage_plan(
+        llm,
+        "Show a hopeful campaign story.",
+        {},
+        [source],
+        [analysis],
+        1,
+        6,
+        lyric_cues=cues,
+    )
+
+    assert len(edits) == 1
+    assert "TIMED LYRIC CUES" in llm.user
+    assert '"start_seconds": 3.0' in llm.user
+    assert "seconds relative to the selected music segment" in llm.user
+    assert "do not claim" in llm.user
