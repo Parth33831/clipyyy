@@ -42,7 +42,7 @@ class CampaignAudioUpdate(BaseModel):
     music_volume: float = Field(0.9, ge=0, le=2)
     source_audio_volume: float = Field(1.0, ge=0, le=2)
     duck_music: bool = False
-    music_start_seconds: float = Field(0, ge=0, le=7200)
+    music_start_seconds: float | None = Field(None, ge=0, le=7200)
     fade_in_seconds: float = Field(0.4, ge=0, le=10)
     fade_out_seconds: float = Field(0.8, ge=0, le=10)
 
