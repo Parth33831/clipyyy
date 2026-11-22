@@ -684,7 +684,9 @@ def update_campaign_text_overlays(run_id: str, overlays: list[dict[str, Any]]) -
             font_size = int(overlay.get("font_size_percent", 100))
         except (KeyError, TypeError, ValueError) as exc:
             raise ValueError(f"Text overlay {index} has invalid timing or placement.") from exc
-        text = "\n".join(" ".join(line.split()) for line in str(overlay.get("text") or "").splitlines()).strip()
+        text = "\n".join(
+            " ".join(line.split()) for line in str(overlay.get("text") or "").splitlines()
+        ).strip()
         color = str(overlay.get("color") or "#FFFFFF").upper()
         animation = str(overlay.get("animation") or "fade")
         if rank not in clips:
