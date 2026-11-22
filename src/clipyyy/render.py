@@ -1297,9 +1297,7 @@ def select_music_cut_duration(
     lyric_boundaries = []
     for cue in lyric_cues or []:
         try:
-            lyric_boundaries.extend(
-                [float(cue["start_seconds"]), float(cue["end_seconds"])]
-            )
+            lyric_boundaries.extend([float(cue["start_seconds"]), float(cue["end_seconds"])])
         except (KeyError, TypeError, ValueError):
             continue
     candidates = []
