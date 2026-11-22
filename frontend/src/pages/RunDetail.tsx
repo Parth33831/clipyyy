@@ -577,6 +577,7 @@ function CampaignTimeline({
   runId,
   sources,
   musicAnalysis,
+  lyricCues,
   transitionStyle,
   onMoveShot,
   onUpdateShot,
@@ -585,6 +586,7 @@ function CampaignTimeline({
   runId: string
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
+  lyricCues: { text: string; start_seconds: number; end_seconds: number }[]
   transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
   onMoveShot: (fromIndex: number, toIndex: number) => void
   onUpdateShot: (shotIndex: number, patch: Partial<CampaignShot>) => void
@@ -778,6 +780,37 @@ function CampaignTimeline({
             <span>Selected track window: {musicAnalysis.selected_section}</span>
             <span>High energy · Medium energy · Low energy</span>
           </div>
+        </div>
+      )}
+      {lyricCues.length > 0 && (
+        <div className="flex flex-col gap-2 border-t border-line pt-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="label text-muted">Lyric phrase track</span>
+            <span className="font-mono text-[10px] text-faint">{lyricCues.length} timed phrases</span>
+          </div>
+          <div className="overflow-x-auto">
+            <div className="relative h-10 min-w-[680px] overflow-hidden rounded-md bg-surface">
+              {lyricCues.map((cue, index) => {
+                const left = Math.max(0, Math.min(total, cue.start_seconds))
+                const right = Math.max(left, Math.min(total, cue.end_seconds))
+                if (right <= left) return null
+                return (
+                  <div
+                    key={`lyric-${index}`}
+                    title={`${cue.text} · ${formatDuration(cue.start_seconds)}–${formatDuration(cue.end_seconds)}`}
+                    className="absolute inset-y-1 flex items-center overflow-hidden rounded border border-ink/15 bg-sunk px-1.5"
+                    style={{
+                      left: `${(left / total) * 100}%`,
+                      width: `${Math.max(0.8, ((right - left) / total) * 100)}%`,
+                    }}
+                  >
+                    <span className="truncate text-[9px] font-semibold text-ink">{cue.text}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+          <p className="text-[10px] text-faint">Phrase timing is relative to the selected music segment; this is a reference track, not a separate editable text layer.</p>
         </div>
       )}
     </div>
