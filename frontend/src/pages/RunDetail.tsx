@@ -1172,7 +1172,7 @@ function CampaignTimeline({
   const advancingShotRef = useRef(false)
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [transitionPhase, setTransitionPhase] = useState<'idle' | 'out' | 'in'>('idle')
-  const transitionDurationMs = transitionStyle === 'cut' ? 0 : transitionStyle === 'cinematic' ? 420 : transitionStyle === 'dynamic' ? 140 : 240
+  const transitionDurationMs = transitionStyle === 'cut' || (transitionStyle === 'auto' && (musicAnalysis?.detected_beats ?? 0) > 0) ? 0 : 240
   useEffect(() => () => {
     if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current)
   }, [])
@@ -1202,7 +1202,7 @@ function CampaignTimeline({
   const shots = edit.shots.map((shot, index) => ({
     shot,
     index,
-    // Preview playback uses hard cuts; transition overlap is not composited in this player.
+    // Timeline duration is the selected source range; export may overlap shots for transitions.
     duration: Math.max(0.1, shot.end_seconds - shot.start_seconds),
   }))
   const total = Math.max(0.1, shots.reduce((sum, item) => sum + item.duration, 0))
@@ -1216,6 +1216,8 @@ function CampaignTimeline({
       </div>
       {shots.length > 0 && (() => {
         const preview = shots[previewShotIndex] ?? shots[0]
+        const dynamicTransitionNames = ['fade', 'smoothleft', 'smoothright', 'wipeleft', 'wiperight', 'slideleft', 'slideright']
+        const activeTransition = transitionStyle === 'dynamic' ? dynamicTransitionNames[Math.max(0, preview.index - 1) % dynamicTransitionNames.length] : 'fade'
         const source = sourceByIndex.get(preview.shot.source_index)
         const shotTimelineStart = shots.slice(0, preview.index).reduce((sum, item) => sum + item.duration, 0)
         const activeOverlay = textOverlays.find((overlay) =>
@@ -1344,6 +1346,7 @@ function CampaignTimeline({
                     }
                     transitionTimerRef.current = setTimeout(() => {
                       if (preview.index < shots.length - 1) {
+                        setTransitionPhase('in')
                         setPreviewShotIndex(preview.index + 1)
                       } else {
                         videoRef.current?.pause()
@@ -1355,9 +1358,22 @@ function CampaignTimeline({
                   }
                 }}
                 style={{
-                  opacity: transitionPhase === 'out' ? 0 : 1,
-                  transform: transitionPhase === 'out' && transitionStyle === 'dynamic' ? 'scale(1.035)' : 'scale(1)',
-                  transition: transitionDurationMs > 0 ? 'opacity ' + transitionDurationMs + 'ms ease, transform ' + transitionDurationMs + 'ms ease' : 'none',
+                  opacity: activeTransition === 'fade' && (transitionPhase === 'out' || transitionPhase === 'in') ? 0 : 1,
+                  transform: transitionPhase === 'idle' ? 'translateX(0) scale(1)' : (
+                    activeTransition === 'smoothleft' ? (transitionPhase === 'out' ? 'translateX(-14%)' : 'translateX(14%)') :
+                    activeTransition === 'smoothright' ? (transitionPhase === 'out' ? 'translateX(14%)' : 'translateX(-14%)') :
+                    activeTransition === 'slideleft' ? (transitionPhase === 'out' ? 'translateX(-100%)' : 'translateX(100%)') :
+                    activeTransition === 'slideright' ? (transitionPhase === 'out' ? 'translateX(100%)' : 'translateX(-100%)') :
+                    transitionPhase === 'out' && transitionStyle === 'dynamic' ? 'scale(1.035)' : 'scale(1)'
+                  ),
+                  clipPath: activeTransition === 'wipeleft' && transitionPhase !== 'idle'
+                    ? (transitionPhase === 'out' ? 'inset(0 100% 0 0)' : 'inset(0 0 0 100%)')
+                    : activeTransition === 'wiperight' && transitionPhase !== 'idle'
+                      ? (transitionPhase === 'out' ? 'inset(0 0 0 100%)' : 'inset(0 100% 0 0)')
+                      : 'inset(0 0 0 0)',
+                  transition: transitionDurationMs > 0
+                    ? 'opacity ' + transitionDurationMs + 'ms ease, transform ' + transitionDurationMs + 'ms ease, clip-path ' + transitionDurationMs + 'ms ease'
+                    : 'none',
                 }}
                 className="max-h-64 w-full bg-black object-contain"
               />
@@ -1439,7 +1455,7 @@ function CampaignTimeline({
                   disabled={preview.index === shots.length - 1}
                   className="rounded-md border border-line px-3 py-2 text-sm disabled:opacity-40">Next</button>
               </div>
-              <p className="mt-1 text-xs text-muted">One controller plays the selected footage and soundtrack together, automatically advancing through the remaining shots. Timed campaign text appears over the preview.</p>
+              <p className="mt-1 text-xs text-muted">One controller keeps footage, soundtrack and timed text together. Preview transitions follow the selected style; final export remains the exact render reference.</p>
             </div>
           </div>
         )
