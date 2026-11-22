@@ -307,6 +307,16 @@ export function RunDetailPage() {
             </div>
             <span className="text-xs text-muted">Shows a rolling group of 1, 2, or 3 words as the song progresses. Default: 3.</span>
           </div>
+          <LyricsPositionPreview
+            frameUrl={campaignEdits[0]?.shots[0] ? `/api/runs/${runId}/campaign-frame?source_index=${campaignEdits[0].shots[0].source_index}&timestamp=${campaignEdits[0].shots[0].start_seconds.toFixed(1)}` : null}
+            text={lyricsText.split(/\r?\n/).map((line) => line.replace(/^\[\d{1,2}:\d{2}(?:\.\d{1,2})?\]\s*/, '').trim()).find(Boolean) ?? 'Your lyrics appear here'}
+            x={lyricsPositionX}
+            y={lyricsPositionY}
+            scale={lyricsScale}
+            rotation={lyricsRotation}
+            aspectRatio={data.options.aspect_ratio}
+            onPositionChange={(x, y) => { setLyricsPositionX(x); setLyricsPositionY(y) }}
+          />
           <div className="grid gap-4 rounded-lg border border-line bg-panel p-3 text-sm sm:grid-cols-2">
             <label className="flex flex-col gap-2">
               <span className="flex justify-between"><span className="font-medium">Horizontal position</span><span className="font-mono text-muted">{lyricsPositionX}%</span></span>
@@ -1112,5 +1122,82 @@ function CampaignPlanCard({ plan, checks }: { plan: NonNullable<RunDetail['campa
         </div>
       )}
     </Panel>
+  )
+}
+
+
+function LyricsPositionPreview({
+  frameUrl,
+  text,
+  x,
+  y,
+  scale,
+  rotation,
+  aspectRatio,
+  onPositionChange,
+}: {
+  frameUrl: string | null
+  text: string
+  x: number
+  y: number
+  scale: number
+  rotation: number
+  aspectRatio: string
+  onPositionChange: (x: number, y: number) => void
+}) {
+  const [dragging, setDragging] = useState(false)
+  const updatePosition = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging && event.type !== 'pointerdown') return
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const nextX = Math.max(5, Math.min(95, Math.round(((event.clientX - bounds.left) / bounds.width) * 100)))
+    const nextY = Math.max(5, Math.min(95, Math.round(((event.clientY - bounds.top) / bounds.height) * 100)))
+    onPositionChange(nextX, nextY)
+  }
+  const ratio = aspectRatio.replace(':', ' / ')
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-line bg-panel p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-medium text-sm">Drag lyrics on the preview</span>
+        <span className="font-mono text-xs text-muted">{x}% · {y}%</span>
+      </div>
+      <div
+        className="relative mx-auto w-full max-w-[280px] touch-none select-none overflow-hidden rounded-lg border border-line bg-ink"
+        style={{ aspectRatio: ratio }}
+        onPointerDown={(event) => {
+          event.currentTarget.setPointerCapture(event.pointerId)
+          setDragging(true)
+          updatePosition(event)
+        }}
+        onPointerMove={updatePosition}
+        onPointerUp={() => setDragging(false)}
+        onPointerCancel={() => setDragging(false)}
+        role="group"
+        aria-label="Interactive lyric placement preview. Drag to move the text."
+      >
+        {frameUrl ? (
+          <img src={frameUrl} alt="Representative campaign frame" draggable={false} className="absolute inset-0 h-full w-full object-cover" />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-950 px-6 text-center text-xs text-white/60">
+            Campaign frame preview will appear after the storyboard has shots.
+          </div>
+        )}
+        <div
+          className="pointer-events-none absolute max-w-[90%] whitespace-pre-wrap text-center font-extrabold leading-tight text-white"
+          style={{
+            left: `${x}%`,
+            top: `${y}%`,
+            transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${scale / 100})`,
+            transformOrigin: 'center',
+            textShadow: '0 2px 4px #000, 0 0 10px #000',
+            fontSize: 'clamp(12px, 4vw, 22px)',
+          }}
+        >
+          {text}
+        </div>
+        <div className="pointer-events-none absolute inset-0 border border-white/20" />
+      </div>
+      <p className="text-xs text-muted">This is a still-frame placement preview. Drag anywhere inside the frame; the position sliders update with it. Apply to existing edit to render the new placement.</p>
+    </div>
   )
 }
