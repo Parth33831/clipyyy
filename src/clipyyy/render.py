@@ -511,7 +511,6 @@ def _campaign_audio_filter(
     return ",".join(filters)
 
 
-
 def _render_campaign_source_audio(
     shots: list[dict],
     sources: list[dict],
