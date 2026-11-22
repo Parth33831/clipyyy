@@ -652,11 +652,13 @@ def test_campaign_shot_filter_uses_tracked_subject_crop_when_available():
 
 
 def test_campaign_subject_crop_skips_model_download_when_not_installed(monkeypatch, tmp_path):
+    import importlib.util
+
     import clipyyy.config
     import clipyyy.render as render
 
     monkeypatch.setattr(clipyyy.config, "home", lambda: tmp_path)
-    monkeypatch.setattr(render.importlib.util, "find_spec", lambda name: None) if hasattr(render, "importlib") else None
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name: None)
 
     boxes, width, height = render._campaign_subject_crop(tmp_path / "source.mp4", 0, 4, 9 / 16)
 
