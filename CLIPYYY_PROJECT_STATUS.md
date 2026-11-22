@@ -616,3 +616,10 @@ STATUS: In progress / Ready for review / Merged
 - Avoid duplicating draggable overlay preview or live source playback. The next independent editor improvement is direct drag-to-move/trim for overlay blocks on the timeline, with separate left/right handles. This is distinct from preview positioning.
 
 - 2026-11-22: PR #80 stacks on PR #76 and adds per-overlay font family, regular/bold weight and none/shadow/outline effects. It also fixes ASS script escaping/newline output and keeps typography settings intact for slide animations. CI is pending. Merge #72, then #76, then #80; do not merge out of order.
+
+### 2026-11-22 follow-up: overlay timeline direct editing
+
+- PR #79 merged live source playback into the campaign timeline as `37c7f9d4f7af8d6398af7c531690205fe0287dfc`.
+- PR #82 added direct timeline editing for independent text overlays: drag the block body to move its start/end together; drag either edge to trim timing. CI passed Ruff, fast backend and frontend build. It was squash-merged as `59f260cfd296171a15a5f1c3c9fa8dba153db8c6`.
+- PR #76 (draggable live-frame preview) is still open but stacked on the old pre-PR75 branch `feature/campaign-independent-text-overlays-final`. Its current diff against latest main includes stale overlay base changes and does not include the newer timeline lane, source playback or drag/trim work. Rebase it onto current main before merge; do not merge the stale base directly.
+- Next independent editor milestone: non-destructive undo/redo history across shot edits and text overlay changes. Avoid duplicating the live preview work in #76.
