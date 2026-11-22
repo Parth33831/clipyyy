@@ -665,6 +665,7 @@ def test_campaign_subject_crop_skips_model_download_when_not_installed(monkeypat
     assert width is None
     assert height is None
 
+
 def test_lyrics_behind_subject_composites_text_between_background_and_person(tmp_path, monkeypatch):
     from clipyyy import render
 
