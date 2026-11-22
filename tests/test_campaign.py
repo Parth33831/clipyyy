@@ -447,14 +447,31 @@ def test_montage_planner_uses_creator_supplied_lyrics_as_truthful_story_cues():
         def complete_json(self, system, user, schema, name):
             self.user = user
             return {
-                "edits": [{
-                    "title": "Lyric-aware story",
-                    "shots": [
-                        {"source_index": 0, "start_seconds": 1, "end_seconds": 3, "reason": "Opening"},
-                        {"source_index": 0, "start_seconds": 4, "end_seconds": 6, "reason": "Build"},
-                        {"source_index": 0, "start_seconds": 7, "end_seconds": 9, "reason": "Payoff"},
-                    ],
-                }]
+                "edits": [
+                    {
+                        "title": "Lyric-aware story",
+                        "shots": [
+                            {
+                                "source_index": 0,
+                                "start_seconds": 1,
+                                "end_seconds": 3,
+                                "reason": "Opening",
+                            },
+                            {
+                                "source_index": 0,
+                                "start_seconds": 4,
+                                "end_seconds": 6,
+                                "reason": "Build",
+                            },
+                            {
+                                "source_index": 0,
+                                "start_seconds": 7,
+                                "end_seconds": 9,
+                                "reason": "Payoff",
+                            },
+                        ],
+                    }
+                ]
             }
 
     llm = LyricAwareLLM()
@@ -475,7 +492,7 @@ def test_montage_planner_uses_creator_supplied_lyrics_as_truthful_story_cues():
         [analysis],
         1,
         6,
-        campaign_lyrics="When the lights go down\nWe rise together",
+        campaign_lyrics="When the lights go down\\nWe rise together",
     )
 
     assert len(edits) == 1
@@ -490,11 +507,13 @@ def test_montage_planner_omits_lyric_guidance_when_no_lyrics_are_supplied():
 
     llm = FakeMontageLLM()
     sources = [{"title": "Footage", "duration_seconds": 12}]
-    analysis = {"frames": [
-        {"timestamp": 1, "description": "Opening"},
-        {"timestamp": 5, "description": "Action"},
-        {"timestamp": 8, "description": "Payoff"},
-    ]}
+    analysis = {
+        "frames": [
+            {"timestamp": 1, "description": "Opening"},
+            {"timestamp": 5, "description": "Action"},
+            {"timestamp": 8, "description": "Payoff"},
+        ]
+    }
 
     build_montage_plan(llm, "Campaign", {}, sources, [analysis], 1, 6)
 
