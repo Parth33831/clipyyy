@@ -8,6 +8,16 @@ import { api, type CampaignEdit, type CampaignTextOverlay, type CampaignMusicAna
 import { PublishDialog } from '../components/PublishDialog'
 import { Button, Eyebrow, Panel, Squares, StatusChip, cn, formatDuration, sourceHost, sourceLabel, timeAgo } from '../components/ui'
 
+type CampaignPreviewLyric = {
+  text: string
+  start_seconds: number
+  end_seconds: number
+  position_x: number
+  position_y: number
+  scale_percent: number
+  rotation_degrees: number
+}
+
 export function RunDetailPage() {
   const { runId = '' } = useParams()
   const navigate = useNavigate()
@@ -139,6 +149,23 @@ export function RunDetailPage() {
   }).filter((phrase) => phrase.text)
   const lyricPhrases = lyricRows.map((phrase) => phrase.text)
   const lyricPhraseTimes = lyricRows.map((phrase) => phrase.start)
+  const campaignTimelineLyrics: CampaignPreviewLyric[] = lyricRows.flatMap((phrase, index) => {
+    if (phrase.start == null) return []
+    const phraseEdit = phraseEdits.find((edit) => edit.phrase_index === index)
+    const start = phraseEdit?.start_seconds ?? phrase.start
+    const nextTimedStart = lyricRows.slice(index + 1).find((row) => row.start != null)?.start
+    const end = phraseEdit?.end_seconds ?? nextTimedStart ?? start + 3
+    if (end <= start) return []
+    return [{
+      text: phrase.text,
+      start_seconds: start,
+      end_seconds: end,
+      position_x: phraseEdit?.position_x ?? lyricsPositionX,
+      position_y: phraseEdit?.position_y ?? lyricsPositionY,
+      scale_percent: phraseEdit?.scale_percent ?? lyricsScale,
+      rotation_degrees: phraseEdit?.rotation_degrees ?? lyricsRotation,
+    }]
+  })
   const selectedPhraseEdit = phraseEdits.find((edit) => edit.phrase_index === selectedLyricPhrase)
   const selectedPhraseStart = selectedPhraseEdit?.start_seconds ?? lyricPhraseTimes[selectedLyricPhrase]
   const selectedPhraseEnd = selectedPhraseEdit?.end_seconds ?? (
@@ -568,6 +595,9 @@ export function RunDetailPage() {
           sources={data.campaign_sources ?? []}
           musicAnalysis={data.campaign_quality_checks?.music_analysis ?? null}
           hasMusic={Boolean(data.options.campaign_music_path)}
+          lyrics={campaignTimelineLyrics}
+          lyricsColor={lyricsColor}
+          lyricsHighlightColor={lyricsHighlightColor}
           textOverlays={campaignTextOverlays}
           onUpdateTextOverlay={(overlayIndex, patch) => setCampaignTextOverlays((current) => current.map((overlay, index) => index === overlayIndex ? { ...overlay, ...patch } : overlay))}
           transitionStyle={data.options.campaign_transition_style ?? 'auto'}
@@ -634,6 +664,9 @@ function CampaignStoryboardEditor({
   sources,
   musicAnalysis,
   hasMusic,
+  lyrics,
+  lyricsColor,
+  lyricsHighlightColor,
   textOverlays,
   onUpdateTextOverlay,
   transitionStyle,
@@ -649,6 +682,9 @@ function CampaignStoryboardEditor({
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
   hasMusic: boolean
+  lyrics: CampaignPreviewLyric[]
+  lyricsColor: string
+  lyricsHighlightColor: string
   textOverlays: CampaignTextOverlay[]
   onUpdateTextOverlay: (overlayIndex: number, patch: Partial<CampaignTextOverlay>) => void
   transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
@@ -734,6 +770,9 @@ function CampaignStoryboardEditor({
             sources={sources}
             musicAnalysis={musicAnalysis}
             hasMusic={hasMusic}
+            lyrics={lyrics}
+            lyricsColor={lyricsColor}
+            lyricsHighlightColor={lyricsHighlightColor}
             textOverlays={textOverlays}
             onUpdateTextOverlay={onUpdateTextOverlay}
             transitionStyle={transitionStyle}
@@ -1021,6 +1060,9 @@ function CampaignTimeline({
   sources,
   musicAnalysis,
   hasMusic,
+  lyrics,
+  lyricsColor,
+  lyricsHighlightColor,
   textOverlays,
   onUpdateTextOverlay,
   onMoveShot,
@@ -1031,6 +1073,9 @@ function CampaignTimeline({
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
   hasMusic: boolean
+  lyrics: CampaignPreviewLyric[]
+  lyricsColor: string
+  lyricsHighlightColor: string
   textOverlays: CampaignTextOverlay[]
   onUpdateTextOverlay: (overlayIndex: number, patch: Partial<CampaignTextOverlay>) => void
   transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
@@ -1085,6 +1130,9 @@ function CampaignTimeline({
         const shotTimelineStart = shots.slice(0, preview.index).reduce((sum, item) => sum + item.duration, 0)
         const activeOverlay = textOverlays.find((overlay) =>
           overlay.rank === edit.rank && playheadSeconds >= overlay.start_seconds && playheadSeconds <= overlay.end_seconds
+        )
+        const activeLyric = lyrics.find((lyric) =>
+          playheadSeconds >= lyric.start_seconds && playheadSeconds <= lyric.end_seconds
         )
         const selectShot = (index: number) => {
           videoRef.current?.pause()
@@ -1162,6 +1210,25 @@ function CampaignTimeline({
                 }}
                 className="max-h-64 w-full bg-black object-contain"
               />
+              {activeLyric && (
+                <div
+                  className="pointer-events-none absolute flex w-[90%] justify-center px-3"
+                  style={{
+                    left: activeLyric.position_x + '%',
+                    top: activeLyric.position_y + '%',
+                    transform: 'translate(-50%, -50%) rotate(' + activeLyric.rotation_degrees + 'deg)',
+                  }}
+                >
+                  <span
+                    className="text-center font-extrabold leading-tight"
+                    style={{
+                      color: lyricsColor,
+                      fontSize: 'clamp(14px, ' + (22 * activeLyric.scale_percent / 100) + 'px, 42px)',
+                      textShadow: '0 2px 8px #000, 0 0 12px ' + lyricsHighlightColor,
+                    }}
+                  >{activeLyric.text}</span>
+                </div>
+              )}
               {activeOverlay && (
                 <div className="pointer-events-none absolute flex items-center justify-center px-4"
                   style={{ left: activeOverlay.position_x + '%', top: activeOverlay.position_y + '%', transform: 'translate(-50%, -50%)', width: '90%' }}>
