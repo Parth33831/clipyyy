@@ -454,6 +454,8 @@ function CampaignStoryboardEditor({
             sources={sources}
             musicAnalysis={musicAnalysis}
             transitionStyle={transitionStyle}
+            onMoveShot={(fromIndex, toIndex) => moveShotTo(editIndex, fromIndex, toIndex)}
+            onUpdateShot={(shotIndex, patch) => updateShot(editIndex, shotIndex, patch)}
           />
           <ol className="flex flex-col gap-2">
             {edit.shots.map((shot, shotIndex) => {
@@ -525,12 +527,16 @@ function CampaignTimeline({
   sources,
   musicAnalysis,
   transitionStyle,
+  onMoveShot,
+  onUpdateShot,
 }: {
   edit: CampaignEdit
   runId: string
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
   transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
+  onMoveShot: (fromIndex: number, toIndex: number) => void
+  onUpdateShot: (shotIndex: number, patch: Partial<CampaignShot>) => void
 }) {
   const sourceByIndex = new Map(sources.map((source) => [source.index, source]))
   const hasBeats = (musicAnalysis?.detected_beats ?? 0) > 0
@@ -542,42 +548,118 @@ function CampaignTimeline({
   }))
   const total = Math.max(0.1, shots.reduce((sum, item) => sum + item.duration, 0))
   const musicStart = musicAnalysis?.selected_start_seconds ?? 0
+  const [trimDrag, setTrimDrag] = useState<{
+    shotIndex: number
+    edge: 'start' | 'end'
+    startX: number
+    width: number
+    originalStart: number
+    originalEnd: number
+  } | null>(null)
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3">
       <div className="flex items-center justify-between gap-3">
-        <span className="label text-muted">Video timeline</span>
+        <span className="label text-muted">Video timeline · drag shots to reorder · drag edges to trim</span>
         <span className="font-mono text-[11px] text-faint">{formatDuration(total)} estimated</span>
       </div>
       <div className="overflow-x-auto">
-        <div className="flex min-w-[680px] gap-1 rounded-md bg-surface p-2">
+        <div
+          className="flex min-w-[680px] gap-1 rounded-md bg-surface p-2"
+          onPointerMove={(event) => {
+            if (!trimDrag) return
+            const source = sourceByIndex.get(edit.shots[trimDrag.shotIndex]?.source_index)
+            const delta = ((event.clientX - trimDrag.startX) / trimDrag.width) * (trimDrag.originalEnd - trimDrag.originalStart)
+            if (trimDrag.edge === 'start') {
+              const nextStart = Math.min(trimDrag.originalEnd - 1.5, Math.max(0, trimDrag.originalEnd - 5, trimDrag.originalStart + delta))
+              onUpdateShot(trimDrag.shotIndex, { start_seconds: Math.round(nextStart * 1000) / 1000 })
+            } else {
+              const maxEnd = Math.min(source?.duration_seconds ?? trimDrag.originalStart + 5, trimDrag.originalStart + 5)
+              const nextEnd = Math.max(trimDrag.originalStart + 1.5, Math.min(maxEnd, trimDrag.originalEnd + delta))
+              onUpdateShot(trimDrag.shotIndex, { end_seconds: Math.round(nextEnd * 1000) / 1000 })
+            }
+          }}
+          onPointerUp={() => setTrimDrag(null)}
+          onPointerCancel={() => setTrimDrag(null)}
+        >
           {shots.map(({ shot, index, duration }) => {
             const source = sourceByIndex.get(shot.source_index)
             return (
-              <button
+              <div
                 key={`${edit.rank}-timeline-${index}`}
-                type="button"
+                data-shot-index={index}
                 title={`Shot ${index + 1}: ${source?.title ?? `Source ${shot.source_index + 1}`} · ${formatDuration(shot.end_seconds - shot.start_seconds)}`}
-                aria-label={`Jump to shot ${index + 1} in the storyboard editor`}
+                aria-label={`Shot ${index + 1}; drag to reorder or drag either edge to trim`}
+                draggable
                 onClick={() => document.getElementById(`campaign-shot-${edit.rank}-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                className="group min-w-[104px] flex-1 overflow-hidden rounded-md border border-line bg-paper text-left transition-colors hover:border-ink"
+                onDragStart={(event) => {
+                  event.dataTransfer.effectAllowed = 'move'
+                  event.dataTransfer.setData('text/plain', String(index))
+                }}
+                onDragOver={(event) => {
+                  event.preventDefault()
+                  event.dataTransfer.dropEffect = 'move'
+                }}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  const fromIndex = Number(event.dataTransfer.getData('text/plain'))
+                  if (Number.isInteger(fromIndex)) onMoveShot(fromIndex, index)
+                }}
+                className="group relative min-w-[104px] flex-1 overflow-hidden rounded-md border border-line bg-paper text-left transition-colors hover:border-ink"
                 style={{ flex: `${duration} 1 0%` }}
               >
                 <img
                   src={`/api/runs/${runId}/campaign-frame?source_index=${shot.source_index}&timestamp=${shot.start_seconds.toFixed(1)}`}
                   alt=""
                   loading="lazy"
+                  draggable={false}
                   className="h-14 w-full object-cover"
                 />
-                <span className="flex items-center justify-between gap-1 px-2 py-1.5">
+                <span className="flex items-center justify-between gap-1 px-3 py-1.5">
                   <span className="label truncate text-faint">SHOT {String(index + 1).padStart(2, '0')}</span>
                   <span className="font-mono text-[10px] text-muted">{formatDuration(shot.end_seconds - shot.start_seconds)}</span>
                 </span>
-              </button>
+                <button
+                  type="button"
+                  draggable={false}
+                  disabled={false}
+                  aria-label={`Trim start of shot ${index + 1}`}
+                  title="Drag to adjust shot start"
+                  onPointerDown={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    const width = event.currentTarget.parentElement?.getBoundingClientRect().width ?? 0
+                    if (!width) return
+                    event.currentTarget.setPointerCapture(event.pointerId)
+                    setTrimDrag({ shotIndex: index, edge: 'start', startX: event.clientX, width, originalStart: shot.start_seconds, originalEnd: shot.end_seconds })
+                  }}
+                  onPointerMove={(event) => event.stopPropagation()}
+                  onPointerUp={(event) => { event.stopPropagation(); setTrimDrag(null) }}
+                  className="absolute inset-y-0 left-0 z-10 w-3 cursor-ew-resize border-r-2 border-acid bg-ink/70 touch-none"
+                />
+                <button
+                  type="button"
+                  draggable={false}
+                  aria-label={`Trim end of shot ${index + 1}`}
+                  title="Drag to adjust shot end"
+                  onPointerDown={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    const width = event.currentTarget.parentElement?.getBoundingClientRect().width ?? 0
+                    if (!width) return
+                    event.currentTarget.setPointerCapture(event.pointerId)
+                    setTrimDrag({ shotIndex: index, edge: 'end', startX: event.clientX, width, originalStart: shot.start_seconds, originalEnd: shot.end_seconds })
+                  }}
+                  onPointerMove={(event) => event.stopPropagation()}
+                  onPointerUp={(event) => { event.stopPropagation(); setTrimDrag(null) }}
+                  className="absolute inset-y-0 right-0 z-10 w-3 cursor-ew-resize border-l-2 border-acid bg-ink/70 touch-none"
+                />
+              </div>
             )
           })}
         </div>
       </div>
+      <p className="text-[10px] text-faint">Drag a shot to reorder it. Drag its left or right edge to trim; each shot stays between 1.5 and 5 seconds.</p>
       <div className="label flex justify-between px-1 text-faint">
         <span>0:00</span>
         <span>{formatDuration(total / 2)}</span>
