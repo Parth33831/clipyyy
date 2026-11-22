@@ -623,3 +623,6 @@ STATUS: In progress / Ready for review / Merged
 - PR #82 added direct timeline editing for independent text overlays: drag the block body to move its start/end together; drag either edge to trim timing. CI passed Ruff, fast backend and frontend build. It was squash-merged as `59f260cfd296171a15a5f1c3c9fa8dba153db8c6`.
 - PR #76 (draggable live-frame preview) is still open but stacked on the old pre-PR75 branch `feature/campaign-independent-text-overlays-final`. Its current diff against latest main includes stale overlay base changes and does not include the newer timeline lane, source playback or drag/trim work. Rebase it onto current main before merge; do not merge the stale base directly.
 - Next independent editor milestone: non-destructive undo/redo history across shot edits and text overlay changes. Avoid duplicating the live preview work in #76.
+
+- PR #85 added a bounded, coalescing undo/redo history across campaign shot edits and independent text overlays. Latest-head CI passed Ruff, fast backend and frontend production build; PR was reviewed and squash-merged as `9693f05171bbfd479a9736ab0cc994315c2a136c`.
+- The campaign editor now has one shared Undo/Redo toolbar; rapid drag/slider/text updates are coalesced into fewer history steps. History resets when the saved run is reloaded.
