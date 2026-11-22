@@ -49,6 +49,10 @@ class CampaignLyricsUpdate(BaseModel):
     lyrics_color: str = Field("#FFFFFF", pattern=r"^#[0-9A-Fa-f]{6}$")
     highlight_color: str = Field("#00D7FF", pattern=r"^#[0-9A-Fa-f]{6}$")
     words_on_screen: Literal[1, 2, 3] = 3
+    position_x: int = Field(50, ge=5, le=95)
+    position_y: int = Field(84, ge=5, le=95)
+    scale_percent: int = Field(100, ge=50, le=200)
+    rotation_degrees: int = Field(0, ge=-30, le=30)
     lyrics_behind_subject: bool = False
     hook_text: str = Field("", max_length=160)
     include_hook: bool = False
@@ -181,6 +185,10 @@ def create_app(start_worker: bool = True) -> FastAPI:
             "campaign_lyrics_color": body.lyrics_color.upper(),
             "campaign_lyrics_highlight_color": body.highlight_color.upper(),
             "campaign_lyrics_words_on_screen": body.words_on_screen,
+            "campaign_lyrics_position_x": body.position_x,
+            "campaign_lyrics_position_y": body.position_y,
+            "campaign_lyrics_scale_percent": body.scale_percent,
+            "campaign_lyrics_rotation_degrees": body.rotation_degrees,
             "campaign_lyrics_behind_subject": body.lyrics_behind_subject,
             "campaign_hook_text": body.hook_text.strip(),
             "include_campaign_hook": body.include_hook,
