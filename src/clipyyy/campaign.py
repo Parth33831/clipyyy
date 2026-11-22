@@ -280,11 +280,12 @@ def build_montage_plan(
                 },
                 ensure_ascii=False,
             )
-            + "\nPlan the visual rhythm around this structure: use calmer/longer relevant shots in low-energy passages, "
-            "build visual momentum as energy rises, and reserve the strongest relevant footage or visual payoff for "
-            "high-energy peaks and major transients. Prefer cut points near strong beats when the footage supports it. "
-            "Do not sacrifice campaign relevance, shot quality, continuity, or truthful storytelling just to hit a beat. "
-            "The renderer will refine cut timing to nearby detected transients; choose the right visual moments first."
+            + "\nPlan the visual rhythm around this structure: use calmer/longer relevant shots in "
+            "low-energy passages, build visual momentum as energy rises, and reserve the strongest relevant "
+            "footage or visual payoff for high-energy peaks and major transients. Prefer cut points near "
+            "strong beats when the footage supports it. Do not sacrifice campaign relevance, shot quality, "
+            "continuity, or truthful storytelling just to hit a beat. The renderer will refine cut timing "
+            "to nearby detected transients; choose the right visual moments first."
         )
     user = (
         f"Campaign brief:\n{brief}\n\nExtracted requirements:\n"
