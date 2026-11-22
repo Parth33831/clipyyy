@@ -772,6 +772,7 @@ def test_campaign_lyrics_apply_saved_transform_without_word_timing(tmp_path):
     assert r"\pos(378,1344)" in script
     assert r"\fscx120\fscy120\frz6" in script
 
+
 def test_campaign_text_overlay_script_has_independent_timing_and_style(tmp_path):
     from clipyyy.render import write_campaign_text_overlays
 
