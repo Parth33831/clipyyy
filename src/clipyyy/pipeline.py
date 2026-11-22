@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import re
 import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
