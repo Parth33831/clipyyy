@@ -101,6 +101,10 @@ export function RunDetailPage() {
   })
   const lyricPhrases = lyricsText.split(/\r?\n/).map((line) => line.replace(/^\[\d{1,2}:\d{2}(?:\.\d{1,2})?\]\s*/, '').trim()).filter(Boolean)
   const selectedPhraseEdit = phraseEdits.find((edit) => edit.phrase_index === selectedLyricPhrase)
+  const previewPositionX = selectedPhraseEdit?.position_x ?? lyricsPositionX
+  const previewPositionY = selectedPhraseEdit?.position_y ?? lyricsPositionY
+  const previewScale = selectedPhraseEdit?.scale_percent ?? lyricsScale
+  const previewRotation = selectedPhraseEdit?.rotation_degrees ?? lyricsRotation
   const updateSelectedPhrase = (patch: Partial<CampaignLyricPhraseEdit>) => {
     setPhraseEdits((current) => {
       const existing = current.find((edit) => edit.phrase_index === selectedLyricPhrase)
@@ -323,12 +327,12 @@ export function RunDetailPage() {
           <LyricsPositionPreview
             frameUrl={campaignEdits[0]?.shots[0] ? `/api/runs/${runId}/campaign-frame?source_index=${campaignEdits[0].shots[0].source_index}&timestamp=${campaignEdits[0].shots[0].start_seconds.toFixed(1)}` : null}
             text={lyricPhrases[selectedLyricPhrase] ?? 'Your lyrics appear here'}
-            x={lyricsPositionX}
-            y={lyricsPositionY}
-            scale={lyricsScale}
-            rotation={lyricsRotation}
+            x={previewPositionX}
+            y={previewPositionY}
+            scale={previewScale}
+            rotation={previewRotation}
             aspectRatio={data.options.aspect_ratio}
-            onPositionChange={(x, y) => { setLyricsPositionX(x); setLyricsPositionY(y) }}
+            onPositionChange={(x, y) => lyricPhrases.length ? updateSelectedPhrase({ position_x: x, position_y: y }) : (setLyricsPositionX(x), setLyricsPositionY(y))}
           />
           {lyricPhrases.length > 0 && (
             <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
