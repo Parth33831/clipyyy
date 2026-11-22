@@ -289,14 +289,14 @@ def build_montage_plan(
             "to nearby detected transients; choose the right visual moments first."
         )
     lyric_guidance = ""
-    supplied_lyrics = "\\n".join(
+    supplied_lyrics = "\n".join(
         line.strip() for line in str(campaign_lyrics or "").splitlines() if line.strip()
     )
     if supplied_lyrics:
         lyric_guidance = (
-            "\\n\\nCREATOR-SUPPLIED CAMPAIGN LYRICS (meaning reference only; no word timestamps supplied):\\n"
+            "\n\nCREATOR-SUPPLIED CAMPAIGN LYRICS (meaning reference only; no word timestamps supplied):\n"
             + supplied_lyrics[:6000]
-            + "\\nUse these lyrics as an optional semantic/storytelling cue. Match a lyric idea to a shot "
+            + "\nUse these lyrics as an optional semantic/storytelling cue. Match a lyric idea to a shot "
             "only when the supplied visual observations genuinely support that meaning. Do not invent "
             "visuals to illustrate a lyric, do not assume the lyric is sung at a particular timestamp, "
             "and do not force a literal illustration. If no observed shot supports a lyric, prioritize "
