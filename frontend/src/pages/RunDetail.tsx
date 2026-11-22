@@ -37,6 +37,7 @@ export function RunDetailPage() {
   const [musicVolume, setMusicVolume] = useState(90)
   const [sourceAudioVolume, setSourceAudioVolume] = useState(100)
   const [musicDucking, setMusicDucking] = useState(false)
+  const [musicStartSeconds, setMusicStartSeconds] = useState(0)
   const [musicFadeIn, setMusicFadeIn] = useState(0.4)
   const [musicFadeOut, setMusicFadeOut] = useState(0.8)
   const [lyricsText, setLyricsText] = useState('')
@@ -86,6 +87,7 @@ export function RunDetailPage() {
     setMusicVolume(Math.round((run.data?.options.campaign_music_volume ?? 0.9) * 100))
     setSourceAudioVolume(Math.round((run.data?.options.campaign_source_audio_volume ?? 1) * 100))
     setMusicDucking(Boolean(run.data?.options.campaign_music_ducking))
+    setMusicStartSeconds(run.data?.options.campaign_music_start_seconds ?? run.data?.campaign_quality_checks?.music_analysis?.selected_start_seconds ?? 0)
     setMusicFadeIn(run.data?.options.campaign_music_fade_in_seconds ?? 0.4)
     setMusicFadeOut(run.data?.options.campaign_music_fade_out_seconds ?? 0.8)
     setLyricsText(run.data?.options.campaign_lyrics ?? '')
@@ -106,7 +108,7 @@ export function RunDetailPage() {
       edits: run.data?.campaign_edits ?? [],
       overlays: run.data?.options.campaign_text_overlays ?? [],
     })
-  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_source_audio_volume, run.data?.options.campaign_music_ducking, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.options.campaign_text_overlays, run.data?.campaign_plan?.generated_hook, resetCampaignHistory])
+  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_source_audio_volume, run.data?.options.campaign_music_ducking, run.data?.options.campaign_music_start_seconds, run.data?.campaign_quality_checks?.music_analysis?.selected_start_seconds, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.options.campaign_text_overlays, run.data?.campaign_plan?.generated_hook, resetCampaignHistory])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -130,7 +132,7 @@ export function RunDetailPage() {
     onError: (e) => toast.error(e.message),
   })
   const saveCampaignAudio = useMutation({
-    mutationFn: () => api.saveCampaignAudio(runId, musicVolume / 100, sourceAudioVolume / 100, musicDucking, musicFadeIn, musicFadeOut),
+    mutationFn: () => api.saveCampaignAudio(runId, musicVolume / 100, sourceAudioVolume / 100, musicDucking, musicStartSeconds, musicFadeIn, musicFadeOut),
     onSuccess: (result) => {
       toast.success(`Applied music mix to ${result.outputs} campaign edit(s).`)
       refresh()
@@ -263,9 +265,10 @@ export function RunDetailPage() {
   const savedMusicVolume = Math.round((data.options.campaign_music_volume ?? 0.9) * 100)
   const savedSourceAudioVolume = Math.round((data.options.campaign_source_audio_volume ?? 1) * 100)
   const savedMusicDucking = Boolean(data.options.campaign_music_ducking)
+  const savedMusicStartSeconds = data.options.campaign_music_start_seconds ?? data.campaign_quality_checks?.music_analysis?.selected_start_seconds ?? 0
   const savedMusicFadeIn = data.options.campaign_music_fade_in_seconds ?? 0.4
   const savedMusicFadeOut = data.options.campaign_music_fade_out_seconds ?? 0.8
-  const musicSettingsChanged = musicVolume !== savedMusicVolume || musicDucking !== savedMusicDucking || musicFadeIn !== savedMusicFadeIn || musicFadeOut !== savedMusicFadeOut
+  const musicSettingsChanged = musicVolume !== savedMusicVolume || musicDucking !== savedMusicDucking || Math.abs(musicStartSeconds - savedMusicStartSeconds) > 0.01 || musicFadeIn !== savedMusicFadeIn || musicFadeOut !== savedMusicFadeOut
   const sourceAudioSettingsChanged = sourceAudioVolume !== savedSourceAudioVolume
   const readyClips = data.clips.filter((c) => c.status === 'ready')
 
@@ -384,13 +387,13 @@ export function RunDetailPage() {
                   <span className="text-xs text-muted">0% mute · 100% original level · 200% boost</span>
                 </label>
                 <label className="flex flex-col gap-2">
-                  <span className="flex justify-between gap-2"><span className="font-medium">Fade in</span><span className="font-mono text-muted">{musicFadeIn.toFixed(1)}s</span></span>
-                  <input type="range" min={0} max={5} step={0.1} value={musicFadeIn} onChange={(event) => setMusicFadeIn(Number(event.target.value))} className="w-full accent-current" />
+                  <span className="flex justify-between gap-2"><span className="font-medium">Fade in</span><span className="font-mono text-muted">{musicFadeIn.toFixed(2)}s</span></span>
+                  <input type="range" min={0} max={10} step={0.05} value={musicFadeIn} onChange={(event) => setMusicFadeIn(Number(event.target.value))} className="w-full accent-current" />
                   <span className="text-xs text-muted">How quickly music reaches its set level</span>
                 </label>
                 <label className="flex flex-col gap-2">
-                  <span className="flex justify-between gap-2"><span className="font-medium">Fade out</span><span className="font-mono text-muted">{musicFadeOut.toFixed(1)}s</span></span>
-                  <input type="range" min={0} max={5} step={0.1} value={musicFadeOut} onChange={(event) => setMusicFadeOut(Number(event.target.value))} className="w-full accent-current" />
+                  <span className="flex justify-between gap-2"><span className="font-medium">Fade out</span><span className="font-mono text-muted">{musicFadeOut.toFixed(2)}s</span></span>
+                  <input type="range" min={0} max={10} step={0.05} value={musicFadeOut} onChange={(event) => setMusicFadeOut(Number(event.target.value))} className="w-full accent-current" />
                   <span className="text-xs text-muted">How quickly music fades at the end</span>
                 </label>
               </div>
@@ -663,6 +666,8 @@ export function RunDetailPage() {
           originalEdits={data.campaign_original_edits ?? data.campaign_edits}
           sources={data.campaign_sources ?? []}
           musicAnalysis={data.campaign_quality_checks?.music_analysis ?? null}
+          musicStartSeconds={musicStartSeconds}
+          onMusicStartChange={setMusicStartSeconds}
           hasMusic={Boolean(data.options.campaign_music_path)}
           lyrics={campaignTimelineLyrics}
           lyricWords={campaignTimelineWords}
@@ -734,6 +739,8 @@ function CampaignStoryboardEditor({
   originalEdits,
   sources,
   musicAnalysis,
+  musicStartSeconds,
+  onMusicStartChange,
   hasMusic,
   lyrics,
   lyricWords,
@@ -754,6 +761,8 @@ function CampaignStoryboardEditor({
   originalEdits: CampaignEdit[]
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
+  musicStartSeconds: number
+  onMusicStartChange: (seconds: number) => void
   hasMusic: boolean
   lyrics: CampaignPreviewLyric[]
   lyricWords: CampaignPreviewWord[]
@@ -1245,7 +1254,7 @@ function CampaignTimeline({
     duration: Math.max(0.1, shot.end_seconds - shot.start_seconds),
   }))
   const total = Math.max(0.1, shots.reduce((sum, item) => sum + item.duration, 0))
-  const musicStart = musicAnalysis?.selected_start_seconds ?? 0
+  const musicStart = Math.max(0, musicStartSeconds)
   const waveform = waveformQuery.data
   const waveformPeaks = waveform && waveform.duration_seconds > 0
     ? waveform.peaks.slice(
@@ -1716,6 +1725,19 @@ function CampaignTimeline({
             </p>
           )}
         </div>
+      )}
+      {waveform && (
+        <label className="flex flex-col gap-2 border-t border-line pt-3 text-sm">
+          <span className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-medium">Soundtrack start / alignment</span>
+            <span className="font-mono text-muted">{formatDuration(musicStart)}</span>
+          </span>
+          <input type="range" min={0} max={Math.max(0, waveform.duration_seconds - total)} step={0.05}
+            value={Math.min(musicStart, Math.max(0, waveform.duration_seconds - total))}
+            onChange={(event) => onMusicStartChange(Number(event.target.value))}
+            className="w-full accent-current" aria-label="Choose soundtrack start position" />
+          <span className="text-xs text-muted">Shift the waveform window to line up the music with your first shot. Fine adjustment: 0.05 seconds.</span>
+        </label>
       )}
       {musicAnalysis && (
         <div className="flex flex-col gap-2 border-t border-line pt-3">
