@@ -85,6 +85,7 @@ class ClipOptions(BaseModel):
     campaign_lyrics_behind_subject: bool = False
     campaign_hook_text: str = Field("", max_length=160)
     include_campaign_hook: bool = False
+    campaign_text_overlays: list[dict[str, Any]] = Field(default_factory=list, max_length=30)
     model: str | None = Field(None, description="Override the default LLM model")
 
     @model_validator(mode="after")
