@@ -460,6 +460,7 @@ def test_campaign_lyrics_update_persists_behind_subject_option(client, monkeypat
             "position_y": 61,
             "scale_percent": 135,
             "rotation_degrees": -8,
+            "phrase_edits": [{"phrase_index": 1, "position_x": 28, "position_y": 42, "scale_percent": 145}],
         },
     )
 
@@ -471,3 +472,6 @@ def test_campaign_lyrics_update_persists_behind_subject_option(client, monkeypat
     assert saved["campaign_lyrics_position_y"] == 61
     assert saved["campaign_lyrics_scale_percent"] == 135
     assert saved["campaign_lyrics_rotation_degrees"] == -8
+    assert saved["campaign_lyric_phrase_edits"] == [
+        {"phrase_index": 1, "position_x": 28, "position_y": 42, "scale_percent": 145}
+    ]

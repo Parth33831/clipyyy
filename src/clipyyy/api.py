@@ -41,6 +41,14 @@ class CampaignAudioUpdate(BaseModel):
     fade_out_seconds: float = Field(0.8, ge=0, le=10)
 
 
+class CampaignLyricPhraseEdit(BaseModel):
+    phrase_index: int = Field(..., ge=0, le=199)
+    position_x: int | None = Field(None, ge=5, le=95)
+    position_y: int | None = Field(None, ge=5, le=95)
+    scale_percent: int | None = Field(None, ge=50, le=200)
+    rotation_degrees: int | None = Field(None, ge=-30, le=30)
+
+
 class CampaignLyricsUpdate(BaseModel):
     lyrics: str = Field("", max_length=12000)
     lyrics_style: Literal[
@@ -56,6 +64,7 @@ class CampaignLyricsUpdate(BaseModel):
     lyrics_behind_subject: bool = False
     hook_text: str = Field("", max_length=160)
     include_hook: bool = False
+    phrase_edits: list[CampaignLyricPhraseEdit] = Field(default_factory=list, max_length=200)
 
 
 class CampaignShotEdit(BaseModel):
@@ -189,6 +198,7 @@ def create_app(start_worker: bool = True) -> FastAPI:
             "campaign_lyrics_position_y": body.position_y,
             "campaign_lyrics_scale_percent": body.scale_percent,
             "campaign_lyrics_rotation_degrees": body.rotation_degrees,
+            "campaign_lyric_phrase_edits": [item.model_dump(exclude_none=True) for item in body.phrase_edits],
             "campaign_lyrics_behind_subject": body.lyrics_behind_subject,
             "campaign_hook_text": body.hook_text.strip(),
             "include_campaign_hook": body.include_hook,
