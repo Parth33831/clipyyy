@@ -664,3 +664,37 @@ def test_campaign_subject_crop_skips_model_download_when_not_installed(monkeypat
     assert boxes is None
     assert width is None
     assert height is None
+
+def test_lyrics_behind_subject_composites_text_between_background_and_person(tmp_path, monkeypatch):
+    from clipyyy import render
+
+    video = tmp_path / "base.mp4"
+    run_ffmpeg(
+        [
+            "-f", "lavfi", "-i", "color=c=blue:s=540x960:r=30:d=2",
+            "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(video),
+        ]
+    )
+
+    def fake_mask(video_path, mask_path):
+        run_ffmpeg(
+            [
+                "-f", "lavfi",
+                "-i", "color=c=black:s=270x480:r=12:d=2,drawbox=x=95:y=120:w=80:h=240:color=white:t=fill",
+                "-an", "-c:v", "ffv1", "-pix_fmt", "gray", str(mask_path),
+            ]
+        )
+        return mask_path
+
+    monkeypatch.setattr(render, "create_foreground_mask", fake_mask)
+    overlay = render.write_campaign_lyrics(
+        ["[00:00.00]Behind the person"], 2.0, tmp_path / "lyrics.ass", 540, 960
+    )
+    output = render.render_lyrics_behind_subject(
+        video, overlay, tmp_path / "depth.mp4", tmp_path, 540, 960, 2.0
+    )
+
+    width, height, duration = probe(output)
+    assert (width, height) == (540, 960)
+    assert duration == pytest.approx(2.0, abs=0.2)
+    assert output.is_file() and output.stat().st_size > 0
