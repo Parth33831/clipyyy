@@ -596,3 +596,33 @@ def test_campaign_word_lyrics_keep_existing_timing_without_beats(tmp_path):
     content = path.read_text(encoding="utf-8")
     assert "Dialogue: 0,0:00:00.50" in content
     assert "\\t(0,75,\\fscx116\\fscy116)" not in content
+
+
+def test_music_cut_selection_prefers_nearby_lyric_phrase_boundary():
+    from clipyyy.render import select_music_cut_duration
+
+    analysis = {
+        "best_start_seconds": 0.0,
+        "beat_times": [3.0, 3.8],
+        "beat_strengths": [0.8, 0.8],
+        "energy_profile": [],
+    }
+    cues = [{"text": "Next phrase", "start_seconds": 3.8, "end_seconds": 4.6}]
+
+    # Without lyric timing, the equal-score tie keeps the earlier beat.
+    assert select_music_cut_duration(0.0, 3.4, analysis) == 3.0
+    # A nearby phrase boundary nudges the cut to the matching transient.
+    assert select_music_cut_duration(0.0, 3.4, analysis, cues) == 3.8
+
+
+def test_music_cut_selection_ignores_malformed_lyric_cues():
+    from clipyyy.render import select_music_cut_duration
+
+    analysis = {
+        "best_start_seconds": 0.0,
+        "beat_times": [3.0, 3.8],
+        "beat_strengths": [0.8, 0.8],
+        "energy_profile": [],
+    }
+
+    assert select_music_cut_duration(0.0, 3.4, analysis, [{"start_seconds": "bad"}]) == 3.0
