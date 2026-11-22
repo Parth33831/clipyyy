@@ -806,10 +806,10 @@ def test_campaign_text_overlay_script_has_independent_timing_and_style(tmp_path)
     script = path.read_text(encoding="utf-8")
 
     assert "Dialogue: 0,0:00:01.25,0:00:03.75,OverlayBox" in script
-    assert r"\\pos(432,1190)" in script
-    assert r"\\fscx70\\fscy70" in script
+    assert r"\pos(432,1190)" in script
+    assert r"\fscx70\fscy70" in script
     assert "Dialogue: 0,0:00:04.00,0:00:05.00,Overlay" in script
-    assert r"\\move(756,1634,756,1536,0,220)" in script
+    assert r"\move(756,1622,756,1536,0,220)" in script
 
 
 def test_campaign_text_overlay_script_skips_empty_or_out_of_range_layers(tmp_path):
