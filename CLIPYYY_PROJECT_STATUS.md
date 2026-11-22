@@ -637,3 +637,9 @@ STATUS: In progress / Ready for review / Merged
 - PRs #80 and #84 both propose per-layer typography controls and touch the same API/pipeline/render/frontend files, but are based on different stale branches. Consolidate into one latest-main PR before merging; do not merge both independently.
 
 - PR #90 added Ctrl/Cmd+Z undo and Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y redo shortcuts, preserving native undo while focus is in text fields. Latest-head CI passed; PR merged as `59f9b7aad1877f742c057e926c4c200d84f2cd6e`.
+
+### 2026-11-22 follow-up: per-layer typography consolidation
+
+- PRs #80 and #84 both attempted per-overlay font/weight/effect controls from different stale bases. They were closed as overlapping attempts.
+- PR #95 consolidates the feature onto latest main: allowlisted font family, regular/bold weight, none/shadow/outline effect, validated persistence, ASS rendering and matching 9:16 preview styling.
+- PR #95 preserves the current synchronized lyric preview and all merged timeline/history controls. Latest-head CI is in progress; do not merge until Ruff, backend tests and frontend build pass.
