@@ -521,7 +521,7 @@ def test_campaign_text_overlay_rejects_timing_outside_output(client, monkeypatch
         "/api/runs",
         json={
             "sources": ["https://example.com/campaign.mp4"],
-            "options": {"campaign_mode": True},
+            "options": {"campaign_mode": True, "campaign_brief": "Summer campaign"},
         },
     ).json()[0]
     db.update_run(run["id"], status="completed")
