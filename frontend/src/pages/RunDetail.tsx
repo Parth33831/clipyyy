@@ -358,6 +358,7 @@ export function RunDetailPage() {
           originalEdits={data.campaign_original_edits ?? data.campaign_edits}
           sources={data.campaign_sources ?? []}
           musicAnalysis={data.campaign_quality_checks?.music_analysis ?? null}
+          lyricCues={data.campaign_lyric_cues ?? []}
           transitionStyle={data.options.campaign_transition_style ?? 'auto'}
           saving={saveMontage.isPending}
           onChange={setCampaignEdits}
@@ -410,6 +411,7 @@ function CampaignStoryboardEditor({
   originalEdits,
   sources,
   musicAnalysis,
+  lyricCues,
   transitionStyle,
   saving,
   onChange,
@@ -422,6 +424,7 @@ function CampaignStoryboardEditor({
   originalEdits: CampaignEdit[]
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
+  lyricCues: { text: string; start_seconds: number; end_seconds: number }[]
   transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
   saving: boolean
   onChange: (edits: CampaignEdit[]) => void
@@ -504,6 +507,7 @@ function CampaignStoryboardEditor({
             runId={runId}
             sources={sources}
             musicAnalysis={musicAnalysis}
+            lyricCues={lyricCues}
             transitionStyle={transitionStyle}
             onMoveShot={(fromIndex, toIndex) => moveShotTo(editIndex, fromIndex, toIndex)}
             onUpdateShot={(shotIndex, patch) => updateShot(editIndex, shotIndex, patch)}
