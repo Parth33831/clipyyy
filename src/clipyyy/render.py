@@ -955,7 +955,7 @@ def write_campaign_phrase_lyrics(
         color = accent if animation in {"dynamic", "zoom", "bounce", "glitch"} else primary
         transform = f"{{\\pos({x},{y})\\fscx{scale}\\fscy{scale}\\frz{rotation}\\c{color}{tags}}}"
         script.append(f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,{transform}{_escape(text)}")
-    path.write_text("\\n".join(script) + "\\n", encoding="utf-8")
+    path.write_text("\n".join(script) + "\n", encoding="utf-8")
     return path
 
 
