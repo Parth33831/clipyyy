@@ -57,7 +57,6 @@ def render_lyrics_behind_subject(
     return output_path
 
 
-
 def render_clips(
     source: dict,
     selection: dict,
@@ -700,17 +699,43 @@ def render_campaign_montages(
                         )
                         run_ffmpeg(
                             [
-                                "-i", str(visual), "-vf", ass_filter(overlay), "-an",
-                                "-c:v", "libx264", "-preset", "veryfast", "-crf", "19",
-                                "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(captioned),
+                                "-i",
+                                str(visual),
+                                "-vf",
+                                ass_filter(overlay),
+                                "-an",
+                                "-c:v",
+                                "libx264",
+                                "-preset",
+                                "veryfast",
+                                "-crf",
+                                "19",
+                                "-pix_fmt",
+                                "yuv420p",
+                                "-movflags",
+                                "+faststart",
+                                str(captioned),
                             ]
                         )
                 else:
                     run_ffmpeg(
                         [
-                            "-i", str(visual), "-vf", ass_filter(overlay), "-an",
-                            "-c:v", "libx264", "-preset", "veryfast", "-crf", "19",
-                            "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(captioned),
+                            "-i",
+                            str(visual),
+                            "-vf",
+                            ass_filter(overlay),
+                            "-an",
+                            "-c:v",
+                            "libx264",
+                            "-preset",
+                            "veryfast",
+                            "-crf",
+                            "19",
+                            "-pix_fmt",
+                            "yuv420p",
+                            "-movflags",
+                            "+faststart",
+                            str(captioned),
                         ]
                     )
                 visual = captioned
@@ -800,9 +825,11 @@ def render_campaign_montages(
             ),
             "lyrics_overlay": bool(lyrics),
             "lyrics_behind_subject_requested": bool(options.get("campaign_lyrics_behind_subject", False)),
-            "lyrics_behind_subject_applied": all(
-                item.get("lyrics_behind_subject", False) for item in renders
-            ) if options.get("campaign_lyrics_behind_subject", False) and lyrics else False,
+            "lyrics_behind_subject_applied": (
+                all(item.get("lyrics_behind_subject", False) for item in renders)
+                if options.get("campaign_lyrics_behind_subject", False) and lyrics
+                else False
+            ),
             "camera_motion": bool(options.get("campaign_camera_motion", True)),
             "transition_style": transition_style,
             "music_track_added": bool(music_path),
