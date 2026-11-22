@@ -88,6 +88,9 @@ class CampaignTextOverlay(BaseModel):
     position_x: int = Field(50, ge=5, le=95)
     position_y: int = Field(50, ge=5, le=95)
     font_size_percent: int = Field(100, ge=60, le=200)
+    font_family: Literal["Arial", "Georgia", "Impact", "Trebuchet MS", "Verdana"] = "Arial"
+    font_weight: Literal["regular", "bold"] = "bold"
+    text_effect: Literal["none", "shadow", "outline"] = "shadow"
     color: str = Field("#FFFFFF", pattern=r"^#[0-9A-Fa-f]{6}$")
     animation: Literal["none", "fade", "pop", "slide"] = "fade"
     background: bool = True
