@@ -773,9 +773,7 @@ def render_campaign_montages(
             ]
             if text_overlays:
                 text_overlay_path = edit_dir / "campaign-text-overlays.ass"
-                write_campaign_text_overlays(
-                    text_overlays, duration, text_overlay_path, width, height
-                )
+                write_campaign_text_overlays(text_overlays, duration, text_overlay_path, width, height)
                 overlaid = edit_dir / "montage-text-overlays.mp4"
                 run_ffmpeg(
                     [
@@ -1402,9 +1400,7 @@ def write_campaign_text_overlays(
             )
         style = "OverlayBox" if overlay.get("background", True) else "Overlay"
         escaped = r"\N".join(_escape(part) for part in text.splitlines())
-        script.append(
-            f"Dialogue: 0,{_ts(start)},{_ts(end)},{style},,0,0,0,,{tags}{escaped}"
-        )
+        script.append(f"Dialogue: 0,{_ts(start)},{_ts(end)},{style},,0,0,0,,{tags}{escaped}")
     path.write_text("\\n".join(script) + "\\n", encoding="utf-8")
     return path
 
