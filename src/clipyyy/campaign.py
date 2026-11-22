@@ -199,6 +199,7 @@ def build_montage_plan(
     reference_analyses: list[dict] | None = None,
     music_analysis: dict[str, Any] | None = None,
     campaign_lyrics: str = "",
+    lyric_cues: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """Choose an ordered montage from timestamped visual observations across all sources."""
     if not hasattr(llm, "complete_json"):
@@ -302,11 +303,23 @@ def build_montage_plan(
             "and do not force a literal illustration. If no observed shot supports a lyric, prioritize "
             "the campaign brief and truthful visual continuity instead."
         )
+    timed_lyric_guidance = ""
+    if lyric_cues:
+        timed_lyric_guidance = (
+            "\n\nTIMED LYRIC CUES (seconds relative to the selected music segment):\n"
+            + json.dumps(lyric_cues[:80], ensure_ascii=False)
+            + "\nUse the cue order and approximate timing to shape the visual progression. "
+            "A cue timestamp refers to the music, not to a source video's timestamp. "
+            "The shot-plan format does not express exact overlay positions, so do not claim "
+            "frame-accurate lyric-to-shot synchronization. Prefer visual moments whose observed "
+            "meaning supports the lyric progression, and preserve campaign relevance."
+        )
     user = (
         f"Campaign brief:\n{brief}\n\nExtracted requirements:\n"
         f"{format_campaign_plan(campaign_plan)}"
         f"{music_guidance}"
         f"{lyric_guidance}"
+        f"{timed_lyric_guidance}"
         f"\n\nAdditional creator instructions:\n{additional_instructions or 'None'}"
         f"\n\nCreate {output_count} distinct edits, each approximately "
         f"{target_seconds:.1f} seconds. "
