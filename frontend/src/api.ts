@@ -172,6 +172,11 @@ export interface CampaignMusicAnalysis {
   energy_sections?: CampaignEnergySection[]
 }
 
+export interface CampaignWaveform {
+  duration_seconds: number
+  peaks: number[]
+}
+
 export interface CampaignQualityChecks {
   [key: string]: string | boolean | number | null | CampaignMusicAnalysis | undefined
   music_analysis?: CampaignMusicAnalysis | null
@@ -270,6 +275,8 @@ export const api = {
     form.append('file', file)
     return request<{ name: string; attached: boolean }>(`/api/runs/${id}/campaign-music`, { method: 'POST', body: form })
   },
+  campaignWaveform: (id: string, bins = 640) =>
+    request<CampaignWaveform>(`/api/runs/${id}/campaign-waveform?bins=${bins}`),
   saveCampaignAudio: (id: string, musicVolume: number, fadeInSeconds: number, fadeOutSeconds: number) =>
     request<{ saved: boolean; rendered: boolean; outputs: number }>(`/api/runs/${id}/campaign-audio`, {
       method: 'PUT',
