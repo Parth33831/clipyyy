@@ -487,6 +487,7 @@ def render_campaign_montages(
                             elapsed - overlap,
                             duration,
                             music_analysis,
+                            selection.get("campaign_lyric_cues"),
                         )
                         if aligned_duration is not None:
                             end = min(
@@ -1281,7 +1282,10 @@ def _build_music_energy_sections(
 
 
 def select_music_cut_duration(
-    elapsed_seconds: float, desired_duration: float, analysis: dict
+    elapsed_seconds: float,
+    desired_duration: float,
+    analysis: dict,
+    lyric_cues: list[dict] | None = None,
 ) -> float | None:
     """Choose a nearby musical transient, preferring energetic beats without wild pacing jumps."""
     beats = analysis.get("beat_times") or []
@@ -1290,6 +1294,12 @@ def select_music_cut_duration(
     strengths = analysis.get("beat_strengths") or []
     profile = analysis.get("energy_profile") or []
     music_start = float(analysis.get("best_start_seconds") or 0.0)
+    lyric_boundaries = []
+    for cue in lyric_cues or []:
+        try:
+            lyric_boundaries.extend([float(cue["start_seconds"]), float(cue["end_seconds"])])
+        except (KeyError, TypeError, ValueError):
+            continue
     candidates = []
     for index, beat in enumerate(beats):
         relative = float(beat) - music_start - elapsed_seconds
@@ -1301,6 +1311,11 @@ def select_music_cut_duration(
             nearest = min(profile, key=lambda point: abs(float(point["time_seconds"]) - float(beat)))
             energy = max(0.0, min(1.0, float(nearest.get("energy", 0.5))))
         score = abs(relative - desired_duration) - 0.55 * energy - 0.35 * max(0.0, min(1.0, strength))
+        if lyric_boundaries:
+            cut_time = elapsed_seconds + relative
+            lyric_distance = min(abs(cut_time - boundary) for boundary in lyric_boundaries)
+            if lyric_distance <= 0.18:
+                score -= 0.75 * (1.0 - lyric_distance / 0.18)
         candidates.append((score, relative))
     if not candidates:
         return None
