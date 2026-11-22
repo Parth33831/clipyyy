@@ -393,7 +393,7 @@ def test_campaign_selection_keeps_creator_lyrics_and_uses_whisper_timing_cues(mo
 
 
 def test_campaign_text_overlay_pipeline_persists_only_valid_output_layers(monkeypatch):
-    run = {"id": "overlay-run", "options": {"campaign_mode": True, "other_option": "keep"}}
+    run = {"id": "overlay-run", "status": "completed", "options": {"campaign_mode": True, "other_option": "keep"}}
     saved = {}
     monkeypatch.setattr(pipeline.db, "get_run", lambda run_id: run)
     monkeypatch.setattr(
@@ -439,7 +439,7 @@ def test_campaign_text_overlay_pipeline_persists_only_valid_output_layers(monkey
 def test_campaign_text_overlay_pipeline_rejects_out_of_bounds_timing(monkeypatch):
     import pytest
 
-    run = {"id": "overlay-run", "options": {"campaign_mode": True}}
+    run = {"id": "overlay-run", "status": "completed", "options": {"campaign_mode": True}}
     monkeypatch.setattr(pipeline.db, "get_run", lambda run_id: run)
     monkeypatch.setattr(
         pipeline.db,
