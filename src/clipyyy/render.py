@@ -376,6 +376,17 @@ def _interpolate_expression(points: list[tuple[float, float]]) -> str:
     return expression
 
 
+def campaign_subject_shot_filter(
+    width: int, height: int, source_width: int, source_height: int, crop_boxes: list[dict]
+) -> str:
+    """Reframe a campaign shot around the tracked primary face instead of a fixed centre crop."""
+    crop = crop_filter(crop_boxes, source_width, source_height, width / height)
+    return (
+        f"{crop},scale={width}:{height},setsar=1,fps={FPS},format=yuv420p,"
+        "eq=contrast=1.06:saturation=1.12"
+    )
+
+
 def campaign_shot_filter(width: int, height: int, shot_index: int, camera_motion: bool = True) -> str:
     """Create a clean campaign crop with subtle alternating Ken Burns movement."""
     base_grade = ",eq=contrast=1.06:saturation=1.12"
@@ -460,6 +471,11 @@ def render_campaign_montages(
         if options.get("include_campaign_hook", False)
         else ""
     )
+    crop_plan_map = {
+        (int(item["edit_rank"]), int(item["shot_index"])): item
+        for item in selection.get("campaign_crop_plans", [])
+    }
+    source_dimensions = {}
     for edit in selection.get("campaign_edits", []):
         rank = edit["rank"]
         edit_dir = work_dir / f"campaign-edit-{rank:02d}"
@@ -498,9 +514,22 @@ def render_campaign_montages(
                     if duration < 1.0:
                         continue
                     segment = edit_dir / f"shot-{shot_index:03d}.mp4"
-                    vf = campaign_shot_filter(
-                        width, height, shot_index, options.get("campaign_camera_motion", True)
-                    )
+                    crop_plan = crop_plan_map.get((int(rank), shot_index))
+                    if crop_plan and crop_plan.get("crop_boxes"):
+                        if source_index not in source_dimensions:
+                            source_dimensions[source_index] = probe(source_path)[:2]
+                        source_width, source_height = source_dimensions[source_index]
+                        vf = campaign_subject_shot_filter(
+                            width,
+                            height,
+                            source_width,
+                            source_height,
+                            crop_plan["crop_boxes"],
+                        )
+                    else:
+                        vf = campaign_shot_filter(
+                            width, height, shot_index, options.get("campaign_camera_motion", True)
+                        )
                     run_ffmpeg(
                         [
                             "-ss",
