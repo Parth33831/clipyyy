@@ -707,6 +707,10 @@ def render_campaign_montages(
                         style=options.get("campaign_lyrics_style", "dynamic"),
                         text_color=options.get("campaign_lyrics_color", "#FFFFFF"),
                         highlight_color=options.get("campaign_lyrics_highlight_color", "#00D7FF"),
+                        position_x=options.get("campaign_lyrics_position_x", 50),
+                        position_y=options.get("campaign_lyrics_position_y", 84),
+                        scale_percent=options.get("campaign_lyrics_scale_percent", 100),
+                        rotation_degrees=options.get("campaign_lyrics_rotation_degrees", 0),
                     )
                 captioned = edit_dir / "montage-lyrics.mp4"
                 if options.get("campaign_lyrics_behind_subject", False):
@@ -1141,12 +1145,20 @@ def write_campaign_lyrics(
     style: str = "dynamic",
     text_color: str = "#FFFFFF",
     highlight_color: str = "#00D7FF",
+    position_x: int = 50,
+    position_y: int = 84,
+    scale_percent: int = 100,
+    rotation_degrees: int = 0,
 ) -> Path:
-    """Burn timed lyrics with dynamic, cinematic, or minimal styling."""
+    """Burn timed lyrics with editable placement and dynamic styling."""
     from clipyyy.captions import _ass_color, _escape, _ts
 
     primary = _ass_color(text_color)
     accent = _ass_color(highlight_color)
+    position_x = max(5, min(95, int(position_x)))
+    position_y = max(5, min(95, int(position_y)))
+    scale_percent = max(50, min(200, int(scale_percent)))
+    rotation_degrees = max(-30, min(30, int(rotation_degrees)))
 
     font_size = round(height * 0.047)
     script = [
@@ -1266,7 +1278,18 @@ def write_campaign_lyrics(
         for original, chosen in color_replacements.items():
             line = line.replace(original, chosen)
         script[index] = line
-    path.write_text("\n".join(script) + "\n", encoding="utf-8")
+    x = round(width * position_x / 100)
+    y = round(height * position_y / 100)
+    transform = f"{{\\pos({x},{y})\\fscx{scale_percent}\\fscy{scale_percent}\\frz{rotation_degrees}}}"
+    transformed_script = []
+    for line in script:
+        if line.startswith("Dialogue:"):
+            fields = line.split(",", 9)
+            if len(fields) == 10:
+                fields[9] = transform + fields[9]
+                line = ",".join(fields)
+        transformed_script.append(line)
+    path.write_text("\n".join(transformed_script) + "\n", encoding="utf-8")
     return path
 
 
