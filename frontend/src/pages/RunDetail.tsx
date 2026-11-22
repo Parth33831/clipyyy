@@ -1145,6 +1145,7 @@ function CampaignTimeline({
   lyricsHighlightColor,
   textOverlays,
   onUpdateTextOverlay,
+  transitionStyle,
   onMoveShot,
   onUpdateShot,
 }: {
@@ -1169,6 +1170,12 @@ function CampaignTimeline({
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const pendingSeekRef = useRef<number | null>(null)
   const advancingShotRef = useRef(false)
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [transitionPhase, setTransitionPhase] = useState<'idle' | 'out' | 'in'>('idle')
+  const transitionDurationMs = transitionStyle === 'cut' ? 0 : transitionStyle === 'cinematic' ? 420 : transitionStyle === 'dynamic' ? 140 : 240
+  useEffect(() => () => {
+    if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current)
+  }, [])
   const [isPlaying, setIsPlaying] = useState(false)
   const [playheadSeconds, setPlayheadSeconds] = useState(0)
   const [activeOverlayTrim, setActiveOverlayTrim] = useState<{
@@ -1223,6 +1230,10 @@ function CampaignTimeline({
         const wordWindowStart = activeWordIndex < 0 ? 0 : Math.max(0, activeWordIndex - Math.floor((wordsOnScreen - 1) / 2))
         const activeWordWindow = activeWordIndex < 0 ? [] : lyricWords.slice(wordWindowStart, wordWindowStart + wordsOnScreen)
         const seekToTimeline = (targetSeconds: number) => {
+          if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current)
+          transitionTimerRef.current = null
+          advancingShotRef.current = false
+          setTransitionPhase('idle')
           const boundedTime = Math.max(0, Math.min(total, targetSeconds))
           let elapsed = 0
           let targetIndex = Math.max(0, shots.length - 1)
@@ -1248,6 +1259,10 @@ function CampaignTimeline({
           if (audioRef.current) audioRef.current.currentTime = musicStart + boundedTime
         }
         const selectShot = (index: number) => {
+          if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current)
+          transitionTimerRef.current = null
+          advancingShotRef.current = false
+          setTransitionPhase('idle')
           const bounded = Math.max(0, Math.min(shots.length - 1, index))
           const start = shots.slice(0, bounded).reduce((sum, item) => sum + item.duration, 0)
           videoRef.current?.pause()
@@ -1291,6 +1306,11 @@ function CampaignTimeline({
                 src={"/api/runs/" + runId + "/campaign-source?source_index=" + preview.shot.source_index}
                 onLoadedMetadata={(event) => {
                   advancingShotRef.current = false
+                  if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current)
+                  setTransitionPhase(transitionDurationMs > 0 ? 'in' : 'idle')
+                  if (transitionDurationMs > 0) {
+                    transitionTimerRef.current = setTimeout(() => setTransitionPhase('idle'), transitionDurationMs)
+                  }
                   const targetSourceTime = pendingSeekRef.current ?? preview.shot.start_seconds
                   event.currentTarget.currentTime = targetSourceTime
                   pendingSeekRef.current = null
@@ -1312,16 +1332,32 @@ function CampaignTimeline({
                     const target = musicStart + nextPlayhead
                     if (Math.abs(audio.currentTime - target) > 0.45) audio.currentTime = target
                   }
-                  if (event.currentTarget.currentTime >= preview.shot.end_seconds - 0.04 && !advancingShotRef.current) {
+                  const transitionLeadSeconds = transitionDurationMs / 1000
+                  const boundaryThreshold = transitionDurationMs > 0
+                    ? Math.max(0.04, transitionLeadSeconds)
+                    : 0.04
+                  if (event.currentTarget.currentTime >= preview.shot.end_seconds - boundaryThreshold && !advancingShotRef.current) {
                     advancingShotRef.current = true
-                    if (preview.index < shots.length - 1) {
-                      setPreviewShotIndex(preview.index + 1)
-                    } else {
+                    if (transitionDurationMs > 0) {
+                      setTransitionPhase('out')
                       event.currentTarget.pause()
-                      audio?.pause()
-                      setIsPlaying(false)
                     }
+                    transitionTimerRef.current = setTimeout(() => {
+                      if (preview.index < shots.length - 1) {
+                        setPreviewShotIndex(preview.index + 1)
+                      } else {
+                        videoRef.current?.pause()
+                        audio?.pause()
+                        setIsPlaying(false)
+                        setTransitionPhase('idle')
+                      }
+                    }, transitionDurationMs)
                   }
+                }}
+                style={{
+                  opacity: transitionPhase === 'out' ? 0 : 1,
+                  transform: transitionPhase === 'out' && transitionStyle === 'dynamic' ? 'scale(1.035)' : 'scale(1)',
+                  transition: transitionDurationMs > 0 ? 'opacity ' + transitionDurationMs + 'ms ease, transform ' + transitionDurationMs + 'ms ease' : 'none',
                 }}
                 className="max-h-64 w-full bg-black object-contain"
               />
@@ -1408,7 +1444,19 @@ function CampaignTimeline({
           </div>
         )
       })()}
-      {hasMusic && <audio ref={audioRef} preload="metadata" src={"/api/runs/" + runId + "/campaign-music"} className="hidden" />}
+      {hasMusic && (
+        <audio
+          ref={audioRef}
+          preload="metadata"
+          src={"/api/runs/" + runId + "/campaign-music"}
+          onTimeUpdate={(event) => {
+            if (isPlaying && advancingShotRef.current) {
+              setPlayheadSeconds(Math.max(0, event.currentTarget.currentTime - musicStart))
+            }
+          }}
+          className="hidden"
+        />
+      )}
       <div className="overflow-x-auto">
         <div data-campaign-timeline-track className="relative flex min-w-[680px] gap-1 rounded-md bg-surface p-2">
           {shots.map(({ shot, index, duration }) => {
