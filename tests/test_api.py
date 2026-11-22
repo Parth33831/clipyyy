@@ -460,6 +460,17 @@ def test_campaign_lyrics_update_persists_behind_subject_option(client, monkeypat
             "position_y": 61,
             "scale_percent": 135,
             "rotation_degrees": -8,
+            "phrases": [{
+                "id": "phrase-1",
+                "text": "Stay with me",
+                "start_seconds": 12.4,
+                "end_seconds": 14.8,
+                "position_x": 32,
+                "position_y": 67,
+                "scale_percent": 145,
+                "rotation_degrees": 9,
+                "animation": "zoom",
+            }],
         },
     )
 
@@ -471,3 +482,6 @@ def test_campaign_lyrics_update_persists_behind_subject_option(client, monkeypat
     assert saved["campaign_lyrics_position_y"] == 61
     assert saved["campaign_lyrics_scale_percent"] == 135
     assert saved["campaign_lyrics_rotation_degrees"] == -8
+    assert saved["campaign_lyric_phrases"][0]["id"] == "phrase-1"
+    assert saved["campaign_lyric_phrases"][0]["position_x"] == 32
+    assert saved["campaign_lyric_phrases"][0]["animation"] == "zoom"
