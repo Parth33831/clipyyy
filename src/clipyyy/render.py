@@ -767,6 +767,36 @@ def render_campaign_montages(
                         ]
                     )
                 visual = captioned
+            text_overlays = [
+                overlay
+                for overlay in (options.get("campaign_text_overlays") or [])
+                if int(overlay.get("rank", 1)) == int(rank)
+            ]
+            if text_overlays:
+                text_overlay_path = edit_dir / "campaign-text-overlays.ass"
+                write_campaign_text_overlays(text_overlays, duration, text_overlay_path, width, height)
+                overlaid = edit_dir / "montage-text-overlays.mp4"
+                run_ffmpeg(
+                    [
+                        "-i",
+                        str(visual),
+                        "-vf",
+                        ass_filter(text_overlay_path),
+                        "-an",
+                        "-c:v",
+                        "libx264",
+                        "-preset",
+                        "veryfast",
+                        "-crf",
+                        "19",
+                        "-pix_fmt",
+                        "yuv420p",
+                        "-movflags",
+                        "+faststart",
+                        str(overlaid),
+                    ]
+                )
+                visual = overlaid
             if music_path:
                 music_input = []
                 if music_analysis and music_analysis["duration_seconds"] - music_start < duration:
@@ -1318,6 +1348,83 @@ def write_campaign_lyrics(
             dialogue_index += 1
         transformed_script.append(line)
     path.write_text("\n".join(transformed_script) + "\n", encoding="utf-8")
+    return path
+
+
+def write_campaign_text_overlays(
+    overlays: list[dict],
+    duration: float,
+    path: Path,
+    width: int,
+    height: int,
+) -> Path:
+    """Create an independent ASS text layer with per-overlay timing and styling."""
+    from clipyyy.captions import _ass_color, _escape, _ts
+
+    script = [
+        "[Script Info]",
+        "ScriptType: v4.00+",
+        f"PlayResX: {width}",
+        f"PlayResY: {height}",
+        "WrapStyle: 0",
+        "ScaledBorderAndShadow: yes",
+        "",
+        "[V4+ Styles]",
+        (
+            "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
+            "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, "
+            "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding"
+        ),
+        (
+            "Style: Overlay,Arial,64,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,"
+            "1,0,0,0,100,100,0,0,1,2,1,5,0,0,0,1"
+        ),
+        (
+            "Style: OverlayBox,Arial,64,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,"
+            "1,0,0,0,100,100,0,0,3,8,0,5,0,0,0,1"
+        ),
+        "",
+        "[Events]",
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+    ]
+    for overlay in overlays[:30]:
+        try:
+            start = float(overlay.get("start_seconds", 0))
+            end = float(overlay.get("end_seconds", 0))
+            x_percent = max(5, min(95, int(overlay.get("position_x", 50))))
+            y_percent = max(5, min(95, int(overlay.get("position_y", 50))))
+            size_percent = max(60, min(200, int(overlay.get("font_size_percent", 100))))
+            text_color = str(overlay.get("color") or "#FFFFFF")
+            animation = str(overlay.get("animation") or "fade")
+        except (TypeError, ValueError):
+            continue
+        text = str(overlay.get("text") or "").strip()
+        if not text or not math.isfinite(start) or not math.isfinite(end):
+            continue
+        start = max(0.0, min(start, duration))
+        end = max(start, min(end, duration))
+        if end - start < 0.1:
+            continue
+        if not re.fullmatch(r"#[0-9A-Fa-f]{6}", text_color):
+            text_color = "#FFFFFF"
+        x = round(width * x_percent / 100)
+        y = round(height * y_percent / 100)
+        font_size = max(12, round(height * 0.052 * size_percent / 100))
+        tags = f"{{\\an5\\pos({x},{y})\\fs{font_size}\\c{_ass_color(text_color)}}}"
+        if animation == "fade":
+            tags = tags[:-1] + r"\\fad(160,160)}"
+        elif animation == "pop":
+            tags = tags[:-1] + r"\\fscx70\\fscy70\\t(0,180,\\fscx100\\fscy100)\\fad(100,120)}"
+        elif animation == "slide":
+            offset_y = min(height - 1, y + round(height * 0.045))
+            tags = (
+                f"{{\\an5\\move({x},{offset_y},{x},{y},0,220)\\fs{font_size}"
+                f"\\c{_ass_color(text_color)}\\fad(100,120)}}"
+            )
+        style = "OverlayBox" if overlay.get("background", True) else "Overlay"
+        escaped = r"\N".join(_escape(part) for part in text.splitlines())
+        script.append(f"Dialogue: 0,{_ts(start)},{_ts(end)},{style},,0,0,0,,{tags}{escaped}")
+    path.write_text("\\n".join(script) + "\\n", encoding="utf-8")
     return path
 
 
