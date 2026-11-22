@@ -8,8 +8,8 @@ import { PublishDialog } from '../components/PublishDialog'
 import { Button, Eyebrow, Panel, Squares, StatusChip, cn, formatDuration, sourceHost, sourceLabel, timeAgo } from '../components/ui'
 
 function parseCampaignLyricPhrases(lyrics: string): CampaignLyricPhrase[] {
-  const parsed = lyrics.split(/\\r?\\n/).flatMap((line, index) => {
-    const match = line.trim().match(/^\\[(\\d{1,2}):(\\d{2})(?:\\.(\\d{1,2}))?\\]\\s*(.+)$/)
+  const parsed = lyrics.split(/\r?\n/).flatMap((line, index) => {
+    const match = line.trim().match(/^\[(\d{1,2}):(\d{2})(?:\.(\d{1,2}))?\]\s*(.+)$/)
     if (!match) return []
     const [, minutes, seconds, fraction, text] = match
     const start = Number(minutes) * 60 + Number(seconds) + Number((fraction ?? '0').padEnd(2, '0').slice(0, 2)) / 100
