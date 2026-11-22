@@ -482,3 +482,29 @@ def test_campaign_text_overlay_pipeline_rejects_out_of_bounds_timing(monkeypatch
             "overlay-run",
             [{"rank": 1, "text": "Late", "start_seconds": 3.0, "end_seconds": 5.0}],
         )
+
+def test_campaign_text_overlay_pipeline_rejects_unapproved_font_family(monkeypatch):
+    import pytest
+
+    run = {"id": "overlay-run", "status": "completed", "options": {"campaign_mode": True}}
+    monkeypatch.setattr(pipeline.db, "get_run", lambda run_id: run)
+    monkeypatch.setattr(
+        pipeline.db,
+        "list_clips",
+        lambda run_id: [{"rank": 1, "duration_seconds": 4.0}],
+    )
+
+    with pytest.raises(ValueError, match="unsupported font family"):
+        pipeline.update_campaign_text_overlays(
+            "overlay-run",
+            [
+                {
+                    "rank": 1,
+                    "text": "Title",
+                    "start_seconds": 0,
+                    "end_seconds": 2,
+                    "font_family": "Untrusted Font",
+                }
+            ],
+        )
+
