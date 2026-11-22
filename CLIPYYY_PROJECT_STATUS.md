@@ -23,9 +23,9 @@
 ## Repository baseline (inspected 2026-11-22)
 
 - **Default branch:** `main`
-- **Latest main commit:** `b711e1c4316d9b4a339b1a44c854cca3048bc362` — Enable drag-and-drop campaign shot reordering (#44).
+- **Latest main commit:** `6beb639a80577830919fbac8ed5ea79f44cdfb1e` — Add drag trimming to campaign timeline (#46).
 - Recent completed main work includes lyric animation previews, multi-colour lyric captions, configurable lyric colours, word-accurate song transcription, campaign dialogue/montage editing, stock-footage discovery, editable storyboards, optional cinematic camera movement and ready-to-post copy in clip export archives.
-- **Open work:** PR #46 — direct drag trimming on the campaign timeline — is open and awaiting CI. PRs #29, #30, #31, #32, #34, #36, #37, #38, #40, #41, #42, #43 and #44 are merged. PRs #33, #35 and #39 were closed as superseded. PR #27 remains merged.
+- **Open work:** No active PRs at the latest check. PRs #29, #30, #31, #32, #34, #36, #37, #38, #40, #41, #42, #43, #44 and #46 are merged. PRs #33, #35 and #39 were closed as superseded. PR #27 remains merged.
 - **Branches observed:** `automatic-word-timed-lyrics`, `campaign-dialogue-transcription`, `campaign-footage-discovery`, `campaign-shot-editor`, `campaign-shot-editor-integration`, `creative-anime-editing`, `fix/campaign-export-audio-duration`, `fix/campaign-scene-selection-ci-final`, `fix/campaign-scene-selection-final-ci`, `fix/campaign-scene-selection-pacing`, `fix/campaign-scene-selection-pacing-ci`, `fix/campaign-scene-selection-release-check`, `fix/campaign-scene-selection-tested`, `fix/campaign-scene-selection-validated`, `improve-multi-clip-selection`, `instant-lyrics-style-editor`, `instant-lyrics-style-editor-ci`, `instant-lyrics-style-editor-verified`, `lyric-style-previews-multicolor`, `lyric-words-on-screen`, `lyrics-captions-animation`, `lyrics-color-controls`, `main`, `music-intelligence-hooks`, `refresh-legacy-lyric-timings`, `reuse-campaign-transcript-on-dialogue-rebuild`.
 - Branch names alone do not prove whether work is merged or active; check branch heads and diffs before reusing them.
 - **Coordination document branch:** `docs/project-coordination` (this document is maintained separately from application code).
@@ -70,7 +70,7 @@
 | Retention-aware virality scoring | `feature/retention-aware-virality-scoring` / [PR #41](https://github.com/Parth33831/clipyyy/pull/41) | Merged into main as `5d638f47dbf420cb3bd830299c37944ef5e9264d` | Scores hook, value, clarity, retention and shareability with a bounded weighted formula; older models retain the legacy score fallback. Fast-backend: 112 passed, 22 skipped; Ruff lint/format and frontend build passed. |
 | Opt-in social audio normalization | `feature/social-audio-normalization` / [PR #42](https://github.com/Parth33831/clipyyy/pull/42) | Merged into main as `e948f0dbefa3ce0e5ae6c5ad2a1e7a34b88dd5f2` | Adds an OFF-by-default Normalize audio control for spoken clips and campaign music, using FFmpeg loudnorm (-16 LUFS, -1.5 dBTP). Silent sources are untouched. Fast-backend: 118 passed, 24 skipped; Ruff lint/format and frontend build passed. |
 
-**Latest main baseline:** `b711e1c4316d9b4a339b1a44c854cca3048bc362`.
+**Latest main baseline:** `6beb639a80577830919fbac8ed5ea79f44cdfb1e`.
 
 **Validation honesty:** PR #29, #30, #31, #32, #34, #36, #37, #38, #40, #41 and #42 fast-backend and frontend checks passed. Windows, macOS and full-backend jobs were skipped by workflow configuration. No local Windows media test or real-media visual review has been run. PR #32 was rebuilt on top of merged #29/#30 code; PR #36 consolidated music-energy cut selection with selectable transitions on top of PR #34; PR #40 adds the visual shot/music timeline; PR #41 adds retention/shareability to the AI virality score; PR #42 adds opt-in loudness normalization.
 
@@ -433,5 +433,5 @@ STATUS: In progress / Ready for review / Merged
 
 - PR #43 added split-shot editing to the campaign storyboard and was merged into `main` as `d0670413cb68dc0148dfb3ca3b1815a557839406`.
 - PR #44 added drag-and-drop shot reordering to the campaign visual timeline. Reviewed the one-file frontend diff and confirmed fast-backend and frontend CI passed; squash-merged into `main` as `b711e1c4316d9b4a339b1a44c854cca3048bc362`.
-- PR #46 (`feature/campaign-timeline-drag-trim`) adds pointer-driven in/out handles to trim shots directly on the timeline, keeps numeric inputs and keyboard controls as alternatives, enforces the backend 1.5–5 second range and source duration, and rejects empty external drag payloads. It is open and awaiting CI; do not merge until checks pass.
+- PR #46 (`feature/campaign-timeline-drag-trim`) added pointer-driven in/out handles to trim shots directly on the timeline, keeps numeric inputs and keyboard controls as alternatives, enforces the backend 1.5–5 second range and source duration, and rejects empty external drag payloads. Frontend and fast-backend CI passed; squash-merged into `main` as `6beb639a80577830919fbac8ed5ea79f44cdfb1e`.
 - No local Windows or real-media visual/audio smoke test has been performed. Current machine constraints remain CPU-only Intel Iris Xe / 7.65 GB RAM; do not download a vision model or move media/cache data to C:.
