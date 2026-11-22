@@ -768,7 +768,7 @@ def render_campaign_montages(
                 visual = captioned
             text_overlays = [
                 overlay
-                for overlay in options.get("campaign_text_overlays", [])
+                for overlay in (options.get("campaign_text_overlays") or [])
                 if int(overlay.get("rank", 1)) == int(rank)
             ]
             if text_overlays:
