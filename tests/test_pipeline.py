@@ -391,6 +391,7 @@ def test_campaign_selection_keeps_creator_lyrics_and_uses_whisper_timing_cues(mo
     assert result["campaign_lyrics_source"] == "Creator-supplied lyrics; local Whisper timing reference"
     assert result["campaign_lyric_transcription_attempted"] is True
 
+
 def test_campaign_text_overlay_pipeline_persists_only_valid_output_layers(monkeypatch):
     run = {"id": "overlay-run", "options": {"campaign_mode": True, "other_option": "keep"}}
     saved = {}
