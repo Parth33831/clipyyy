@@ -35,6 +35,7 @@ export function RunDetailPage() {
   const [focused, setFocused] = useState<number | null>(null)
   const [musicFile, setMusicFile] = useState<File | null>(null)
   const [musicVolume, setMusicVolume] = useState(90)
+  const [sourceAudioVolume, setSourceAudioVolume] = useState(100)
   const [musicFadeIn, setMusicFadeIn] = useState(0.4)
   const [musicFadeOut, setMusicFadeOut] = useState(0.8)
   const [lyricsText, setLyricsText] = useState('')
@@ -82,6 +83,7 @@ export function RunDetailPage() {
   }, [setCampaignHistory])
   useEffect(() => {
     setMusicVolume(Math.round((run.data?.options.campaign_music_volume ?? 0.9) * 100))
+    setSourceAudioVolume(Math.round((run.data?.options.campaign_source_audio_volume ?? 1) * 100))
     setMusicFadeIn(run.data?.options.campaign_music_fade_in_seconds ?? 0.4)
     setMusicFadeOut(run.data?.options.campaign_music_fade_out_seconds ?? 0.8)
     setLyricsText(run.data?.options.campaign_lyrics ?? '')
@@ -126,7 +128,7 @@ export function RunDetailPage() {
     onError: (e) => toast.error(e.message),
   })
   const saveCampaignAudio = useMutation({
-    mutationFn: () => api.saveCampaignAudio(runId, musicVolume / 100, musicFadeIn, musicFadeOut),
+    mutationFn: () => api.saveCampaignAudio(runId, musicVolume / 100, sourceAudioVolume / 100, musicFadeIn, musicFadeOut),
     onSuccess: (result) => {
       toast.success(`Applied music mix to ${result.outputs} campaign edit(s).`)
       refresh()
@@ -257,9 +259,10 @@ export function RunDetailPage() {
   const data = run.data
   const busy = data.status === 'queued' || data.status === 'running'
   const savedMusicVolume = Math.round((data.options.campaign_music_volume ?? 0.9) * 100)
+  const savedSourceAudioVolume = Math.round((data.options.campaign_source_audio_volume ?? 1) * 100)
   const savedMusicFadeIn = data.options.campaign_music_fade_in_seconds ?? 0.4
   const savedMusicFadeOut = data.options.campaign_music_fade_out_seconds ?? 0.8
-  const musicSettingsChanged = musicVolume !== savedMusicVolume || musicFadeIn !== savedMusicFadeIn || musicFadeOut !== savedMusicFadeOut
+  const musicSettingsChanged = musicVolume !== savedMusicVolume || sourceAudioVolume !== savedSourceAudioVolume || musicFadeIn !== savedMusicFadeIn || musicFadeOut !== savedMusicFadeOut
   const readyClips = data.clips.filter((c) => c.status === 'ready')
 
   return (
@@ -370,7 +373,12 @@ export function RunDetailPage() {
                 <span className="font-medium">Music mix</span>
                 <span className="text-xs text-muted">Adjust the attached track, then re-render</span>
               </div>
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <label className="flex flex-col gap-2">
+                  <span className="flex justify-between gap-2"><span className="font-medium">Original video audio</span><span className="font-mono text-muted">{sourceAudioVolume}%</span></span>
+                  <input type="range" min={0} max={200} step={5} value={sourceAudioVolume} onChange={(event) => setSourceAudioVolume(Number(event.target.value))} className="w-full accent-current" />
+                  <span className="text-xs text-muted">0% mute · 100% original · 200% boost</span>
+                </label>
                 <label className="flex flex-col gap-2">
                   <span className="flex justify-between gap-2"><span className="font-medium">Music volume</span><span className="font-mono text-muted">{musicVolume}%</span></span>
                   <input type="range" min={0} max={200} step={5} value={musicVolume} onChange={(event) => setMusicVolume(Number(event.target.value))} className="w-full accent-current" />
