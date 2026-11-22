@@ -141,7 +141,9 @@ def create_foreground_mask_frame(
     try:
         import mediapipe as mp
     except ImportError as exc:
-        raise RuntimeError("Foreground lyrics need MediaPipe, which is not installed on this system.") from exc
+        raise RuntimeError(
+            "Foreground lyrics need MediaPipe, which is not installed on this system."
+        ) from exc
 
     selfie_module = getattr(getattr(mp, "solutions", None), "selfie_segmentation", None)
     if selfie_module is None:
