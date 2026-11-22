@@ -99,17 +99,21 @@ export function RunDetailPage() {
     },
     onError: (e) => toast.error(e.message),
   })
-  const lyricPhrases = lyricsText.split(/\r?\n/).map((line) => line.replace(/^\[\d{1,2}:\d{2}(?:\.\d{1,2})?\]\s*/, '').trim()).filter(Boolean)
-  const lyricPhraseTimes = lyricsText.split(/\r?\n/).map((line) => {
+  const lyricRows = lyricsText.split(/\r?\n/).map((line) => {
+    const text = line.replace(/^\[\d{1,2}:\d{2}(?:\.\d{1,2})?\]\s*/, '').trim()
     const match = line.trim().match(/^\[(\d{1,2}):(\d{2})(?:\.(\d{1,2}))?\]/)
-    if (!match) return null
-    return Number(match[1]) * 60 + Number(match[2]) + Number((match[3] ?? '0').padEnd(2, '0').slice(0, 2)) / 100
-  })
+    const start = match
+      ? Number(match[1]) * 60 + Number(match[2]) + Number((match[3] ?? '0').padEnd(2, '0').slice(0, 2)) / 100
+      : null
+    return { text, start }
+  }).filter((phrase) => phrase.text)
+  const lyricPhrases = lyricRows.map((phrase) => phrase.text)
+  const lyricPhraseTimes = lyricRows.map((phrase) => phrase.start)
+  const selectedPhraseEdit = phraseEdits.find((edit) => edit.phrase_index === selectedLyricPhrase)
   const selectedPhraseStart = selectedPhraseEdit?.start_seconds ?? lyricPhraseTimes[selectedLyricPhrase]
   const selectedPhraseEnd = selectedPhraseEdit?.end_seconds ?? (
     lyricPhraseTimes[selectedLyricPhrase + 1] ?? (selectedPhraseStart == null ? null : selectedPhraseStart + 3)
   )
-  const selectedPhraseEdit = phraseEdits.find((edit) => edit.phrase_index === selectedLyricPhrase)
   const previewPositionX = selectedPhraseEdit?.position_x ?? lyricsPositionX
   const previewPositionY = selectedPhraseEdit?.position_y ?? lyricsPositionY
   const previewScale = selectedPhraseEdit?.scale_percent ?? lyricsScale
