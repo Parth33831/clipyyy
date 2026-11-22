@@ -366,23 +366,27 @@ def test_montage_planner_uses_detected_music_structure_without_overriding_story(
         def complete_json(self, system, user, schema, name):
             self.user = user
             return {
-                "edits": [{
-                    "title": "Music-led campaign",
-                    "shots": [
-                        {"source_index": 0, "start_seconds": 1, "end_seconds": 3, "reason": "opening"},
-                        {"source_index": 0, "start_seconds": 4, "end_seconds": 6, "reason": "build"},
-                        {"source_index": 0, "start_seconds": 7, "end_seconds": 9, "reason": "payoff"},
-                    ],
-                }]
+                "edits": [
+                    {
+                        "title": "Music-led campaign",
+                        "shots": [
+                            {"source_index": 0, "start_seconds": 1, "end_seconds": 3, "reason": "opening"},
+                            {"source_index": 0, "start_seconds": 4, "end_seconds": 6, "reason": "build"},
+                            {"source_index": 0, "start_seconds": 7, "end_seconds": 9, "reason": "payoff"},
+                        ],
+                    }
+                ]
             }
 
     llm = MusicAwareLLM()
     source = {"title": "Campaign footage", "duration_seconds": 12}
-    analysis = {"frames": [
-        {"timestamp": 1, "description": "Quiet preparation"},
-        {"timestamp": 5, "description": "Action builds"},
-        {"timestamp": 8, "description": "Strong product reveal"},
-    ]}
+    analysis = {
+        "frames": [
+            {"timestamp": 1, "description": "Quiet preparation"},
+            {"timestamp": 5, "description": "Action builds"},
+            {"timestamp": 8, "description": "Strong product reveal"},
+        ]
+    }
     music = {
         "bpm": 120,
         "selected_section": "4.0–10.0s",
@@ -396,7 +400,13 @@ def test_montage_planner_uses_detected_music_structure_without_overriding_story(
     }
 
     edits = build_montage_plan(
-        llm, "Show the campaign story", {}, [source], [analysis], 1, 6,
+        llm,
+        "Show the campaign story",
+        {},
+        [source],
+        [analysis],
+        1,
+        6,
         music_analysis=music,
     )
 
@@ -413,10 +423,12 @@ def test_montage_planner_remains_compatible_without_music_analysis():
 
     llm = FakeMontageLLM()
     source = {"title": "Footage", "duration_seconds": 20}
-    analysis = {"frames": [
-        {"timestamp": 1, "description": "opening"},
-        {"timestamp": 8, "description": "build"},
-        {"timestamp": 15, "description": "payoff"},
-    ]}
+    analysis = {
+        "frames": [
+            {"timestamp": 1, "description": "opening"},
+            {"timestamp": 8, "description": "build"},
+            {"timestamp": 15, "description": "payoff"},
+        ]
+    }
     edits = build_montage_plan(llm, "Campaign", {}, [source], [analysis], 1, 6)
     assert len(edits) == 1
