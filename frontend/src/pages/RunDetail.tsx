@@ -391,15 +391,18 @@ function CampaignStoryboardEditor({
       shots: edit.shots.map((shot, position) => position === shotIndex ? { ...shot, ...patch } : shot),
     }))
   }
-  const moveShot = (editIndex: number, shotIndex: number, direction: -1 | 1) => {
+  const moveShotTo = (editIndex: number, fromIndex: number, toIndex: number) => {
     onChange(edits.map((edit, index) => {
-      if (index !== editIndex) return edit
-      const target = shotIndex + direction
-      if (target < 0 || target >= edit.shots.length) return edit
+      if (index !== editIndex || fromIndex === toIndex) return edit
+      if (fromIndex < 0 || toIndex < 0 || fromIndex >= edit.shots.length || toIndex >= edit.shots.length) return edit
       const shots = [...edit.shots]
-      ;[shots[shotIndex], shots[target]] = [shots[target], shots[shotIndex]]
+      const [moved] = shots.splice(fromIndex, 1)
+      shots.splice(toIndex, 0, moved)
       return { ...edit, shots }
     }))
+  }
+  const moveShot = (editIndex: number, shotIndex: number, direction: -1 | 1) => {
+    moveShotTo(editIndex, shotIndex, shotIndex + direction)
   }
   const removeShot = (editIndex: number, shotIndex: number) => {
     onChange(edits.map((edit, index) => index !== editIndex ? edit : {
