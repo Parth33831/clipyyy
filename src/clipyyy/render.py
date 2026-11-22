@@ -1327,7 +1327,6 @@ def write_campaign_lyrics(
     return path
 
 
-
 def write_campaign_text_overlays(
     overlays: list[dict],
     duration: float,
