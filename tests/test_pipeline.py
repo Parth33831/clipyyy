@@ -390,3 +390,64 @@ def test_campaign_selection_keeps_creator_lyrics_and_uses_whisper_timing_cues(mo
     assert result["campaign_lyric_words"] == []
     assert result["campaign_lyrics_source"] == "Creator-supplied lyrics; local Whisper timing reference"
     assert result["campaign_lyric_transcription_attempted"] is True
+
+
+def test_campaign_text_overlay_pipeline_persists_only_valid_output_layers(monkeypatch):
+    run = {"id": "overlay-run", "options": {"campaign_mode": True, "other_option": "keep"}}
+    saved = {}
+    monkeypatch.setattr(pipeline.db, "get_run", lambda run_id: run)
+    monkeypatch.setattr(
+        pipeline.db,
+        "list_clips",
+        lambda run_id: [{"rank": 1, "duration_seconds": 8.0}],
+    )
+    monkeypatch.setattr(
+        pipeline.db,
+        "update_run",
+        lambda run_id, **fields: saved.update(fields),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "rerender_campaign",
+        lambda run_id: {"renders": [{"rank": 1, "status": "ready"}]},
+    )
+
+    result = pipeline.update_campaign_text_overlays(
+        "overlay-run",
+        [
+            {
+                "rank": 1,
+                "text": "  SHOP   NOW  ",
+                "start_seconds": 1.0,
+                "end_seconds": 3.5,
+                "position_x": 45,
+                "position_y": 60,
+                "font_size_percent": 110,
+                "color": "#ff3b4f",
+                "animation": "slide",
+                "background": False,
+            }
+        ],
+    )
+
+    assert result["renders"][0]["status"] == "ready"
+    assert saved["options"]["other_option"] == "keep"
+    assert saved["options"]["campaign_text_overlays"][0]["text"] == "SHOP NOW"
+    assert saved["options"]["campaign_text_overlays"][0]["color"] == "#FF3B4F"
+
+def test_campaign_text_overlay_pipeline_rejects_out_of_bounds_timing(monkeypatch):
+    import pytest
+
+    run = {"id": "overlay-run", "options": {"campaign_mode": True}}
+    monkeypatch.setattr(pipeline.db, "get_run", lambda run_id: run)
+    monkeypatch.setattr(
+        pipeline.db,
+        "list_clips",
+        lambda run_id: [{"rank": 1, "duration_seconds": 4.0}],
+    )
+
+    with pytest.raises(ValueError, match="inside output #1"):
+        pipeline.update_campaign_text_overlays(
+            "overlay-run",
+            [{"rank": 1, "text": "Late", "start_seconds": 3.0, "end_seconds": 5.0}],
+        )
