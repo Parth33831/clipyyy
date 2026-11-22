@@ -376,9 +376,20 @@ def _interpolate_expression(points: list[tuple[float, float]]) -> str:
     return expression
 
 
-def campaign_shot_filter(width: int, height: int, shot_index: int, camera_motion: bool = True) -> str:
-    """Create a clean campaign crop with subtle alternating Ken Burns movement."""
+def campaign_shot_filter(
+    width: int,
+    height: int,
+    shot_index: int,
+    camera_motion: bool = True,
+    crop_boxes: list[dict] | None = None,
+    source_width: int | None = None,
+    source_height: int | None = None,
+) -> str:
+    """Create a campaign crop, preferring a tracked subject when face samples exist."""
     base_grade = ",eq=contrast=1.06:saturation=1.12"
+    if crop_boxes and source_width and source_height:
+        tracked_crop = crop_filter(crop_boxes, source_width, source_height, width / height)
+        return f"{tracked_crop},scale={width}:{height},setsar=1,fps={FPS},format=yuv420p{base_grade}"
     if not camera_motion:
         return fill_filter(width, height) + base_grade
 
@@ -394,6 +405,32 @@ def campaign_shot_filter(width: int, height: int, shot_index: int, camera_motion
         f"y='(ih-oh)*(0.5+0.18*cos(t*0.26+{phase:.4f}))':eval=frame,"
         f"setsar=1,fps={FPS},format=yuv420p{base_grade}"
     )
+
+
+def _campaign_subject_crop(source_path: Path, start: float, end: float, aspect: float):
+    """Reuse the existing face tracker only when its model is already installed.
+
+    Campaign rendering must not trigger an unexpected model download. If MediaPipe or
+    its model is absent, callers retain the existing centre/Ken Burns fallback.
+    """
+    try:
+        import importlib.util
+
+        from clipyyy.config import home
+
+        model_path = home() / "models" / "blaze_face_short_range.tflite"
+        if not model_path.is_file() or importlib.util.find_spec("mediapipe") is None:
+            return None, None, None
+        from clipyyy.reframe import plan_crop
+
+        source_width, source_height, _ = probe(source_path)
+        plan = plan_crop(source_path, aspect, start, end)
+        if plan.get("crop_mode") != "face" or not plan.get("crop_boxes"):
+            return None, source_width, source_height
+        return plan["crop_boxes"], source_width, source_height
+    except Exception:
+        # A failed optional detector must never make a campaign render fail.
+        return None, None, None
 
 
 def _campaign_audio_filter(
@@ -498,8 +535,20 @@ def render_campaign_montages(
                     if duration < 1.0:
                         continue
                     segment = edit_dir / f"shot-{shot_index:03d}.mp4"
+                    crop_boxes = None
+                    source_width = source_height = None
+                    if options.get("face_tracking", True):
+                        crop_boxes, source_width, source_height = _campaign_subject_crop(
+                            source_path, start, end, width / height
+                        )
                     vf = campaign_shot_filter(
-                        width, height, shot_index, options.get("campaign_camera_motion", True)
+                        width,
+                        height,
+                        shot_index,
+                        options.get("campaign_camera_motion", True),
+                        crop_boxes=crop_boxes,
+                        source_width=source_width,
+                        source_height=source_height,
                     )
                     run_ffmpeg(
                         [
