@@ -99,7 +99,7 @@ export function RunDetailPage() {
     },
     onError: (e) => toast.error(e.message),
   })
-  const lyricPhrases = lyricsText.split(/\\r?\\n/).map((line) => line.replace(/^\\[\\d{1,2}:\\d{2}(?:\\.\\d{1,2})?\\]\\s*/, '').trim()).filter(Boolean)
+  const lyricPhrases = lyricsText.split(/\r?\n/).map((line) => line.replace(/^\[\d{1,2}:\d{2}(?:\.\d{1,2})?\]\s*/, '').trim()).filter(Boolean)
   const selectedPhraseEdit = phraseEdits.find((edit) => edit.phrase_index === selectedLyricPhrase)
   const updateSelectedPhrase = (patch: Partial<CampaignLyricPhraseEdit>) => {
     setPhraseEdits((current) => {
