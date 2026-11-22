@@ -1390,8 +1390,15 @@ function CampaignTimeline({
                   videoRef.current?.pause()
                   audioRef.current?.pause()
                   setIsPlaying(false)
+                  const timelineStart = shots.slice(0, index).reduce((sum, item) => sum + item.duration, 0)
+                  pendingSeekRef.current = shot.start_seconds
                   setPreviewShotIndex(index)
-                  setPlayheadSeconds(shots.slice(0, index).reduce((sum, item) => sum + item.duration, 0))
+                  setPlayheadSeconds(timelineStart)
+                  if (index === previewShotIndex && videoRef.current) {
+                    videoRef.current.currentTime = shot.start_seconds
+                    pendingSeekRef.current = null
+                  }
+                  if (audioRef.current) audioRef.current.currentTime = musicStart + timelineStart
                   document.getElementById(`campaign-shot-${edit.rank}-${index}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
                 }}
                 draggable
