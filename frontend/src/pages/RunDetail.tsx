@@ -526,6 +526,7 @@ export function RunDetailPage() {
           originalEdits={data.campaign_original_edits ?? data.campaign_edits}
           sources={data.campaign_sources ?? []}
           musicAnalysis={data.campaign_quality_checks?.music_analysis ?? null}
+          hasMusic={Boolean(data.options.campaign_music_path)}
           textOverlays={campaignTextOverlays}
           onUpdateTextOverlay={(overlayIndex, patch) => setCampaignTextOverlays((current) => current.map((overlay, index) => index === overlayIndex ? { ...overlay, ...patch } : overlay))}
           transitionStyle={data.options.campaign_transition_style ?? 'auto'}
@@ -691,7 +692,7 @@ function CampaignStoryboardEditor({
             runId={runId}
             sources={sources}
             musicAnalysis={musicAnalysis}
-            hasMusic={Boolean(data.options.campaign_music_path)}
+            hasMusic={hasMusic}
             textOverlays={textOverlays}
             onUpdateTextOverlay={onUpdateTextOverlay}
             transitionStyle={transitionStyle}
@@ -920,6 +921,7 @@ function CampaignTimeline({
   runId,
   sources,
   musicAnalysis,
+  hasMusic,
   textOverlays,
   onUpdateTextOverlay,
   transitionStyle,
@@ -930,6 +932,7 @@ function CampaignTimeline({
   runId: string
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
+  hasMusic: boolean
   textOverlays: CampaignTextOverlay[]
   onUpdateTextOverlay: (overlayIndex: number, patch: Partial<CampaignTextOverlay>) => void
   transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
