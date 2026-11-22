@@ -67,6 +67,9 @@ class ClipOptions(BaseModel):
     campaign_lyrics: str = Field(
         "", max_length=12000, description="Optional creator-provided or locally transcribed lyric lines"
     )
+    campaign_lyric_words: list[dict[str, Any]] = Field(default_factory=list)
+    campaign_detected_lyric_words: list[dict[str, Any]] = Field(default_factory=list)
+    campaign_lyric_transcription_attempted: bool = False
     campaign_lyrics_source: str | None = Field(None, description="Origin of the campaign lyric draft")
     campaign_lyrics_style: Literal[
         "dynamic", "cinematic", "minimal", "karaoke", "zoom", "bounce", "pulse", "glitch"
@@ -130,6 +133,55 @@ def stage_transcribe(ctx: Context) -> dict:
         model_size,
         ctx.options["language"],
     )
+
+
+def _campaign_lyric_draft(
+    words: list[dict], music_start: float, target_seconds: float
+) -> tuple[str, list[dict]]:
+    """Build editable LRC-style lines and timed semantic cues from local Whisper words."""
+    groups: list[list[dict]] = []
+    current: list[dict] = []
+    usable = []
+    for item in words:
+        try:
+            start = float(item["start"])
+            end = float(item["end"])
+            text = str(item["word"]).strip()
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not text or end <= start or end <= music_start or start >= music_start + target_seconds:
+            continue
+        usable.append(
+            {
+                "word": text,
+                "start": max(0.0, start - music_start),
+                "end": min(target_seconds, end - music_start),
+                "track_start": start,
+            }
+        )
+    for word in usable:
+        if current and (word["start"] - current[-1]["end"] > 0.55 or len(current) >= 7):
+            groups.append(current)
+            current = []
+        current.append(word)
+    if current:
+        groups.append(current)
+
+    lines = []
+    cues = []
+    for group in groups:
+        track_start = group[0]["track_start"]
+        stamp = f"[{int(track_start // 60):02d}:{track_start % 60:05.2f}]"
+        text = " ".join(item["word"] for item in group)
+        lines.append(f"{stamp} {text}")
+        cues.append(
+            {
+                "text": text,
+                "start_seconds": round(group[0]["start"], 3),
+                "end_seconds": round(group[-1]["end"], 3),
+            }
+        )
+    return "\n".join(lines), cues
 
 
 def stage_select(ctx: Context) -> dict:
@@ -267,6 +319,55 @@ def stage_select(ctx: Context) -> dict:
                 music_analysis = analyze_campaign_music(Path(music_path), target)
             except Exception as exc:
                 logger.warning("Campaign music analysis was unavailable during shot planning: %s", exc)
+        lyric_cues = []
+        lyric_options = {
+            "campaign_lyrics": str(options.get("campaign_lyrics", "") or ""),
+            "campaign_lyrics_source": options.get("campaign_lyrics_source"),
+            "campaign_lyric_words": list(options.get("campaign_lyric_words") or []),
+            "campaign_detected_lyric_words": list(options.get("campaign_detected_lyric_words") or []),
+            "campaign_lyric_transcription_attempted": bool(
+                options.get("campaign_lyric_transcription_attempted", False)
+            ),
+        }
+        creator_edited_lyrics = lyric_options["campaign_lyrics_source"] == "Creator-edited"
+        cue_words = (
+            []
+            if creator_edited_lyrics
+            else lyric_options["campaign_detected_lyric_words"] or lyric_options["campaign_lyric_words"]
+        )
+        if cue_words and music_analysis:
+            lyric_offset = float((music_analysis or {}).get("best_start_seconds") or 0.0)
+            _, lyric_cues = _campaign_lyric_draft(cue_words, lyric_offset, target)
+        elif music_path and not creator_edited_lyrics and not lyric_options[
+            "campaign_lyric_transcription_attempted"
+        ]:
+            try:
+                from clipyyy.transcribe import transcribe_music
+
+                lyric_work = ctx.work_dir / "campaign-music-lyrics"
+                lyric_work.mkdir(parents=True, exist_ok=True)
+                lyric_result = transcribe_music(
+                    Path(music_path), lyric_work, get_setting("whisper_model") or "tiny", "auto"
+                )
+                words = lyric_result.get("words", [])
+                lyric_options["campaign_detected_lyric_words"] = words
+                lyric_options["campaign_lyric_transcription_attempted"] = True
+                lyric_offset = float((music_analysis or {}).get("best_start_seconds") or 0.0)
+                draft_text, lyric_cues = _campaign_lyric_draft(words, lyric_offset, target)
+                if lyric_options["campaign_lyrics"].strip():
+                    lyric_options["campaign_lyrics_source"] = (
+                        "Creator-supplied lyrics; local Whisper timing reference"
+                    )
+                    lyric_options["campaign_lyric_words"] = []
+                else:
+                    lyric_options["campaign_lyrics"] = draft_text
+                    lyric_options["campaign_lyrics_source"] = (
+                        "Local Whisper draft — review for singing-recognition errors"
+                    )
+                    lyric_options["campaign_lyric_words"] = words
+                db.update_run(ctx.run_id, options={**ctx.options, **lyric_options})
+            except Exception as exc:
+                logger.warning("Local campaign lyric analysis was unavailable during shot planning: %s", exc)
         edits = build_montage_plan(
             llm,
             campaign_brief,
@@ -278,7 +379,8 @@ def stage_select(ctx: Context) -> dict:
             options.get("instructions", ""),
             reference_analyses=reference_analyses,
             music_analysis=music_analysis,
-            campaign_lyrics=options.get("campaign_lyrics", ""),
+            campaign_lyrics=lyric_options["campaign_lyrics"],
+            lyric_cues=lyric_cues,
         )
         db.update_run(ctx.run_id, title=plan.get("campaign_name") or source.get("title") or "Campaign edit")
         clips = []
@@ -314,6 +416,12 @@ def stage_select(ctx: Context) -> dict:
             "campaign_edits": edits,
             "campaign_original_edits": json.loads(json.dumps(edits)),
             "campaign_music_analysis": music_analysis,
+            "campaign_lyrics": lyric_options["campaign_lyrics"],
+            "campaign_lyrics_source": lyric_options["campaign_lyrics_source"],
+            "campaign_lyric_words": lyric_options["campaign_lyric_words"],
+            "campaign_detected_lyric_words": lyric_options["campaign_detected_lyric_words"],
+            "campaign_lyric_transcription_attempted": lyric_options["campaign_lyric_transcription_attempted"],
+            "campaign_lyric_cues": lyric_cues,
             "campaign_sources": sources,
             "clips": clips,
         }
@@ -373,6 +481,22 @@ def stage_render(ctx: Context) -> dict:
             **ctx.options,
             "campaign_plan": ctx.state["select"].get("campaign_plan"),
             "campaign_music_analysis": ctx.state["select"].get("campaign_music_analysis"),
+            "campaign_lyrics": ctx.state["select"].get(
+                "campaign_lyrics", ctx.options.get("campaign_lyrics", "")
+            ),
+            "campaign_lyrics_source": ctx.state["select"].get(
+                "campaign_lyrics_source", ctx.options.get("campaign_lyrics_source")
+            ),
+            "campaign_lyric_words": ctx.state["select"].get(
+                "campaign_lyric_words", ctx.options.get("campaign_lyric_words", [])
+            ),
+            "campaign_detected_lyric_words": ctx.state["select"].get(
+                "campaign_detected_lyric_words", ctx.options.get("campaign_detected_lyric_words", [])
+            ),
+            "campaign_lyric_transcription_attempted": ctx.state["select"].get(
+                "campaign_lyric_transcription_attempted",
+                ctx.options.get("campaign_lyric_transcription_attempted", False),
+            ),
         }
         music_path = render_options.get("campaign_music_path")
         # A supplied song is enough to offer a timed local lyric draft; do not make
@@ -380,7 +504,9 @@ def stage_render(ctx: Context) -> dict:
         has_lyrics = bool(render_options.get("campaign_lyrics", "").strip())
         has_word_timings = bool(render_options.get("campaign_lyric_words"))
         creator_edited = render_options.get("campaign_lyrics_source") == "Creator-edited"
-        if music_path and (not has_lyrics or (not has_word_timings and not creator_edited)):
+        if music_path and not render_options.get("campaign_lyric_transcription_attempted") and (
+            not has_lyrics or (not has_word_timings and not creator_edited)
+        ):
             # Draft lyric captions locally from the supplied music. Singing recognition is
             # imperfect, so the result is explicitly labelled as an editable Whisper draft.
             try:
@@ -392,36 +518,37 @@ def stage_render(ctx: Context) -> dict:
                     Path(music_path), lyric_work, get_setting("whisper_model") or "tiny", "auto"
                 )
                 words = lyric_result.get("words", [])
-                # Preserve the recognizer's actual word boundaries for karaoke timing.
-                render_options["campaign_lyric_words"] = words
-                groups = []
-                current = []
-                for word in words:
-                    if current and (
-                        float(word["start"]) - float(current[-1]["end"]) > 0.55 or len(current) >= 7
-                    ):
-                        groups.append(current)
-                        current = []
-                    current.append(word)
-                if current:
-                    groups.append(current)
-                lyric_lines = []
-                for group in groups:
-                    start = float(group[0]["start"])
-                    stamp = f"[{int(start // 60):02d}:{start % 60:05.2f}]"
-                    lyric_lines.append(stamp + " " + " ".join(item["word"] for item in group))
-                if lyric_lines:
-                    render_options["campaign_lyrics"] = "\n".join(lyric_lines)
+                render_options["campaign_detected_lyric_words"] = words
+                if has_lyrics:
+                    # Never replace creator-entered copy with imperfect singing recognition.
+                    render_options["campaign_lyric_words"] = []
                     render_options["campaign_lyrics_source"] = (
-                        "Local Whisper draft — review for singing-recognition errors"
+                        "Creator-supplied lyrics; local Whisper timing reference"
                     )
-                    updated_options = {
-                        **ctx.options,
-                        "campaign_lyrics": render_options["campaign_lyrics"],
-                        "campaign_lyrics_source": render_options["campaign_lyrics_source"],
-                        "campaign_lyric_words": words,
-                    }
-                    db.update_run(ctx.run_id, options=updated_options)
+                else:
+                    music_analysis = render_options.get("campaign_music_analysis") or {}
+                    campaign_plan = render_options.get("campaign_plan") or {}
+                    draft_text, _ = _campaign_lyric_draft(
+                        words,
+                        float(music_analysis.get("best_start_seconds") or 0.0),
+                        float(campaign_plan.get("target_duration_seconds") or 30.0),
+                    )
+                    render_options["campaign_lyric_words"] = words
+                    if draft_text:
+                        render_options["campaign_lyrics"] = draft_text
+                        render_options["campaign_lyrics_source"] = (
+                            "Local Whisper draft — review for singing-recognition errors"
+                        )
+                render_options["campaign_lyric_transcription_attempted"] = True
+                updated_options = {
+                    **ctx.options,
+                    "campaign_lyrics": render_options["campaign_lyrics"],
+                    "campaign_lyrics_source": render_options.get("campaign_lyrics_source"),
+                    "campaign_lyric_words": render_options["campaign_lyric_words"],
+                    "campaign_detected_lyric_words": render_options["campaign_detected_lyric_words"],
+                    "campaign_lyric_transcription_attempted": True,
+                }
+                db.update_run(ctx.run_id, options=updated_options)
             except Exception as exc:
                 logger.warning("Local campaign lyric transcription was unavailable: %s", exc)
         render_source = dict(ctx.state["download"])
