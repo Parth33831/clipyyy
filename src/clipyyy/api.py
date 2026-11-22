@@ -380,7 +380,6 @@ def create_app(start_worker: bool = True) -> FastAPI:
         return FileResponse(
             video_path,
             media_type=media_type,
-            filename=video_path.name,
             headers={"Cache-Control": "private, max-age=3600"},
         )
     @app.get("/api/runs/{run_id}/campaign-frame")
