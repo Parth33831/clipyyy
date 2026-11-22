@@ -77,6 +77,10 @@ class ClipOptions(BaseModel):
     campaign_lyrics_color: str = Field("#FFFFFF", pattern=r"^#[0-9A-Fa-f]{6}$")
     campaign_lyrics_highlight_color: str = Field("#00D7FF", pattern=r"^#[0-9A-Fa-f]{6}$")
     campaign_lyrics_words_on_screen: Literal[1, 2, 3] = 3
+    campaign_lyrics_position_x: int = Field(50, ge=5, le=95)
+    campaign_lyrics_position_y: int = Field(84, ge=5, le=95)
+    campaign_lyrics_scale_percent: int = Field(100, ge=50, le=200)
+    campaign_lyrics_rotation_degrees: int = Field(0, ge=-30, le=30)
     campaign_lyrics_behind_subject: bool = False
     campaign_hook_text: str = Field("", max_length=160)
     include_campaign_hook: bool = False

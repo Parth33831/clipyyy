@@ -714,3 +714,60 @@ def test_lyrics_behind_subject_composites_text_between_background_and_person(tmp
     assert (width, height) == (540, 960)
     assert duration == pytest.approx(2.0, abs=0.2)
     assert output.is_file() and output.stat().st_size > 0
+
+
+def test_campaign_word_lyrics_apply_saved_position_scale_and_rotation(tmp_path):
+    from clipyyy.render import write_campaign_word_lyrics
+
+    path = write_campaign_word_lyrics(
+        [{"word": "Move", "start": 0.2, "end": 0.8}],
+        2.0,
+        tmp_path / "placed-lyrics.ass",
+        1080,
+        1920,
+        position_x=42,
+        position_y=61,
+        scale_percent=135,
+        rotation_degrees=-8,
+    )
+    script = path.read_text(encoding="utf-8")
+    assert r"\pos(454,1171)" in script
+    assert r"\fscx135\fscy135\frz-8" in script
+
+
+def test_campaign_word_lyrics_clamp_transform_values_to_safe_bounds(tmp_path):
+    from clipyyy.render import write_campaign_word_lyrics
+
+    path = write_campaign_word_lyrics(
+        [{"word": "Safe", "start": 0.2, "end": 0.8}],
+        2.0,
+        tmp_path / "safe-lyrics.ass",
+        1080,
+        1920,
+        position_x=0,
+        position_y=100,
+        scale_percent=500,
+        rotation_degrees=90,
+    )
+    script = path.read_text(encoding="utf-8")
+    assert r"\pos(54,1824)" in script
+    assert r"\fscx200\fscy200\frz30" in script
+
+
+def test_campaign_lyrics_apply_saved_transform_without_word_timing(tmp_path):
+    from clipyyy.render import write_campaign_lyrics
+
+    path = write_campaign_lyrics(
+        ["[00:00.00]A line without word-level timing"],
+        2.0,
+        tmp_path / "manual-lyrics.ass",
+        1080,
+        1920,
+        position_x=35,
+        position_y=70,
+        scale_percent=120,
+        rotation_degrees=6,
+    )
+    script = path.read_text(encoding="utf-8")
+    assert r"\pos(378,1344)" in script
+    assert r"\fscx120\fscy120\frz6" in script

@@ -34,6 +34,10 @@ export function RunDetailPage() {
   const [lyricsHighlightColor, setLyricsHighlightColor] = useState('#00D7FF')
   const [lyricsWordsOnScreen, setLyricsWordsOnScreen] = useState<1 | 2 | 3>(3)
   const [lyricsBehindSubject, setLyricsBehindSubject] = useState(false)
+  const [lyricsPositionX, setLyricsPositionX] = useState(50)
+  const [lyricsPositionY, setLyricsPositionY] = useState(84)
+  const [lyricsScale, setLyricsScale] = useState(100)
+  const [lyricsRotation, setLyricsRotation] = useState(0)
   const [campaignEdits, setCampaignEdits] = useState<CampaignEdit[]>([])
   useEffect(() => {
     setMusicVolume(Math.round((run.data?.options.campaign_music_volume ?? 0.9) * 100))
@@ -47,8 +51,12 @@ export function RunDetailPage() {
     setLyricsHighlightColor(run.data?.options.campaign_lyrics_highlight_color ?? '#00D7FF')
     setLyricsWordsOnScreen(run.data?.options.campaign_lyrics_words_on_screen ?? 3)
     setLyricsBehindSubject(Boolean(run.data?.options.campaign_lyrics_behind_subject))
+    setLyricsPositionX(run.data?.options.campaign_lyrics_position_x ?? 50)
+    setLyricsPositionY(run.data?.options.campaign_lyrics_position_y ?? 84)
+    setLyricsScale(run.data?.options.campaign_lyrics_scale_percent ?? 100)
+    setLyricsRotation(run.data?.options.campaign_lyrics_rotation_degrees ?? 0)
     setCampaignEdits(run.data?.campaign_edits ?? [])
-  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.campaign_plan?.generated_hook])
+  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.campaign_plan?.generated_hook])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -80,7 +88,7 @@ export function RunDetailPage() {
     onError: (e) => toast.error(e.message),
   })
   const saveLyrics = useMutation({
-    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook, lyricsColor, lyricsHighlightColor, lyricsWordsOnScreen, lyricsBehindSubject),
+    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook, lyricsColor, lyricsHighlightColor, lyricsWordsOnScreen, lyricsBehindSubject, lyricsPositionX, lyricsPositionY, lyricsScale, lyricsRotation),
     onSuccess: (result) => {
       toast.success(`Applied to ${result.outputs} existing edit(s) — no re-picking or lyric transcription.`)
       refresh()
@@ -298,6 +306,25 @@ export function RunDetailPage() {
               ))}
             </div>
             <span className="text-xs text-muted">Shows a rolling group of 1, 2, or 3 words as the song progresses. Default: 3.</span>
+          </div>
+          <div className="grid gap-4 rounded-lg border border-line bg-panel p-3 text-sm sm:grid-cols-2">
+            <label className="flex flex-col gap-2">
+              <span className="flex justify-between"><span className="font-medium">Horizontal position</span><span className="font-mono text-muted">{lyricsPositionX}%</span></span>
+              <input type="range" min={5} max={95} value={lyricsPositionX} onChange={(event) => setLyricsPositionX(Number(event.target.value))} className="w-full accent-current" />
+            </label>
+            <label className="flex flex-col gap-2">
+              <span className="flex justify-between"><span className="font-medium">Vertical position</span><span className="font-mono text-muted">{lyricsPositionY}%</span></span>
+              <input type="range" min={5} max={95} value={lyricsPositionY} onChange={(event) => setLyricsPositionY(Number(event.target.value))} className="w-full accent-current" />
+            </label>
+            <label className="flex flex-col gap-2">
+              <span className="flex justify-between"><span className="font-medium">Text size</span><span className="font-mono text-muted">{lyricsScale}%</span></span>
+              <input type="range" min={50} max={200} step={5} value={lyricsScale} onChange={(event) => setLyricsScale(Number(event.target.value))} className="w-full accent-current" />
+            </label>
+            <label className="flex flex-col gap-2">
+              <span className="flex justify-between"><span className="font-medium">Rotation</span><span className="font-mono text-muted">{lyricsRotation}°</span></span>
+              <input type="range" min={-30} max={30} value={lyricsRotation} onChange={(event) => setLyricsRotation(Number(event.target.value))} className="w-full accent-current" />
+            </label>
+            <p className="text-xs text-muted sm:col-span-2">These controls position, resize and rotate the complete timed lyric layer. Defaults preserve the existing lower-center layout. Changes are applied when you re-render.</p>
           </div>
           <label className="flex items-start gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
             <input
