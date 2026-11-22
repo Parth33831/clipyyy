@@ -731,8 +731,8 @@ def test_campaign_word_lyrics_apply_saved_position_scale_and_rotation(tmp_path):
         rotation_degrees=-8,
     )
     script = path.read_text(encoding="utf-8")
-    assert r"\\pos(454,1171)" in script
-    assert r"\\fscx135\\fscy135\\frz-8" in script
+    assert r"\pos(454,1171)" in script
+    assert r"\fscx135\\fscy135\\frz-8" in script
 
 
 def test_campaign_word_lyrics_clamp_transform_values_to_safe_bounds(tmp_path):
@@ -750,5 +750,5 @@ def test_campaign_word_lyrics_clamp_transform_values_to_safe_bounds(tmp_path):
         rotation_degrees=90,
     )
     script = path.read_text(encoding="utf-8")
-    assert r"\\pos(54,1824)" in script
-    assert r"\\fscx200\\fscy200\\frz30" in script
+    assert r"\pos(54,1824)" in script
+    assert r"\fscx200\\fscy200\\frz30" in script
