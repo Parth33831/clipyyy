@@ -921,6 +921,7 @@ function CampaignTimeline({
   onMoveShot: (fromIndex: number, toIndex: number) => void
   onUpdateShot: (shotIndex: number, patch: Partial<CampaignShot>) => void
 }) {
+  const [previewShotIndex, setPreviewShotIndex] = useState(0)
   const [activeTrim, setActiveTrim] = useState<{
     pointerId: number
     shotIndex: number
@@ -948,6 +949,34 @@ function CampaignTimeline({
         <span className="label text-muted">Video timeline · drag shots to reorder</span>
         <span className="font-mono text-[11px] text-faint">{formatDuration(total)} estimated</span>
       </div>
+      {shots.length > 0 && (() => {
+        const preview = shots[previewShotIndex] ?? shots[0]
+        const source = sourceByIndex.get(preview.shot.source_index)
+        return (
+          <div className="grid gap-3 rounded-md border border-line bg-surface p-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(180px,1fr)] sm:items-center">
+            <video
+              key={String(preview.index) + "-" + String(preview.shot.source_index) + "-" + String(preview.shot.start_seconds)}
+              controls
+              playsInline
+              preload="metadata"
+              src={"/api/runs/" + runId + "/campaign-source?source_index=" + preview.shot.source_index}
+              onLoadedMetadata={(event) => { event.currentTarget.currentTime = preview.shot.start_seconds }}
+              onTimeUpdate={(event) => {
+                if (event.currentTarget.currentTime >= preview.shot.end_seconds) event.currentTarget.pause()
+              }}
+              className="max-h-64 w-full rounded-md bg-black"
+            />
+            <div className="flex flex-col gap-1">
+              <span className="label text-muted">Live source preview · shot {preview.index + 1}</span>
+              <span className="text-sm font-medium">{source?.title ?? "Source " + (preview.shot.source_index + 1)}</span>
+              <span className="font-mono text-xs text-faint">
+                {formatDuration(preview.shot.start_seconds)} → {formatDuration(preview.shot.end_seconds)}
+              </span>
+              <p className="mt-1 text-xs text-muted">Play the actual footage for this shot. Playback pauses at its selected out-point; choose another block to preview it.</p>
+            </div>
+          </div>
+        )
+      })()}
       <div className="overflow-x-auto">
         <div data-campaign-timeline-track className="flex min-w-[680px] gap-1 rounded-md bg-surface p-2">
           {shots.map(({ shot, index, duration }) => {
@@ -958,7 +987,7 @@ function CampaignTimeline({
                 type="button"
                 title={`Shot ${index + 1}: ${source?.title ?? `Source ${shot.source_index + 1}`} · ${formatDuration(shot.end_seconds - shot.start_seconds)}`}
                 aria-label={`Jump to shot ${index + 1} in the storyboard editor`}
-                onClick={() => document.getElementById(`campaign-shot-${edit.rank}-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                onClick={() => { setPreviewShotIndex(index); document.getElementById(`campaign-shot-${edit.rank}-${index}`)?.scrollIntoView({ behavior: "smooth", block: "center" }) }}
                 draggable
                 onDragStart={(event) => {
                   event.dataTransfer.effectAllowed = 'move'
@@ -973,7 +1002,7 @@ function CampaignTimeline({
                   const draggedIndex = event.dataTransfer.getData('text/plain')
                   if (!draggedIndex.trim()) return
                   const fromIndex = Number(draggedIndex)
-                  if (Number.isInteger(fromIndex)) onMoveShot(fromIndex, index)
+                  if (Number.isInteger(fromIndex)) { onMoveShot(fromIndex, index); setPreviewShotIndex(index) }
                 }}
                 className="group relative min-w-[104px] flex-1 cursor-grab overflow-hidden rounded-md border border-line bg-paper text-left transition-colors hover:border-ink active:cursor-grabbing"
                 style={{ flex: `${duration} 1 0%` }}
