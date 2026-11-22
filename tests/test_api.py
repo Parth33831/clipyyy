@@ -471,3 +471,77 @@ def test_campaign_lyrics_update_persists_behind_subject_option(client, monkeypat
     assert saved["campaign_lyrics_position_y"] == 61
     assert saved["campaign_lyrics_scale_percent"] == 135
     assert saved["campaign_lyrics_rotation_degrees"] == -8
+
+def test_campaign_text_overlays_are_validated_saved_and_rerendered(client, monkeypatch):
+    run = client.post(
+        "/api/runs",
+        json={
+            "sources": ["https://example.com/campaign.mp4"],
+            "options": {"campaign_mode": True, "campaign_brief": "Summer campaign"},
+        },
+    ).json()[0]
+    db.update_run(run["id"], status="completed")
+    monkeypatch.setattr(
+        db,
+        "list_clips",
+        lambda run_id: [{"rank": 1, "duration_seconds": 12.0}],
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "rerender_campaign",
+        lambda run_id: {"renders": [{"status": "ready"}]},
+    )
+
+    overlay = {
+        "rank": 1,
+        "text": "SUMMER SALE",
+        "start_seconds": 1.0,
+        "end_seconds": 4.5,
+        "position_x": 50,
+        "position_y": 42,
+        "font_size_percent": 125,
+        "color": "#FF3B4F",
+        "animation": "pop",
+        "background": True,
+    }
+    response = client.put(
+        f"/api/runs/{run['id']}/campaign-text-overlays",
+        json={"overlays": [overlay]},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["overlays"] == 1
+    saved = db.get_run(run["id"])["options"]["campaign_text_overlays"]
+    assert saved == [overlay]
+
+
+def test_campaign_text_overlay_rejects_timing_outside_output(client, monkeypatch):
+    run = client.post(
+        "/api/runs",
+        json={
+            "sources": ["https://example.com/campaign.mp4"],
+            "options": {"campaign_mode": True},
+        },
+    ).json()[0]
+    db.update_run(run["id"], status="completed")
+    monkeypatch.setattr(
+        db,
+        "list_clips",
+        lambda run_id: [{"rank": 1, "duration_seconds": 5.0}],
+    )
+    response = client.put(
+        f"/api/runs/{run['id']}/campaign-text-overlays",
+        json={
+            "overlays": [
+                {
+                    "rank": 1,
+                    "text": "Too late",
+                    "start_seconds": 4.0,
+                    "end_seconds": 6.0,
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 400
+    assert "inside output #1" in response.json()["detail"]
