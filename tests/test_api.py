@@ -160,13 +160,27 @@ def test_campaign_audio_settings_can_be_saved_and_rerendered(client, monkeypatch
     assert captured["options"]["campaign_music_fade_out_seconds"] == 2.5
 
 
-def test_campaign_audio_settings_require_an_attached_music_track(client):
+def test_campaign_audio_settings_can_update_source_audio_without_music(client, monkeypatch):
     run = db.create_run("campaign", {"campaign_mode": True, "campaign_music_path": None}, status="completed")
+    captured = {}
+
+    def fake_rerender(run_id):
+        captured["options"] = db.get_run(run_id)["options"]
+        return {"renders": [{"rank": 1, "status": "ready"}]}
+
+    monkeypatch.setattr(pipeline, "rerender_campaign", fake_rerender)
     response = client.put(
         f"/api/runs/{run['id']}/campaign-audio",
-        json={"music_volume": 0.9, "fade_in_seconds": 0.4, "fade_out_seconds": 0.8},
+        json={
+            "music_volume": 0.9,
+            "source_audio_volume": 0.65,
+            "fade_in_seconds": 0.4,
+            "fade_out_seconds": 0.8,
+        },
     )
-    assert response.status_code == 400
+
+    assert response.status_code == 200
+    assert captured["options"]["campaign_source_audio_volume"] == 0.65
 
 
 def test_campaign_audio_settings_reject_out_of_range_values(client):
