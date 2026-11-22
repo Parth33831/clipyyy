@@ -322,7 +322,7 @@ def test_campaign_lyrics_apply_individual_phrase_transforms(tmp_path):
             {"phrase_index": 0, "position_x": 25, "position_y": 40, "scale_percent": 150},
         ],
     )
-    dialogue = [line for line in path.read_text(encoding="utf-8").splitlines() if line.startswith("Dialogue:")]
+    dialogue = [\n        line for line in path.read_text(encoding="utf-8").splitlines() if line.startswith("Dialogue:")\n    ]
     assert "\\pos(270,768)" in dialogue[0]
     assert "\\fscx150\\fscy150" in dialogue[0]
     assert "\\pos(540,1613)" in dialogue[1]
