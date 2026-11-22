@@ -17,6 +17,8 @@ type CampaignPreviewLyric = {
   rotation_degrees: number
 }
 
+type CampaignPreviewWord = { word: string; start_seconds: number; end_seconds: number }
+
 
 export function RunDetailPage() {
   const { runId = '' } = useParams()
@@ -149,12 +151,15 @@ export function RunDetailPage() {
   }).filter((phrase) => phrase.text)
   const lyricPhrases = lyricRows.map((phrase) => phrase.text)
   const lyricPhraseTimes = lyricRows.map((phrase) => phrase.start)
+  const lyricOffset = run.data?.campaign_quality_checks?.music_analysis?.selected_start_seconds ?? 0
   const campaignTimelineLyrics: CampaignPreviewLyric[] = lyricRows.flatMap((phrase, index) => {
     if (phrase.start == null) return []
     const phraseEdit = phraseEdits.find((edit) => edit.phrase_index === index)
-    const start = phraseEdit?.start_seconds ?? phrase.start
+    const rawStart = phraseEdit?.start_seconds ?? phrase.start
     const nextTimedStart = lyricRows.slice(index + 1).find((row) => row.start != null)?.start
-    const end = phraseEdit?.end_seconds ?? nextTimedStart ?? start + 3
+    const rawEnd = phraseEdit?.end_seconds ?? nextTimedStart ?? rawStart + 3
+    const start = Math.max(0, rawStart - lyricOffset)
+    const end = rawEnd - lyricOffset
     if (end <= start) return []
     return [{
       text: phrase.text,
@@ -165,6 +170,13 @@ export function RunDetailPage() {
       scale_percent: phraseEdit?.scale_percent ?? lyricsScale,
       rotation_degrees: phraseEdit?.rotation_degrees ?? lyricsRotation,
     }]
+  })
+  const campaignTimelineWords: CampaignPreviewWord[] = (run.data?.options.campaign_lyric_words ?? []).flatMap((item) => {
+    const start = Number(item.start) - lyricOffset
+    const end = Number(item.end) - lyricOffset
+    const word = String(item.word ?? '').trim()
+    if (!word || end <= 0 || end <= start) return []
+    return [{ word, start_seconds: Math.max(0, start), end_seconds: end }]
   })
   const selectedPhraseEdit = phraseEdits.find((edit) => edit.phrase_index === selectedLyricPhrase)
   const selectedPhraseStart = selectedPhraseEdit?.start_seconds ?? lyricPhraseTimes[selectedLyricPhrase]
@@ -621,6 +633,8 @@ export function RunDetailPage() {
           musicAnalysis={data.campaign_quality_checks?.music_analysis ?? null}
           hasMusic={Boolean(data.options.campaign_music_path)}
           lyrics={campaignTimelineLyrics}
+          lyricWords={campaignTimelineWords}
+          wordsOnScreen={data.options.campaign_lyrics_words_on_screen ?? 3}
           lyricsColor={lyricsColor}
           lyricsHighlightColor={lyricsHighlightColor}
           textOverlays={campaignTextOverlays}
@@ -690,6 +704,8 @@ function CampaignStoryboardEditor({
   musicAnalysis,
   hasMusic,
   lyrics,
+  lyricWords,
+  wordsOnScreen,
   lyricsColor,
   lyricsHighlightColor,
   textOverlays,
@@ -708,6 +724,8 @@ function CampaignStoryboardEditor({
   musicAnalysis: CampaignMusicAnalysis | null
   hasMusic: boolean
   lyrics: CampaignPreviewLyric[]
+  lyricWords: CampaignPreviewWord[]
+  wordsOnScreen: 1 | 2 | 3
   lyricsColor: string
   lyricsHighlightColor: string
   textOverlays: CampaignTextOverlay[]
@@ -796,6 +814,8 @@ function CampaignStoryboardEditor({
             musicAnalysis={musicAnalysis}
             hasMusic={hasMusic}
             lyrics={lyrics}
+            lyricWords={lyricWords}
+            wordsOnScreen={wordsOnScreen}
             lyricsColor={lyricsColor}
             lyricsHighlightColor={lyricsHighlightColor}
             textOverlays={textOverlays}
@@ -1086,6 +1106,8 @@ function CampaignTimeline({
   musicAnalysis,
   hasMusic,
   lyrics,
+  lyricWords,
+  wordsOnScreen,
   lyricsColor,
   lyricsHighlightColor,
   textOverlays,
@@ -1099,6 +1121,8 @@ function CampaignTimeline({
   musicAnalysis: CampaignMusicAnalysis | null
   hasMusic: boolean
   lyrics: CampaignPreviewLyric[]
+  lyricWords: CampaignPreviewWord[]
+  wordsOnScreen: 1 | 2 | 3
   lyricsColor: string
   lyricsHighlightColor: string
   textOverlays: CampaignTextOverlay[]
@@ -1159,6 +1183,11 @@ function CampaignTimeline({
         const activeLyric = lyrics.find((lyric) =>
           playheadSeconds >= lyric.start_seconds && playheadSeconds <= lyric.end_seconds
         )
+        const activeWordIndex = lyricWords.findIndex((word) =>
+          playheadSeconds >= word.start_seconds && playheadSeconds < word.end_seconds
+        )
+        const wordWindowStart = activeWordIndex < 0 ? 0 : Math.max(0, activeWordIndex - Math.floor((wordsOnScreen - 1) / 2))
+        const activeWordWindow = activeWordIndex < 0 ? [] : lyricWords.slice(wordWindowStart, wordWindowStart + wordsOnScreen)
         const selectShot = (index: number) => {
           videoRef.current?.pause()
           audioRef.current?.pause()
@@ -1251,7 +1280,16 @@ function CampaignTimeline({
                       fontSize: 'clamp(14px, ' + (22 * activeLyric.scale_percent / 100) + 'px, 42px)',
                       textShadow: '0 2px 8px #000, 0 0 12px ' + lyricsHighlightColor,
                     }}
-                  >{activeLyric.text}</span>
+                  >
+                    {activeWordWindow.length > 0
+                      ? activeWordWindow.map((item, index) => (
+                        <span key={item.start_seconds + '-' + index}
+                          style={{ color: activeWordIndex >= 0 && item.start_seconds === lyricWords[activeWordIndex]?.start_seconds ? lyricsHighlightColor : lyricsColor }}>
+                          {item.word}{index < activeWordWindow.length - 1 ? ' ' : ''}
+                        </span>
+                      ))
+                      : activeLyric.text}
+                  </span>
                 </div>
               )}
               {activeOverlay && (
