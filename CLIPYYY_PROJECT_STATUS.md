@@ -561,4 +561,6 @@ STATUS: In progress / Ready for review / Merged
 - Text-only placeholder observations are excluded. Unmatched lyric cues stay unmatched. Music-relative lyric cue times are explicitly kept separate from source-video timestamps.
 - Focused tests cover ranked grounded matches, unmatched/text-only fallback and delivery of evidence hints into the planner.
 - CI passed on latest PR head `e376c9970e77fc551b597054250bd841a7ed6cdf`: Ruff lint, Ruff format, fast backend **133 passed, 33 skipped**, and frontend production build. Full-backend, Windows and macOS jobs were skipped by workflow configuration. No local Windows or real-media campaign test is claimed. PR remains open for review; do not merge until reviewed.
-- PRs #61 and #64 both propose the same optional lyrics-behind-subject effect; avoid creating another implementation of that effect while those remain open.
+- PR #61 was closed as a duplicate; PR #64 merged the optional lyrics-behind-subject effect into main as `dfe17edbc69d453e290a58e0efef19989d27a3b2`. PR #65 changes only `campaign.py` and `tests/test_campaign.py`, so it does not overlap the merged foreground-rendering files.
+
+- 2026-11-22: PR #64 merged after PR #65's branch was created, advancing main to `dfe17edbc69d453e290a58e0efef19989d27a3b2`. PR #65 remains mergeable with no file conflicts; its changed files are separate from #64. Review before merging.
