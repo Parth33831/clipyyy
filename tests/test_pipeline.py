@@ -390,3 +390,91 @@ def test_campaign_selection_keeps_creator_lyrics_and_uses_whisper_timing_cues(mo
     assert result["campaign_lyric_words"] == []
     assert result["campaign_lyrics_source"] == "Creator-supplied lyrics; local Whisper timing reference"
     assert result["campaign_lyric_transcription_attempted"] is True
+
+
+def test_campaign_reframe_builds_per_shot_face_crop_plans_without_model_download(monkeypatch, tmp_path):
+    from clipyyy import reframe
+
+    calls = []
+
+    def fake_plan_crop(path, aspect, start, end, allow_model_download=True):
+        calls.append((path, aspect, start, end, allow_model_download))
+        return {
+            "crop_mode": "face",
+            "crop_boxes": [{"t": 0.0, "x": 600, "y": 100, "width": 300, "height": 500}],
+        }
+
+    monkeypatch.setattr(reframe, "plan_crop", fake_plan_crop)
+    source = {"video_path": str(tmp_path / "source.mp4"), "duration_seconds": 12}
+    ctx = pipeline.Context(
+        run_id="campaign-reframe-test",
+        source="source.mp4",
+        options=pipeline.ClipOptions(campaign_mode=True, face_tracking=True).model_dump(),
+        work_dir=tmp_path,
+        out_dir=tmp_path / "clips",
+        state={
+            "download": {"sources": [source]},
+            "select": {
+                "campaign_sources": [source],
+                "campaign_edits": [
+                    {
+                        "rank": 1,
+                        "shots": [
+                            {"source_index": 0, "start_seconds": 1.0, "end_seconds": 4.0},
+                            {"source_index": 0, "start_seconds": 5.0, "end_seconds": 8.0},
+                        ],
+                    }
+                ],
+            },
+        },
+    )
+
+    result = pipeline.stage_reframe(ctx)
+
+    assert len(result["campaign_crop_plans"]) == 2
+    assert [call[2:4] for call in calls] == [(1.0, 4.0), (5.0, 8.0)]
+    assert all(call[4] is False for call in calls)
+
+
+def test_campaign_reframe_builds_per_shot_face_crop_plans_without_model_download(monkeypatch, tmp_path):
+    from clipyyy import reframe
+
+    calls = []
+
+    def fake_plan_crop(path, aspect, start, end, allow_model_download=True):
+        calls.append((path, aspect, start, end, allow_model_download))
+        return {
+            "crop_mode": "face",
+            "crop_boxes": [{"t": 0.0, "x": 600, "y": 100, "width": 300, "height": 500}],
+        }
+
+    monkeypatch.setattr(reframe, "plan_crop", fake_plan_crop)
+    source = {"video_path": str(tmp_path / "source.mp4"), "duration_seconds": 12}
+    ctx = pipeline.Context(
+        run_id="campaign-reframe-test",
+        source="source.mp4",
+        options=pipeline.ClipOptions(campaign_mode=True, face_tracking=True).model_dump(),
+        work_dir=tmp_path,
+        out_dir=tmp_path / "clips",
+        state={
+            "download": {"sources": [source]},
+            "select": {
+                "campaign_sources": [source],
+                "campaign_edits": [
+                    {
+                        "rank": 1,
+                        "shots": [
+                            {"source_index": 0, "start_seconds": 1.0, "end_seconds": 4.0},
+                            {"source_index": 0, "start_seconds": 5.0, "end_seconds": 8.0},
+                        ],
+                    }
+                ],
+            },
+        },
+    )
+
+    result = pipeline.stage_reframe(ctx)
+
+    assert len(result["campaign_crop_plans"]) == 2
+    assert [call[2:4] for call in calls] == [(1.0, 4.0), (5.0, 8.0)]
+    assert all(call[4] is False for call in calls)
