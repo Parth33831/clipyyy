@@ -422,7 +422,10 @@ def test_montage_planner_remains_compatible_without_music_analysis():
     from clipyyy.campaign import build_montage_plan
 
     llm = FakeMontageLLM()
-    source = {"title": "Footage", "duration_seconds": 20}
+    sources = [
+        {"title": "Footage A", "duration_seconds": 20},
+        {"title": "Footage B", "duration_seconds": 20},
+    ]
     analysis = {
         "frames": [
             {"timestamp": 1, "description": "opening"},
@@ -430,5 +433,5 @@ def test_montage_planner_remains_compatible_without_music_analysis():
             {"timestamp": 15, "description": "payoff"},
         ]
     }
-    edits = build_montage_plan(llm, "Campaign", {}, [source], [analysis], 1, 6)
+    edits = build_montage_plan(llm, "Campaign", {}, sources, [analysis, analysis], 1, 6)
     assert len(edits) == 1
