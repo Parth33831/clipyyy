@@ -438,7 +438,7 @@ def render_campaign_montages(
     if music_path and not music_path.is_file():
         raise FileNotFoundError(f"Campaign music file not found: {music_path}")
     target_duration = float(campaign_plan.get("target_duration_seconds") or 30.0)
-    music_analysis = analyze_campaign_music(music_path, target_duration) if music_path else None
+    music_analysis = (options.get("campaign_music_analysis") or analyze_campaign_music(music_path, target_duration)) if music_path else None
     beat_times = music_analysis["beat_times"] if music_analysis else []
     music_start = float(music_analysis["best_start_seconds"]) if music_analysis else 0.0
     transition_style = options.get("campaign_transition_style", "auto")
