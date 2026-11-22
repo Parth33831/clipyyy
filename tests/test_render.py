@@ -556,7 +556,6 @@ def test_campaign_transition_style_defaults_to_auto_and_rejects_unknown_values()
         ClipOptions(campaign_transition_style="flashy")
 
 
-
 def test_campaign_word_lyrics_pulse_on_detected_music_beats(tmp_path):
     from clipyyy.render import write_campaign_word_lyrics
 
