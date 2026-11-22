@@ -526,6 +526,7 @@ export function RunDetailPage() {
           originalEdits={data.campaign_original_edits ?? data.campaign_edits}
           sources={data.campaign_sources ?? []}
           musicAnalysis={data.campaign_quality_checks?.music_analysis ?? null}
+          textOverlays={campaignTextOverlays}
           transitionStyle={data.options.campaign_transition_style ?? 'auto'}
           saving={saveMontage.isPending}
           onChange={setCampaignEdits}
@@ -589,6 +590,7 @@ function CampaignStoryboardEditor({
   originalEdits,
   sources,
   musicAnalysis,
+  textOverlays,
   transitionStyle,
   saving,
   onChange,
@@ -601,6 +603,7 @@ function CampaignStoryboardEditor({
   originalEdits: CampaignEdit[]
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
+  textOverlays: CampaignTextOverlay[]
   transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
   saving: boolean
   onChange: (edits: CampaignEdit[]) => void
@@ -683,6 +686,7 @@ function CampaignStoryboardEditor({
             runId={runId}
             sources={sources}
             musicAnalysis={musicAnalysis}
+            textOverlays={textOverlays}
             transitionStyle={transitionStyle}
             onMoveShot={(fromIndex, toIndex) => moveShotTo(editIndex, fromIndex, toIndex)}
             onUpdateShot={(shotIndex, patch) => updateShot(editIndex, shotIndex, patch)}
@@ -909,6 +913,7 @@ function CampaignTimeline({
   runId,
   sources,
   musicAnalysis,
+  textOverlays,
   transitionStyle,
   onMoveShot,
   onUpdateShot,
@@ -917,6 +922,7 @@ function CampaignTimeline({
   runId: string
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
+  textOverlays: CampaignTextOverlay[]
   transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
   onMoveShot: (fromIndex: number, toIndex: number) => void
   onUpdateShot: (shotIndex: number, patch: Partial<CampaignShot>) => void
@@ -1112,6 +1118,42 @@ function CampaignTimeline({
           </div>
         </div>
       )}
+      <div className="flex flex-col gap-2 border-t border-line pt-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="label text-muted">Independent text overlay track</span>
+          <span className="text-[10px] text-faint">Times are relative to this finished edit</span>
+        </div>
+        <div className="overflow-x-auto">
+          <div className="relative h-10 min-w-[680px] overflow-hidden rounded-md border border-line bg-surface">
+            {textOverlays.filter((overlay) => overlay.rank === edit.rank).map((overlay, index) => {
+              const left = Math.max(0, Math.min(total, overlay.start_seconds))
+              const right = Math.max(left, Math.min(total, overlay.end_seconds))
+              if (right <= left) return null
+              return (
+                <div
+                  key={"text-overlay-" + edit.rank + "-" + index}
+                  title={overlay.text + " · " + formatDuration(overlay.start_seconds) + "–" + formatDuration(overlay.end_seconds)}
+                  className="absolute inset-y-1 flex min-w-0 items-center overflow-hidden rounded border px-1.5"
+                  style={{
+                    left: String((left / total) * 100) + "%",
+                    width: String(Math.max(0.8, ((right - left) / total) * 100)) + "%",
+                    borderColor: overlay.color,
+                    color: overlay.color,
+                    backgroundColor: overlay.background ? "rgba(0, 0, 0, 0.78)" : "rgba(255, 255, 255, 0.06)",
+                  }}
+                >
+                  <span className="truncate text-[10px] font-semibold">{overlay.text}</span>
+                </div>
+              )
+            })}
+            {textOverlays.every((overlay) => overlay.rank !== edit.rank) && (
+              <span className="absolute inset-0 flex items-center px-3 text-[10px] text-faint">
+                No independent text layers on this edit yet
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
