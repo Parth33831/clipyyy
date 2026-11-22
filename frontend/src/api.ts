@@ -29,6 +29,7 @@ export interface ClipOptions {
   campaign_camera_motion: boolean
   campaign_transition_style: 'auto' | 'cut' | 'cinematic' | 'dynamic'
   campaign_lyrics: string
+  campaign_lyric_phrases?: CampaignLyricPhrase[]
   campaign_lyrics_source?: string | null
   campaign_lyrics_style?: 'dynamic' | 'cinematic' | 'minimal' | 'karaoke'
   campaign_lyrics_color?: string
@@ -42,6 +43,18 @@ export interface ClipOptions {
   campaign_hook_text?: string
   include_campaign_hook?: boolean
   model: string | null
+}
+
+export interface CampaignLyricPhrase {
+  id: string
+  text: string
+  start_seconds: number
+  end_seconds: number
+  position_x: number
+  position_y: number
+  scale_percent: number
+  rotation_degrees: number
+  animation: 'dynamic' | 'cinematic' | 'minimal' | 'karaoke' | 'zoom' | 'bounce' | 'pulse' | 'glitch'
 }
 
 export interface Run {
@@ -259,10 +272,11 @@ export const api = {
     positionY: number,
     scalePercent: number,
     rotationDegrees: number,
+    phrases: CampaignLyricPhrase[],
   ) =>
     request<{ saved: boolean; rendered: boolean; characters: number; outputs: number }>(`/api/runs/${id}/campaign-lyrics`, {
       method: 'PUT',
-      body: JSON.stringify({ lyrics, lyrics_style: lyricsStyle, hook_text: hookText, include_hook: includeHook, lyrics_color: lyricsColor, highlight_color: highlightColor, words_on_screen: wordsOnScreen, lyrics_behind_subject: lyricsBehindSubject, position_x: positionX, position_y: positionY, scale_percent: scalePercent, rotation_degrees: rotationDegrees }),
+      body: JSON.stringify({ lyrics, lyrics_style: lyricsStyle, hook_text: hookText, include_hook: includeHook, lyrics_color: lyricsColor, highlight_color: highlightColor, words_on_screen: wordsOnScreen, lyrics_behind_subject: lyricsBehindSubject, position_x: positionX, position_y: positionY, scale_percent: scalePercent, rotation_degrees: rotationDegrees, phrases }),
     }),
   saveCampaignMontage: (id: string, edits: CampaignEdit[]) =>
     request<{ saved: boolean; rendered: boolean; outputs: number }>(`/api/runs/${id}/campaign-montage`, {
