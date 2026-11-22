@@ -497,6 +497,15 @@ def render_campaign_montages(
         if options.get("include_campaign_hook", False)
         else ""
     )
+    crop_plan_map = {
+        (
+            int(item["edit_rank"]),
+            int(item["source_index"]),
+            round(float(item["start_seconds"]), 3),
+        ): item
+        for item in selection.get("campaign_crop_plans", [])
+    }
+    source_dimensions = {}
     for edit in selection.get("campaign_edits", []):
         rank = edit["rank"]
         edit_dir = work_dir / f"campaign-edit-{rank:02d}"
