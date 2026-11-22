@@ -596,3 +596,13 @@ STATUS: In progress / Ready for review / Merged
 - Reviewed and squash-merged PR #75 into main as `49dadf85e0eb2e711eaf5a6da03dff0edfa9ee10`. Independent timed text overlays are now on main. Real Windows/media smoke test remains outstanding.
 
 - 2026-11-22: PR #76 stacks on PR #72 and adds a visual 9:16 text-overlay position preview using the selected output poster, with pointer dragging synchronized to X/Y controls. CI is pending. Merge #72 first; review and merge #76 only after its checks pass.
+
+
+### 2026-11-22 follow-up: P1 scene evidence and overlay timeline lane
+
+- PR #65 (lyric-to-scene evidence matching) passed CI and was squash-merged into main as `c07633aa09df4328a59e75a8a6792e4041da9ff0`. It uses bounded literal keyword overlap against observed visual descriptions, with confidence weighting; this is a candidate hint, not semantic vision.
+- PR #75 (independent timed text overlays) is already merged as `49dadf85e0eb2e711eaf5a6da03dff0edfa9ee10`.
+- Feature Development next added PR #78: a separate time-proportional text overlay lane for each campaign output timeline, visually distinct from shots, music energy and lyric reference. It shows each saved overlay's timing, text, colour and background. Editing remains in the dedicated overlay editor panel.
+- PR #78 is open; CI is queued/pending. No backend or render behavior changes in this small frontend increment.
+- Current main at this update: `c07633aa09df4328a59e75a8a6792e4041da9ff0`.
+- Remaining editor work: direct drag-to-position for independent overlays, preview each overlay over representative footage, multitrack undo/redo, and Windows real-media campaign validation.
