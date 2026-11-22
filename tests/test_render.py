@@ -306,6 +306,29 @@ def test_campaign_lyrics_lrc_timestamps_are_shifted_to_selected_music_section(tm
     assert "&H00D7FF&" in script
 
 
+def test_campaign_lyrics_apply_individual_phrase_transforms(tmp_path):
+    from clipyyy.render import write_campaign_lyrics
+
+    path = write_campaign_lyrics(
+        ["[00:00.00]First phrase", "[00:01.00]Second phrase"],
+        3.0,
+        tmp_path / "phrase-edits.ass",
+        1080,
+        1920,
+        position_x=50,
+        position_y=84,
+        scale_percent=100,
+        phrase_edits=[
+            {"phrase_index": 0, "position_x": 25, "position_y": 40, "scale_percent": 150},
+        ],
+    )
+    dialogue = [line for line in path.read_text(encoding="utf-8").splitlines() if line.startswith("Dialogue:")]
+    assert "\\\\pos(270,768)" in dialogue[0]
+    assert "\\\\fscx150\\\\fscy150" in dialogue[0]
+    assert "\\\\pos(540,1613)" in dialogue[1]
+    assert "\\\\fscx100\\\\fscy100" in dialogue[1]
+
+
 def test_campaign_hook_overlay_is_written(tmp_path):
     from clipyyy.render import write_campaign_hook
 
