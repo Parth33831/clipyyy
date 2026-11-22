@@ -258,6 +258,15 @@ def stage_select(ctx: Context) -> dict:
         maximum_target = float(options.get("max_seconds") or requested_target)
         target = min(max(requested_target, minimum_target), maximum_target)
         plan["target_duration_seconds"] = target
+        music_analysis = None
+        music_path = options.get("campaign_music_path")
+        if music_path:
+            try:
+                from clipyyy.render import analyze_campaign_music
+
+                music_analysis = analyze_campaign_music(Path(music_path), target)
+            except Exception as exc:
+                logger.warning("Campaign music analysis was unavailable during shot planning: %s", exc)
         edits = build_montage_plan(
             llm,
             campaign_brief,
@@ -268,6 +277,7 @@ def stage_select(ctx: Context) -> dict:
             target,
             options.get("instructions", ""),
             reference_analyses=reference_analyses,
+            music_analysis=music_analysis,
         )
         db.update_run(ctx.run_id, title=plan.get("campaign_name") or source.get("title") or "Campaign edit")
         clips = []
@@ -302,6 +312,7 @@ def stage_select(ctx: Context) -> dict:
             ),
             "campaign_edits": edits,
             "campaign_original_edits": json.loads(json.dumps(edits)),
+            "campaign_music_analysis": music_analysis,
             "campaign_sources": sources,
             "clips": clips,
         }
@@ -360,6 +371,7 @@ def stage_render(ctx: Context) -> dict:
         render_options = {
             **ctx.options,
             "campaign_plan": ctx.state["select"].get("campaign_plan"),
+            "campaign_music_analysis": ctx.state["select"].get("campaign_music_analysis"),
         }
         music_path = render_options.get("campaign_music_path")
         # A supplied song is enough to offer a timed local lyric draft; do not make
@@ -625,6 +637,7 @@ def rerender_campaign(run_id: str, rebuild_montage: bool = False) -> dict:
         source["sources"] = selection["campaign_sources"]
     options = dict(run["options"])
     options["campaign_plan"] = selection.get("campaign_plan")
+    options["campaign_music_analysis"] = selection.get("campaign_music_analysis")
     options["reuse_campaign_montage"] = not rebuild_montage
     from clipyyy.render import render_campaign_montages
 

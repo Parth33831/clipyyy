@@ -197,6 +197,7 @@ def build_montage_plan(
     target_seconds: float,
     additional_instructions: str = "",
     reference_analyses: list[dict] | None = None,
+    music_analysis: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Choose an ordered montage from timestamped visual observations across all sources."""
     if not hasattr(llm, "complete_json"):
@@ -254,10 +255,42 @@ def build_montage_plan(
         "testimonials or rights permissions. Respect prohibited content and unresolved requirements. "
         "Return JSON only."
     )
+    music_guidance = ""
+    if music_analysis:
+        beats = music_analysis.get("beat_times") or []
+        strengths = music_analysis.get("beat_strengths") or []
+        strongest = sorted(
+            (
+                (float(strengths[index]) if index < len(strengths) else 0.0, float(timestamp))
+                for index, timestamp in enumerate(beats)
+            ),
+            reverse=True,
+        )[:12]
+        music_guidance = (
+            "\n\nMUSICAL STRUCTURE (detected from the creator-provided track; timestamps are seconds):\n"
+            + json.dumps(
+                {
+                    "estimated_bpm": music_analysis.get("bpm"),
+                    "selected_section": music_analysis.get("selected_section"),
+                    "beat_interval_seconds": music_analysis.get("beat_interval_seconds"),
+                    "strong_transients_seconds": [
+                        round(timestamp, 3) for _, timestamp in sorted(strongest, key=lambda item: item[1])
+                    ],
+                    "energy_sections": music_analysis.get("energy_sections", [])[:16],
+                },
+                ensure_ascii=False,
+            )
+            + "\nPlan the visual rhythm around this structure: use calmer/longer relevant shots in low-energy passages, "
+            "build visual momentum as energy rises, and reserve the strongest relevant footage or visual payoff for "
+            "high-energy peaks and major transients. Prefer cut points near strong beats when the footage supports it. "
+            "Do not sacrifice campaign relevance, shot quality, continuity, or truthful storytelling just to hit a beat. "
+            "The renderer will refine cut timing to nearby detected transients; choose the right visual moments first."
+        )
     user = (
         f"Campaign brief:\n{brief}\n\nExtracted requirements:\n"
         f"{format_campaign_plan(campaign_plan)}"
-        f"\n\nAdditional creator instructions:\n{additional_instructions or 'None'}"
+        f"{music_guidance}"
+        f"\n\nAdditional creator instructions:\n{additional_instructions or 'None'}
         f"\n\nCreate {output_count} distinct edits, each approximately "
         f"{target_seconds:.1f} seconds. "
         "Choose enough shots to approach the target duration. Every source_index is zero-based. "
