@@ -105,3 +105,65 @@ def test_prepare_clips_skips_full_video_intermediate_without_broll(monkeypatch, 
     assert len(result["clips"]) == 1
     assert "speaker_path" not in result["clips"][0]
     assert result["clips"][0]["crop_mode"] == "face"
+
+
+def test_model_path_does_not_download_when_disallowed(monkeypatch, tmp_path):
+    import clipyyy.reframe as reframe
+
+    monkeypatch.setattr(reframe, "home", lambda: tmp_path)
+    monkeypatch.setattr(
+        reframe.urllib.request,
+        "urlretrieve",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("unexpected model download")),
+    )
+
+    assert reframe._model_path(allow_download=False) is None
+
+
+def test_plan_crop_uses_center_fallback_without_downloading_model(monkeypatch, tmp_path):
+    import clipyyy.reframe as reframe
+
+    monkeypatch.setattr(reframe, "probe", lambda path: (1920, 1080, 10.0))
+    monkeypatch.setattr(reframe, "sample_faces", lambda *args, **kwargs: [])
+
+    plan = reframe.plan_crop(
+        tmp_path / "source.mp4",
+        9 / 16,
+        1.0,
+        5.0,
+        allow_model_download=False,
+    )
+
+    assert plan["crop_mode"] == "center"
+    assert plan["note"] == "face detector unavailable"
+
+
+def test_model_path_does_not_download_when_disallowed(monkeypatch, tmp_path):
+    import clipyyy.reframe as reframe
+
+    monkeypatch.setattr(reframe, "home", lambda: tmp_path)
+    monkeypatch.setattr(
+        reframe.urllib.request,
+        "urlretrieve",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("unexpected model download")),
+    )
+
+    assert reframe._model_path(allow_download=False) is None
+
+
+def test_plan_crop_uses_center_fallback_without_downloading_model(monkeypatch, tmp_path):
+    import clipyyy.reframe as reframe
+
+    monkeypatch.setattr(reframe, "probe", lambda path: (1920, 1080, 10.0))
+    monkeypatch.setattr(reframe, "sample_faces", lambda *args, **kwargs: [])
+
+    plan = reframe.plan_crop(
+        tmp_path / "source.mp4",
+        9 / 16,
+        1.0,
+        5.0,
+        allow_model_download=False,
+    )
+
+    assert plan["crop_mode"] == "center"
+    assert plan["note"] == "face detector unavailable"
