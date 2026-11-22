@@ -540,7 +540,16 @@ def _render_campaign_source_audio(
         if has_audio(source_path):
             inputs.extend(["-ss", f"{start:.3f}", "-t", f"{shot_duration:.3f}", "-i", str(source_path)])
         else:
-            inputs.extend(["-f", "lavfi", "-t", f"{shot_duration:.3f}", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000"])
+            inputs.extend(
+                [
+                    "-f",
+                    "lavfi",
+                    "-t",
+                    f"{shot_duration:.3f}",
+                    "-i",
+                    "anullsrc=channel_layout=stereo:sample_rate=48000",
+                ]
+            )
         audio_index = len(durations) - 1
         filters.append(
             f"[{audio_index}:a]atrim=duration={shot_duration:.3f},asetpts=PTS-STARTPTS,"
@@ -553,7 +562,8 @@ def _render_campaign_source_audio(
         for index in range(1, len(durations)):
             label = f"[mix{index}]"
             filters.append(
-                f"{previous}[a{index}]acrossfade=d={min(transition_seconds, durations[index] / 2):.3f}:c1=tri:c2=tri{label}"
+                f"{previous}[a{index}]"
+                f"acrossfade=d={min(transition_seconds, durations[index] / 2):.3f}:c1=tri:c2=tri{label}"
             )
             previous = label
     elif len(durations) > 1:
@@ -877,10 +887,21 @@ def render_campaign_montages(
                 )
                 mix_filter = f"[1:a]{audio_filter}[music]"
                 if source_audio:
-                    mix_filter += ";[2:a]anull[src];[music][src]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]"
+                    mix_filter += (
+                        ";[2:a]anull[src];[music][src]"
+                        "amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]"
+                    )
                 else:
                     mix_filter += ";[music]anull[aout]"
-                command = ["-i", str(visual), *music_input, "-ss", f"{music_start:.3f}", "-i", str(music_path)]
+                command = [
+                    "-i",
+                    str(visual),
+                    *music_input,
+                    "-ss",
+                    f"{music_start:.3f}",
+                    "-i",
+                    str(music_path),
+                ]
                 if source_audio:
                     command.extend(["-i", str(source_audio)])
                 command.extend([
