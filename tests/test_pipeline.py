@@ -427,6 +427,9 @@ def test_campaign_text_overlay_pipeline_persists_only_valid_output_layers(monkey
                 "position_x": 45,
                 "position_y": 60,
                 "font_size_percent": 110,
+                "font_family": "Georgia",
+                "font_weight": "regular",
+                "text_effect": "outline",
                 "color": "#ff3b4f",
                 "animation": "slide",
                 "background": False,
@@ -438,6 +441,9 @@ def test_campaign_text_overlay_pipeline_persists_only_valid_output_layers(monkey
     assert saved["options"]["other_option"] == "keep"
     assert saved["options"]["campaign_text_overlays"][0]["text"] == "SHOP NOW"
     assert saved["options"]["campaign_text_overlays"][0]["color"] == "#FF3B4F"
+    assert saved["options"]["campaign_text_overlays"][0]["font_family"] == "Georgia"
+    assert saved["options"]["campaign_text_overlays"][0]["font_weight"] == "regular"
+    assert saved["options"]["campaign_text_overlays"][0]["text_effect"] == "outline"
 
 
 def test_campaign_text_overlay_normalizes_each_line_without_flattening_layout(monkeypatch):
