@@ -322,7 +322,7 @@ export function RunDetailPage() {
           </div>
           <LyricsPositionPreview
             frameUrl={campaignEdits[0]?.shots[0] ? `/api/runs/${runId}/campaign-frame?source_index=${campaignEdits[0].shots[0].source_index}&timestamp=${campaignEdits[0].shots[0].start_seconds.toFixed(1)}` : null}
-            text={lyricsText.split(/\r?\n/).map((line) => line.replace(/^\[\d{1,2}:\d{2}(?:\.\d{1,2})?\]\s*/, '').trim()).find(Boolean) ?? 'Your lyrics appear here'}
+            text={lyricPhrases[selectedLyricPhrase] ?? 'Your lyrics appear here'}
             x={lyricsPositionX}
             y={lyricsPositionY}
             scale={lyricsScale}
