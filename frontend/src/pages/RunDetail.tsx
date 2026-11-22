@@ -104,7 +104,7 @@ export function RunDetailPage() {
       edits: run.data?.campaign_edits ?? [],
       overlays: run.data?.options.campaign_text_overlays ?? [],
     })
-  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.options.campaign_text_overlays, run.data?.campaign_plan?.generated_hook, resetCampaignHistory])
+  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_source_audio_volume, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.options.campaign_text_overlays, run.data?.campaign_plan?.generated_hook, resetCampaignHistory])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -262,7 +262,8 @@ export function RunDetailPage() {
   const savedSourceAudioVolume = Math.round((data.options.campaign_source_audio_volume ?? 1) * 100)
   const savedMusicFadeIn = data.options.campaign_music_fade_in_seconds ?? 0.4
   const savedMusicFadeOut = data.options.campaign_music_fade_out_seconds ?? 0.8
-  const musicSettingsChanged = musicVolume !== savedMusicVolume || sourceAudioVolume !== savedSourceAudioVolume || musicFadeIn !== savedMusicFadeIn || musicFadeOut !== savedMusicFadeOut
+  const musicSettingsChanged = musicVolume !== savedMusicVolume || musicFadeIn !== savedMusicFadeIn || musicFadeOut !== savedMusicFadeOut
+  const sourceAudioSettingsChanged = sourceAudioVolume !== savedSourceAudioVolume
   const readyClips = data.clips.filter((c) => c.status === 'ready')
 
   return (
@@ -375,11 +376,6 @@ export function RunDetailPage() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <label className="flex flex-col gap-2">
-                  <span className="flex justify-between gap-2"><span className="font-medium">Original video audio</span><span className="font-mono text-muted">{sourceAudioVolume}%</span></span>
-                  <input type="range" min={0} max={200} step={5} value={sourceAudioVolume} onChange={(event) => setSourceAudioVolume(Number(event.target.value))} className="w-full accent-current" />
-                  <span className="text-xs text-muted">0% mute · 100% original · 200% boost</span>
-                </label>
-                <label className="flex flex-col gap-2">
                   <span className="flex justify-between gap-2"><span className="font-medium">Music volume</span><span className="font-mono text-muted">{musicVolume}%</span></span>
                   <input type="range" min={0} max={200} step={5} value={musicVolume} onChange={(event) => setMusicVolume(Number(event.target.value))} className="w-full accent-current" />
                   <span className="text-xs text-muted">0% mute · 100% original level · 200% boost</span>
@@ -402,6 +398,19 @@ export function RunDetailPage() {
               </div>
             </div>
           )}
+          <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-medium">Original video audio</span>
+              <span className="font-mono text-muted">{sourceAudioVolume}%</span>
+            </div>
+            <input type="range" min={0} max={200} step={5} value={sourceAudioVolume} onChange={(event) => setSourceAudioVolume(Number(event.target.value))} className="w-full accent-current" aria-label="Original video audio volume" />
+            <span className="text-xs text-muted">0% mutes the source footage · 100% keeps its original level · 200% boosts it. Mixes with campaign music when attached.</span>
+            <div className="flex justify-end">
+              <Button variant="ink" disabled={!sourceAudioSettingsChanged || saveCampaignAudio.isPending} loading={saveCampaignAudio.isPending} onClick={() => saveCampaignAudio.mutate()}>
+                Apply original audio mix
+              </Button>
+            </div>
+          </div>
           <div className="flex flex-col gap-3 text-sm">
             <span className="font-medium">Lyrics animation preset</span>
             <div className="grid gap-2 sm:grid-cols-2">
