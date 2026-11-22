@@ -180,6 +180,31 @@ export function RunDetailPage() {
     onError: (e) => toast.error(e.message),
   })
 
+  useEffect(() => {
+    if (!run.data?.options.campaign_mode || ['queued', 'running'].includes(run.data.status)) return
+    const handleEditorShortcut = (event: KeyboardEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return
+      const target = event.target as HTMLElement | null
+      if (target?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName ?? '')) return
+      const key = event.key.toLowerCase()
+      if (key === 'z' && event.shiftKey) {
+        if (!canRedoCampaignEdits) return
+        event.preventDefault()
+        redoCampaignEdits()
+      } else if (key === 'z') {
+        if (!canUndoCampaignEdits) return
+        event.preventDefault()
+        undoCampaignEdits()
+      } else if (key === 'y') {
+        if (!canRedoCampaignEdits) return
+        event.preventDefault()
+        redoCampaignEdits()
+      }
+    }
+    window.addEventListener('keydown', handleEditorShortcut)
+    return () => window.removeEventListener('keydown', handleEditorShortcut)
+  }, [run.data?.options.campaign_mode, run.data?.status, canUndoCampaignEdits, canRedoCampaignEdits, undoCampaignEdits, redoCampaignEdits])
+
   if (run.isLoading) return <p className="text-muted">Loading…</p>
   if (run.error || !run.data)
     return (
@@ -550,7 +575,7 @@ export function RunDetailPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-panel px-4 py-3">
           <div>
             <span className="label text-muted">Campaign edit history</span>
-            <p className="mt-1 text-xs text-faint">Undo or redo shot edits and independent text overlay changes together.</p>
+            <p className="mt-1 text-xs text-faint">Undo or redo shot edits and independent text overlays together · Ctrl+Z to undo · Ctrl+Shift+Z or Ctrl+Y to redo.</p>
           </div>
           <div className="flex gap-2">
             <Button variant="line" disabled={!canUndoCampaignEdits} onClick={undoCampaignEdits}>Undo</Button>
