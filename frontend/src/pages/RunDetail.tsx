@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, Download, RotateCcw, Scissors, Send, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
+import { useUndoRedo } from '../hooks/useUndoRedo'
 import { toast } from 'sonner'
 import { api, type CampaignEdit, type CampaignTextOverlay, type CampaignMusicAnalysis, type CampaignLyricPhraseEdit, type CampaignShot, type CampaignSource, type Clip, type Post, type RunDetail } from '../api'
 import { PublishDialog } from '../components/PublishDialog'
@@ -40,8 +41,33 @@ export function RunDetailPage() {
   const [lyricsRotation, setLyricsRotation] = useState(0)
   const [phraseEdits, setPhraseEdits] = useState<CampaignLyricPhraseEdit[]>([])
   const [selectedLyricPhrase, setSelectedLyricPhrase] = useState(0)
-  const [campaignEdits, setCampaignEdits] = useState<CampaignEdit[]>([])
-  const [campaignTextOverlays, setCampaignTextOverlays] = useState<CampaignTextOverlay[]>([])
+  const campaignHistory = useUndoRedo({
+    edits: [] as CampaignEdit[],
+    overlays: [] as CampaignTextOverlay[],
+  })
+  const {
+    value: campaignHistoryValue,
+    set: setCampaignHistory,
+    reset: resetCampaignHistory,
+    undo: undoCampaignEdits,
+    redo: redoCampaignEdits,
+    canUndo: canUndoCampaignEdits,
+    canRedo: canRedoCampaignEdits,
+  } = campaignHistory
+  const campaignEdits = campaignHistoryValue.edits
+  const campaignTextOverlays = campaignHistoryValue.overlays
+  const setCampaignEdits = useCallback((next: CampaignEdit[] | ((current: CampaignEdit[]) => CampaignEdit[])) => {
+    setCampaignHistory((current) => ({
+      ...current,
+      edits: typeof next === 'function' ? next(current.edits) : next,
+    }))
+  }, [setCampaignHistory])
+  const setCampaignTextOverlays = useCallback((next: CampaignTextOverlay[] | ((current: CampaignTextOverlay[]) => CampaignTextOverlay[])) => {
+    setCampaignHistory((current) => ({
+      ...current,
+      overlays: typeof next === 'function' ? next(current.overlays) : next,
+    }))
+  }, [setCampaignHistory])
   useEffect(() => {
     setMusicVolume(Math.round((run.data?.options.campaign_music_volume ?? 0.9) * 100))
     setMusicFadeIn(run.data?.options.campaign_music_fade_in_seconds ?? 0.4)
@@ -60,9 +86,11 @@ export function RunDetailPage() {
     setLyricsRotation(run.data?.options.campaign_lyrics_rotation_degrees ?? 0)
     setPhraseEdits(run.data?.options.campaign_lyric_phrase_edits ?? [])
     setSelectedLyricPhrase(0)
-    setCampaignEdits(run.data?.campaign_edits ?? [])
-    setCampaignTextOverlays(run.data?.options.campaign_text_overlays ?? [])
-  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.options.campaign_text_overlays, run.data?.campaign_plan?.generated_hook])
+    resetCampaignHistory({
+      edits: run.data?.campaign_edits ?? [],
+      overlays: run.data?.options.campaign_text_overlays ?? [],
+    })
+  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.options.campaign_text_overlays, run.data?.campaign_plan?.generated_hook, resetCampaignHistory])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -517,6 +545,19 @@ export function RunDetailPage() {
       )}
 
       {(busy || data.status === 'failed') && <Progress run={data} />}
+
+      {data.options.campaign_mode && !busy && campaignEdits.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-panel px-4 py-3">
+          <div>
+            <span className="label text-muted">Campaign edit history</span>
+            <p className="mt-1 text-xs text-faint">Undo or redo shot edits and independent text overlay changes together.</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="line" disabled={!canUndoCampaignEdits} onClick={undoCampaignEdits}>Undo</Button>
+            <Button variant="line" disabled={!canRedoCampaignEdits} onClick={redoCampaignEdits}>Redo</Button>
+          </div>
+        </div>
+      )}
 
       {data.options.campaign_mode && !busy && campaignEdits.length > 0 && (
         <CampaignStoryboardEditor
