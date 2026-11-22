@@ -320,7 +320,13 @@ def test_campaign_lyrics_apply_individual_phrase_transforms(tmp_path):
         scale_percent=100,
         style="dynamic",
         phrase_edits=[
-            {"phrase_index": 0, "position_x": 25, "position_y": 40, "scale_percent": 150, "animation_style": "minimal"},
+            {
+                "phrase_index": 0,
+                "position_x": 25,
+                "position_y": 40,
+                "scale_percent": 150,
+                "animation_style": "minimal",
+            },
         ],
     )
     dialogue = [
