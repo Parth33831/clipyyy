@@ -328,7 +328,11 @@ def stage_select(ctx: Context) -> dict:
             ),
         }
         creator_edited_lyrics = lyric_options["campaign_lyrics_source"] == "Creator-edited"
-        cue_words = lyric_options["campaign_detected_lyric_words"] or lyric_options["campaign_lyric_words"]
+        cue_words = (
+            []
+            if creator_edited_lyrics
+            else lyric_options["campaign_detected_lyric_words"] or lyric_options["campaign_lyric_words"]
+        )
         if cue_words:
             lyric_offset = float((music_analysis or {}).get("best_start_seconds") or 0.0)
             _, lyric_cues = _campaign_lyric_draft(cue_words, lyric_offset, target)
