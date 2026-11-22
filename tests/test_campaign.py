@@ -437,7 +437,6 @@ def test_montage_planner_remains_compatible_without_music_analysis():
     assert len(edits) == 1
 
 
-
 def test_montage_planner_uses_creator_supplied_lyrics_as_truthful_story_cues():
     from clipyyy.campaign import build_montage_plan
 
