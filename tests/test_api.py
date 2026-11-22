@@ -417,6 +417,9 @@ def test_campaign_run_detail_exposes_safe_storyboard_sources(client, monkeypatch
                 "campaign_plan": {"campaign_name": "Summer"},
                 "campaign_edits": [edit],
                 "campaign_original_edits": [edit],
+                "campaign_lyric_cues": [
+                    {"text": "We rise together", "start_seconds": 1.2, "end_seconds": 2.8}
+                ],
             }
         ),
         encoding="utf-8",
@@ -426,6 +429,9 @@ def test_campaign_run_detail_exposes_safe_storyboard_sources(client, monkeypatch
 
     assert detail["campaign_edits"] == [edit]
     assert detail["campaign_original_edits"] == [edit]
+    assert detail["campaign_lyric_cues"] == [
+        {"text": "We rise together", "start_seconds": 1.2, "end_seconds": 2.8}
+    ]
     assert detail["campaign_sources"] == [
         {"index": 0, "title": "Summer campaign footage", "duration_seconds": 40.0}
     ]
