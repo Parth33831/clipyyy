@@ -7,6 +7,7 @@ requirements remain null/empty; the original brief is always preserved separatel
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -187,6 +188,159 @@ def _intersects_black_interval(
     return False
 
 
+_LYRIC_MATCH_STOPWORDS = {
+    "about",
+    "after",
+    "again",
+    "against",
+    "all",
+    "and",
+    "are",
+    "around",
+    "because",
+    "been",
+    "before",
+    "being",
+    "between",
+    "but",
+    "can",
+    "could",
+    "did",
+    "does",
+    "down",
+    "each",
+    "for",
+    "from",
+    "get",
+    "got",
+    "had",
+    "has",
+    "have",
+    "her",
+    "here",
+    "him",
+    "his",
+    "how",
+    "into",
+    "its",
+    "just",
+    "like",
+    "make",
+    "more",
+    "most",
+    "not",
+    "now",
+    "our",
+    "out",
+    "over",
+    "same",
+    "she",
+    "should",
+    "some",
+    "than",
+    "that",
+    "the",
+    "their",
+    "them",
+    "then",
+    "there",
+    "these",
+    "they",
+    "this",
+    "those",
+    "through",
+    "too",
+    "under",
+    "was",
+    "were",
+    "what",
+    "when",
+    "where",
+    "which",
+    "who",
+    "will",
+    "with",
+    "would",
+    "you",
+    "your",
+}
+
+
+def _rank_lyric_scene_matches(
+    lyric_cues: list[dict[str, Any]], candidates: list[dict[str, Any]], limit: int = 3
+) -> list[dict[str, Any]]:
+    """Return transparent lexical evidence links between timed lyrics and real scene observations.
+
+    This is a candidate hint, not a claim of semantic understanding or source/music time alignment.
+    The LLM still interprets the campaign story; unmatched cues deliberately receive no forced shot.
+    """
+    matches = []
+    for cue in lyric_cues[:80]:
+        text = " ".join(str(cue.get("text") or "").split()).strip()
+        cue_tokens = {
+            token
+            for token in re.findall(r"[a-z0-9']+", text.lower())
+            if len(token) > 2 and token not in _LYRIC_MATCH_STOPWORDS
+        }
+        if not text or not cue_tokens:
+            continue
+        ranked = []
+        for frame in candidates:
+            description = str(frame.get("description") or "")
+            if "Visual content unavailable" in description:
+                continue
+            evidence_parts = [
+                str(frame.get("description") or ""),
+                str(frame.get("visible_action") or ""),
+                str(frame.get("visible_text") or ""),
+                str(frame.get("subjects") or ""),
+                str(frame.get("mood") or ""),
+            ]
+            scene_tokens = {
+                token
+                for token in re.findall(r"[a-z0-9']+", " ".join(evidence_parts).lower())
+                if len(token) > 2 and token not in _LYRIC_MATCH_STOPWORDS
+            }
+            matched = cue_tokens & scene_tokens
+            if not matched:
+                continue
+            try:
+                confidence = float(frame.get("confidence", 0.5))
+            except (TypeError, ValueError):
+                confidence = 0.5
+            confidence = max(0.0, min(1.0, confidence))
+            coverage = len(matched) / len(cue_tokens)
+            score = coverage * (0.5 + 0.5 * confidence)
+            if score < 0.15:
+                continue
+            ranked.append(
+                {
+                    "source_index": frame.get("source_index"),
+                    "source_title": frame.get("source_title"),
+                    "source_timestamp": round(float(frame.get("timestamp", 0.0)), 3),
+                    "score": round(score, 3),
+                    "matched_terms": sorted(matched),
+                    "visual_evidence": description[:220],
+                    "visible_action": str(frame.get("visible_action") or "unknown")[:160],
+                }
+            )
+        ranked.sort(key=lambda item: (-item["score"], item["source_index"], item["source_timestamp"]))
+        try:
+            start = round(float(cue.get("start_seconds")), 3)
+            end = round(float(cue.get("end_seconds")), 3)
+        except (TypeError, ValueError):
+            start = end = None
+        matches.append(
+            {
+                "cue_text": text[:160],
+                "cue_start_seconds": start,
+                "cue_end_seconds": end,
+                "matches": ranked[:limit],
+            }
+        )
+    return matches
+
+
 def build_montage_plan(
     llm,
     brief: str,
@@ -229,6 +383,7 @@ def build_montage_plan(
     )
     if candidates and text_only_frames:
         return _build_text_only_montage(sources, output_count, target_seconds, analyses)
+    lyric_scene_matches = _rank_lyric_scene_matches(lyric_cues or [], candidates)
     if len(candidates) < 3:
         raise ValueError(
             "Not enough visual scenes could be analysed. Use a vision-capable model and clear source videos."
@@ -314,12 +469,25 @@ def build_montage_plan(
             "frame-accurate lyric-to-shot synchronization. Prefer visual moments whose observed "
             "meaning supports the lyric progression, and preserve campaign relevance."
         )
+    lyric_match_guidance = ""
+    if lyric_scene_matches:
+        lyric_match_guidance = (
+            "\n\nLYRIC-TO-SCENE EVIDENCE HINTS (lexical overlap only; not semantic proof):\n"
+            + json.dumps(lyric_scene_matches, ensure_ascii=False)
+            + "\nUse a listed scene only when its actual visual evidence supports the cue and the campaign "
+            "story. Scores represent literal keyword overlap adjusted by observation confidence, not model "
+            "certainty. An empty match list means no direct wording evidence was found; do not "
+            "invent a match. Cue times are relative to the music segment and source timestamps are "
+            "relative to source videos; "
+            "they are different clocks and must not be compared as if they were aligned.\n"
+        )
     user = (
         f"Campaign brief:\n{brief}\n\nExtracted requirements:\n"
         f"{format_campaign_plan(campaign_plan)}"
         f"{music_guidance}"
         f"{lyric_guidance}"
         f"{timed_lyric_guidance}"
+        f"{lyric_match_guidance}"
         f"\n\nAdditional creator instructions:\n{additional_instructions or 'None'}"
         f"\n\nCreate {output_count} distinct edits, each approximately "
         f"{target_seconds:.1f} seconds. "
