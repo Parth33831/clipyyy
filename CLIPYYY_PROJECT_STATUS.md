@@ -560,5 +560,5 @@ STATUS: In progress / Ready for review / Merged
 - Adds a bounded lexical-evidence matcher that ranks up to three observed scenes per timed lyric phrase using literal token overlap and the existing visual-observation confidence. The ranked hints are supplied to the existing montage planner; they do not replace its campaign-story reasoning or change the shot schema.
 - Text-only placeholder observations are excluded. Unmatched lyric cues stay unmatched. Music-relative lyric cue times are explicitly kept separate from source-video timestamps.
 - Focused tests cover ranked grounded matches, unmatched/text-only fallback and delivery of evidence hints into the planner.
-- CI and review are pending. No local Windows or real-media campaign test is claimed. Do not merge until CI and review pass.
+- CI passed on latest PR head `e376c9970e77fc551b597054250bd841a7ed6cdf`: Ruff lint, Ruff format, fast backend **133 passed, 33 skipped**, and frontend production build. Full-backend, Windows and macOS jobs were skipped by workflow configuration. No local Windows or real-media campaign test is claimed. PR remains open for review; do not merge until reviewed.
 - PRs #61 and #64 both propose the same optional lyrics-behind-subject effect; avoid creating another implementation of that effect while those remain open.
