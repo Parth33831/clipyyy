@@ -457,7 +457,7 @@ def test_campaign_text_overlay_normalizes_each_line_without_flattening_layout(mo
         [{"rank": 1, "text": "  SUMMER   SALE  \n TODAY ", "start_seconds": 0, "end_seconds": 2}],
     )
 
-    assert saved["options"]["campaign_text_overlays"][0]["text"] == "SUMMER SALE\\nTODAY"
+    assert saved["options"]["campaign_text_overlays"][0]["text"] == "SUMMER SALE\nTODAY"
 
 
 def test_campaign_text_overlay_pipeline_rejects_out_of_bounds_timing(monkeypatch):
