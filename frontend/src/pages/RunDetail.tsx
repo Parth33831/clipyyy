@@ -33,6 +33,7 @@ export function RunDetailPage() {
   const [lyricsColor, setLyricsColor] = useState('#FFFFFF')
   const [lyricsHighlightColor, setLyricsHighlightColor] = useState('#00D7FF')
   const [lyricsWordsOnScreen, setLyricsWordsOnScreen] = useState<1 | 2 | 3>(3)
+  const [lyricsBehindSubject, setLyricsBehindSubject] = useState(false)
   const [campaignEdits, setCampaignEdits] = useState<CampaignEdit[]>([])
   useEffect(() => {
     setMusicVolume(Math.round((run.data?.options.campaign_music_volume ?? 0.9) * 100))
@@ -45,8 +46,9 @@ export function RunDetailPage() {
     setLyricsColor(run.data?.options.campaign_lyrics_color ?? '#FFFFFF')
     setLyricsHighlightColor(run.data?.options.campaign_lyrics_highlight_color ?? '#00D7FF')
     setLyricsWordsOnScreen(run.data?.options.campaign_lyrics_words_on_screen ?? 3)
+    setLyricsBehindSubject(Boolean(run.data?.options.campaign_lyrics_behind_subject))
     setCampaignEdits(run.data?.campaign_edits ?? [])
-  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.campaign_plan?.generated_hook])
+  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.campaign_plan?.generated_hook])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -78,7 +80,7 @@ export function RunDetailPage() {
     onError: (e) => toast.error(e.message),
   })
   const saveLyrics = useMutation({
-    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook, lyricsColor, lyricsHighlightColor, lyricsWordsOnScreen),
+    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook, lyricsColor, lyricsHighlightColor, lyricsWordsOnScreen, lyricsBehindSubject),
     onSuccess: (result) => {
       toast.success(`Applied to ${result.outputs} existing edit(s) — no re-picking or lyric transcription.`)
       refresh()
@@ -297,6 +299,21 @@ export function RunDetailPage() {
             </div>
             <span className="text-xs text-muted">Shows a rolling group of 1, 2, or 3 words as the song progresses. Default: 3.</span>
           </div>
+          <label className="flex items-start gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
+            <input
+              type="checkbox"
+              checked={lyricsBehindSubject}
+              onChange={(event) => setLyricsBehindSubject(event.target.checked)}
+              className="mt-1 h-4 w-4 accent-current"
+            />
+            <span className="flex flex-col gap-1">
+              <span className="font-medium">Place lyrics behind the person (AI depth effect)</span>
+              <span className="text-xs text-muted">
+                Uses AI person segmentation to keep the foreground subject in front of the words.
+                This takes extra processing time. If segmentation is unavailable, CLIPYYY safely uses normal lyrics.
+              </span>
+            </span>
+          </label>
           <div className="grid gap-4 rounded-lg border border-line bg-panel p-3 sm:grid-cols-2">
             <label className="flex items-center justify-between gap-3 text-sm">
               <span className="flex flex-col gap-1"><span className="font-medium">Lyrics color</span><span className="text-xs text-muted">Main caption text</span></span>
