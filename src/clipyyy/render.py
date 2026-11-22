@@ -1416,10 +1416,7 @@ def write_campaign_text_overlays(
         if font_family not in {"Arial", "Georgia", "Impact", "Trebuchet MS", "Verdana"}:
             font_family = "Arial"
         bold = 1 if font_weight == "bold" else 0
-        tags = (
-            f"{{\\an5\\pos({x},{y})\\fs{font_size}\\fn{font_family}"
-            f"\\b{bold}\\c{_ass_color(text_color)}}}"
-        )
+        tags = f"{{\\an5\\pos({x},{y})\\fs{font_size}\\fn{font_family}\\b{bold}\\c{_ass_color(text_color)}}}"
         if text_effect == "outline":
             tags = tags[:-1] + r"\\bord2\\shad0}"
         elif text_effect == "none":
@@ -1432,9 +1429,7 @@ def write_campaign_text_overlays(
             tags = tags[:-1] + r"\\fscx70\\fscy70\\t(0,180,\\fscx100\\fscy100)\\fad(100,120)}"
         elif animation == "slide":
             offset_y = min(height - 1, y + round(height * 0.045))
-            tags = tags.replace(
-                f"\\pos({x},{y})", f"\\move({x},{offset_y},{x},{y},0,220)"
-            )
+            tags = tags.replace(f"\\pos({x},{y})", f"\\move({x},{offset_y},{x},{y},0,220)")
             tags = tags[:-1] + r"\\fad(100,120)" + "}"
         style = "OverlayBox" if overlay.get("background", True) else "Overlay"
         escaped = r"\N".join(_escape(part) for part in text.splitlines())
