@@ -43,9 +43,15 @@ class ClipOptions(BaseModel):
     campaign_brief: str = Field("", max_length=6000, description="Campaign requirements and creative brief")
     campaign_url: str = Field("", max_length=2048, description="Public campaign page URL to analyse")
     campaign_music_path: str | None = Field(None, description="Optional user-provided campaign music file")
-    campaign_music_volume: float = Field(0.9, ge=0, le=2, description="Campaign music level from mute to 200%")
-    campaign_music_fade_in_seconds: float = Field(0.4, ge=0, le=10, description="Campaign music fade-in duration")
-    campaign_music_fade_out_seconds: float = Field(0.8, ge=0, le=10, description="Campaign music fade-out duration")
+    campaign_music_volume: float = Field(
+        0.9, ge=0, le=2, description="Campaign music level from mute to 200%"
+    )
+    campaign_music_fade_in_seconds: float = Field(
+        0.4, ge=0, le=10, description="Campaign music fade-in duration"
+    )
+    campaign_music_fade_out_seconds: float = Field(
+        0.8, ge=0, le=10, description="Campaign music fade-out duration"
+    )
     campaign_auto_broll: bool = Field(
         False, description="Discover supporting campaign footage from Pexels when a key is configured"
     )
