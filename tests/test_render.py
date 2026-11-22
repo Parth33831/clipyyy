@@ -752,3 +752,22 @@ def test_campaign_word_lyrics_clamp_transform_values_to_safe_bounds(tmp_path):
     script = path.read_text(encoding="utf-8")
     assert r"\pos(54,1824)" in script
     assert r"\fscx200\fscy200\frz30" in script
+
+
+def test_campaign_lyrics_apply_saved_transform_without_word_timing(tmp_path):
+    from clipyyy.render import write_campaign_lyrics
+
+    path = write_campaign_lyrics(
+        ["[00:00.00]A line without word-level timing"],
+        2.0,
+        tmp_path / "manual-lyrics.ass",
+        1080,
+        1920,
+        position_x=35,
+        position_y=70,
+        scale_percent=120,
+        rotation_degrees=6,
+    )
+    script = path.read_text(encoding="utf-8")
+    assert r"\pos(378,1344)" in script
+    assert r"\fscx120\fscy120\frz6" in script
