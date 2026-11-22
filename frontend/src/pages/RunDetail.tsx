@@ -853,6 +853,8 @@ function CampaignStoryboardEditor({
             runId={runId}
             sources={sources}
             musicAnalysis={musicAnalysis}
+            musicStartSeconds={musicStartSeconds}
+            onMusicStartChange={onMusicStartChange}
             hasMusic={hasMusic}
             lyrics={lyrics}
             lyricWords={lyricWords}
@@ -1178,6 +1180,8 @@ function CampaignTimeline({
   runId,
   sources,
   musicAnalysis,
+  musicStartSeconds,
+  onMusicStartChange,
   hasMusic,
   lyrics,
   lyricWords,
@@ -1194,6 +1198,8 @@ function CampaignTimeline({
   runId: string
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
+  musicStartSeconds: number
+  onMusicStartChange: (seconds: number) => void
   hasMusic: boolean
   lyrics: CampaignPreviewLyric[]
   lyricWords: CampaignPreviewWord[]
