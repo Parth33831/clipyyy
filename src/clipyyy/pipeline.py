@@ -68,6 +68,7 @@ class ClipOptions(BaseModel):
         "", max_length=12000, description="Optional creator-provided or locally transcribed lyric lines"
     )
     campaign_lyric_words: list[dict[str, Any]] = Field(default_factory=list)
+    campaign_detected_lyric_words: list[dict[str, Any]] = Field(default_factory=list)
     campaign_lyric_transcription_attempted: bool = False
     campaign_lyrics_source: str | None = Field(None, description="Origin of the campaign lyric draft")
     campaign_lyrics_style: Literal[
@@ -321,16 +322,16 @@ def stage_select(ctx: Context) -> dict:
             "campaign_lyrics": str(options.get("campaign_lyrics", "") or ""),
             "campaign_lyrics_source": options.get("campaign_lyrics_source"),
             "campaign_lyric_words": list(options.get("campaign_lyric_words") or []),
+            "campaign_detected_lyric_words": list(options.get("campaign_detected_lyric_words") or []),
             "campaign_lyric_transcription_attempted": bool(
                 options.get("campaign_lyric_transcription_attempted", False)
             ),
         }
         creator_edited_lyrics = lyric_options["campaign_lyrics_source"] == "Creator-edited"
-        if music_analysis and lyric_options["campaign_lyric_words"]:
-            lyric_offset = float(music_analysis.get("best_start_seconds") or 0.0)
-            _, lyric_cues = _campaign_lyric_draft(
-                lyric_options["campaign_lyric_words"], lyric_offset, target
-            )
+        cue_words = lyric_options["campaign_detected_lyric_words"] or lyric_options["campaign_lyric_words"]
+        if cue_words:
+            lyric_offset = float((music_analysis or {}).get("best_start_seconds") or 0.0)
+            _, lyric_cues = _campaign_lyric_draft(cue_words, lyric_offset, target)
         elif music_path and not creator_edited_lyrics and not lyric_options[
             "campaign_lyric_transcription_attempted"
         ]:
@@ -343,6 +344,7 @@ def stage_select(ctx: Context) -> dict:
                     Path(music_path), lyric_work, get_setting("whisper_model") or "tiny", "auto"
                 )
                 words = lyric_result.get("words", [])
+                lyric_options["campaign_detected_lyric_words"] = words
                 lyric_options["campaign_lyric_transcription_attempted"] = True
                 lyric_offset = float((music_analysis or {}).get("best_start_seconds") or 0.0)
                 draft_text, lyric_cues = _campaign_lyric_draft(words, lyric_offset, target)
@@ -411,6 +413,7 @@ def stage_select(ctx: Context) -> dict:
             "campaign_lyrics": lyric_options["campaign_lyrics"],
             "campaign_lyrics_source": lyric_options["campaign_lyrics_source"],
             "campaign_lyric_words": lyric_options["campaign_lyric_words"],
+            "campaign_detected_lyric_words": lyric_options["campaign_detected_lyric_words"],
             "campaign_lyric_transcription_attempted": lyric_options["campaign_lyric_transcription_attempted"],
             "campaign_lyric_cues": lyric_cues,
             "campaign_sources": sources,
