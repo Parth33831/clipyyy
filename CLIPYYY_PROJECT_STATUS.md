@@ -552,3 +552,13 @@ STATUS: In progress / Ready for review / Merged
 
 - Closed stale PR #61; PR #64 is the single current lyrics-behind-subject implementation based on latest main.
 - PR #64 CI is passing, but the previously reported deletion of the timed lyric phrase track is still present in its diff at the latest review. Do not merge until that existing timeline feature is restored.
+
+### 2026-11-22 follow-up: P1 lyric-to-scene evidence matching in progress
+
+- Feature Development started branch `feature/lyric-scene-evidence-matching` from verified main `eb01c092706847e63dbdd40bba90c70732899911`.
+- PR #65: [Match timed campaign lyrics to grounded scene evidence](https://github.com/Parth33831/clipyyy/pull/65).
+- Adds a bounded lexical-evidence matcher that ranks up to three observed scenes per timed lyric phrase using literal token overlap and the existing visual-observation confidence. The ranked hints are supplied to the existing montage planner; they do not replace its campaign-story reasoning or change the shot schema.
+- Text-only placeholder observations are excluded. Unmatched lyric cues stay unmatched. Music-relative lyric cue times are explicitly kept separate from source-video timestamps.
+- Focused tests cover ranked grounded matches, unmatched/text-only fallback and delivery of evidence hints into the planner.
+- CI and review are pending. No local Windows or real-media campaign test is claimed. Do not merge until CI and review pass.
+- PRs #61 and #64 both propose the same optional lyrics-behind-subject effect; avoid creating another implementation of that effect while those remain open.
