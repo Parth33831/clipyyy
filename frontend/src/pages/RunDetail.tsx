@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, Download, RotateCcw, Scissors, Send, Trash2 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useUndoRedo } from '../hooks/useUndoRedo'
 import { toast } from 'sonner'
@@ -582,7 +582,7 @@ export function RunDetailPage() {
         <CampaignTextOverlayEditor
           overlays={campaignTextOverlays}
           savedOverlays={data.options.campaign_text_overlays ?? []}
-          outputs={readyClips.map((clip) => ({ rank: clip.rank, duration_seconds: clip.duration_seconds ?? 0 }))}
+          outputs={readyClips.map((clip) => ({ rank: clip.rank, duration_seconds: clip.duration_seconds ?? 0, poster_url: clip.poster_url }))}
           saving={saveCampaignTextOverlays.isPending}
           onChange={setCampaignTextOverlays}
           onSave={() => saveCampaignTextOverlays.mutate()}
@@ -814,7 +814,7 @@ function CampaignTextOverlayEditor({
 }: {
   overlays: CampaignTextOverlay[]
   savedOverlays: CampaignTextOverlay[]
-  outputs: { rank: number; duration_seconds: number }[]
+  outputs: { rank: number; duration_seconds: number; poster_url?: string }[]
   saving: boolean
   onChange: (overlays: CampaignTextOverlay[]) => void
   onSave: () => void
@@ -885,6 +885,64 @@ function CampaignTextOverlayEditor({
                     onChange={(event) => update(index, { text: event.target.value })}
                     className="w-full resize-y rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink" />
                 </label>
+                <div className="flex flex-wrap items-center gap-4 rounded-lg border border-line bg-surface p-3">
+                  <div className="w-full max-w-[210px]">
+                    <div
+                      className="relative mx-auto aspect-[9/16] w-full touch-none select-none overflow-hidden rounded-lg border border-white/15 bg-gradient-to-br from-slate-800 via-slate-950 to-black shadow-lg"
+                      onPointerDown={(event: ReactPointerEvent<HTMLDivElement>) => {
+                        event.preventDefault()
+                        event.currentTarget.setPointerCapture(event.pointerId)
+                        const bounds = event.currentTarget.getBoundingClientRect()
+                        update(index, {
+                          position_x: Math.max(5, Math.min(95, Math.round(((event.clientX - bounds.left) / bounds.width) * 100))),
+                          position_y: Math.max(5, Math.min(95, Math.round(((event.clientY - bounds.top) / bounds.height) * 100))),
+                        })
+                      }}
+                      onPointerMove={(event: ReactPointerEvent<HTMLDivElement>) => {
+                        if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
+                        const bounds = event.currentTarget.getBoundingClientRect()
+                        update(index, {
+                          position_x: Math.max(5, Math.min(95, Math.round(((event.clientX - bounds.left) / bounds.width) * 100))),
+                          position_y: Math.max(5, Math.min(95, Math.round(((event.clientY - bounds.top) / bounds.height) * 100))),
+                        })
+                      }}
+                      onPointerUp={(event: ReactPointerEvent<HTMLDivElement>) => {
+                        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+                      }}
+                      onPointerCancel={(event: ReactPointerEvent<HTMLDivElement>) => {
+                        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+                      }}
+                      aria-label="Drag the text overlay to change its position"
+                    >
+                      {output?.poster_url && (
+                        <img src={output.poster_url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover" />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-black/25" />
+                      <div className="absolute left-2 top-2 rounded bg-black/55 px-2 py-1 text-[9px] font-semibold tracking-widest text-white/80">
+                        POSITION PREVIEW
+                      </div>
+                      <div
+                        className="pointer-events-none absolute max-w-[84%] -translate-x-1/2 -translate-y-1/2 whitespace-pre-wrap break-words rounded-md px-2 py-1 text-center font-bold leading-tight shadow-lg"
+                        style={{
+                          left: String(overlay.position_x) + "%",
+                          top: String(overlay.position_y) + "%",
+                          color: overlay.color,
+                          fontSize: String(Math.max(12, 15 * overlay.font_size_percent / 100)) + "px",
+                          backgroundColor: overlay.background ? "rgba(0,0,0,0.62)" : "transparent",
+                          textShadow: overlay.background ? "none" : "0 2px 8px rgba(0,0,0,0.9)",
+                        }}
+                      >
+                        {overlay.text || 'YOUR MESSAGE'}
+                      </div>
+                    </div>
+                    <p className="mt-2 text-center text-[10px] text-muted">Drag the text to position it · 9:16 preview</p>
+                  </div>
+                  <div className="min-w-[180px] flex-1 text-xs text-muted">
+                    <p className="font-semibold text-ink">Direct positioning</p>
+                    <p className="mt-1">Move the message inside the frame. The X/Y controls below update immediately and stay in sync with this preview.</p>
+                    <p className="mt-2 font-mono tabular-nums">X {overlay.position_x}% · Y {overlay.position_y}%</p>
+                  </div>
+                </div>
                 <div className="grid gap-3 sm:grid-cols-3">
                   <label className="flex flex-col gap-1 text-xs text-muted">
                     Output
