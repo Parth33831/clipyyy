@@ -1255,6 +1255,9 @@ function CampaignTimeline({
   }))
   const total = Math.max(0.1, shots.reduce((sum, item) => sum + item.duration, 0))
   const musicStart = Math.max(0, musicStartSeconds)
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.currentTime = musicStart + playheadSeconds
+  }, [musicStart])
   const waveform = waveformQuery.data
   const waveformPeaks = waveform && waveform.duration_seconds > 0
     ? waveform.peaks.slice(
