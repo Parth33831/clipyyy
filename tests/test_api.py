@@ -1,9 +1,11 @@
 import json
+import struct
+import subprocess
 
 import pytest
 from fastapi.testclient import TestClient
 
-from clipyyy import db, pipeline
+from clipyyy import api, db, pipeline
 from clipyyy.api import create_app
 
 
@@ -591,6 +593,37 @@ def test_campaign_music_preview_requires_an_attached_track(client):
     run = db.create_run("campaign", {"campaign_mode": True, "campaign_music_path": None}, status="completed")
     response = client.get("/api/runs/" + run["id"] + "/campaign-music")
     assert response.status_code == 404
+
+
+def test_campaign_waveform_returns_cached_normalized_audio_peaks(client, tmp_path, monkeypatch):
+    run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
+    audio_path = tmp_path / "campaign-track.mp3"
+    audio_path.write_bytes(b"audio")
+    db.update_run(run["id"], options={"campaign_mode": True, "campaign_music_path": str(audio_path)})
+    monkeypatch.setattr(pipeline, "run_dir", lambda run_id: tmp_path)
+    calls = []
+
+    def fake_decode(args, **kwargs):
+        calls.append(args)
+        raw = struct.pack("<4h", -32768, 16384, 0, 8192)
+        return subprocess.CompletedProcess(args, 0, stdout=raw, stderr=b"")
+
+    monkeypatch.setattr(api.subprocess, "run", fake_decode)
+    url = f"/api/runs/{run['id']}/campaign-waveform?bins=4"
+    first = client.get(url)
+    second = client.get(url)
+
+    assert first.status_code == 200
+    assert first.json()["peaks"] == [1.0, 0.5, 0.0, 0.25]
+    assert first.json()["duration_seconds"] == 0.001
+    assert second.json() == first.json()
+    assert len(calls) == 1
+
+
+def test_campaign_waveform_validates_bins_and_attached_music(client):
+    run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
+    assert client.get(f"/api/runs/{run['id']}/campaign-waveform?bins=2").status_code == 400
+    assert client.get(f"/api/runs/{run['id']}/campaign-waveform?bins=640").status_code == 404
 
 
 def test_campaign_source_video_can_be_streamed_for_editor_preview(client, tmp_path, monkeypatch):
