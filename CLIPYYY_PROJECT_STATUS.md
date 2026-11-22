@@ -626,3 +626,8 @@ STATUS: In progress / Ready for review / Merged
 
 - PR #85 added a bounded, coalescing undo/redo history across campaign shot edits and independent text overlays. Latest-head CI passed Ruff, fast backend and frontend production build; PR was reviewed and squash-merged as `9693f05171bbfd479a9736ab0cc994315c2a136c`.
 - The campaign editor now has one shared Undo/Redo toolbar; rapid drag/slider/text updates are coalesced into fewer history steps. History resets when the saved run is reloaded.
+
+- PR #85 (campaign editor undo/redo) passed latest-head CI and merged as `9693f05171bbfd479a9736ab0cc994315c2a136c`.
+- PR #86 rebased the draggable live overlay preview onto latest main after PR #83 soundtrack preview, then passed Ruff, fast backend and frontend production build. It was squash-merged as `abbb7b5a52704013645b82450a6293a734deaad5`.
+- PR #76 was closed as a stale stacked attempt; its live placement preview is now integrated via PR #86. Do not re-open or duplicate it.
+- Current overlay editor supports independent layers, timeline lane, drag-to-move/trim, live 9:16 placement preview, and shared undo/redo history. Remaining work: keyboard shortcuts, preview/playhead synchronization, per-overlay typography options, and real Windows campaign smoke test.
