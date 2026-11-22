@@ -41,6 +41,7 @@ class RetryRun(BaseModel):
 class CampaignAudioUpdate(BaseModel):
     music_volume: float = Field(0.9, ge=0, le=2)
     source_audio_volume: float = Field(1.0, ge=0, le=2)
+    duck_music: bool = False
     fade_in_seconds: float = Field(0.4, ge=0, le=10)
     fade_out_seconds: float = Field(0.8, ge=0, le=10)
 
@@ -285,6 +286,7 @@ def create_app(start_worker: bool = True) -> FastAPI:
             **run["options"],
             "campaign_music_volume": body.music_volume,
             "campaign_source_audio_volume": body.source_audio_volume,
+            "campaign_music_ducking": body.duck_music,
             "campaign_music_fade_in_seconds": body.fade_in_seconds,
             "campaign_music_fade_out_seconds": body.fade_out_seconds,
         }
