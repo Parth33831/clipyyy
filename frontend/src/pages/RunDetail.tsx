@@ -1213,6 +1213,13 @@ function CampaignTimeline({
   }))
   const total = Math.max(0.1, shots.reduce((sum, item) => sum + item.duration, 0))
   const musicStart = musicAnalysis?.selected_start_seconds ?? 0
+  const waveform = waveformQuery.data
+  const waveformPeaks = waveform && waveform.duration_seconds > 0
+    ? waveform.peaks.slice(
+      Math.max(0, Math.floor((musicStart / waveform.duration_seconds) * waveform.peaks.length)),
+      Math.min(waveform.peaks.length, Math.ceil(((musicStart + total) / waveform.duration_seconds) * waveform.peaks.length)),
+    )
+    : []
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3">
@@ -1222,13 +1229,6 @@ function CampaignTimeline({
       </div>
       {shots.length > 0 && (() => {
         const preview = shots[previewShotIndex] ?? shots[0]
-        const waveform = waveformQuery.data
-        const waveformPeaks = waveform && waveform.duration_seconds > 0
-          ? waveform.peaks.slice(
-            Math.max(0, Math.floor((musicStart / waveform.duration_seconds) * waveform.peaks.length)),
-            Math.min(waveform.peaks.length, Math.ceil(((musicStart + total) / waveform.duration_seconds) * waveform.peaks.length)),
-          )
-          : []
         const dynamicTransitionNames = ['fade', 'smoothleft', 'smoothright', 'wipeleft', 'wiperight', 'slideleft', 'slideright']
         const activeTransition = transitionStyle === 'dynamic' ? dynamicTransitionNames[Math.max(0, preview.index - 1) % dynamicTransitionNames.length] : 'fade'
         const source = sourceByIndex.get(preview.shot.source_index)
