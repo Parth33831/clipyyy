@@ -769,7 +769,7 @@ def render_campaign_montages(
             text_overlays = [
                 overlay
                 for overlay in options.get("campaign_text_overlays", [])
-                if int(overlay.get("rank", 1)) == int(clip["rank"])
+                if int(overlay.get("rank", 1)) == int(rank)
             ]
             if text_overlays:
                 text_overlay_path = edit_dir / "campaign-text-overlays.ass"
