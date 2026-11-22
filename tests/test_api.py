@@ -125,6 +125,57 @@ def test_campaign_music_can_be_attached_to_an_existing_run(client):
     assert Path(music_path).is_file()
 
 
+def test_campaign_audio_settings_can_be_saved_and_rerendered(client, monkeypatch):
+    run = db.create_run(
+        "campaign",
+        {
+            "campaign_mode": True,
+            "campaign_music_path": "campaign-track.mp3",
+            "campaign_music_volume": 0.9,
+            "campaign_music_fade_in_seconds": 0.4,
+            "campaign_music_fade_out_seconds": 0.8,
+        },
+        status="completed",
+    )
+    captured = {}
+
+    def fake_rerender(run_id):
+        captured["run_id"] = run_id
+        captured["options"] = db.get_run(run_id)["options"]
+        return {"renders": [{"rank": 1, "status": "ready"}, {"rank": 2, "status": "ready"}]}
+
+    monkeypatch.setattr(pipeline, "rerender_campaign", fake_rerender)
+    response = client.put(
+        f"/api/runs/{run['id']}/campaign-audio",
+        json={"music_volume": 1.25, "fade_in_seconds": 1.2, "fade_out_seconds": 2.5},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"saved": True, "rendered": True, "outputs": 2}
+    assert captured["run_id"] == run["id"]
+    assert captured["options"]["campaign_music_volume"] == 1.25
+    assert captured["options"]["campaign_music_fade_in_seconds"] == 1.2
+    assert captured["options"]["campaign_music_fade_out_seconds"] == 2.5
+
+
+def test_campaign_audio_settings_require_an_attached_music_track(client):
+    run = db.create_run("campaign", {"campaign_mode": True, "campaign_music_path": None}, status="completed")
+    response = client.put(
+        f"/api/runs/{run['id']}/campaign-audio",
+        json={"music_volume": 0.9, "fade_in_seconds": 0.4, "fade_out_seconds": 0.8},
+    )
+    assert response.status_code == 400
+
+
+def test_campaign_audio_settings_reject_out_of_range_values(client):
+    run = db.create_run("campaign", {"campaign_mode": True, "campaign_music_path": "track.mp3"}, status="completed")
+    response = client.put(
+        f"/api/runs/{run['id']}/campaign-audio",
+        json={"music_volume": 2.1, "fade_in_seconds": 0.4, "fade_out_seconds": 0.8},
+    )
+    assert response.status_code == 422
+
+
 def test_run_download_archive_is_persisted_under_clipyyy_home(client, tmp_path):
     from clipyyy.config import home
 
