@@ -648,7 +648,6 @@ function CampaignTimeline({
                     event.currentTarget.setPointerCapture(event.pointerId)
                     setTrimDrag({ shotIndex: index, edge: 'end', startX: event.clientX, width, originalStart: shot.start_seconds, originalEnd: shot.end_seconds })
                   }}
-                  onPointerMove={(event) => event.stopPropagation()}
                   onPointerUp={(event) => { event.stopPropagation(); setTrimDrag(null) }}
                   className="absolute inset-y-0 right-0 z-10 w-3 cursor-ew-resize border-l-2 border-acid bg-ink/70 touch-none"
                 />
