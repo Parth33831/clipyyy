@@ -74,3 +74,23 @@ def test_campaign_source_audio_uses_beat_aligned_shot_durations(
     assert calls[0].count("1.500") == 3
     graph = calls[0][calls[0].index("-filter_complex") + 1]
     assert "atempo=1.00000" not in graph
+
+def test_campaign_music_mix_filter_ducks_music_under_source_audio() -> None:
+    graph = render._campaign_music_mix_filter("volume=0.9", source_audio=True, duck_music=True)
+
+    assert "sidechaincompress=threshold=0.03:ratio=6:attack=20:release=350" in graph
+    assert "[ducked][src]amix=inputs=2" in graph
+
+
+def test_campaign_music_mix_filter_keeps_default_mix_unchanged() -> None:
+    graph = render._campaign_music_mix_filter("volume=0.9", source_audio=True, duck_music=False)
+
+    assert "sidechaincompress" not in graph
+    assert "[music][src]amix=inputs=2" in graph
+
+
+def test_campaign_music_mix_filter_ignores_ducking_without_source_audio() -> None:
+    graph = render._campaign_music_mix_filter("volume=0.9", source_audio=False, duck_music=True)
+
+    assert "sidechaincompress" not in graph
+    assert graph.endswith("[music]anull[aout]")
