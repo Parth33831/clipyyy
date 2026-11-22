@@ -866,3 +866,63 @@ def test_campaign_text_overlay_script_skips_empty_or_out_of_range_layers(tmp_pat
     assert script.count("Dialogue:") == 1
     assert "Visible" in script
     assert "After end" not in script
+
+
+def test_campaign_text_overlay_ass_layer_renders_on_synthetic_video(tmp_path):
+    from clipyyy.captions import ass_filter
+    from clipyyy.media import probe, run_ffmpeg
+    from clipyyy.render import write_campaign_text_overlays
+
+    source = tmp_path / "overlay-source.mp4"
+    run_ffmpeg(
+        [
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=black:s=270x480:r=12:d=2",
+            "-an",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            str(source),
+        ]
+    )
+    overlay = write_campaign_text_overlays(
+        [
+            {
+                "text": "A REAL CAMPAIGN TITLE",
+                "start_seconds": 0.2,
+                "end_seconds": 1.8,
+                "position_x": 50,
+                "position_y": 45,
+                "font_size_percent": 110,
+                "color": "#FFFFFF",
+                "animation": "fade",
+                "background": True,
+            }
+        ],
+        2.0,
+        tmp_path / "overlay.ass",
+        270,
+        480,
+    )
+    output = tmp_path / "overlay-render.mp4"
+    run_ffmpeg(
+        [
+            "-i",
+            str(source),
+            "-vf",
+            ass_filter(overlay),
+            "-an",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            str(output),
+        ]
+    )
+
+    width, height, duration = probe(output)
+    assert (width, height) == (270, 480)
+    assert duration == pytest.approx(2.0, abs=0.2)
