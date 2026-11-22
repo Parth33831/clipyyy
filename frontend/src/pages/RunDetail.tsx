@@ -1178,6 +1178,12 @@ function CampaignTimeline({
   }, [])
   const [isPlaying, setIsPlaying] = useState(false)
   const [playheadSeconds, setPlayheadSeconds] = useState(0)
+  const waveformQuery = useQuery({
+    queryKey: ['campaign-waveform', runId],
+    queryFn: () => api.campaignWaveform(runId),
+    enabled: hasMusic,
+    staleTime: Infinity,
+  })
   const [activeOverlayTrim, setActiveOverlayTrim] = useState<{
     pointerId: number
     overlayIndex: number
@@ -1207,6 +1213,13 @@ function CampaignTimeline({
   }))
   const total = Math.max(0.1, shots.reduce((sum, item) => sum + item.duration, 0))
   const musicStart = musicAnalysis?.selected_start_seconds ?? 0
+  const waveform = waveformQuery.data
+  const waveformPeaks = waveform && waveform.duration_seconds > 0
+    ? waveform.peaks.slice(
+      Math.max(0, Math.floor((musicStart / waveform.duration_seconds) * waveform.peaks.length)),
+      Math.min(waveform.peaks.length, Math.ceil(((musicStart + total) / waveform.duration_seconds) * waveform.peaks.length)),
+    )
+    : []
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3">
@@ -1611,6 +1624,37 @@ function CampaignTimeline({
         <span>{formatDuration(total / 2)}</span>
         <span>{formatDuration(total)}</span>
       </div>
+      {hasMusic && (
+        <div className="flex flex-col gap-2 border-t border-line pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="label text-muted">Soundtrack waveform</span>
+            <span className="font-mono text-[11px] text-faint">
+              {waveformQuery.isLoading ? 'Analyzing audio…' : waveformQuery.isError ? 'Waveform unavailable' : waveform ? formatDuration(waveform.duration_seconds) : 'Waiting for audio'}
+            </span>
+          </div>
+          {waveformPeaks.length > 0 ? (
+            <div className="relative flex h-14 min-w-[680px] items-center gap-px overflow-hidden rounded-md bg-surface px-2" role="img" aria-label="Soundtrack audio waveform aligned to the campaign timeline">
+              {waveformPeaks.map((peak, index) => (
+                <span
+                  key={index}
+                  title={`Audio peak ${Math.round(peak * 100)}%`}
+                  className="min-w-0 flex-1 rounded-sm bg-acid/80"
+                  style={{ height: `${Math.max(3, peak * 100)}%` }}
+                />
+              ))}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 z-10 w-0.5 bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.9)]"
+                style={{ left: 'calc(' + Math.max(0, Math.min(100, (playheadSeconds / total) * 100)) + '%)' }}
+              />
+            </div>
+          ) : (
+            <p className="text-xs text-faint">
+              {waveformQuery.isError ? 'Could not analyze this soundtrack. Playback is still available.' : 'Waveform will appear after the soundtrack is analyzed.'}
+            </p>
+          )}
+        </div>
+      )}
       {musicAnalysis && (
         <div className="flex flex-col gap-2 border-t border-line pt-3">
           <div className="flex flex-wrap items-center justify-between gap-2">

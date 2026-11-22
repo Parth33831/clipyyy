@@ -7,7 +7,9 @@ import math
 import mimetypes
 import os
 import shutil
+import subprocess
 import zipfile
+from array import array
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -376,6 +378,73 @@ def create_app(start_worker: bool = True) -> FastAPI:
             media_type=media_type,
             headers={"Cache-Control": "private, max-age=3600"},
         )
+
+    @app.get("/api/runs/{run_id}/campaign-waveform")
+    def campaign_waveform(run_id: str, bins: int = 640) -> dict[str, Any]:
+        """Return cached normalized audio peaks for the campaign editor timeline."""
+        run = _run_or_404(run_id)
+        if not run["options"].get("campaign_mode"):
+            raise HTTPException(400, "Waveforms are only available for campaign runs.")
+        if bins < 4 or bins > 2000:
+            raise HTTPException(400, "Waveform bins must be between 4 and 2000.")
+        music_path = run["options"].get("campaign_music_path")
+        if not music_path:
+            raise HTTPException(404, "No campaign music track is attached.")
+        audio_file = Path(str(music_path))
+        if not audio_file.is_file():
+            raise HTTPException(404, "The attached campaign music file is missing.")
+
+        work_dir = pipeline.run_dir(run_id) / "work"
+        work_dir.mkdir(parents=True, exist_ok=True)
+        audio_stat = audio_file.stat()
+        cache_path = work_dir / f"campaign-waveform-{bins}-{audio_stat.st_mtime_ns}-{audio_stat.st_size}.json"
+        if cache_path.is_file():
+            try:
+                return json.loads(cache_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                cache_path.unlink(missing_ok=True)
+
+        from clipyyy.media import ffmpeg_bin
+
+        try:
+            decoded = subprocess.run(
+                [
+                    ffmpeg_bin(),
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-i",
+                    str(audio_file),
+                    "-vn",
+                    "-ac",
+                    "1",
+                    "-ar",
+                    "4000",
+                    "-f",
+                    "s16le",
+                    "pipe:1",
+                ],
+                capture_output=True,
+                check=True,
+                timeout=90,
+            ).stdout
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise HTTPException(500, f"Could not analyze the campaign soundtrack: {exc}") from exc
+
+        samples = array("h")
+        samples.frombytes(decoded[: len(decoded) - (len(decoded) % 2)])
+        sample_count = len(samples)
+        if sample_count == 0:
+            raise HTTPException(422, "The attached soundtrack contains no decodable audio.")
+        peaks = []
+        for index in range(bins):
+            start = index * sample_count // bins
+            end = (index + 1) * sample_count // bins
+            peak = max((abs(value) for value in samples[start:end]), default=0)
+            peaks.append(round(peak / 32768, 4))
+        result = {"duration_seconds": round(sample_count / 4000, 3), "peaks": peaks}
+        cache_path.write_text(json.dumps(result), encoding="utf-8")
+        return result
 
     @app.get("/api/runs/{run_id}/campaign-source")
     def campaign_source(run_id: str, source_index: int) -> FileResponse:
