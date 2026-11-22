@@ -1023,7 +1023,6 @@ function CampaignTimeline({
   hasMusic,
   textOverlays,
   onUpdateTextOverlay,
-  transitionStyle,
   onMoveShot,
   onUpdateShot,
 }: {
