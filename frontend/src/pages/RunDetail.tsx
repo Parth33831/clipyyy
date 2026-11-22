@@ -1255,9 +1255,6 @@ function CampaignTimeline({
   }))
   const total = Math.max(0.1, shots.reduce((sum, item) => sum + item.duration, 0))
   const musicStart = Math.max(0, musicStartSeconds)
-  useEffect(() => {
-    if (audioRef.current) audioRef.current.currentTime = musicStart + playheadSeconds
-  }, [musicStart])
   const waveform = waveformQuery.data
   const waveformPeaks = waveform && waveform.duration_seconds > 0
     ? waveform.peaks.slice(
@@ -1737,7 +1734,11 @@ function CampaignTimeline({
           </span>
           <input type="range" min={0} max={Math.max(0, waveform.duration_seconds - total)} step={0.05}
             value={Math.min(musicStart, Math.max(0, waveform.duration_seconds - total))}
-            onChange={(event) => onMusicStartChange(Number(event.target.value))}
+            onChange={(event) => {
+              const nextStart = Number(event.target.value)
+              onMusicStartChange(nextStart)
+              if (audioRef.current) audioRef.current.currentTime = nextStart + playheadSeconds
+            }}
             className="w-full accent-current" aria-label="Choose soundtrack start position" />
           <span className="text-xs text-muted">Shift the waveform window to line up the music with your first shot. Fine adjustment: 0.05 seconds.</span>
         </label>
