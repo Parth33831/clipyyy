@@ -146,6 +146,7 @@ export interface RunDetail extends Run {
   campaign_plan: CampaignPlan | null
   campaign_edits: CampaignEdit[]
   campaign_original_edits: CampaignEdit[]
+  campaign_lyric_cues?: { text: string; start_seconds: number; end_seconds: number }[]
   campaign_sources: CampaignSource[]
   campaign_quality_checks: CampaignQualityChecks | null
   source_duration: number | null
