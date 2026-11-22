@@ -956,8 +956,7 @@ def test_campaign_text_overlay_ass_layer_renders_on_synthetic_video(tmp_path):
     assert duration == pytest.approx(2.0, abs=0.2)
 
 
-
-def test_campaign_music_beat_markers_are_relative_to_selected_window():
+def test_campaign_music_beat_markers_are_relative_to_selected_window() -> None:
     from clipyyy.render import _campaign_music_beat_markers
 
     analysis = {
