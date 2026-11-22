@@ -1207,8 +1207,12 @@ def write_campaign_lyrics(
     has_lrc_timestamps = any(re.match(r"^\[\d{1,2}:\d{2}(?:\.\d{1,2})?\]", line) for line in lines)
     if timed_lines:
         for index, (start, line) in enumerate(timed_lines):
-            phrase_style = phrase_overrides.get(index, {}).get("animation_style", style)
-            end = timed_lines[index + 1][0] if index + 1 < len(timed_lines) else duration
+            phrase_override = phrase_overrides.get(index, {})
+            phrase_style = phrase_override.get("animation_style", style)
+            default_end = timed_lines[index + 1][0] if index + 1 < len(timed_lines) else duration
+            # Phrase timing overrides use original campaign-track seconds, matching LRC stamps.
+            start = float(phrase_override.get("start_seconds", start + offset_seconds)) - offset_seconds
+            end = float(phrase_override.get("end_seconds", default_end + offset_seconds)) - offset_seconds
             start = max(0.0, min(start, duration))
             end = min(duration, max(start + 0.2, min(end, duration)))
             dialogue = f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,"
@@ -1248,9 +1252,12 @@ def write_campaign_lyrics(
     elif not has_lrc_timestamps:
         interval = duration / max(1, len(lines))
         for index, line in enumerate(lines):
-            phrase_style = phrase_overrides.get(index, {}).get("animation_style", style)
-            start = index * interval
-            end = duration if index == len(lines) - 1 else (index + 1) * interval
+            phrase_override = phrase_overrides.get(index, {})
+            phrase_style = phrase_override.get("animation_style", style)
+            default_start = index * interval
+            default_end = duration if index == len(lines) - 1 else (index + 1) * interval
+            start = max(0.0, min(float(phrase_override.get("start_seconds", default_start)), duration))
+            end = min(duration, max(start + 0.2, float(phrase_override.get("end_seconds", default_end))))
             dialogue = f"Dialogue: 0,{_ts(start)},{_ts(end)},Default,,0,0,0,,"
             if phrase_style == "karaoke":
                 words = line.split()

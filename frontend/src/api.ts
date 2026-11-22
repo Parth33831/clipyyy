@@ -117,6 +117,8 @@ export interface CampaignShot {
 
 export interface CampaignLyricPhraseEdit {
   phrase_index: number
+  start_seconds?: number
+  end_seconds?: number
   position_x?: number
   position_y?: number
   scale_percent?: number

@@ -15,7 +15,7 @@ from typing import Any, Literal
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from clipyyy import __version__, db, pipeline
 from clipyyy.config import PACKAGE_DIR, SETTINGS, get_setting, home, mask, uploads_dir
@@ -43,11 +43,23 @@ class CampaignAudioUpdate(BaseModel):
 
 class CampaignLyricPhraseEdit(BaseModel):
     phrase_index: int = Field(..., ge=0, le=199)
+    start_seconds: float | None = Field(None, ge=0)
+    end_seconds: float | None = Field(None, gt=0)
     position_x: int | None = Field(None, ge=5, le=95)
     position_y: int | None = Field(None, ge=5, le=95)
     scale_percent: int | None = Field(None, ge=50, le=200)
     rotation_degrees: int | None = Field(None, ge=-30, le=30)
     animation_style: Literal["dynamic", "cinematic", "minimal", "karaoke"] | None = None
+
+    @model_validator(mode="after")
+    def _valid_timing(self) -> CampaignLyricPhraseEdit:
+        if (
+            self.start_seconds is not None
+            and self.end_seconds is not None
+            and self.end_seconds <= self.start_seconds
+        ):
+            raise ValueError("Phrase end_seconds must be after start_seconds")
+        return self
 
 
 class CampaignLyricsUpdate(BaseModel):
