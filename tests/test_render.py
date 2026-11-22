@@ -626,3 +626,19 @@ def test_music_cut_selection_ignores_malformed_lyric_cues():
     }
 
     assert select_music_cut_duration(0.0, 3.4, analysis, [{"start_seconds": "bad"}]) == 3.0
+
+
+def test_campaign_subject_shot_filter_uses_tracked_crop_path():
+    from clipyyy.render import campaign_subject_shot_filter
+
+    result = campaign_subject_shot_filter(
+        1080,
+        1920,
+        1920,
+        1080,
+        [{"t": 0.0, "x": 900, "y": 100, "width": 300, "height": 500}],
+    )
+
+    assert result.startswith("crop=")
+    assert "scale=1080:1920" in result
+    assert "setsar=1" in result
