@@ -198,6 +198,7 @@ def build_montage_plan(
     additional_instructions: str = "",
     reference_analyses: list[dict] | None = None,
     music_analysis: dict[str, Any] | None = None,
+    campaign_lyrics: str = "",
 ) -> list[dict[str, Any]]:
     """Choose an ordered montage from timestamped visual observations across all sources."""
     if not hasattr(llm, "complete_json"):
@@ -287,10 +288,25 @@ def build_montage_plan(
             "continuity, or truthful storytelling just to hit a beat. The renderer will refine cut timing "
             "to nearby detected transients; choose the right visual moments first."
         )
+    lyric_guidance = ""
+    supplied_lyrics = "\\n".join(
+        line.strip() for line in str(campaign_lyrics or "").splitlines() if line.strip()
+    )
+    if supplied_lyrics:
+        lyric_guidance = (
+            "\\n\\nCREATOR-SUPPLIED CAMPAIGN LYRICS (meaning reference only; no word timestamps supplied):\\n"
+            + supplied_lyrics[:6000]
+            + "\\nUse these lyrics as an optional semantic/storytelling cue. Match a lyric idea to a shot "
+            "only when the supplied visual observations genuinely support that meaning. Do not invent "
+            "visuals to illustrate a lyric, do not assume the lyric is sung at a particular timestamp, "
+            "and do not force a literal illustration. If no observed shot supports a lyric, prioritize "
+            "the campaign brief and truthful visual continuity instead."
+        )
     user = (
         f"Campaign brief:\n{brief}\n\nExtracted requirements:\n"
         f"{format_campaign_plan(campaign_plan)}"
         f"{music_guidance}"
+        f"{lyric_guidance}"
         f"\n\nAdditional creator instructions:\n{additional_instructions or 'None'}"
         f"\n\nCreate {output_count} distinct edits, each approximately "
         f"{target_seconds:.1f} seconds. "
