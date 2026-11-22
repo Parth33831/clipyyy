@@ -462,7 +462,37 @@ def stage_broll(ctx: Context) -> dict:
 
 def stage_reframe(ctx: Context) -> dict:
     if ctx.options.get("campaign_mode"):
-        return {"clips": []}
+        if not ctx.options.get("face_tracking", True):
+            return {"clips": [], "campaign_crop_plans": []}
+        from clipyyy.reframe import plan_crop
+
+        sources = ctx.state["select"].get("campaign_sources") or ctx.state["download"].get("sources") or [
+            ctx.state["download"]
+        ]
+        crop_plans = []
+        for edit in ctx.state["select"].get("campaign_edits", []):
+            for shot_index, shot in enumerate(edit["shots"]):
+                source_index = int(shot["source_index"])
+                if not 0 <= source_index < len(sources):
+                    continue
+                source = sources[source_index]
+                plan = plan_crop(
+                    Path(source["video_path"]),
+                    ASPECTS[ctx.options["aspect_ratio"]],
+                    float(shot["start_seconds"]),
+                    float(shot["end_seconds"]),
+                    allow_model_download=False,
+                )
+                if plan.get("crop_mode") == "face" and plan.get("crop_boxes"):
+                    crop_plans.append(
+                        {
+                            "edit_rank": int(edit["rank"]),
+                            "shot_index": shot_index,
+                            "source_index": source_index,
+                            "crop_boxes": plan["crop_boxes"],
+                        }
+                    )
+        return {"clips": [], "campaign_crop_plans": crop_plans}
     from clipyyy.reframe import prepare_clips
 
     return prepare_clips(
@@ -558,8 +588,12 @@ def stage_render(ctx: Context) -> dict:
         render_source = dict(ctx.state["download"])
         if ctx.state["select"].get("campaign_sources"):
             render_source["sources"] = ctx.state["select"]["campaign_sources"]
+        render_selection = dict(ctx.state["select"])
+        render_selection["campaign_crop_plans"] = ctx.state.get("reframe", {}).get(
+            "campaign_crop_plans", []
+        )
         result = render_campaign_montages(
-            render_source, ctx.state["select"], ctx.work_dir, ctx.out_dir, render_options
+            render_source, render_selection, ctx.work_dir, ctx.out_dir, render_options
         )
     else:
         from clipyyy.render import render_clips
