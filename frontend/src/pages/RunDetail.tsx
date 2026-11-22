@@ -858,6 +858,9 @@ function CampaignTextOverlayEditor({
         position_x: 50,
         position_y: 50,
         font_size_percent: 100,
+        font_family: 'Arial',
+        font_weight: 'bold',
+        text_effect: 'shadow',
         color: '#FFFFFF',
         animation: 'fade',
         background: true,
@@ -1026,6 +1029,36 @@ function CampaignTextOverlayEditor({
                     <input type="checkbox" checked={overlay.background}
                       onChange={(event) => update(index, { background: event.target.checked })} />
                     Background panel
+                  </label>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <label className="flex flex-col gap-1 text-xs text-muted">
+                    Font family
+                    <select value={overlay.font_family ?? 'Arial'} onChange={(event) => update(index, { font_family: event.target.value as CampaignTextOverlay['font_family'] })}
+                      className="rounded-md border border-line bg-surface px-2 py-2 text-sm text-ink">
+                      <option value="Arial">Arial · clean</option>
+                      <option value="Georgia">Georgia · editorial</option>
+                      <option value="Impact">Impact · bold display</option>
+                      <option value="Trebuchet MS">Trebuchet MS · modern</option>
+                      <option value="Verdana">Verdana · readable</option>
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-xs text-muted">
+                    Font weight
+                    <select value={overlay.font_weight ?? 'bold'} onChange={(event) => update(index, { font_weight: event.target.value as CampaignTextOverlay['font_weight'] })}
+                      className="rounded-md border border-line bg-surface px-2 py-2 text-sm text-ink">
+                      <option value="regular">Regular</option>
+                      <option value="bold">Bold</option>
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-xs text-muted">
+                    Text effect
+                    <select value={overlay.text_effect ?? 'shadow'} onChange={(event) => update(index, { text_effect: event.target.value as CampaignTextOverlay['text_effect'] })}
+                      className="rounded-md border border-line bg-surface px-2 py-2 text-sm text-ink">
+                      <option value="none">None</option>
+                      <option value="shadow">Soft shadow</option>
+                      <option value="outline">Outline</option>
+                    </select>
                   </label>
                 </div>
                 <p className="text-[11px] text-muted">
