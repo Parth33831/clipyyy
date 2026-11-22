@@ -1076,7 +1076,9 @@ def render_campaign_montages(
                     "selected_section": music_analysis["selected_section"],
                     "estimated_bpm": music_analysis.get("bpm"),
                     "detected_beats": len(beat_times),
-                    "beat_markers": _campaign_music_beat_markers(music_analysis, music_start, target_duration),
+                    "beat_markers": _campaign_music_beat_markers(
+                        music_analysis, music_start, target_duration
+                    ),
                     "energy_sections": music_analysis.get("energy_sections", []),
                 }
                 if music_analysis
@@ -1802,10 +1804,15 @@ def _campaign_music_beat_markers(analysis: dict, music_start: float, target_dura
         relative = float(beat) - music_start
         if not 0.0 <= relative <= target_duration:
             continue
-        strength = max(0.0, min(1.0, float(strengths[index]))) if index < len(strengths) else 0.0
+        strength = (
+            max(0.0, min(1.0, float(strengths[index]))) if index < len(strengths) else 0.0
+        )
         energy = 0.5
         if profile:
-            nearest = min(profile, key=lambda point: abs(float(point["time_seconds"]) - float(beat)))
+            nearest = min(
+                profile,
+                key=lambda point: abs(float(point["time_seconds"]) - float(beat)),
+            )
             energy = max(0.0, min(1.0, float(nearest.get("energy", 0.5))))
         markers.append(
             {
