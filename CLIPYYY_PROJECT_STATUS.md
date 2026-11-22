@@ -591,3 +591,6 @@ STATUS: In progress / Ready for review / Merged
 - It preserves the latest per-phrase lyric timing, position, transform and animation controls while keeping separate creator text overlays independent.
 - Latest validation on the preceding overlay head passed Ruff and frontend build; fast backend reached **136 passed, 41 skipped** before the final timing-normalization test fix. PR #75's latest-head CI is pending.
 - PRs #68, #70 and #72 are closed stale attempts; PR #75 is the only active independent text-overlay implementation. Do not merge until latest-head CI passes.
+
+- PR #75 passed latest-head CI: Ruff lint/format, fast backend **136 passed, 41 skipped**, and frontend production build. Full-backend, Windows and macOS jobs were skipped by workflow configuration.
+- Reviewed and squash-merged PR #75 into main as `49dadf85e0eb2e711eaf5a6da03dff0edfa9ee10`. Independent timed text overlays are now on main. Real Windows/media smoke test remains outstanding.
