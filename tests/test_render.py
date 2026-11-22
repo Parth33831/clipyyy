@@ -628,7 +628,6 @@ def test_music_cut_selection_ignores_malformed_lyric_cues():
     assert select_music_cut_duration(0.0, 3.4, analysis, [{"start_seconds": "bad"}]) == 3.0
 
 
-
 def test_campaign_shot_filter_uses_tracked_subject_crop_when_available():
     from clipyyy.render import campaign_shot_filter
 
