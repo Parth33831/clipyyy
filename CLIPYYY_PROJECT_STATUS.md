@@ -504,3 +504,12 @@ STATUS: In progress / Ready for review / Merged
 - CI passed: Ruff lint, Ruff format, backend test suite, and frontend production build.
 - Important limitation: these timestamps guide the LLM's story progression; the current montage output schema still does not position each shot at an exact music-relative time. Do not describe this as frame-accurate lyric-to-shot sync. Real campaign media on Windows still needs a smoke test.
 - Next priority: define a renderer-supported music-relative shot placement contract (shot timeline positions or explicit duration/transition targets), then implement and test deterministic placement against lyric phrases and strong beats without sacrificing story relevance.
+
+
+### 2026-11-22 follow-up: renderer now prefers lyric phrase cut points
+
+- PR #59 merged into main as \`b0167f762ff74e9b0ee25168a131558ab459079e\`.
+- The campaign renderer now passes music-relative lyric phrase boundaries into the existing beat-aware cut selector. A beat within 180 ms of a phrase start/end receives a bounded score preference, while energy and desired shot duration remain part of the score.
+- No cues or malformed cues preserve the previous beat-selection behavior. Tests cover both the preference and fallback.
+- CI passed: Ruff lint/format, backend tests and frontend build.
+- Next audit: campaign smart framing. Verify whether the current campaign shot filter uses subject-aware focal points or a fixed center crop, and reuse the existing reframe/face-tracking implementation where compatible rather than adding a duplicate tracker.
