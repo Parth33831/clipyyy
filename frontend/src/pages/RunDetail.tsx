@@ -1065,12 +1065,11 @@ function CampaignTimeline({
     initialTotal: number
   } | null>(null)
   const sourceByIndex = new Map(sources.map((source) => [source.index, source]))
-  const hasBeats = (musicAnalysis?.detected_beats ?? 0) > 0
-  const useFades = transitionStyle === 'cinematic' || transitionStyle === 'dynamic' || (transitionStyle === 'auto' && !hasBeats)
   const shots = edit.shots.map((shot, index) => ({
     shot,
     index,
-    duration: Math.max(0.1, shot.end_seconds - shot.start_seconds - (useFades && index > 0 ? 0.24 : 0)),
+    // Preview playback uses hard cuts; transition overlap is not composited in this player.
+    duration: Math.max(0.1, shot.end_seconds - shot.start_seconds),
   }))
   const total = Math.max(0.1, shots.reduce((sum, item) => sum + item.duration, 0))
   const musicStart = musicAnalysis?.selected_start_seconds ?? 0
