@@ -635,3 +635,5 @@ STATUS: In progress / Ready for review / Merged
 - PR #88 synchronized campaign preview playback was merged into main as `66a1aecc2ce0ae85cc9022721268d55c48b6a684`. It keeps the playback cursor aligned to the cut-based preview duration.
 - PR #89 keyboard shortcuts was superseded because #88 advanced main; refreshed PR #90 reapplies Ctrl/Cmd+Z undo and Ctrl/Cmd+Shift+Z / Ctrl/Cmd+Y redo on latest main.
 - PRs #80 and #84 both propose per-layer typography controls and touch the same API/pipeline/render/frontend files, but are based on different stale branches. Consolidate into one latest-main PR before merging; do not merge both independently.
+
+- PR #90 added Ctrl/Cmd+Z undo and Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y redo shortcuts, preserving native undo while focus is in text fields. Latest-head CI passed; PR merged as `59f9b7aad1877f742c057e926c4c200d84f2cd6e`.
