@@ -1134,6 +1134,7 @@ function CampaignTimeline({
   const [previewShotIndex, setPreviewShotIndex] = useState(0)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const pendingSeekRef = useRef<number | null>(null)
   const advancingShotRef = useRef(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [playheadSeconds, setPlayheadSeconds] = useState(0)
@@ -1188,13 +1189,38 @@ function CampaignTimeline({
         )
         const wordWindowStart = activeWordIndex < 0 ? 0 : Math.max(0, activeWordIndex - Math.floor((wordsOnScreen - 1) / 2))
         const activeWordWindow = activeWordIndex < 0 ? [] : lyricWords.slice(wordWindowStart, wordWindowStart + wordsOnScreen)
+        const seekToTimeline = (targetSeconds: number) => {
+          const boundedTime = Math.max(0, Math.min(total, targetSeconds))
+          let elapsed = 0
+          let targetIndex = Math.max(0, shots.length - 1)
+          let localOffset = 0
+          for (const item of shots) {
+            if (boundedTime <= elapsed + item.duration || item.index === shots.length - 1) {
+              targetIndex = item.index
+              localOffset = Math.max(0, Math.min(item.duration, boundedTime - elapsed))
+              break
+            }
+            elapsed += item.duration
+          }
+          const targetShot = shots[targetIndex]
+          const sourceTime = targetShot.shot.start_seconds + localOffset
+          pendingSeekRef.current = sourceTime
+          setPlayheadSeconds(boundedTime)
+          if (targetIndex !== preview.index) {
+            setPreviewShotIndex(targetIndex)
+          } else if (videoRef.current) {
+            videoRef.current.currentTime = sourceTime
+            pendingSeekRef.current = null
+          }
+          if (audioRef.current) audioRef.current.currentTime = musicStart + boundedTime
+        }
         const selectShot = (index: number) => {
+          const bounded = Math.max(0, Math.min(shots.length - 1, index))
+          const start = shots.slice(0, bounded).reduce((sum, item) => sum + item.duration, 0)
           videoRef.current?.pause()
           audioRef.current?.pause()
           setIsPlaying(false)
-          const bounded = Math.max(0, Math.min(shots.length - 1, index))
-          setPreviewShotIndex(bounded)
-          setPlayheadSeconds(shots.slice(0, bounded).reduce((sum, item) => sum + item.duration, 0))
+          seekToTimeline(start)
         }
         const togglePlayback = async () => {
           const video = videoRef.current
@@ -1232,11 +1258,13 @@ function CampaignTimeline({
                 src={"/api/runs/" + runId + "/campaign-source?source_index=" + preview.shot.source_index}
                 onLoadedMetadata={(event) => {
                   advancingShotRef.current = false
-                  event.currentTarget.currentTime = preview.shot.start_seconds
+                  const targetSourceTime = pendingSeekRef.current ?? preview.shot.start_seconds
+                  event.currentTarget.currentTime = targetSourceTime
+                  pendingSeekRef.current = null
                   if (isPlaying) {
                     const audio = audioRef.current
                     if (audio) {
-                      audio.currentTime = musicStart + shotTimelineStart
+                      audio.currentTime = musicStart + shotTimelineStart + Math.max(0, targetSourceTime - preview.shot.start_seconds)
                       void audio.play().catch(() => undefined)
                     }
                     void event.currentTarget.play().catch(() => setIsPlaying(false))
@@ -1314,6 +1342,22 @@ function CampaignTimeline({
                 {formatDuration(preview.shot.start_seconds)} → {formatDuration(preview.shot.end_seconds)}
                 {' · '}Timeline {formatDuration(playheadSeconds)} / {formatDuration(total)}
               </span>
+              <label className="mt-2 flex flex-col gap-1 text-xs text-muted">
+                <span className="flex justify-between">
+                  <span>Scrub timeline</span>
+                  <span className="font-mono">{formatDuration(playheadSeconds)} / {formatDuration(total)}</span>
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={total}
+                  step={0.01}
+                  value={Math.min(playheadSeconds, total)}
+                  onChange={(event) => seekToTimeline(Number(event.target.value))}
+                  aria-label="Seek campaign preview timeline"
+                  className="w-full accent-current"
+                />
+              </label>
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => void togglePlayback()}
                   className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-paper">
