@@ -1593,6 +1593,8 @@ function CampaignTimeline({
   const [previewTransitionStyle, setPreviewTransitionStyle] = useState(transitionStyle)
   const [previewLyricAnimation, setPreviewLyricAnimation] = useState<CampaignLyricPhraseEdit['animation_style']>('dynamic')
   const [previewTextAnimation, setPreviewTextAnimation] = useState<CampaignTextOverlay['animation']>('pop')
+  const [positioningTarget, setPositioningTarget] = useState<'none' | 'lyric' | 'text'>('none')
+  const positionDragRef = useRef<{ pointerId: number; target: 'lyric' | 'text' } | null>(null)
   useEffect(() => setPreviewTransitionStyle(transitionStyle), [transitionStyle])
   const transitionDurationMs = previewTransitionStyle === 'cut' || (previewTransitionStyle === 'auto' && (musicAnalysis?.detected_beats ?? 0) > 0) ? 0 : 240
   useEffect(() => () => {
@@ -1601,6 +1603,38 @@ function CampaignTimeline({
   const [isPlaying, setIsPlaying] = useState(false)
   const [playheadSeconds, setPlayheadSeconds] = useState(0)
   const [maskTimestamp, setMaskTimestamp] = useState(0)
+  const updateLiveTextPosition = (event: ReactPointerEvent<HTMLDivElement>, target: 'lyric' | 'text') => {
+    const stage = event.currentTarget.closest('[data-campaign-preview-stage]') as HTMLDivElement | null
+    const bounds = stage?.getBoundingClientRect()
+    if (!bounds || bounds.width <= 0 || bounds.height <= 0) return
+    const x = Math.max(5, Math.min(95, Math.round(((event.clientX - bounds.left) / bounds.width) * 100)))
+    const y = Math.max(5, Math.min(95, Math.round(((event.clientY - bounds.top) / bounds.height) * 100)))
+    if (target === 'lyric') {
+      const lyric = lyrics.find((item) => playheadSeconds >= item.start_seconds && playheadSeconds <= item.end_seconds)
+      if (lyric) onUpdateLyric(lyric.phrase_index, { position_x: x, position_y: y })
+    } else {
+      const overlayIndex = textOverlays.findIndex((item) =>
+        item.rank === edit.rank && playheadSeconds >= item.start_seconds && playheadSeconds <= item.end_seconds
+      )
+      if (overlayIndex >= 0) onUpdateTextOverlay(overlayIndex, { position_x: x, position_y: y })
+    }
+  }
+  const beginLiveTextDrag = (event: ReactPointerEvent<HTMLDivElement>, target: 'lyric' | 'text') => {
+    if (positioningTarget !== target) return
+    event.preventDefault()
+    event.stopPropagation()
+    positionDragRef.current = { pointerId: event.pointerId, target }
+    event.currentTarget.setPointerCapture(event.pointerId)
+    updateLiveTextPosition(event, target)
+  }
+  const moveLiveTextDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = positionDragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    updateLiveTextPosition(event, drag.target)
+  }
+  const endLiveTextDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (positionDragRef.current?.pointerId === event.pointerId) positionDragRef.current = null
+  }
   const waveformQuery = useQuery({
     queryKey: ['campaign-waveform', runId],
     queryFn: () => api.campaignWaveform(runId),
@@ -1848,8 +1882,35 @@ function CampaignTimeline({
                 </button>
               </div>
             </div>
+            <div className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-panel p-3">
+              <span className="mr-1 text-xs font-semibold text-ink">Position text on the video</span>
+              <button type="button" disabled={!activeLyric}
+                aria-pressed={positioningTarget === 'lyric'}
+                onClick={() => { positionDragRef.current = null; setPositioningTarget(positioningTarget === 'lyric' ? 'none' : 'lyric') }}
+                className={cn('rounded-md border px-2.5 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40',
+                  positioningTarget === 'lyric' ? 'border-ink bg-ink text-white' : 'border-line bg-surface text-muted hover:border-ink')}>
+                Drag active lyric
+              </button>
+              <button type="button" disabled={!activeOverlay}
+                aria-pressed={positioningTarget === 'text'}
+                onClick={() => { positionDragRef.current = null; setPositioningTarget(positioningTarget === 'text' ? 'none' : 'text') }}
+                className={cn('rounded-md border px-2.5 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40',
+                  positioningTarget === 'text' ? 'border-ink bg-ink text-white' : 'border-line bg-surface text-muted hover:border-ink')}>
+                Drag active title
+              </button>
+              {positioningTarget !== 'none' && (
+                <button type="button" onClick={() => { positionDragRef.current = null; setPositioningTarget('none') }}
+                  className="rounded-md px-2 py-1.5 text-xs text-muted underline">Done</button>
+              )}
+              <span className="text-[11px] text-muted">
+                {positioningTarget === 'lyric' ? 'Drag the lyric directly in the footage preview.' :
+                  positioningTarget === 'text' ? 'Drag the title directly in the footage preview.' :
+                    'Choose a layer to move it directly on the footage.'}
+                {' '}Positions update in the edit draft; use the existing Apply controls to save and render.
+              </span>
+            </div>
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(180px,1fr)] sm:items-center">
-            <div className="relative overflow-hidden rounded-md bg-black">
+            <div data-campaign-preview-stage className="relative overflow-hidden rounded-md bg-black">
               <video
                 ref={videoRef}
                 key={String(preview.index) + "-" + String(preview.shot.source_index) + "-" + String(preview.shot.start_seconds)}
@@ -1940,7 +2001,12 @@ function CampaignTimeline({
                   } : undefined}
                 >
                   <div
-                    className="absolute flex w-[90%] justify-center px-3"
+                    className={cn('absolute flex w-[90%] justify-center px-3',
+                      positioningTarget === 'lyric' ? 'pointer-events-auto cursor-move touch-none' : 'pointer-events-none')}
+                    onPointerDown={(event) => beginLiveTextDrag(event, 'lyric')}
+                    onPointerMove={moveLiveTextDrag}
+                    onPointerUp={endLiveTextDrag}
+                    onPointerCancel={endLiveTextDrag}
                     style={{
                       left: activeLyric.position_x + '%',
                       top: activeLyric.position_y + '%',
@@ -1970,7 +2036,13 @@ function CampaignTimeline({
                 </div>
               )}
               {activeOverlay && (
-                <div className="pointer-events-none absolute flex items-center justify-center px-4"
+                <div
+                  className={cn('absolute flex items-center justify-center px-4',
+                    positioningTarget === 'text' ? 'pointer-events-auto cursor-move touch-none' : 'pointer-events-none')}
+                  onPointerDown={(event) => beginLiveTextDrag(event, 'text')}
+                  onPointerMove={moveLiveTextDrag}
+                  onPointerUp={endLiveTextDrag}
+                  onPointerCancel={endLiveTextDrag}
                   style={{ left: activeOverlay.position_x + '%', top: activeOverlay.position_y + '%', transform: 'translate(-50%, -50%)', width: '90%' }}>
                   <span key={activeOverlay.rank + '-' + activeOverlayIndex + '-' + previewTextAnimation}
                     className="inline-block text-center font-extrabold leading-tight"
