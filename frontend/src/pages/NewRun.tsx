@@ -99,18 +99,25 @@ export function NewRunPage() {
 
   const submit = useMutation({
     mutationFn: async () => {
-      const uploadItems = [...files, ...(musicFile ? [musicFile] : [])]
       const uploaded: string[] = []
-      for (let index = 0; index < uploadItems.length; index += 1) {
-        const file = uploadItems[index]
-        const source = await api.upload(file, (percent) => {
-          setUploadProgress({ name: file.name, percent, index: index + 1, total: uploadItems.length })
+      const totalUploads = files.length + (musicFile ? 1 : 0)
+      for (let index = 0; index < files.length; index += 1) {
+        const file = files[index]
+        setUploadProgress({ name: file.name, percent: 0, index: index + 1, total: totalUploads })
+        const result = await api.upload(file, (percent) => {
+          setUploadProgress({ name: file.name, percent, index: index + 1, total: totalUploads })
         })
-        if (index < files.length) uploaded.push(source.source)
-        else uploaded.push(source.source)
+        uploaded.push(result.source)
       }
-      const music = musicFile ? uploaded[uploaded.length - 1] : null
-      return api.createRuns([...urls, ...uploaded.slice(0, files.length)], { ...options, campaign_music_path: music })
+      let music: string | null = null
+      if (musicFile) {
+        const index = files.length + 1
+        setUploadProgress({ name: musicFile.name, percent: 0, index, total: totalUploads })
+        music = (await api.upload(musicFile, (percent) => {
+          setUploadProgress({ name: musicFile.name, percent, index, total: totalUploads })
+        })).source
+      }
+      return api.createRuns([...urls, ...uploaded], { ...options, campaign_music_path: music })
     },
     onSuccess: (runs) => {
       setUploadProgress(null)
