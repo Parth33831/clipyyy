@@ -1641,7 +1641,7 @@ def write_campaign_text_overlays(
         "[Events]",
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
-    for overlay_index, overlay in enumerate(overlays[:30]):
+    for overlay in overlays[:30]:
         try:
             layer = max(0, min(99, int(overlay.get("z_index", 0))))
             start = float(overlay.get("start_seconds", 0))
