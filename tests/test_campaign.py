@@ -727,3 +727,93 @@ def test_scene_music_matching_does_not_invent_music_alignment_without_track():
     candidates = [{"description": "A person sprinting"}]
     _annotate_scene_music_matches(candidates, None, target_seconds=12)
     assert "music_alignment" not in candidates[0]
+
+
+def test_story_retention_hints_identify_only_observed_story_roles():
+    from clipyyy.campaign import _annotate_story_retention_hints
+
+    candidates = [
+        {
+            "description": "A dramatic close-up of a smiling woman",
+            "visible_action": "smiling",
+            "confidence": 0.95,
+            "shot_scale": "close-up",
+        },
+        {
+            "description": "A person demonstrating a new device by testing it",
+            "visible_action": "testing",
+            "confidence": 0.9,
+        },
+        {
+            "description": "The finished product and successful results on a table",
+            "visible_text": "Learn more and sign up",
+            "confidence": 0.88,
+        },
+        {
+            "description": "A landscape with no identifiable action",
+            "confidence": 0.2,
+        },
+    ]
+
+    _annotate_story_retention_hints(candidates)
+
+    hook_roles = [item["role"] for item in candidates[0]["story_retention_hints"]["roles"]]
+    assert "hook" in hook_roles
+    assert "reaction" in hook_roles
+    demo_roles = [item["role"] for item in candidates[1]["story_retention_hints"]["roles"]]
+    assert "demonstration" in demo_roles
+    payoff_roles = [item["role"] for item in candidates[2]["story_retention_hints"]["roles"]]
+    assert "payoff" in payoff_roles
+    assert "call_to_action" in payoff_roles
+    assert candidates[3]["story_retention_hints"]["unclassified"] is True
+    assert candidates[3]["story_retention_hints"]["roles"] == []
+
+
+def test_story_retention_hints_use_visible_evidence_and_are_added_to_planner_context():
+    from clipyyy.campaign import _annotate_story_retention_hints, build_montage_plan
+
+    candidate = {
+        "description": "A team celebrating a completed project",
+        "confidence": 0.9,
+    }
+    _annotate_story_retention_hints([candidate])
+    assert candidate["story_retention_hints"]["roles"][0]["role"] == "payoff"
+
+    class StoryLLM:
+        user = ""
+        system = ""
+
+        def complete_json(self, system, user, schema, name):
+            self.system = system
+            self.user = user
+            return {
+                "edits": [
+                    {
+                        "title": "A clear mini story",
+                        "shots": [
+                            {"source_index": 0, "start_seconds": 1, "end_seconds": 3, "reason": "Opening"},
+                            {"source_index": 0, "start_seconds": 4, "end_seconds": 6, "reason": "Build"},
+                            {"source_index": 0, "start_seconds": 7, "end_seconds": 9, "reason": "Payoff"},
+                        ],
+                    }
+                ]
+            }
+
+    llm = StoryLLM()
+    source = {"title": "Campaign footage", "duration_seconds": 12}
+    analysis = {
+        "frames": [
+            {"timestamp": 1, "description": "A dramatic close-up of a smiling person", "confidence": 0.9},
+            {"timestamp": 5, "description": "A person demonstrating a device", "confidence": 0.9},
+            {"timestamp": 8, "description": "A team celebrating the successful result", "confidence": 0.9},
+        ]
+    }
+
+    edits = build_montage_plan(llm, "Show the campaign story.", {}, [source], [analysis], 1, 6)
+
+    assert len(edits) == 1
+    assert '"role": "hook"' in llm.user
+    assert '"role": "demonstration"' in llm.user
+    assert '"role": "payoff"' in llm.user
+    assert "truthful opening" in llm.system
+    assert "Do not force every story role" in llm.system
