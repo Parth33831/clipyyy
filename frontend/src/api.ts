@@ -159,6 +159,8 @@ export interface CampaignConcept {
   name: string
   summary: string
   edits: CampaignEdit[]
+  refined_edits?: CampaignEdit[]
+  refinement_notes?: string[]
 }
 
 export interface CampaignSource {

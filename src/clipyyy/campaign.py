@@ -755,6 +755,117 @@ def build_montage_plan(
     return valid_edits
 
 
+def _refine_final_cut(
+    edit: dict[str, Any],
+    sources: list[dict],
+    analyses: list[dict],
+    music_analysis: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], list[str]]:
+    """Apply a conservative final quality pass using observed story roles and real beat times.
+
+    The original edit is never mutated. Story ordering is changed only when enough shots have
+    grounded role evidence; beat snapping is limited to a small timing adjustment and never
+    crosses source bounds or detected black intervals.
+    """
+    refined = json.loads(json.dumps(edit))
+    shots = refined.get("shots") or []
+    notes: list[str] = []
+    if len(shots) < 3:
+        return refined, notes
+
+    role_priority = {
+        "hook": 0,
+        "context": 1,
+        "demonstration": 2,
+        "reaction": 3,
+        "payoff": 4,
+        "call_to_action": 5,
+    }
+    role_by_source: dict[int, list[tuple[float, int]]] = {}
+    for source_index, analysis in enumerate(analyses):
+        frames = [dict(frame) for frame in analysis.get("frames", [])]
+        _annotate_story_retention_hints(frames)
+        for frame in frames:
+            try:
+                timestamp = float(frame.get("timestamp"))
+            except (TypeError, ValueError):
+                continue
+            roles = [
+                role_priority[item["role"]]
+                for item in frame.get("story_retention_hints", {}).get("roles", [])
+                if item.get("role") in role_priority
+            ]
+            if roles:
+                role_by_source.setdefault(source_index, []).append((timestamp, min(roles)))
+
+    annotated = []
+    grounded_count = 0
+    for index, shot in enumerate(shots):
+        source_index = int(shot["source_index"])
+        midpoint = (float(shot["start_seconds"]) + float(shot["end_seconds"])) / 2
+        frames = role_by_source.get(source_index, [])
+        nearest = min(frames, key=lambda item: abs(item[0] - midpoint), default=None)
+        role = nearest[1] if nearest and abs(nearest[0] - midpoint) <= 4.0 else None
+        if role is not None:
+            grounded_count += 1
+        annotated.append((shot, role, index))
+
+    # Do not reorder a montage based on sparse or ambiguous still-frame labels.
+    if grounded_count >= max(3, (len(shots) + 1) // 2):
+        ordered = sorted(
+            annotated,
+            key=lambda item: (
+                item[1] if item[1] is not None else 2,
+                item[2],
+            ),
+        )
+        if [item[2] for item in ordered] != list(range(len(shots))):
+            refined["shots"] = [item[0] for item in ordered]
+            notes.append("Reordered supported story moments into a clearer hook-to-payoff progression.")
+
+    # Snap cumulative cut points to nearby beats from the selected music section.
+    if music_analysis:
+        try:
+            music_start = max(0.0, float(music_analysis.get("best_start_seconds") or 0.0))
+            beat_times = sorted(
+                float(value) - music_start
+                for value in (music_analysis.get("beat_times") or [])
+                if float(value) > music_start
+            )
+        except (TypeError, ValueError):
+            beat_times = []
+        cumulative = 0.0
+        aligned = 0
+        for shot in refined["shots"][:-1]:
+            duration = float(shot["end_seconds"]) - float(shot["start_seconds"])
+            cumulative += duration
+            if not beat_times:
+                continue
+            nearest_beat = min(beat_times, key=lambda value: abs(value - cumulative))
+            adjustment = nearest_beat - cumulative
+            if abs(adjustment) > 0.28 or abs(adjustment) < 0.015:
+                continue
+            source_index = int(shot["source_index"])
+            source_duration = float(sources[source_index].get("duration_seconds") or 0)
+            proposed_end = float(shot["end_seconds"]) + adjustment
+            if proposed_end - float(shot["start_seconds"]) < 1.5 or proposed_end > source_duration:
+                continue
+            black_intervals = (
+                analyses[source_index].get("black_intervals", []) if source_index < len(analyses) else []
+            )
+            if _intersects_black_interval(float(shot["start_seconds"]), proposed_end, black_intervals):
+                continue
+            shot["end_seconds"] = round(proposed_end, 3)
+            cumulative += adjustment
+            aligned += 1
+        if aligned:
+            notes.append(f"Aligned {aligned} cut point(s) to nearby detected music beats.")
+
+    if notes:
+        refined["final_cut_refined"] = True
+    return refined, notes
+
+
 _CREATIVE_DIRECTIONS = [
     {
         "id": "hook-first",
@@ -897,12 +1008,22 @@ def build_montage_concepts(
         if signature in signatures:
             continue
         signatures.add(signature)
+        refined_edits = []
+        refinement_notes: list[str] = []
+        for edit in edits:
+            refined_edit, notes = _refine_final_cut(edit, sources, analyses, music_analysis)
+            refined_edits.append(refined_edit)
+            for note in notes:
+                if note not in refinement_notes:
+                    refinement_notes.append(note)
         concepts.append(
             {
                 "id": direction["id"],
                 "name": direction["name"],
                 "summary": direction["summary"],
                 "edits": edits,
+                "refined_edits": refined_edits,
+                "refinement_notes": refinement_notes,
             }
         )
     if not concepts:
