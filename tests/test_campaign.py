@@ -780,6 +780,7 @@ def test_creative_director_generates_distinct_edit_directions():
         [analysis],
         1,
         6,
+        music_analysis={"energy_sections": []},
     )
 
     assert [concept["id"] for concept in concepts] == [
