@@ -61,6 +61,12 @@ function uploadCacheKey(file: File): string {
   return `${file.name}:${file.size}:${file.lastModified}`
 }
 
+type UploadStatus = {
+  state: 'uploading' | 'uploaded' | 'failed'
+  percent: number
+  error?: string
+}
+
 function appendVideoFiles(current: File[], incoming: File[]): File[] {
   const next = [...current]
   for (const file of incoming) {
@@ -85,6 +91,7 @@ export function NewRunPage() {
   const [options, setOptions] = useState<ClipOptions>(DEFAULT_OPTIONS)
   const [dragging, setDragging] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ name: string; percent: number; index: number; total: number } | null>(null)
+  const [uploadStatuses, setUploadStatuses] = useState<Record<string, UploadStatus>>({})
   const fileInput = useRef<HTMLInputElement>(null)
   const uploadedFiles = useRef(new Map<string, string>())
   const health = useQuery({ queryKey: ['health'], queryFn: api.health })
@@ -111,12 +118,22 @@ export function NewRunPage() {
         const cacheKey = uploadCacheKey(file)
         let source = uploadedFiles.current.get(cacheKey)
         if (!source) {
+          setUploadStatuses((current) => ({ ...current, [cacheKey]: { state: 'uploading', percent: 0 } }))
           setUploadProgress({ name: file.name, percent: 0, index: index + 1, total: totalUploads })
-          const result = await api.upload(file, (percent) => {
-            setUploadProgress({ name: file.name, percent, index: index + 1, total: totalUploads })
-          })
-          source = result.source
-          uploadedFiles.current.set(cacheKey, source)
+          try {
+            const result = await api.upload(file, (percent) => {
+              setUploadProgress({ name: file.name, percent, index: index + 1, total: totalUploads })
+              setUploadStatuses((current) => ({ ...current, [cacheKey]: { state: 'uploading', percent } }))
+            })
+            source = result.source
+            uploadedFiles.current.set(cacheKey, source)
+            setUploadStatuses((current) => ({ ...current, [cacheKey]: { state: 'uploaded', percent: 100 } }))
+          } catch (error) {
+            setUploadStatuses((current) => ({ ...current, [cacheKey]: { state: 'failed', percent: 0, error: error instanceof Error ? error.message : 'Upload failed' } }))
+            throw error
+          }
+        } else {
+          setUploadStatuses((current) => ({ ...current, [cacheKey]: { state: 'uploaded', percent: 100 } }))
         }
         uploaded.push(source)
       }
@@ -126,12 +143,22 @@ export function NewRunPage() {
         music = uploadedFiles.current.get(cacheKey) ?? null
         if (!music) {
           const index = files.length + 1
+          setUploadStatuses((current) => ({ ...current, [cacheKey]: { state: 'uploading', percent: 0 } }))
           setUploadProgress({ name: musicFile.name, percent: 0, index, total: totalUploads })
-          const result = await api.upload(musicFile, (percent) => {
-            setUploadProgress({ name: musicFile.name, percent, index, total: totalUploads })
-          })
-          music = result.source
-          uploadedFiles.current.set(cacheKey, music)
+          try {
+            const result = await api.upload(musicFile, (percent) => {
+              setUploadProgress({ name: musicFile.name, percent, index, total: totalUploads })
+              setUploadStatuses((current) => ({ ...current, [cacheKey]: { state: 'uploading', percent } }))
+            })
+            music = result.source
+            uploadedFiles.current.set(cacheKey, music)
+            setUploadStatuses((current) => ({ ...current, [cacheKey]: { state: 'uploaded', percent: 100 } }))
+          } catch (error) {
+            setUploadStatuses((current) => ({ ...current, [cacheKey]: { state: 'failed', percent: 0, error: error instanceof Error ? error.message : 'Upload failed' } }))
+            throw error
+          }
+        } else {
+          setUploadStatuses((current) => ({ ...current, [cacheKey]: { state: 'uploaded', percent: 100 } }))
         }
       }
       return api.createRuns([...urls, ...uploaded], { ...options, campaign_music_path: music })
@@ -139,6 +166,7 @@ export function NewRunPage() {
     onSuccess: (runs) => {
       setUploadProgress(null)
       uploadedFiles.current.clear()
+      setUploadStatuses({})
       queryClient.invalidateQueries({ queryKey: ['runs'] })
       toast.success(options.campaign_mode ? 'Campaign montage queued' : runs.length === 1 ? 'Clipping started' : `${runs.length} videos queued`)
       navigate(runs.length === 1 ? `/runs/${runs[0].id}` : '/runs')
@@ -148,6 +176,27 @@ export function NewRunPage() {
       toast.error(`${error.message} Successfully uploaded files are kept temporarily; retry to continue without uploading them again.`)
     },
   })
+
+  const retryUpload = async (file: File) => {
+    const cacheKey = uploadCacheKey(file)
+    if (submit.isPending || uploadedFiles.current.has(cacheKey)) return
+    setUploadStatuses((current) => ({ ...current, [cacheKey]: { state: 'uploading', percent: 0 } }))
+    setUploadProgress({ name: file.name, percent: 0, index: 1, total: 1 })
+    try {
+      const result = await api.upload(file, (percent) => {
+        setUploadProgress({ name: file.name, percent, index: 1, total: 1 })
+        setUploadStatuses((current) => ({ ...current, [cacheKey]: { state: 'uploading', percent } }))
+      })
+      uploadedFiles.current.set(cacheKey, result.source)
+      setUploadStatuses((current) => ({ ...current, [cacheKey]: { state: 'uploaded', percent: 100 } }))
+      setUploadProgress(null)
+      toast.success(`Uploaded ${file.name}. It will be reused when you submit.`)
+    } catch (error) {
+      setUploadStatuses((current) => ({ ...current, [cacheKey]: { state: 'failed', percent: 0, error: error instanceof Error ? error.message : 'Upload failed' } }))
+      setUploadProgress(null)
+      toast.error(error instanceof Error ? error.message : 'Upload failed')
+    }
+  }
 
   const onDrop = (event: DragEvent) => {
     event.preventDefault()
@@ -216,7 +265,23 @@ export function NewRunPage() {
               </Field>
               <Field label="Campaign music (optional)" hint="Upload a track you have permission to use. If the campaign requires an official TikTok/Instagram sound, leave this empty and add that sound inside the platform after export.">
                 <input type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] ?? null)} className="block w-full text-sm text-muted file:mr-3 file:border file:border-line file:bg-surface file:px-3 file:py-2 file:text-ink" />
-                {musicFile && <p className="text-xs text-muted">{musicFile.name}</p>}
+                {musicFile && (
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                    <span>{musicFile.name}</span>
+                    {uploadStatuses[uploadCacheKey(musicFile)]?.state === 'uploaded' && <span className="text-ok">Uploaded</span>}
+                    {uploadStatuses[uploadCacheKey(musicFile)]?.state === 'failed' && (
+                      <>
+                        <span className="text-bad">Upload failed</span>
+                        <button type="button" disabled={submit.isPending} onClick={() => void retryUpload(musicFile)} className="font-medium text-acid underline disabled:opacity-40">Retry</button>
+                      </>
+                    )}
+                    <button type="button" disabled={submit.isPending} onClick={() => {
+                      uploadedFiles.current.delete(uploadCacheKey(musicFile))
+                      setUploadStatuses((current) => { const next = { ...current }; delete next[uploadCacheKey(musicFile)]; return next })
+                      setMusicFile(null)
+                    }} className="underline disabled:opacity-40">Remove</button>
+                  </div>
+                )}
               </Field>
               <details className="border-t border-line pt-4">
                 <summary className="cursor-pointer text-sm font-medium text-ink">More campaign options</summary>
@@ -334,7 +399,16 @@ export function NewRunPage() {
                       <FileVideo className="h-3.5 w-3.5 text-acid" />
                       <span className="max-w-[240px] truncate">{file.name}</span>
                       <span className="font-mono text-[11px] text-white/40">{(file.size / 1e6).toFixed(0)} MB</span>
-                      <button aria-label={`Remove ${file.name}`} onClick={() => setFiles((current) => current.filter((_, j) => j !== i))} className="text-white/40 hover:text-white">
+                      {uploadStatuses[uploadCacheKey(file)]?.state === 'uploaded' && <span className="text-[11px] text-ok">Uploaded</span>}
+                      {uploadStatuses[uploadCacheKey(file)]?.state === 'failed' && (
+                        <button type="button" disabled={submit.isPending} onClick={() => void retryUpload(file)} className="text-[11px] font-medium text-acid underline disabled:opacity-40">Retry</button>
+                      )}
+                      {uploadStatuses[uploadCacheKey(file)]?.state === 'uploading' && <span className="text-[11px] text-acid">{uploadStatuses[uploadCacheKey(file)].percent}%</span>}
+                      <button aria-label={`Remove ${file.name}`} disabled={submit.isPending} onClick={() => {
+                        uploadedFiles.current.delete(uploadCacheKey(file))
+                        setUploadStatuses((current) => { const next = { ...current }; delete next[uploadCacheKey(file)]; return next })
+                        setFiles((current) => current.filter((_, j) => j !== i))
+                      }} className="text-white/40 hover:text-white disabled:opacity-40">
                         <X className="h-3.5 w-3.5" />
                       </button>
                     </span>
