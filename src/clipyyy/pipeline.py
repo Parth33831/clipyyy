@@ -60,7 +60,10 @@ class ClipOptions(BaseModel):
         True, description="Apply subtle per-shot camera movement to campaign montage footage"
     )
     campaign_conversation_hook: bool = Field(
-        False, description="Start with genuine source-footage conversation audio before a beat-led music montage"
+        False,
+        description=(
+            "Start with genuine source-footage conversation audio before a beat-led music montage"
+        ),
     )
     campaign_transition_style: Literal["auto", "cut", "cinematic", "dynamic"] = Field(
         "auto",
@@ -381,7 +384,10 @@ def stage_select(ctx: Context) -> dict:
             except Exception as exc:
                 logger.warning("Local campaign lyric analysis was unavailable during shot planning: %s", exc)
         if options.get("campaign_conversation_hook") and not music_path:
-            raise ValueError("Conversation-to-music hook mode needs a campaign music track. Upload a song or turn this option off.")
+            raise ValueError(
+                "Conversation-to-music hook mode needs a campaign music track. "
+                "Upload a song or turn this option off."
+            )
         creative_instructions = options.get("instructions", "")
         if options.get("campaign_conversation_hook"):
             creative_instructions = (
