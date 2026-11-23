@@ -344,20 +344,20 @@ def _rank_lyric_scene_matches(
 
 _VISUAL_ENERGY_CUES = {
     "high": (
-        r"\\b(sprint(?:ing)?|run(?:ning)?|jump(?:ing)?|dance|dancing|"
+        r"\b(sprint(?:ing)?|run(?:ning)?|jump(?:ing)?|dance|dancing|"
         r"fight(?:ing)?|chase|chasing|explod(?:e|es|ing)|crash(?:ing)?|"
         r"slam(?:ming)?|racing|rapid(?:ly)?|fast[- ]paced|"
         r"cheer(?:ing)?|celebrat(?:e|ing)|perform(?:ing)?|"
         r"workout|exercise|action[- ]packed)\\b"
     ),
     "medium": (
-        r"\\b(walk(?:ing)?|talk(?:ing)?|speaking|working|build(?:ing)?|"
+        r"\b(walk(?:ing)?|talk(?:ing)?|speaking|working|build(?:ing)?|"
         r"cook(?:ing)?|typing|driv(?:ing)?|mov(?:e|ing)|"
         r"demonstrat(?:e|ing)|present(?:ing)?|interact(?:ing)?|"
         r"playing|creating|showing)\\b"
     ),
     "low": (
-        r"\\b(still|calm|peaceful|quiet|rest(?:ing)?|"
+        r"\b(still|calm|peaceful|quiet|rest(?:ing)?|"
         r"meditat(?:e|ing)|sleep(?:ing)?|sunset|sunrise|"
         r"landscape|scenic|slow[- ]motion|reflective)\\b"
     ),
