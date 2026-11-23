@@ -21,6 +21,183 @@ type CampaignPreviewLyric = {
 type CampaignPreviewWord = { word: string; start_seconds: number; end_seconds: number }
 
 
+type CreativeConceptPlayerProps = {
+  runId: string
+  conceptId: string
+  edit: CampaignEdit | undefined
+  hasMusic: boolean
+  musicStartSeconds: number
+  musicVolume: number
+  sourceAudioVolume: number
+  isActive: boolean
+  onActivate: (conceptId: string) => void
+}
+
+function CreativeConceptPlayer({
+  runId,
+  conceptId,
+  edit,
+  hasMusic,
+  musicStartSeconds,
+  musicVolume,
+  sourceAudioVolume,
+  isActive,
+  onActivate,
+}: CreativeConceptPlayerProps) {
+  const shots = edit?.shots ?? []
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const advancingRef = useRef(false)
+  const [shotIndex, setShotIndex] = useState(0)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const totalSeconds = shots.reduce((total, shot) => total + Math.max(0, shot.end_seconds - shot.start_seconds), 0)
+  const shot = shots[shotIndex]
+  const timelineStart = shots.slice(0, shotIndex).reduce(
+    (total, item) => total + Math.max(0, item.end_seconds - item.start_seconds),
+    0,
+  )
+
+  useEffect(() => {
+    if (isActive) return
+    videoRef.current?.pause()
+    audioRef.current?.pause()
+    setIsPlaying(false)
+  }, [isActive])
+
+  useEffect(() => () => {
+    videoRef.current?.pause()
+    audioRef.current?.pause()
+  }, [])
+
+  const pause = () => {
+    videoRef.current?.pause()
+    audioRef.current?.pause()
+    setIsPlaying(false)
+  }
+
+  const play = async () => {
+    if (!shot || shots.length === 0) return
+    onActivate(conceptId)
+    advancingRef.current = false
+    setIsPlaying(true)
+    const video = videoRef.current
+    if (video) {
+      if (video.currentTime < shot.start_seconds || video.currentTime >= shot.end_seconds) {
+        video.currentTime = shot.start_seconds
+      }
+      video.volume = sourceAudioVolume / 100
+      try {
+        await video.play()
+      } catch {
+        setIsPlaying(false)
+        return
+      }
+    }
+    const audio = audioRef.current
+    if (audio && hasMusic) {
+      audio.volume = musicVolume / 100
+      audio.currentTime = musicStartSeconds + elapsedSeconds
+      void audio.play().catch(() => undefined)
+    }
+  }
+
+  const advanceShot = () => {
+    if (advancingRef.current) return
+    advancingRef.current = true
+    if (shotIndex < shots.length - 1) {
+      setShotIndex((current) => current + 1)
+    } else {
+      pause()
+      setElapsedSeconds(totalSeconds)
+    }
+  }
+
+  if (!shot) {
+    return <div className="flex aspect-video items-center justify-center rounded-md bg-sunk text-xs text-muted">No playable shots in this direction</div>
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="relative overflow-hidden rounded-md bg-black">
+        <video
+          ref={videoRef}
+          key={shotIndex + "-" + shot.source_index + "-" + shot.start_seconds}
+          playsInline
+          preload="metadata"
+          src={`/api/runs/${runId}/campaign-source?source_index=${shot.source_index}`}
+          onLoadedMetadata={(event) => {
+            advancingRef.current = false
+            event.currentTarget.currentTime = shot.start_seconds
+            event.currentTarget.volume = sourceAudioVolume / 100
+            if (isPlaying) void event.currentTarget.play().catch(() => setIsPlaying(false))
+          }}
+          onTimeUpdate={(event) => {
+            const localElapsed = Math.max(0, event.currentTarget.currentTime - shot.start_seconds)
+            const nextElapsed = timelineStart + localElapsed
+            setElapsedSeconds(Math.min(totalSeconds, nextElapsed))
+            const audio = audioRef.current
+            if (audio && hasMusic && isPlaying) {
+              const target = musicStartSeconds + nextElapsed
+              if (Math.abs(audio.currentTime - target) > 0.4) audio.currentTime = target
+            }
+            if (event.currentTarget.currentTime >= shot.end_seconds - 0.04) advanceShot()
+          }}
+          onError={() => {
+            pause()
+          }}
+          className="aspect-video w-full bg-black object-contain"
+        />
+        <span className="absolute bottom-2 left-2 rounded bg-black/75 px-2 py-1 text-[10px] font-medium text-white">
+          LIVE CONCEPT PREVIEW · SHOT {shotIndex + 1}/{shots.length}
+        </span>
+      </div>
+      {hasMusic && (
+        <audio
+          ref={audioRef}
+          src={`/api/runs/${runId}/campaign-music`}
+          preload="metadata"
+          onError={() => undefined}
+        />
+      )}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => (isPlaying && isActive ? pause() : void play())}
+          className="rounded-md border border-line px-3 py-1.5 text-xs font-semibold hover:border-ink"
+          aria-label={isPlaying && isActive ? "Pause concept preview" : "Play concept preview"}
+        >
+          {isPlaying && isActive ? "Pause" : "Play preview"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            pause()
+            advancingRef.current = false
+            setShotIndex(0)
+            setElapsedSeconds(0)
+            if (videoRef.current) videoRef.current.currentTime = shots[0]?.start_seconds ?? 0
+            if (audioRef.current) audioRef.current.currentTime = musicStartSeconds
+          }}
+          className="rounded-md border border-line px-3 py-1.5 text-xs font-semibold hover:border-ink"
+        >
+          Restart
+        </button>
+        <span className="ml-auto font-mono text-[11px] text-muted">
+          {formatDuration(elapsedSeconds)} / {formatDuration(totalSeconds)}
+        </span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-sunk" role="progressbar" aria-label={`${edit?.title ?? "Concept"} preview progress`} aria-valuemin={0} aria-valuemax={Math.max(1, totalSeconds)} aria-valuenow={elapsedSeconds}>
+        <div className="h-full rounded-full bg-ink transition-[width]" style={{ width: totalSeconds > 0 ? `${(elapsedSeconds / totalSeconds) * 100}%` : "0%" }} />
+      </div>
+      <p className="text-[10px] text-faint">
+        {hasMusic ? "Original source audio and attached campaign music are mixed using your current volume settings." : "Previewing original source audio. Attach campaign music to hear the soundtrack with the edit."}
+      </p>
+    </div>
+  )
+}
+
+
 export function RunDetailPage() {
   const { runId = '' } = useParams()
   const navigate = useNavigate()
@@ -35,7 +212,11 @@ export function RunDetailPage() {
   const [publishing, setPublishing] = useState<Clip | null>(null)
   const [focused, setFocused] = useState<number | null>(null)
   const [selectedConceptId, setSelectedConceptId] = useState<string | null>(null)
-  useEffect(() => setSelectedConceptId(null), [runId])
+  const [activeConceptPreviewId, setActiveConceptPreviewId] = useState<string | null>(null)
+  useEffect(() => {
+    setSelectedConceptId(null)
+    setActiveConceptPreviewId(null)
+  }, [runId])
   const [musicFile, setMusicFile] = useState<File | null>(null)
   const [musicVolume, setMusicVolume] = useState(90)
   const [sourceAudioVolume, setSourceAudioVolume] = useState(100)
@@ -682,15 +863,17 @@ export function RunDetailPage() {
                     {isSelected && <span className="shrink-0 rounded-full bg-ink px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-panel">Selected</span>}
                   </div>
                   {shots[0] ? (
-                    <div className="relative overflow-hidden rounded-md bg-sunk">
-                      <img
-                        src={`/api/runs/${runId}/campaign-frame?source_index=${shots[0].source_index}&timestamp=${shots[0].start_seconds.toFixed(1)}`}
-                        alt={`Opening frame for ${concept.name}`}
-                        loading="lazy"
-                        className="aspect-video w-full object-cover"
-                      />
-                      <span className="absolute bottom-2 left-2 rounded bg-black/75 px-2 py-1 text-[10px] font-medium text-white">OPENING SHOT</span>
-                    </div>
+                    <CreativeConceptPlayer
+                    runId={runId}
+                    conceptId={concept.id}
+                    edit={edit}
+                    hasMusic={Boolean(data.options.campaign_music_path)}
+                    musicStartSeconds={musicStartSeconds}
+                    musicVolume={musicVolume}
+                    sourceAudioVolume={sourceAudioVolume}
+                    isActive={activeConceptPreviewId === concept.id}
+                    onActivate={setActiveConceptPreviewId}
+                  />
                   ) : (
                     <div className="flex aspect-video items-center justify-center rounded-md bg-sunk text-xs text-muted">No preview shots</div>
                   )}
