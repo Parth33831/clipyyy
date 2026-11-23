@@ -769,9 +769,29 @@ def _visual_continuity_notes(
     shots = edit.get("shots") or []
     observations: list[dict[str, Any] | None] = []
     ignored = {
-        "about", "after", "again", "around", "been", "being", "from", "have",
-        "into", "just", "more", "over", "same", "that", "their", "there",
-        "this", "with", "while", "shot", "scene", "image", "video",
+        "about",
+        "after",
+        "again",
+        "around",
+        "been",
+        "being",
+        "from",
+        "have",
+        "into",
+        "just",
+        "more",
+        "over",
+        "same",
+        "that",
+        "their",
+        "there",
+        "this",
+        "with",
+        "while",
+        "shot",
+        "scene",
+        "image",
+        "video",
     }
 
     def tokens(value: Any) -> set[str]:
@@ -851,29 +871,20 @@ def _visual_continuity_notes(
             continue
         subject_union = left["subjects"] | right["subjects"]
         subject_overlap = (
-            len(left["subjects"] & right["subjects"]) / len(subject_union)
-            if subject_union
-            else 0.0
+            len(left["subjects"] & right["subjects"]) / len(subject_union) if subject_union else 0.0
         )
         visual_union = left["description"] | right["description"]
         visual_overlap = (
-            len(left["description"] & right["description"]) / len(visual_union)
-            if visual_union
-            else 0.0
+            len(left["description"] & right["description"]) / len(visual_union) if visual_union else 0.0
         )
         action_union = left["action"] | right["action"]
-        action_overlap = (
-            len(left["action"] & right["action"]) / len(action_union)
-            if action_union
-            else 0.0
-        )
+        action_overlap = len(left["action"] & right["action"]) / len(action_union) if action_union else 0.0
         if subject_overlap >= 0.75 and (visual_overlap >= 0.55 or action_overlap >= 0.75):
             repeated_pairs.append((index + 1, index + 2, left["shot_scale"]))
 
     if repeated_pairs:
         examples = ", ".join(
-            f"{first}–{second} ({scale} framing)"
-            for first, second, scale in repeated_pairs[:3]
+            f"{first}–{second} ({scale} framing)" for first, second, scale in repeated_pairs[:3]
         )
         notes.append(
             "Potentially repetitive adjacent shots: "
