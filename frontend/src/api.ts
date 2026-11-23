@@ -278,6 +278,42 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>
 }
 
+function uploadRequest<T>(path: string, form: FormData, onProgress?: (percent: number) => void): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', path)
+    xhr.responseType = 'json'
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable && onProgress) {
+        onProgress(Math.round((event.loaded / event.total) * 100))
+      }
+    })
+    xhr.addEventListener('load', () => {
+      const body = xhr.response
+      if (xhr.status >= 200 && xhr.status < 300) {
+        if (body && typeof body === 'object') resolve(body as T)
+        else reject(new ApiError('The server returned an invalid upload response.'))
+        return
+      }
+      let message = `${xhr.status} ${xhr.statusText}`
+      if (body && typeof body === 'object') {
+        const detail = (body as { detail?: unknown }).detail
+        if (typeof detail === 'string') message = detail
+        else if (Array.isArray(detail)) {
+          message = detail
+            .map((item) => (item && typeof item === 'object' && 'msg' in item ? String(item.msg) : ''))
+            .filter(Boolean)
+            .join('; ') || message
+        }
+      }
+      reject(new ApiError(message))
+    })
+    xhr.addEventListener('error', () => reject(new ApiError('Network error while uploading the file.')))
+    xhr.addEventListener('abort', () => reject(new ApiError('Upload was cancelled.')))
+    xhr.send(form)
+  })
+}
+
 export const api = {
   health: () => request<Health>('/api/health'),
   settings: () => request<Setting[]>('/api/settings'),
@@ -288,10 +324,10 @@ export const api = {
   run: (id: string) => request<RunDetail>(`/api/runs/${id}`),
   createRuns: (sources: string[], options: ClipOptions) =>
     request<Run[]>('/api/runs', { method: 'POST', body: JSON.stringify({ sources, options }) }),
-  upload: (file: File) => {
+  upload: (file: File, onProgress?: (percent: number) => void) => {
     const form = new FormData()
     form.append('file', file)
-    return request<{ source: string; name: string }>('/api/uploads', { method: 'POST', body: form })
+    return uploadRequest<{ source: string; name: string }>('/api/uploads', form, onProgress)
   },
   attachCampaignMusic: (id: string, file: File) => {
     const form = new FormData()
