@@ -829,14 +829,18 @@ def _visual_continuity_notes(
     grounded = sum(item is not None for item in observations)
     if grounded == 0:
         return [
-            "Visual continuity could not be assessed: no sufficiently confident sampled-frame evidence was available."
+            "Visual continuity could not be assessed: no sufficiently confident "
+            "sampled-frame evidence was available."
         ]
 
     notes = [
-        f"Visual continuity evidence was available for {grounded} of {len(shots)} shots; this checks sampled still frames, not motion or transitions."
+        (
+            f"Visual continuity evidence was available for {grounded} of {len(shots)} shots; "
+            "this checks sampled still frames, not motion or transitions."
+        )
     ]
     repeated_pairs = []
-    for index, (left, right) in enumerate(zip(observations, observations[1:])):
+    for index, (left, right) in enumerate(zip(observations, observations[1:], strict=False)):
         if left is None or right is None:
             continue
         if left["source_index"] != right["source_index"]:
@@ -874,7 +878,8 @@ def _visual_continuity_notes(
         notes.append(
             "Potentially repetitive adjacent shots: "
             + examples
-            + ". Consider swapping one for a different moment or framing if the repetition is not intentional."
+            + ". Consider swapping one for a different moment or framing "
+            "if the repetition is not intentional."
         )
     else:
         notes.append(
