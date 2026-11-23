@@ -1735,69 +1735,42 @@ function CampaignTimeline({
         <span>{formatDuration(total / 2)}</span>
         <span>{formatDuration(total)}</span>
       </div>
-      {(lyrics.length > 0 || lyricWords.length > 0 || textOverlays.some((overlay) => overlay.rank === edit.rank)) && (
+      {(lyrics.length > 0 || lyricWords.length > 0) && (
         <div className="flex flex-col gap-2" aria-label="Campaign editing tracks">
-          {(lyrics.length > 0 || lyricWords.length > 0) && (
-            <div className="overflow-x-auto">
-              <div className="grid min-w-[780px] grid-cols-[76px_minmax(680px,1fr)] items-center gap-2">
-                <span className="label text-muted">LYRICS</span>
-                <div className="relative h-10 overflow-hidden rounded-md border border-line bg-surface">
-                  {lyrics.length > 0 ? lyrics.map((lyric, index) => {
-                    const left = Math.max(0, Math.min(100, (lyric.start_seconds / total) * 100))
-                    const width = Math.max(0.8, Math.min(100 - left, ((lyric.end_seconds - lyric.start_seconds) / total) * 100))
-                    return (
-                      <button key={`lyric-track-${index}`} type="button"
-                        title={`${lyric.text} · ${formatDuration(lyric.start_seconds)}–${formatDuration(lyric.end_seconds)}`}
-                        aria-label={`Seek to lyric: ${lyric.text}`}
-                        onClick={() => seekToTimelineRef.current(lyric.start_seconds)}
-                        className="absolute inset-y-1 overflow-hidden rounded border border-acid/70 bg-acid/20 px-1 text-left text-[10px] font-medium text-ink hover:bg-acid/35"
-                        style={{ left: `${left}%`, width: `${width}%` }}>
-                        <span className="block truncate">{lyric.text}</span>
-                      </button>
-                    )
-                  }) : lyricWords.map((word, index) => {
-                    const left = Math.max(0, Math.min(100, (word.start_seconds / total) * 100))
-                    const width = Math.max(0.55, Math.min(100 - left, ((word.end_seconds - word.start_seconds) / total) * 100))
-                    return (
-                      <button key={`lyric-word-track-${index}`} type="button"
-                        title={`${word.word} · ${formatDuration(word.start_seconds)}–${formatDuration(word.end_seconds)}`}
-                        aria-label={`Seek to lyric word: ${word.word}`}
-                        onClick={() => seekToTimelineRef.current(word.start_seconds)}
-                        className="absolute inset-y-1 overflow-hidden rounded-sm border border-acid/50 bg-acid/20 text-[9px] text-ink hover:bg-acid/40"
-                        style={{ left: `${left}%`, width: `${width}%` }} />
-                    )
-                  })}
-                  <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 z-10 w-0.5 bg-red-500"
-                    style={{ left: `${Math.max(0, Math.min(100, (playheadSeconds / total) * 100))}%` }} />
-                </div>
+          <div className="overflow-x-auto">
+            <div className="grid min-w-[780px] grid-cols-[76px_minmax(680px,1fr)] items-center gap-2">
+              <span className="label text-muted">LYRICS</span>
+              <div className="relative h-10 overflow-hidden rounded-md border border-line bg-surface">
+                {lyrics.length > 0 ? lyrics.map((lyric, index) => {
+                  const left = Math.max(0, Math.min(100, (lyric.start_seconds / total) * 100))
+                  const width = Math.max(0.8, Math.min(100 - left, ((lyric.end_seconds - lyric.start_seconds) / total) * 100))
+                  return (
+                    <button key={`lyric-track-${index}`} type="button"
+                      title={`${lyric.text} · ${formatDuration(lyric.start_seconds)}–${formatDuration(lyric.end_seconds)}`}
+                      aria-label={`Seek to lyric: ${lyric.text}`}
+                      onClick={() => seekToTimelineRef.current(lyric.start_seconds)}
+                      className="absolute inset-y-1 overflow-hidden rounded border border-acid/70 bg-acid/20 px-1 text-left text-[10px] font-medium text-ink hover:bg-acid/35"
+                      style={{ left: `${left}%`, width: `${width}%` }}>
+                      <span className="block truncate">{lyric.text}</span>
+                    </button>
+                  )
+                }) : lyricWords.map((word, index) => {
+                  const left = Math.max(0, Math.min(100, (word.start_seconds / total) * 100))
+                  const width = Math.max(0.55, Math.min(100 - left, ((word.end_seconds - word.start_seconds) / total) * 100))
+                  return (
+                    <button key={`lyric-word-track-${index}`} type="button"
+                      title={`${word.word} · ${formatDuration(word.start_seconds)}–${formatDuration(word.end_seconds)}`}
+                      aria-label={`Seek to lyric word: ${word.word}`}
+                      onClick={() => seekToTimelineRef.current(word.start_seconds)}
+                      className="absolute inset-y-1 overflow-hidden rounded-sm border border-acid/50 bg-acid/20 text-[9px] text-ink hover:bg-acid/40"
+                      style={{ left: `${left}%`, width: `${width}%` }} />
+                  )
+                })}
+                <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 z-10 w-0.5 bg-red-500"
+                  style={{ left: `${Math.max(0, Math.min(100, (playheadSeconds / total) * 100))}%` }} />
               </div>
             </div>
-          )}
-          {textOverlays.some((overlay) => overlay.rank === edit.rank) && (
-            <div className="overflow-x-auto">
-              <div className="grid min-w-[780px] grid-cols-[76px_minmax(680px,1fr)] items-center gap-2">
-                <span className="label text-muted">TEXT</span>
-                <div className="relative h-10 overflow-hidden rounded-md border border-line bg-surface">
-                  {textOverlays.filter((overlay) => overlay.rank === edit.rank).map((overlay, index) => {
-                    const left = Math.max(0, Math.min(100, (overlay.start_seconds / total) * 100))
-                    const width = Math.max(0.8, Math.min(100 - left, ((overlay.end_seconds - overlay.start_seconds) / total) * 100))
-                    return (
-                      <button key={`overlay-track-${index}`} type="button"
-                        title={`${overlay.text} · ${formatDuration(overlay.start_seconds)}–${formatDuration(overlay.end_seconds)}`}
-                        aria-label={`Seek to text overlay: ${overlay.text}`}
-                        onClick={() => seekToTimelineRef.current(overlay.start_seconds)}
-                        className="absolute inset-y-1 overflow-hidden rounded border border-sky-500/70 bg-sky-500/15 px-1 text-left text-[10px] font-medium text-ink hover:bg-sky-500/25"
-                        style={{ left: `${left}%`, width: `${width}%` }}>
-                        <span className="block truncate">{overlay.text}</span>
-                      </button>
-                    )
-                  })}
-                  <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 z-10 w-0.5 bg-red-500"
-                    style={{ left: `${Math.max(0, Math.min(100, (playheadSeconds / total) * 100))}%` }} />
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       )}
       {hasMusic && (
@@ -1931,42 +1904,6 @@ function CampaignTimeline({
       <div className="flex flex-col gap-2 border-t border-line pt-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="label text-muted">Independent text overlay track</span>
-          <span className="text-[10px] text-faint">Times are relative to this finished edit</span>
-        </div>
-        <div className="overflow-x-auto">
-          <div className="relative h-10 min-w-[680px] overflow-hidden rounded-md border border-line bg-surface">
-            {textOverlays.filter((overlay) => overlay.rank === edit.rank).map((overlay, index) => {
-              const left = Math.max(0, Math.min(total, overlay.start_seconds))
-              const right = Math.max(left, Math.min(total, overlay.end_seconds))
-              if (right <= left) return null
-              return (
-                <div
-                  key={"text-overlay-" + edit.rank + "-" + index}
-                  title={overlay.text + " · " + formatDuration(overlay.start_seconds) + "–" + formatDuration(overlay.end_seconds)}
-                  className="absolute inset-y-1 flex min-w-0 items-center overflow-hidden rounded border px-1.5"
-                  style={{
-                    left: String((left / total) * 100) + "%",
-                    width: String(Math.max(0.8, ((right - left) / total) * 100)) + "%",
-                    borderColor: overlay.color,
-                    color: overlay.color,
-                    backgroundColor: overlay.background ? "rgba(0, 0, 0, 0.78)" : "rgba(255, 255, 255, 0.06)",
-                  }}
-                >
-                  <span className="truncate text-[10px] font-semibold">{overlay.text}</span>
-                </div>
-              )
-            })}
-            {textOverlays.every((overlay) => overlay.rank !== edit.rank) && (
-              <span className="absolute inset-0 flex items-center px-3 text-[10px] text-faint">
-                No independent text layers on this edit yet
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-      <div className="flex flex-col gap-2 border-t border-line pt-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="label text-muted">Independent text overlay track</span>
           <span className="text-[10px] text-faint">Drag a block to move it · drag either edge to trim</span>
         </div>
         <div className="overflow-x-auto">
@@ -2025,6 +1962,7 @@ function CampaignTimeline({
                   <div
                     key={"text-overlay-" + edit.rank + "-" + overlayIndex}
                     title={overlay.text + " · " + formatDuration(overlay.start_seconds) + "–" + formatDuration(overlay.end_seconds)}
+                    onClick={() => seekToTimelineRef.current(overlay.start_seconds)}
                     onPointerDown={(event) => beginDrag(event, 'move')}
                     className="group absolute inset-y-1 flex min-w-0 cursor-grab touch-none items-center overflow-hidden rounded border px-1.5 active:cursor-grabbing"
                     style={{
