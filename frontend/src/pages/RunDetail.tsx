@@ -1764,7 +1764,7 @@ function CampaignTimeline({
         <div className="flex flex-col gap-2" aria-label="Campaign editing tracks">
           <div className="overflow-x-auto">
             <div className="grid min-w-[780px] grid-cols-[76px_minmax(680px,1fr)] items-center gap-2">
-              <span className="label text-muted">LYRICS</span>
+              <span className="label text-muted" title="Drag a lyric block to move it; drag either edge to adjust its timing.">LYRICS</span>
               <div
                 data-campaign-lyrics-track
                 className="relative h-10 overflow-hidden rounded-md border border-line bg-surface"
@@ -1795,7 +1795,7 @@ function CampaignTimeline({
                 {lyrics.length > 0 ? lyrics.map((lyric) => {
                   const left = Math.max(0, Math.min(100, (lyric.start_seconds / total) * 100))
                   const width = Math.max(1.2, Math.min(100 - left, ((lyric.end_seconds - lyric.start_seconds) / total) * 100))
-                  const beginDrag = (event: ReactPointerEvent<HTMLDivElement>, side: 'move' | 'start' | 'end') => {
+                  const beginDrag = (event: ReactPointerEvent<HTMLElement>, side: 'move' | 'start' | 'end') => {
                     event.preventDefault()
                     event.stopPropagation()
                     const track = event.currentTarget.closest('[data-campaign-lyrics-track]') as HTMLDivElement | null
@@ -1826,10 +1826,24 @@ function CampaignTimeline({
                       <span role="slider" tabIndex={0} aria-label={`Trim start of lyric: ${lyric.text}`}
                         aria-valuemin={0} aria-valuemax={Math.max(0, lyric.end_seconds - 0.1)} aria-valuenow={lyric.start_seconds}
                         onPointerDown={(event) => beginDrag(event, 'start')}
+                        onKeyDown={(event) => {
+                          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+                          event.preventDefault()
+                          const delta = event.key === 'ArrowRight' ? 0.05 : -0.05
+                          const nextStart = Math.max(0, Math.min(lyric.end_seconds - 0.1, lyric.start_seconds + delta))
+                          onUpdateLyric(lyric.phrase_index, { start_seconds: Math.round((nextStart + musicStart) * 100) / 100 })
+                        }}
                         className="absolute inset-y-0 left-0 z-10 w-2 cursor-ew-resize bg-white/40 opacity-0 transition-opacity group-hover:opacity-100" />
                       <span role="slider" tabIndex={0} aria-label={`Trim end of lyric: ${lyric.text}`}
                         aria-valuemin={lyric.start_seconds + 0.1} aria-valuemax={total} aria-valuenow={lyric.end_seconds}
                         onPointerDown={(event) => beginDrag(event, 'end')}
+                        onKeyDown={(event) => {
+                          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+                          event.preventDefault()
+                          const delta = event.key === 'ArrowRight' ? 0.05 : -0.05
+                          const nextEnd = Math.max(lyric.start_seconds + 0.1, Math.min(total, lyric.end_seconds + delta))
+                          onUpdateLyric(lyric.phrase_index, { end_seconds: Math.round((nextEnd + musicStart) * 100) / 100 })
+                        }}
                         className="absolute inset-y-0 right-0 z-10 w-2 cursor-ew-resize bg-white/40 opacity-0 transition-opacity group-hover:opacity-100" />
                     </div>
                   )
