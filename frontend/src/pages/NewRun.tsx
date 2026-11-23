@@ -182,17 +182,37 @@ export function NewRunPage() {
                 label="Add cinematic camera movement"
                 hint="Adds subtle alternating push and pan movement to each shot for a more dynamic edit. Turn it off for a completely static crop."
               />
-              <Field label="Shot transitions" hint="Auto keeps music-beat cuts when reliable beats are detected and uses soft dissolves otherwise. Dynamic adds restrained directional transitions between shots.">
-                <Select
-                  value={options.campaign_transition_style}
-                  onChange={(e) => set('campaign_transition_style', e.target.value as ClipOptions['campaign_transition_style'])}
-                >
-                  <option value="auto">Auto · music-aware</option>
-                  <option value="cut">Clean hard cuts</option>
-                  <option value="cinematic">Cinematic fades</option>
-                  <option value="dynamic">Dynamic transitions</option>
-                </Select>
+              <Field label="Shot transitions" hint="Choose a style and watch its miniature preview before creating the edit. Auto keeps beat-aware cuts when reliable beats are detected.">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {([
+                    ['auto', 'Auto · music-aware', 'Beat cuts or soft dissolves', 'transition-preview-auto'],
+                    ['cut', 'Clean hard cuts', 'Instant switch between shots', 'transition-preview-cut'],
+                    ['cinematic', 'Cinematic fades', 'Soft, gradual blend', 'transition-preview-fade'],
+                    ['dynamic', 'Dynamic transitions', 'Directional movement', 'transition-preview-dynamic'],
+                  ] as const).map(([value, title, description, previewClass]) => (
+                    <button key={value} type="button" onClick={() => set('campaign_transition_style', value)}
+                      aria-pressed={options.campaign_transition_style === value}
+                      className={cn('flex items-center gap-3 rounded-lg border p-3 text-left transition-colors',
+                        options.campaign_transition_style === value ? 'border-ink bg-sunk' : 'border-line bg-panel hover:border-line-strong')}>
+                      <span className={cn('transition-preview', previewClass)} aria-hidden="true">
+                        <span className="transition-preview-frame transition-preview-frame-a" />
+                        <span className="transition-preview-frame transition-preview-frame-b" />
+                      </span>
+                      <span className="flex min-w-0 flex-col gap-1">
+                        <span className="font-medium">{title}</span>
+                        <span className="text-xs text-muted">{description}</span>
+                        {options.campaign_transition_style === value && <span className="text-[10px] font-semibold uppercase tracking-wider text-ok">Selected</span>}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </Field>
+              <Toggle
+                checked={Boolean(options.campaign_conversation_hook)}
+                onChange={(value) => set('campaign_conversation_hook', value)}
+                label="Conversation → music hook (optional)"
+                hint="Open with a short, real conversation from your footage, then bring the song in on a strong beat and build a fast montage. Best with audible dialogue and two people interacting; CLIPYYY won't invent dialogue."
+              />
               <Field label="Lyrics / exact on-screen text (optional)" hint="Paste only the lines you are allowed to use. They will be displayed in sequence across the edit.">
                 <Textarea rows={3} value={options.campaign_lyrics} onChange={(e) => set('campaign_lyrics', e.target.value)} placeholder="One line per screen..." />
               </Field>
