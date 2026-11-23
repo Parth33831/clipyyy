@@ -1830,7 +1830,7 @@ function CampaignTimeline({
                     activeTransition === 'smoothright' ? (transitionPhase === 'out' ? 'translateX(14%)' : 'translateX(-14%)') :
                     activeTransition === 'slideleft' ? (transitionPhase === 'out' ? 'translateX(-100%)' : 'translateX(100%)') :
                     activeTransition === 'slideright' ? (transitionPhase === 'out' ? 'translateX(100%)' : 'translateX(-100%)') :
-                    transitionPhase === 'out' && transitionStyle === 'dynamic' ? 'scale(1.035)' : 'scale(1)'
+                    transitionPhase === 'out' && previewTransitionStyle === 'dynamic' ? 'scale(1.035)' : 'scale(1)'
                   ),
                   clipPath: activeTransition === 'wipeleft' && transitionPhase !== 'idle'
                     ? (transitionPhase === 'out' ? 'inset(0 100% 0 0)' : 'inset(0 0 0 100%)')
