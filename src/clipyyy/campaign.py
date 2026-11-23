@@ -340,6 +340,7 @@ def _rank_lyric_scene_matches(
         )
     return matches
 
+
 _VISUAL_ENERGY_CUES = {
     "high": (
         r"\b(sprint(?:ing)?|run(?:ning)?|jump(?:ing)?|dance|dancing|"
