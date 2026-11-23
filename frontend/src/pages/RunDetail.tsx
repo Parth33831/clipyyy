@@ -224,6 +224,7 @@ export function RunDetailPage() {
   const [publishing, setPublishing] = useState<Clip | null>(null)
   const [focused, setFocused] = useState<number | null>(null)
   const [selectedConceptId, setSelectedConceptId] = useState<string | null>(null)
+  const [activeCampaignTool, setActiveCampaignTool] = useState<'preview' | 'hook' | 'audio' | 'animations' | 'lyrics' | 'text' | 'shots'>('preview')
   const [conceptCutVariants, setConceptCutVariants] = useState<Record<string, 'original' | 'refined'>>({})
   const [activeConceptPreviewId, setActiveConceptPreviewId] = useState<string | null>(null)
   useEffect(() => {
@@ -537,24 +538,25 @@ export function RunDetailPage() {
       </header>
 
       {data.options.campaign_mode && !busy && (
-        <div className="grid items-start gap-5 lg:grid-cols-[190px_minmax(0,1fr)]">
-          <nav aria-label="Campaign editor tools" className="z-10 flex gap-2 overflow-x-auto rounded-xl border border-line bg-surface p-2 lg:sticky lg:top-5 lg:flex-col lg:gap-1 lg:overflow-visible">
-            <p className="label hidden px-3 py-2 text-faint lg:block">EDITOR TOOLS</p>
-            {[
-              ['campaign-preview', 'Video & Timeline'],
-              ['campaign-hook', 'Opening Hook'],
-              ['campaign-audio', 'Music & Audio'],
-              ['campaign-animations', 'Animations'],
-              ['campaign-lyrics', 'Lyrics Sync'],
-              ['campaign-text', 'Text & Titles'],
-              ['campaign-storyboard', 'Shot Editing'],
-            ].map(([target, label]) => (
-              <a key={target} href={`#${target}`} className="shrink-0 rounded-md px-3 py-2 text-left text-xs font-medium text-muted transition-colors hover:bg-sunk hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:w-full">
+        <div className="grid items-start gap-4 lg:grid-cols-[150px_minmax(280px,340px)_minmax(0,1fr)]">
+          <nav aria-label="Campaign editor tools" className="z-10 flex gap-2 overflow-x-auto rounded-xl border border-line bg-surface p-2 lg:sticky lg:top-5 lg:col-start-1 lg:row-start-1 lg:flex-col lg:gap-1 lg:overflow-visible">
+            <p className="label hidden px-3 py-2 text-faint lg:block">TOOLS</p>
+            {([
+              ['preview', 'Video & Timeline'],
+              ['hook', 'Opening Hook'],
+              ['audio', 'Music & Audio'],
+              ['animations', 'Animations'],
+              ['lyrics', 'Lyrics Sync'],
+              ['text', 'Text & Titles'],
+              ['shots', 'Shot Editing'],
+            ] as const).map(([tool, label]) => (
+              <button key={tool} type="button" onClick={() => setActiveCampaignTool(tool)} aria-pressed={activeCampaignTool === tool}
+                className={cn('shrink-0 rounded-md px-3 py-2 text-left text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:w-full', activeCampaignTool === tool ? 'bg-ink text-panel' : 'text-muted hover:bg-sunk hover:text-ink')}>
                 {label}
-              </a>
+              </button>
             ))}
           </nav>
-          <div className="flex min-w-0 flex-col gap-6">
+          <div className="flex min-w-0 flex-col gap-6 lg:col-start-3 lg:row-start-1">
             <div id="campaign-preview" className="scroll-mt-5">
       {data.options.campaign_mode && !busy && campaignEdits.length > 0 && (
         <CampaignStoryboardEditor
@@ -585,8 +587,8 @@ export function RunDetailPage() {
       )}
             </div>
       {data.options.campaign_mode && !busy && (
-        <div id="campaign-hook" className="scroll-mt-5 flex flex-col gap-4 rounded-xl border border-line bg-surface p-4">
-          <div className="flex flex-col gap-2 border-b border-line pb-4">
+        <div id="campaign-hook" hidden={activeCampaignTool !== 'hook' && activeCampaignTool !== 'audio' && activeCampaignTool !== 'animations' && activeCampaignTool !== 'lyrics'} className="scroll-mt-5 flex flex-col gap-4 rounded-xl border border-line bg-surface p-4 lg:col-start-2 lg:row-start-1">
+          <div hidden={activeCampaignTool !== 'hook'} className="flex flex-col gap-2 border-b border-line pb-4">
             <div className="flex items-center justify-between gap-3">
               <span className="font-medium">Opening text hook</span>
               <label className="flex items-center gap-2 text-sm">
@@ -602,7 +604,7 @@ export function RunDetailPage() {
               className="w-full rounded-lg border border-line bg-panel p-3 text-sm text-ink placeholder:text-muted" />
             <span className="text-xs text-muted">Off by default. Your edit does not need campaign branding or AI-generated text.</span>
           </div>
-          <div id="campaign-audio" className="scroll-mt-5 flex flex-wrap items-end gap-3">
+          <div id="campaign-audio" hidden={activeCampaignTool !== 'audio'} className="scroll-mt-5 flex flex-wrap items-end gap-3">
           <label className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
             <span className="font-medium">Campaign music</span>
             <input
@@ -629,7 +631,7 @@ export function RunDetailPage() {
           </Button>
           </div>
           {data.options.campaign_music_path && (
-            <div className="flex flex-col gap-4 rounded-lg border border-line bg-panel p-3 text-sm">
+            <div hidden={activeCampaignTool !== 'audio'} className="flex flex-col gap-4 rounded-lg border border-line bg-panel p-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-medium">Music mix</span>
                 <span className="text-xs text-muted">Adjust the attached track, then re-render</span>
@@ -670,7 +672,7 @@ export function RunDetailPage() {
               </div>
             </div>
           )}
-          <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
+          <div hidden={activeCampaignTool !== 'audio'} className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="font-medium">Original video audio</span>
               <span className="font-mono text-muted">{sourceAudioVolume}%</span>
@@ -683,7 +685,7 @@ export function RunDetailPage() {
               </Button>
             </div>
           </div>
-          <div id="campaign-animations" className="scroll-mt-5 flex flex-col gap-3 text-sm">
+          <div id="campaign-animations" hidden={activeCampaignTool !== 'animations'} className="scroll-mt-5 flex flex-col gap-3 text-sm">
             <span className="font-medium">Lyrics animation preset</span>
             <div className="grid gap-2 sm:grid-cols-2">
               {([
@@ -714,7 +716,7 @@ export function RunDetailPage() {
             </div>
             <span className="text-xs text-muted">Each tile previews the motion. Change the preset or lyrics, then apply it to the existing montage; saved shots and Whisper word timings are reused.</span>
           </div>
-          <div className="flex flex-col gap-2 rounded-lg border border-line bg-panel p-3 text-sm">
+          <div hidden={activeCampaignTool !== 'animations'} className="flex flex-col gap-2 rounded-lg border border-line bg-panel p-3 text-sm">
             <span className="font-medium">Words on screen at once</span>
             <div className="flex gap-2">
               {([1, 2, 3] as const).map((count) => (
@@ -728,6 +730,7 @@ export function RunDetailPage() {
             </div>
             <span className="text-xs text-muted">Shows a rolling group of 1, 2, or 3 words as the song progresses. Default: 3.</span>
           </div>
+          <div hidden={activeCampaignTool !== 'animations'}>
           <LyricsPositionPreview
             frameUrl={campaignEdits[0]?.shots[0] ? `/api/runs/${runId}/campaign-frame?source_index=${campaignEdits[0].shots[0].source_index}&timestamp=${campaignEdits[0].shots[0].start_seconds.toFixed(1)}` : null}
             text={lyricPhrases[selectedLyricPhrase] ?? 'Your lyrics appear here'}
@@ -874,7 +877,7 @@ export function RunDetailPage() {
             </div>
             <p className="text-xs text-muted sm:col-span-2">Colors are independent of animation style. Apply updates the existing edit without re-picking footage or re-transcribing the song.</p>
           </div>
-          <div id="campaign-lyrics" className="scroll-mt-5 flex flex-col gap-3">
+          <div id="campaign-lyrics" hidden={activeCampaignTool !== 'lyrics'} className="scroll-mt-5 flex flex-col gap-3">
           <label className="flex flex-col gap-2 text-sm">
             <span className="font-medium">Lyrics / timed captions</span>
             <textarea
@@ -1018,7 +1021,7 @@ export function RunDetailPage() {
       )}
 
       {data.options.campaign_mode && !busy && campaignEdits.length > 0 && (
-        <div id="campaign-text" className="scroll-mt-5">
+        <div id="campaign-text" hidden={activeCampaignTool !== 'text'} className="scroll-mt-5 lg:col-start-2 lg:row-start-1">
         <CampaignTextOverlayEditor
           overlays={campaignTextOverlays}
           savedOverlays={data.options.campaign_text_overlays ?? []}
