@@ -1594,6 +1594,11 @@ function CampaignTimeline({
   const [previewLyricAnimation, setPreviewLyricAnimation] = useState<CampaignLyricPhraseEdit['animation_style']>('dynamic')
   const [previewTextAnimation, setPreviewTextAnimation] = useState<CampaignTextOverlay['animation']>('pop')
   const [positioningTarget, setPositioningTarget] = useState<'none' | 'lyric' | 'text'>('none')
+  const [snapTextToGuides, setSnapTextToGuides] = useState(true)
+  const [alignmentGuides, setAlignmentGuides] = useState<{ vertical: number | null; horizontal: number | null }>({
+    vertical: null,
+    horizontal: null,
+  })
   const positionDragRef = useRef<{ pointerId: number; target: 'lyric' | 'text' } | null>(null)
   const transformDragRef = useRef<{ pointerId: number; target: 'lyric' | 'text'; action: 'resize' | 'rotate'; startX: number; initialValue: number } | null>(null)
   useEffect(() => setPreviewTransitionStyle(transitionStyle), [transitionStyle])
@@ -1608,8 +1613,22 @@ function CampaignTimeline({
     const stage = event.currentTarget.closest('[data-campaign-preview-stage]') as HTMLDivElement | null
     const bounds = stage?.getBoundingClientRect()
     if (!bounds || bounds.width <= 0 || bounds.height <= 0) return
-    const x = Math.max(5, Math.min(95, Math.round(((event.clientX - bounds.left) / bounds.width) * 100)))
-    const y = Math.max(5, Math.min(95, Math.round(((event.clientY - bounds.top) / bounds.height) * 100)))
+    const rawX = Math.max(5, Math.min(95, ((event.clientX - bounds.left) / bounds.width) * 100))
+    const rawY = Math.max(5, Math.min(95, ((event.clientY - bounds.top) / bounds.height) * 100))
+    const snapAxis = (value: number) => {
+      if (!snapTextToGuides) return { value: Math.round(value), guide: null as number | null }
+      const nearest = [25, 50, 75].reduce((best, candidate) =>
+        Math.abs(candidate - value) < Math.abs(best - value) ? candidate : best
+      )
+      return Math.abs(nearest - value) <= 2.5
+        ? { value: nearest, guide: nearest }
+        : { value: Math.round(value), guide: null as number | null }
+    }
+    const snappedX = snapAxis(rawX)
+    const snappedY = snapAxis(rawY)
+    const x = snappedX.value
+    const y = snappedY.value
+    setAlignmentGuides({ vertical: snappedX.guide, horizontal: snappedY.guide })
     if (target === 'lyric') {
       const lyric = lyrics.find((item) => playheadSeconds >= item.start_seconds && playheadSeconds <= item.end_seconds)
       if (lyric) onUpdateLyric(lyric.phrase_index, { position_x: x, position_y: y })
@@ -1672,6 +1691,7 @@ function CampaignTimeline({
   const endLiveTextDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (positionDragRef.current?.pointerId === event.pointerId) positionDragRef.current = null
     if (transformDragRef.current?.pointerId === event.pointerId) transformDragRef.current = null
+    setAlignmentGuides({ vertical: null, horizontal: null })
   }
   const waveformQuery = useQuery({
     queryKey: ['campaign-waveform', runId],
@@ -1936,6 +1956,17 @@ function CampaignTimeline({
                   positioningTarget === 'text' ? 'border-ink bg-ink text-white' : 'border-line bg-surface text-muted hover:border-ink')}>
                 Drag active title
               </button>
+              <button type="button"
+                title="Snap text to the 25%, 50%, and 75% alignment guides while dragging"
+                aria-pressed={snapTextToGuides}
+                onClick={() => {
+                  setSnapTextToGuides((current) => !current)
+                  setAlignmentGuides({ vertical: null, horizontal: null })
+                }}
+                className={cn('rounded-md border px-2.5 py-1.5 text-xs font-medium',
+                  snapTextToGuides ? 'border-sky-500 bg-sky-500/10 text-ink' : 'border-line bg-surface text-muted hover:border-ink')}>
+                Snap to guides {snapTextToGuides ? 'On' : 'Off'}
+              </button>
               {positioningTarget !== 'none' && (
                 <button type="button" onClick={() => { positionDragRef.current = null; setPositioningTarget('none') }}
                   className="rounded-md px-2 py-1.5 text-xs text-muted underline">Done</button>
@@ -2028,6 +2059,14 @@ function CampaignTimeline({
                 }}
                 className="max-h-64 w-full bg-black object-contain"
               />
+              {alignmentGuides.vertical !== null && (
+                <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 z-30 border-l border-dashed border-sky-300 shadow-[0_0_5px_rgba(125,211,252,0.8)]"
+                  style={{ left: alignmentGuides.vertical + '%' }} />
+              )}
+              {alignmentGuides.horizontal !== null && (
+                <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 z-30 border-t border-dashed border-sky-300 shadow-[0_0_5px_rgba(125,211,252,0.8)]"
+                  style={{ top: alignmentGuides.horizontal + '%' }} />
+              )}
               {activeLyric && (
                 <div
                   className="pointer-events-none absolute inset-0"
@@ -2040,7 +2079,7 @@ function CampaignTimeline({
                 >
                   <div
                     className={cn('absolute flex w-[90%] justify-center px-3',
-                      positioningTarget === 'lyric' ? 'pointer-events-auto cursor-move touch-none relative' : 'pointer-events-none')}
+                      positioningTarget === 'lyric' ? 'pointer-events-auto cursor-move touch-none relative rounded-sm outline outline-1 outline-dashed outline-sky-300 outline-offset-4' : 'pointer-events-none')}
                     onPointerDown={(event) => beginLiveTextDrag(event, 'lyric')}
                     onPointerMove={moveLiveTextDrag}
                     onPointerUp={endLiveTextDrag}
@@ -2088,7 +2127,7 @@ function CampaignTimeline({
               {activeOverlay && (
                 <div
                   className={cn('absolute flex items-center justify-center px-4',
-                    positioningTarget === 'text' ? 'pointer-events-auto cursor-move touch-none relative' : 'pointer-events-none')}
+                    positioningTarget === 'text' ? 'pointer-events-auto cursor-move touch-none relative rounded-sm outline outline-1 outline-dashed outline-sky-300 outline-offset-4' : 'pointer-events-none')}
                   onPointerDown={(event) => beginLiveTextDrag(event, 'text')}
                   onPointerMove={moveLiveTextDrag}
                   onPointerUp={endLiveTextDrag}
