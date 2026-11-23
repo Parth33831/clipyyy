@@ -1036,22 +1036,22 @@ def test_visual_continuity_flags_adjacent_near_duplicate_shots():
     analyses = [
         {
             "frames": [
-            {
-                "timestamp": 3,
-                "description": "A woman smiling while holding a red coffee cup",
-                "subjects": "woman, coffee cup",
-                "shot_scale": "close-up",
-                "visible_action": "holding coffee cup",
-                "confidence": 0.9,
-            },
-            {
-                "timestamp": 6,
-                "description": "A woman smiling while holding a red coffee cup",
-                "subjects": "woman, coffee cup",
-                "shot_scale": "close-up",
-                "visible_action": "holding coffee cup",
-                "confidence": 0.9,
-            },
+                {
+                    "timestamp": 3,
+                    "description": "A woman smiling while holding a red coffee cup",
+                    "subjects": "woman, coffee cup",
+                    "shot_scale": "close-up",
+                    "visible_action": "holding coffee cup",
+                    "confidence": 0.9,
+                },
+                {
+                    "timestamp": 6,
+                    "description": "A woman smiling while holding a red coffee cup",
+                    "subjects": "woman, coffee cup",
+                    "shot_scale": "close-up",
+                    "visible_action": "holding coffee cup",
+                    "confidence": 0.9,
+                },
             ]
         }
     ]
@@ -1075,22 +1075,22 @@ def test_visual_continuity_does_not_flag_distinct_framing_as_duplicate():
     analyses = [
         {
             "frames": [
-            {
-                "timestamp": 3,
-                "description": "A wide view of a busy kitchen with several people",
-                "subjects": "kitchen, people",
-                "shot_scale": "wide",
-                "visible_action": "people preparing food",
-                "confidence": 0.9,
-            },
-            {
-                "timestamp": 6,
-                "description": "Close detail of hands chopping vegetables",
-                "subjects": "hands, vegetables",
-                "shot_scale": "detail",
-                "visible_action": "chopping vegetables",
-                "confidence": 0.95,
-            },
+                {
+                    "timestamp": 3,
+                    "description": "A wide view of a busy kitchen with several people",
+                    "subjects": "kitchen, people",
+                    "shot_scale": "wide",
+                    "visible_action": "people preparing food",
+                    "confidence": 0.9,
+                },
+                {
+                    "timestamp": 6,
+                    "description": "Close detail of hands chopping vegetables",
+                    "subjects": "hands, vegetables",
+                    "shot_scale": "detail",
+                    "visible_action": "chopping vegetables",
+                    "confidence": 0.95,
+                },
             ]
         }
     ]
@@ -1114,11 +1114,11 @@ def test_visual_continuity_is_honest_when_visual_evidence_is_unavailable():
     analyses = [
         {
             "frames": [
-            {
-                "timestamp": 3,
-                "description": "Visual content unavailable: installed model is text-only.",
-                "confidence": 0.0,
-            }
+                {
+                    "timestamp": 3,
+                    "description": "Visual content unavailable: installed model is text-only.",
+                    "confidence": 0.0,
+                }
             ]
         }
     ]
