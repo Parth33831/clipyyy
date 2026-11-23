@@ -92,6 +92,7 @@ export function NewRunPage() {
   const [dragging, setDragging] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ name: string; percent: number; index: number; total: number } | null>(null)
   const [uploadStatuses, setUploadStatuses] = useState<Record<string, UploadStatus>>({})
+  const [retryInProgress, setRetryInProgress] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const uploadedFiles = useRef(new Map<string, string>())
   const health = useQuery({ queryKey: ['health'], queryFn: api.health })
@@ -179,7 +180,8 @@ export function NewRunPage() {
 
   const retryUpload = async (file: File) => {
     const cacheKey = uploadCacheKey(file)
-    if (submit.isPending || uploadedFiles.current.has(cacheKey)) return
+    if (submit.isPending || retryInProgress || uploadedFiles.current.has(cacheKey)) return
+    setRetryInProgress(true)
     setUploadStatuses((current) => ({ ...current, [cacheKey]: { state: 'uploading', percent: 0 } }))
     setUploadProgress({ name: file.name, percent: 0, index: 1, total: 1 })
     try {
@@ -195,6 +197,8 @@ export function NewRunPage() {
       setUploadStatuses((current) => ({ ...current, [cacheKey]: { state: 'failed', percent: 0, error: error instanceof Error ? error.message : 'Upload failed' } }))
       setUploadProgress(null)
       toast.error(error instanceof Error ? error.message : 'Upload failed')
+    } finally {
+      setRetryInProgress(false)
     }
   }
 
@@ -264,7 +268,7 @@ export function NewRunPage() {
                 />
               </Field>
               <Field label="Campaign music (optional)" hint="Upload a track you have permission to use. If the campaign requires an official TikTok/Instagram sound, leave this empty and add that sound inside the platform after export.">
-                <input type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] ?? null)} className="block w-full text-sm text-muted file:mr-3 file:border file:border-line file:bg-surface file:px-3 file:py-2 file:text-ink" />
+                <input type="file" accept="audio/*" disabled={retryInProgress || submit.isPending} onChange={(e) => setMusicFile(e.target.files?.[0] ?? null)} className="block w-full text-sm text-muted file:mr-3 file:border file:border-line file:bg-surface file:px-3 file:py-2 file:text-ink" />
                 {musicFile && (
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                     <span>{musicFile.name}</span>
@@ -272,10 +276,10 @@ export function NewRunPage() {
                     {uploadStatuses[uploadCacheKey(musicFile)]?.state === 'failed' && (
                       <>
                         <span className="text-bad">Upload failed</span>
-                        <button type="button" disabled={submit.isPending} onClick={() => void retryUpload(musicFile)} className="font-medium text-acid underline disabled:opacity-40">Retry</button>
+                        <button type="button" disabled={submit.isPending || retryInProgress} onClick={() => void retryUpload(musicFile)} className="font-medium text-acid underline disabled:opacity-40">Retry</button>
                       </>
                     )}
-                    <button type="button" disabled={submit.isPending} onClick={() => {
+                    <button type="button" disabled={submit.isPending} disabled={submit.isPending || retryInProgress} onClick={() => {
                       uploadedFiles.current.delete(uploadCacheKey(musicFile))
                       setUploadStatuses((current) => { const next = { ...current }; delete next[uploadCacheKey(musicFile)]; return next })
                       setMusicFile(null)
@@ -401,10 +405,10 @@ export function NewRunPage() {
                       <span className="font-mono text-[11px] text-white/40">{(file.size / 1e6).toFixed(0)} MB</span>
                       {uploadStatuses[uploadCacheKey(file)]?.state === 'uploaded' && <span className="text-[11px] text-ok">Uploaded</span>}
                       {uploadStatuses[uploadCacheKey(file)]?.state === 'failed' && (
-                        <button type="button" disabled={submit.isPending} onClick={() => void retryUpload(file)} className="text-[11px] font-medium text-acid underline disabled:opacity-40">Retry</button>
+                        <button type="button" disabled={submit.isPending || retryInProgress} onClick={() => void retryUpload(file)} className="text-[11px] font-medium text-acid underline disabled:opacity-40">Retry</button>
                       )}
                       {uploadStatuses[uploadCacheKey(file)]?.state === 'uploading' && <span className="text-[11px] text-acid">{uploadStatuses[uploadCacheKey(file)].percent}%</span>}
-                      <button aria-label={`Remove ${file.name}`} disabled={submit.isPending} onClick={() => {
+                      <button aria-label={`Remove ${file.name}`} disabled={submit.isPending || retryInProgress} onClick={() => {
                         uploadedFiles.current.delete(uploadCacheKey(file))
                         setUploadStatuses((current) => { const next = { ...current }; delete next[uploadCacheKey(file)]; return next })
                         setFiles((current) => current.filter((_, j) => j !== i))
@@ -427,7 +431,7 @@ export function NewRunPage() {
                 variant="acid"
                 size="lg"
                 className="ml-auto disabled:!bg-ink-3 disabled:!text-white/35 disabled:!opacity-100"
-                disabled={count === 0 || !!needsLocalAi || blockers.length > 0 || (options.campaign_mode && (count > 6 || (!options.campaign_brief.trim() && !options.campaign_url.trim())))}
+                disabled={retryInProgress || count === 0 || !!needsLocalAi || blockers.length > 0 || (options.campaign_mode && (count > 6 || (!options.campaign_brief.trim() && !options.campaign_url.trim())))}
                 loading={submit.isPending}
                 onClick={() => submit.mutate()}
               >
