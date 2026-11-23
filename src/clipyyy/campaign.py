@@ -442,7 +442,6 @@ def _annotate_scene_music_matches(
         }
 
 
-
 _STORY_ROLE_CUES = {
     "call_to_action": (
         r"\b(learn more|sign up|join us|join now|visit us|visit now|"
@@ -514,6 +513,7 @@ def _annotate_story_retention_hints(candidates: list[dict[str, Any]]) -> None:
                 else "No reliable story role was identified from this still-frame evidence."
             ),
         }
+
 
 def build_montage_plan(
     llm,
