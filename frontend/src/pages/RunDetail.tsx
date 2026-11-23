@@ -1302,6 +1302,10 @@ function CampaignTextOverlayEditor({
   onChange: (overlays: CampaignTextOverlay[]) => void
   onSave: () => void
 }) {
+  const [selectedIndex, setSelectedIndex] = useState(0)
+  useEffect(() => {
+    if (selectedIndex >= overlays.length) setSelectedIndex(Math.max(0, overlays.length - 1))
+  }, [overlays.length, selectedIndex])
   const changed = JSON.stringify(overlays) !== JSON.stringify(savedOverlays)
   const addOverlay = () => {
     const output = outputs[0]
@@ -1328,6 +1332,43 @@ function CampaignTextOverlayEditor({
   const update = (index: number, patch: Partial<CampaignTextOverlay>) => {
     onChange(overlays.map((overlay, position) => position === index ? { ...overlay, ...patch } : overlay))
   }
+  const duplicate = (index: number) => {
+    if (overlays.length >= 30) return
+    const source = overlays[index]
+    if (!source) return
+    const sameRank = overlays.filter((overlay) => overlay.rank === source.rank)
+    const nextLayer = Math.max(-1, ...sameRank.map((overlay, position) => overlay.z_index ?? position)) + 1
+    const copy = {
+      ...source,
+      text: source.text ? `${source.text} copy`.slice(0, 160) : 'YOUR MESSAGE',
+      position_x: Math.min(95, source.position_x + 3),
+      position_y: Math.min(95, source.position_y + 3),
+      z_index: nextLayer,
+    }
+    const next = [...overlays]
+    next.splice(index + 1, 0, copy)
+    onChange(next)
+    setSelectedIndex(index + 1)
+  }
+  const moveLayer = (index: number, direction: -1 | 1) => {
+    const selected = overlays[index]
+    if (!selected) return
+    const sameRank = overlays
+      .map((overlay, position) => ({ overlay, position }))
+      .filter(({ overlay }) => overlay.rank === selected.rank)
+      .sort((a, b) => (a.overlay.z_index ?? a.position) - (b.overlay.z_index ?? b.position))
+    const order = sameRank.findIndex(({ position }) => position === index)
+    const target = order + direction
+    if (order < 0 || target < 0 || target >= sameRank.length) return
+    const reordered = [...sameRank]
+    ;[reordered[order], reordered[target]] = [reordered[target], reordered[order]]
+    const layers = new Map(reordered.map(({ position }, layer) => [position, layer]))
+    onChange(overlays.map((overlay, position) => overlay.rank === selected.rank
+      ? { ...overlay, z_index: layers.get(position) ?? overlay.z_index ?? 0 }
+      : overlay))
+  }
+  const alignX = (index: number, position_x: number) => update(index, { position_x })
+  const alignY = (index: number, position_y: number) => update(index, { position_y })
 
   return (
     <Panel className="flex flex-col gap-4 p-5">
@@ -1357,13 +1398,40 @@ function CampaignTextOverlayEditor({
           {overlays.map((overlay, index) => {
             const output = outputs.find((item) => item.rank === overlay.rank)
             return (
-              <section key={index} className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3">
+              <section
+                key={index}
+                onClick={() => setSelectedIndex(index)}
+                className={cn('flex flex-col gap-3 rounded-lg border p-3 transition-colors', selectedIndex === index ? 'border-ink bg-sunk/40' : 'border-line bg-panel')}
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="label text-muted">TEXT LAYER {String(index + 1).padStart(2, '0')}</span>
-                  <button type="button" disabled={saving} onClick={() => onChange(overlays.filter((_, position) => position !== index))}
-                    className="rounded-md border border-line px-3 py-1.5 text-xs text-muted hover:text-bad disabled:opacity-40">
-                    Remove
+                  <button type="button" onClick={() => setSelectedIndex(index)} aria-pressed={selectedIndex === index}
+                    className="label text-left text-muted hover:text-ink">
+                    {selectedIndex === index ? 'SELECTED · ' : ''}TEXT LAYER {String(index + 1).padStart(2, '0')}
                   </button>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button type="button" disabled={saving || overlays.length >= 30} onClick={(event) => { event.stopPropagation(); duplicate(index) }}
+                      className="rounded-md border border-line px-2.5 py-1.5 text-xs text-muted hover:text-ink disabled:opacity-40">Duplicate</button>
+                    <button type="button" disabled={saving || !overlays.some((item, position) => item.rank === overlay.rank && (item.z_index ?? position) < (overlay.z_index ?? index))} onClick={(event) => { event.stopPropagation(); moveLayer(index, -1) }}
+                      className="rounded-md border border-line px-2.5 py-1.5 text-xs text-muted hover:text-ink disabled:opacity-40">Send backward</button>
+                    <button type="button" disabled={saving || !overlays.some((item, position) => item.rank === overlay.rank && (item.z_index ?? position) > (overlay.z_index ?? index))} onClick={(event) => { event.stopPropagation(); moveLayer(index, 1) }}
+                      className="rounded-md border border-line px-2.5 py-1.5 text-xs text-muted hover:text-ink disabled:opacity-40">Bring forward</button>
+                    <button type="button" disabled={saving} onClick={(event) => { event.stopPropagation(); onChange(overlays.filter((_, position) => position !== index)); setSelectedIndex(Math.max(0, Math.min(index, overlays.length - 2))) }}
+                      className="rounded-md border border-line px-2.5 py-1.5 text-xs text-muted hover:text-bad disabled:opacity-40">Remove</button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-surface p-2">
+                  <span className="label mr-1 text-faint">ALIGN POSITION</span>
+                  {([['Left', 10], ['Center', 50], ['Right', 90]] as const).map(([label, value]) => (
+                    <button key={label} type="button" disabled={saving} onClick={() => alignX(index, value)}
+                      aria-pressed={overlay.position_x === value}
+                      className={cn('rounded border px-2.5 py-1.5 text-xs', overlay.position_x === value ? 'border-ink bg-sunk text-ink' : 'border-line text-muted hover:text-ink')}>{label}</button>
+                  ))}
+                  <span className="mx-1 h-5 border-l border-line" />
+                  {([['Top', 10], ['Middle', 50], ['Bottom', 90]] as const).map(([label, value]) => (
+                    <button key={label} type="button" disabled={saving} onClick={() => alignY(index, value)}
+                      aria-pressed={overlay.position_y === value}
+                      className={cn('rounded border px-2.5 py-1.5 text-xs', overlay.position_y === value ? 'border-ink bg-sunk text-ink' : 'border-line text-muted hover:text-ink')}>{label}</button>
+                  ))}
                 </div>
                 <label className="flex flex-col gap-1 text-xs text-muted">
                   Message
