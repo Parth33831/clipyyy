@@ -165,12 +165,19 @@ export interface CampaignEnergySection {
   average_energy: number
 }
 
+export interface CampaignBeatMarker {
+  time_seconds: number
+  strength: number
+  energy: number
+}
+
 export interface CampaignMusicAnalysis {
   duration_seconds: number
   selected_start_seconds: number
   selected_section: string
   estimated_bpm: number | null
   detected_beats: number
+  beat_markers?: CampaignBeatMarker[]
   energy_sections?: CampaignEnergySection[]
 }
 

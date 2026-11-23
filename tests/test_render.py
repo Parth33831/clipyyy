@@ -954,3 +954,23 @@ def test_campaign_text_overlay_ass_layer_renders_on_synthetic_video(tmp_path):
     width, height, duration = probe(output)
     assert (width, height) == (270, 480)
     assert duration == pytest.approx(2.0, abs=0.2)
+
+
+def test_campaign_music_beat_markers_are_relative_to_selected_window() -> None:
+    from clipyyy.render import _campaign_music_beat_markers
+
+    analysis = {
+        "beat_times": [4.0, 5.0, 7.0, 15.0],
+        "beat_strengths": [0.2, 0.8, 1.0, 0.5],
+        "energy_profile": [
+            {"time_seconds": 4.0, "energy": 0.1},
+            {"time_seconds": 5.0, "energy": 0.6},
+            {"time_seconds": 7.0, "energy": 0.9},
+        ],
+    }
+
+    markers = _campaign_music_beat_markers(analysis, music_start=5.0, target_duration=4.0)
+
+    assert [marker["time_seconds"] for marker in markers] == [0.0, 2.0]
+    assert markers[0]["strength"] == 0.8
+    assert markers[1]["energy"] == 0.9

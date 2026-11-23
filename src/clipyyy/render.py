@@ -1093,6 +1093,9 @@ def render_campaign_montages(
                     "selected_section": music_analysis["selected_section"],
                     "estimated_bpm": music_analysis.get("bpm"),
                     "detected_beats": len(beat_times),
+                    "beat_markers": _campaign_music_beat_markers(
+                        music_analysis, music_start, target_duration
+                    ),
                     "energy_sections": music_analysis.get("energy_sections", []),
                 }
                 if music_analysis
@@ -1806,6 +1809,34 @@ def _build_music_energy_sections(
     for section in sections:
         section.pop("samples")
     return profile, sections
+
+
+def _campaign_music_beat_markers(analysis: dict, music_start: float, target_duration: float) -> list[dict]:
+    """Expose the selected soundtrack window's beat positions for editor alignment."""
+    beats = analysis.get("beat_times") or []
+    strengths = analysis.get("beat_strengths") or []
+    profile = analysis.get("energy_profile") or []
+    markers = []
+    for index, beat in enumerate(beats):
+        relative = float(beat) - music_start
+        if not 0.0 <= relative <= target_duration:
+            continue
+        strength = max(0.0, min(1.0, float(strengths[index]))) if index < len(strengths) else 0.0
+        energy = 0.5
+        if profile:
+            nearest = min(
+                profile,
+                key=lambda point: abs(float(point["time_seconds"]) - float(beat)),
+            )
+            energy = max(0.0, min(1.0, float(nearest.get("energy", 0.5))))
+        markers.append(
+            {
+                "time_seconds": round(relative, 3),
+                "strength": round(strength, 3),
+                "energy": round(energy, 3),
+            }
+        )
+    return markers[:600]
 
 
 def select_music_cut_duration(
