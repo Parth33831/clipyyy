@@ -35,6 +35,7 @@ export function RunDetailPage() {
   const [publishing, setPublishing] = useState<Clip | null>(null)
   const [focused, setFocused] = useState<number | null>(null)
   const [selectedConceptId, setSelectedConceptId] = useState<string | null>(null)
+  useEffect(() => setSelectedConceptId(null), [runId])
   const [musicFile, setMusicFile] = useState<File | null>(null)
   const [musicVolume, setMusicVolume] = useState(90)
   const [sourceAudioVolume, setSourceAudioVolume] = useState(100)
