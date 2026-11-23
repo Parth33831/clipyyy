@@ -29,6 +29,7 @@ type CreativeConceptPlayerProps = {
   musicStartSeconds: number
   musicVolume: number
   sourceAudioVolume: number
+  transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
   isActive: boolean
   onActivate: (conceptId: string) => void
 }
@@ -41,6 +42,7 @@ function CreativeConceptPlayer({
   musicStartSeconds,
   musicVolume,
   sourceAudioVolume,
+  transitionStyle,
   isActive,
   onActivate,
 }: CreativeConceptPlayerProps) {
@@ -48,6 +50,9 @@ function CreativeConceptPlayer({
   const videoRef = useRef<HTMLVideoElement>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
   const advancingRef = useRef(false)
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [transitioning, setTransitioning] = useState(false)
+  const transitionDurationMs = transitionStyle === 'cut' ? 0 : transitionStyle === 'cinematic' ? 420 : 220
   const [shotIndex, setShotIndex] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
@@ -68,6 +73,7 @@ function CreativeConceptPlayer({
   useEffect(() => () => {
     videoRef.current?.pause()
     audioRef.current?.pause()
+    if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current)
   }, [])
 
   const pause = () => {
@@ -128,6 +134,11 @@ function CreativeConceptPlayer({
           src={`/api/runs/${runId}/campaign-source?source_index=${shot.source_index}`}
           onLoadedMetadata={(event) => {
             advancingRef.current = false
+            if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current)
+            if (transitionDurationMs > 0) {
+              setTransitioning(true)
+              transitionTimerRef.current = setTimeout(() => setTransitioning(false), 40)
+            }
             event.currentTarget.currentTime = shot.start_seconds
             event.currentTarget.volume = sourceAudioVolume / 100
             if (isPlaying) void event.currentTarget.play().catch(() => setIsPlaying(false))
@@ -146,6 +157,7 @@ function CreativeConceptPlayer({
           onError={() => {
             pause()
           }}
+          style={{ opacity: transitioning ? 0 : 1, transition: transitionDurationMs > 0 ? `opacity ${transitionDurationMs}ms ease` : "none" }}
           className="aspect-video w-full bg-black object-contain"
         />
         <span className="absolute bottom-2 left-2 rounded bg-black/75 px-2 py-1 text-[10px] font-medium text-white">
@@ -871,6 +883,7 @@ export function RunDetailPage() {
                     musicStartSeconds={musicStartSeconds}
                     musicVolume={musicVolume}
                     sourceAudioVolume={sourceAudioVolume}
+                    transitionStyle={data.options.campaign_transition_style}
                     isActive={activeConceptPreviewId === concept.id}
                     onActivate={setActiveConceptPreviewId}
                   />
