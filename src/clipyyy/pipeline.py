@@ -208,7 +208,7 @@ def stage_select(ctx: Context) -> dict:
             )
         # Campaign vision analysis also uses the configured local Ollama model.
         # Choose a vision-capable tag (for example qwen2.5vl:3b) in Settings.
-        from clipyyy.campaign import build_montage_plan, generate_campaign_hook, parse_campaign_brief
+        from clipyyy.campaign import build_montage_concepts, generate_campaign_hook, parse_campaign_brief
         from clipyyy.vision import analyze_campaign_video, analyze_reference_video
 
         campaign_brief = options.get("campaign_brief", "").strip()
@@ -377,7 +377,7 @@ def stage_select(ctx: Context) -> dict:
                 db.update_run(ctx.run_id, options={**ctx.options, **lyric_options})
             except Exception as exc:
                 logger.warning("Local campaign lyric analysis was unavailable during shot planning: %s", exc)
-        edits = build_montage_plan(
+        campaign_concepts = build_montage_concepts(
             llm,
             campaign_brief,
             plan,
@@ -391,6 +391,7 @@ def stage_select(ctx: Context) -> dict:
             campaign_lyrics=lyric_options["campaign_lyrics"],
             lyric_cues=lyric_cues,
         )
+        edits = campaign_concepts[0]["edits"]
         db.update_run(ctx.run_id, title=plan.get("campaign_name") or source.get("title") or "Campaign edit")
         clips = []
         for edit in edits:
@@ -423,6 +424,7 @@ def stage_select(ctx: Context) -> dict:
                 else None
             ),
             "campaign_edits": edits,
+            "campaign_concepts": campaign_concepts,
             "campaign_original_edits": json.loads(json.dumps(edits)),
             "campaign_music_analysis": music_analysis,
             "campaign_lyrics": lyric_options["campaign_lyrics"],
