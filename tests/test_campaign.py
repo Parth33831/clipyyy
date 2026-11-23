@@ -913,7 +913,6 @@ def test_story_retention_hints_use_visible_evidence_and_are_added_to_planner_con
     assert "Do not force every story role" in llm.system
 
 
-
 def test_final_cut_refinement_reorders_only_grounded_story_roles_and_preserves_original():
     from clipyyy.campaign import _refine_final_cut
 
@@ -927,25 +926,27 @@ def test_final_cut_refinement_reorders_only_grounded_story_roles_and_preserves_o
         ],
     }
     sources = [{"duration_seconds": 20}]
-    analyses = [{
-        "frames": [
-            {
-                "timestamp": 2,
-                "description": "A dramatic close-up with eye contact",
-                "confidence": 0.95,
-            },
-            {
-                "timestamp": 6,
-                "description": "A person demonstrating a device by testing it",
-                "confidence": 0.95,
-            },
-            {
-                "timestamp": 9,
-                "description": "The finished product and successful results",
-                "confidence": 0.95,
-            },
-        ]
-    }]
+    analyses = [
+        {
+            "frames": [
+                {
+                    "timestamp": 2,
+                    "description": "A dramatic close-up with eye contact",
+                    "confidence": 0.95,
+                },
+                {
+                    "timestamp": 6,
+                    "description": "A person demonstrating a device by testing it",
+                    "confidence": 0.95,
+                },
+                {
+                    "timestamp": 9,
+                    "description": "The finished product and successful results",
+                    "confidence": 0.95,
+                },
+            ]
+        }
+    ]
 
     refined, notes = _refine_final_cut(edit, sources, analyses)
 
@@ -966,13 +967,15 @@ def test_final_cut_refinement_does_not_reorder_when_story_evidence_is_sparse():
             {"source_index": 0, "start_seconds": 9, "end_seconds": 11, "reason": "three"},
         ],
     }
-    analyses = [{
-        "frames": [
-            {"timestamp": 2, "description": "A dramatic close-up", "confidence": 0.9},
-            {"timestamp": 6, "description": "An ordinary room", "confidence": 0.9},
-            {"timestamp": 10, "description": "A quiet landscape", "confidence": 0.9},
-        ]
-    }]
+    analyses = [
+        {
+            "frames": [
+                {"timestamp": 2, "description": "A dramatic close-up", "confidence": 0.9},
+                {"timestamp": 6, "description": "An ordinary room", "confidence": 0.9},
+                {"timestamp": 10, "description": "A quiet landscape", "confidence": 0.9},
+            ]
+        }
+    ]
 
     refined, notes = _refine_final_cut(edit, [{"duration_seconds": 20}], analyses)
 
