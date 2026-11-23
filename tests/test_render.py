@@ -877,6 +877,27 @@ def test_campaign_text_overlay_script_has_independent_timing_and_style(tmp_path)
     assert r"\move(756,1622,756,1536,0,220)" in script
 
 
+def test_campaign_text_overlay_script_preserves_explicit_layer_order(tmp_path):
+    from clipyyy.render import write_campaign_text_overlays
+
+    path = write_campaign_text_overlays(
+        [
+            {"text": "Behind", "start_seconds": 0, "end_seconds": 2, "z_index": 1},
+            {"text": "Front", "start_seconds": 0, "end_seconds": 2, "z_index": 4},
+            {"text": "Legacy default", "start_seconds": 0, "end_seconds": 2},
+        ],
+        2.0,
+        tmp_path / "ordered-overlays.ass",
+        1080,
+        1920,
+    )
+    dialogue = [line for line in path.read_text(encoding="utf-8").splitlines() if line.startswith("Dialogue:")]
+
+    assert dialogue[0].startswith("Dialogue: 1,")
+    assert dialogue[1].startswith("Dialogue: 4,")
+    assert dialogue[2].startswith("Dialogue: 2,")
+
+
 def test_campaign_text_overlay_script_skips_empty_or_out_of_range_layers(tmp_path):
     from clipyyy.render import write_campaign_text_overlays
 
