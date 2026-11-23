@@ -1173,16 +1173,26 @@ function CampaignTextOverlayEditor({
                     <input type="color" value={overlay.color} onChange={(event) => update(index, { color: event.target.value.toUpperCase() })}
                       className="h-9 w-12 cursor-pointer rounded border border-line bg-transparent p-1" />
                   </label>
-                  <label className="flex flex-col gap-1 text-xs text-muted">
-                    Entrance animation
-                    <select value={overlay.animation} onChange={(event) => update(index, { animation: event.target.value as CampaignTextOverlay['animation'] })}
-                      className="rounded-md border border-line bg-surface px-2 py-2 text-sm text-ink">
-                      <option value="none">None</option>
-                      <option value="fade">Fade</option>
-                      <option value="pop">Pop</option>
-                      <option value="slide">Slide up</option>
-                    </select>
-                  </label>
+                  <div className="flex flex-col gap-2 text-xs text-muted sm:col-span-2">
+                    <span>Entrance animation · live previews</span>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {([
+                        ['none', 'None', 'text-animation-none'],
+                        ['fade', 'Fade', 'text-animation-fade'],
+                        ['pop', 'Pop', 'text-animation-pop'],
+                        ['slide', 'Slide up', 'text-animation-slide'],
+                      ] as const).map(([value, title, previewClass]) => (
+                        <button key={value} type="button" onClick={() => update(index, { animation: value })}
+                          aria-pressed={overlay.animation === value}
+                          className={cn('flex flex-col items-center gap-2 rounded-md border p-2 transition-colors',
+                            overlay.animation === value ? 'border-ink bg-sunk' : 'border-line bg-surface hover:border-line-strong')}>
+                          <span className={cn('text-animation-preview', previewClass)}>{overlay.text.trim().slice(0, 12) || 'TITLE'}</span>
+                          <span className="font-medium text-ink">{title}</span>
+                          {overlay.animation === value && <span className="text-[9px] font-semibold uppercase tracking-wider text-ok">Selected</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <label className="flex items-center gap-2 text-xs text-muted">
                     <input type="checkbox" checked={overlay.background}
                       onChange={(event) => update(index, { background: event.target.checked })} />
