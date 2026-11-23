@@ -817,7 +817,7 @@ export function RunDetailPage() {
             </div>
           )}
           </div>
-          <div className="grid gap-4 rounded-lg border border-line bg-panel p-3 text-sm sm:grid-cols-2">
+          <div hidden={activeCampaignTool !== 'animations'} className="grid gap-4 rounded-lg border border-line bg-panel p-3 text-sm sm:grid-cols-2">
             <label className="flex flex-col gap-2">
               <span className="flex justify-between"><span className="font-medium">Horizontal position</span><span className="font-mono text-muted">{lyricsPositionX}%</span></span>
               <input type="range" min={5} max={95} value={lyricsPositionX} onChange={(event) => setLyricsPositionX(Number(event.target.value))} className="w-full accent-current" />
@@ -851,7 +851,7 @@ export function RunDetailPage() {
               </span>
             </span>
           </label>
-          <div className="grid gap-4 rounded-lg border border-line bg-panel p-3 sm:grid-cols-2">
+          <div hidden={activeCampaignTool !== 'animations'} className="grid gap-4 rounded-lg border border-line bg-panel p-3 sm:grid-cols-2">
             <label className="flex items-center justify-between gap-3 text-sm">
               <span className="flex flex-col gap-1"><span className="font-medium">Lyrics color</span><span className="text-xs text-muted">Main caption text</span></span>
               <input type="color" aria-label="Lyrics text color" value={lyricsColor} onChange={(event) => setLyricsColor(event.target.value.toUpperCase())} className="h-10 w-14 cursor-pointer rounded border border-line bg-transparent p-1" />
