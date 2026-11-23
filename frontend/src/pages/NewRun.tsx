@@ -80,6 +80,7 @@ export function NewRunPage() {
   const [musicFile, setMusicFile] = useState<File | null>(null)
   const [options, setOptions] = useState<ClipOptions>(DEFAULT_OPTIONS)
   const [dragging, setDragging] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<{ name: string; percent: number; index: number; total: number } | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const health = useQuery({ queryKey: ['health'], queryFn: api.health })
   const settings = useQuery({ queryKey: ['settings'], queryFn: api.settings })
@@ -98,17 +99,29 @@ export function NewRunPage() {
 
   const submit = useMutation({
     mutationFn: async () => {
-      const uploaded = []
-      for (const file of files) uploaded.push((await api.upload(file)).source)
-      const music = musicFile ? (await api.upload(musicFile)).source : null
-      return api.createRuns([...urls, ...uploaded], { ...options, campaign_music_path: music })
+      const uploadItems = [...files, ...(musicFile ? [musicFile] : [])]
+      const uploaded: string[] = []
+      for (let index = 0; index < uploadItems.length; index += 1) {
+        const file = uploadItems[index]
+        const source = await api.upload(file, (percent) => {
+          setUploadProgress({ name: file.name, percent, index: index + 1, total: uploadItems.length })
+        })
+        if (index < files.length) uploaded.push(source.source)
+        else uploaded.push(source.source)
+      }
+      const music = musicFile ? uploaded[uploaded.length - 1] : null
+      return api.createRuns([...urls, ...uploaded.slice(0, files.length)], { ...options, campaign_music_path: music })
     },
     onSuccess: (runs) => {
+      setUploadProgress(null)
       queryClient.invalidateQueries({ queryKey: ['runs'] })
       toast.success(options.campaign_mode ? 'Campaign montage queued' : runs.length === 1 ? 'Clipping started' : `${runs.length} videos queued`)
       navigate(runs.length === 1 ? `/runs/${runs[0].id}` : '/runs')
     },
-    onError: (error) => toast.error(error.message),
+    onError: (error) => {
+      setUploadProgress(null)
+      toast.error(error.message)
+    },
   })
 
   const onDrop = (event: DragEvent) => {
@@ -322,6 +335,17 @@ export function NewRunPage() {
                 {options.campaign_mode ? 'Create campaign edit' : count > 1 ? `Clip ${count} videos` : 'Find clips'} <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
+            {uploadProgress && (
+              <div className="border-t border-white/10 px-6 py-3" role="status" aria-live="polite">
+                <div className="mb-2 flex items-center justify-between gap-3 text-xs text-white/65">
+                  <span className="min-w-0 truncate">Uploading {uploadProgress.name} ({uploadProgress.index}/{uploadProgress.total})</span>
+                  <span className="font-mono tabular-nums">{uploadProgress.percent}%</span>
+                </div>
+                <div className="h-1.5 overflow-hidden bg-white/10">
+                  <div className="h-full bg-acid transition-[width]" style={{ width: `${uploadProgress.percent}%` }} />
+                </div>
+              </div>
+            )}
             {options.campaign_mode && count > 6 && (
               <p className="px-6 pb-3 text-xs text-red-300">Campaigns support up to 6 source videos per edit.</p>
             )}
