@@ -34,6 +34,7 @@ export function RunDetailPage() {
   const canPublish = ['buffer', 'storage'].every((name) => health.data?.checks.find((c) => c.name === name)?.ok)
   const [publishing, setPublishing] = useState<Clip | null>(null)
   const [focused, setFocused] = useState<number | null>(null)
+  const [selectedConceptId, setSelectedConceptId] = useState<string | null>(null)
   const [musicFile, setMusicFile] = useState<File | null>(null)
   const [musicVolume, setMusicVolume] = useState(90)
   const [sourceAudioVolume, setSourceAudioVolume] = useState(100)
@@ -655,26 +656,83 @@ export function RunDetailPage() {
       {(busy || data.status === 'failed') && <Progress run={data} />}
 
       {data.options.campaign_mode && !busy && (data.campaign_concepts?.length ?? 0) > 1 && (
-        <section className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-4">
+        <section className="flex flex-col gap-4 rounded-xl border border-line bg-surface p-4">
           <div>
             <p className="label text-muted">AI CREATIVE DIRECTOR</p>
-            <h2 className="display mt-1 text-2xl">Choose your edit direction</h2>
-            <p className="mt-1 text-sm text-muted">Different approaches using the same footage and brief. Choose one to rebuild the editable storyboard; your manual controls stay available.</p>
+            <h2 className="display mt-1 text-2xl">Compare your edit directions</h2>
+            <p className="mt-1 text-sm text-muted">Preview the opening frame, shot sequence and pacing side by side. Select a direction to make it your active storyboard, then render when you're ready.</p>
           </div>
-          <div className="grid gap-3 md:grid-cols-3">
-            {data.campaign_concepts?.map((concept: CampaignConcept) => (
-              <article key={concept.id} className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3">
-                <div>
-                  <h3 className="font-semibold">{concept.name}</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-muted">{concept.summary}</p>
-                  <p className="mt-2 text-xs text-faint">{concept.edits.length} edit{concept.edits.length === 1 ? '' : 's'} · {concept.edits.reduce((total, edit) => total + edit.shots.length, 0)} selected shots</p>
-                </div>
-                <Button variant="line" disabled={saveMontage.isPending} onClick={() => saveMontage.mutate(concept.edits)}>
-                  Use this direction &amp; render
-                </Button>
-              </article>
-            ))}
+          <div className="grid items-stretch gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {data.campaign_concepts?.map((concept: CampaignConcept) => {
+              const edit = concept.edits[0]
+              const shots = edit?.shots ?? []
+              const totalSeconds = shots.reduce((total, shot) => total + Math.max(0, shot.end_seconds - shot.start_seconds), 0)
+              const averageShot = shots.length ? totalSeconds / shots.length : 0
+              const sourceCount = new Set(shots.map((shot) => shot.source_index)).size
+              const isSelected = selectedConceptId === concept.id || (!selectedConceptId && concept.id === data.campaign_concepts?.[0]?.id)
+              const previewShots = shots.slice(0, 5)
+              return (
+                <article key={concept.id} className={cn('flex min-w-0 flex-col gap-3 rounded-lg border p-3 transition-colors', isSelected ? 'border-ink bg-panel ring-1 ring-ink/20' : 'border-line bg-panel')}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold">{concept.name}</h3>
+                      <p className="mt-1 text-xs leading-relaxed text-muted">{concept.summary}</p>
+                    </div>
+                    {isSelected && <span className="shrink-0 rounded-full bg-ink px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-panel">Selected</span>}
+                  </div>
+                  {shots[0] ? (
+                    <div className="relative overflow-hidden rounded-md bg-sunk">
+                      <img
+                        src={`/api/runs/${runId}/campaign-frame?source_index=${shots[0].source_index}&timestamp=${shots[0].start_seconds.toFixed(1)}`}
+                        alt={`Opening frame for ${concept.name}`}
+                        loading="lazy"
+                        className="aspect-video w-full object-cover"
+                      />
+                      <span className="absolute bottom-2 left-2 rounded bg-black/75 px-2 py-1 text-[10px] font-medium text-white">OPENING SHOT</span>
+                    </div>
+                  ) : (
+                    <div className="flex aspect-video items-center justify-center rounded-md bg-sunk text-xs text-muted">No preview shots</div>
+                  )}
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted">
+                    <span>{shots.length} shots</span>
+                    <span>{totalSeconds.toFixed(1)}s total</span>
+                    <span>{averageShot.toFixed(1)}s average shot</span>
+                    <span>{sourceCount} source{sourceCount === 1 ? '' : 's'}</span>
+                  </div>
+                  {previewShots.length > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex gap-1 overflow-hidden rounded">
+                        {previewShots.map((shot, index) => {
+                          const duration = Math.max(0.1, shot.end_seconds - shot.start_seconds)
+                          const width = totalSeconds > 0 ? Math.max(8, duration / totalSeconds * 100) : 20
+                          return (
+                            <div key={index} title={`Shot ${index + 1}: ${duration.toFixed(1)}s`} className="min-w-0 overflow-hidden rounded-sm bg-sunk" style={{ width: `${width}%` }}>
+                              <img
+                                src={`/api/runs/${runId}/campaign-frame?source_index=${shot.source_index}&timestamp=${shot.start_seconds.toFixed(1)}`}
+                                alt={`Shot ${index + 1} preview`}
+                                loading="lazy"
+                                className="h-12 w-full object-cover"
+                              />
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <p className="text-[10px] text-faint">Opening sequence · segment widths reflect shot duration</p>
+                    </div>
+                  )}
+                  <div className="mt-auto flex flex-wrap gap-2 pt-1">
+                    <Button variant={isSelected ? 'ink' : 'line'} disabled={isSelected} onClick={() => setSelectedConceptId(concept.id)}>
+                      {isSelected ? 'Active direction' : 'Select to compare'}
+                    </Button>
+                    <Button variant="line" disabled={saveMontage.isPending} loading={saveMontage.isPending && isSelected} onClick={() => saveMontage.mutate(concept.edits)}>
+                      Use &amp; render
+                    </Button>
+                  </div>
+                </article>
+              )
+            })}
           </div>
+          <p className="text-xs text-muted">The previews use cached source-video frames, not a finished export. Selecting a direction here does not change your current edit until you choose Use &amp; render.</p>
         </section>
       )}
 
