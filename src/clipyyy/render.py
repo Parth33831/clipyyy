@@ -748,7 +748,8 @@ def render_campaign_montages(
                     start = max(0.0, float(shot["start_seconds"]))
                     end = min(float(sources[source_index]["duration_seconds"]), float(shot["end_seconds"]))
                     duration = end - start
-                    if music_analysis and duration >= 1.5 and not (options.get("campaign_conversation_hook") and shot_index == 0):
+                    preserve_opening = options.get("campaign_conversation_hook") and shot_index == 0
+                    if music_analysis and duration >= 1.5 and not preserve_opening:
                         elapsed = sum(probe(item)[2] for item in segments) if segments else 0.0
                         if use_transitions and segments:
                             elapsed -= (len(segments) - 1) * transition_seconds
@@ -1008,7 +1009,10 @@ def render_campaign_montages(
                 mix_filter = _campaign_music_mix_filter(
                     audio_filter,
                     source_audio is not None,
-                    bool(options.get("campaign_music_ducking", False) or options.get("campaign_conversation_hook", False)),
+                    bool(
+                        options.get("campaign_music_ducking", False)
+                        or options.get("campaign_conversation_hook", False)
+                    ),
                 )
                 command = [
                     "-i",
