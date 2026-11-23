@@ -279,7 +279,7 @@ export function NewRunPage() {
                         <button type="button" disabled={submit.isPending || retryInProgress} onClick={() => void retryUpload(musicFile)} className="font-medium text-acid underline disabled:opacity-40">Retry</button>
                       </>
                     )}
-                    <button type="button" disabled={submit.isPending} disabled={submit.isPending || retryInProgress} onClick={() => {
+                    <button type="button" disabled={submit.isPending || retryInProgress} onClick={() => {
                       uploadedFiles.current.delete(uploadCacheKey(musicFile))
                       setUploadStatuses((current) => { const next = { ...current }; delete next[uploadCacheKey(musicFile)]; return next })
                       setMusicFile(null)
