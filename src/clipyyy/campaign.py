@@ -755,6 +755,134 @@ def build_montage_plan(
     return valid_edits
 
 
+def _visual_continuity_notes(
+    edit: dict[str, Any],
+    sources: list[dict],
+    analyses: list[dict],
+) -> list[str]:
+    """Report cautious adjacent-shot repetition signals from sampled still-frame evidence.
+
+    This deliberately does not claim motion, transition quality, or semantic continuity.
+    A warning requires nearby observations from the same source with matching framing and
+    strongly overlapping visible evidence; all other cases remain advisory or unclassified.
+    """
+    shots = edit.get("shots") or []
+    observations: list[dict[str, Any] | None] = []
+    ignored = {
+        "about", "after", "again", "around", "been", "being", "from", "have",
+        "into", "just", "more", "over", "same", "that", "their", "there",
+        "this", "with", "while", "shot", "scene", "image", "video",
+    }
+
+    def tokens(value: Any) -> set[str]:
+        return {
+            token
+            for token in re.findall(r"[a-z0-9']+", str(value or "").lower())
+            if len(token) > 2 and token not in ignored
+        }
+
+    for shot in shots:
+        try:
+            source_index = int(shot.get("source_index", -1))
+            midpoint = (float(shot["start_seconds"]) + float(shot["end_seconds"])) / 2
+        except (TypeError, ValueError, KeyError):
+            observations.append(None)
+            continue
+        if not 0 <= source_index < len(sources) or source_index >= len(analyses):
+            observations.append(None)
+            continue
+        frames = analyses[source_index].get("frames", [])
+        frame = min(
+            frames,
+            key=lambda item: abs(float(item.get("timestamp", 0.0)) - midpoint),
+            default=None,
+        )
+        if frame is None:
+            observations.append(None)
+            continue
+        try:
+            distance = abs(float(frame.get("timestamp", 0.0)) - midpoint)
+            confidence = float(frame.get("confidence", 0.0))
+        except (TypeError, ValueError):
+            observations.append(None)
+            continue
+        description = str(frame.get("description") or "")
+        if (
+            distance > 4.0
+            or confidence < 0.35
+            or not description
+            or "Visual content unavailable" in description
+        ):
+            observations.append(None)
+            continue
+        observations.append(
+            {
+                "source_index": source_index,
+                "timestamp": float(frame.get("timestamp", 0.0)),
+                "shot_scale": str(frame.get("shot_scale") or "unknown").lower().strip(),
+                "subjects": tokens(frame.get("subjects")),
+                "description": tokens(description),
+                "action": tokens(frame.get("visible_action")),
+            }
+        )
+
+    grounded = sum(item is not None for item in observations)
+    if grounded == 0:
+        return [
+            "Visual continuity could not be assessed: no sufficiently confident sampled-frame evidence was available."
+        ]
+
+    notes = [
+        f"Visual continuity evidence was available for {grounded} of {len(shots)} shots; this checks sampled still frames, not motion or transitions."
+    ]
+    repeated_pairs = []
+    for index, (left, right) in enumerate(zip(observations, observations[1:])):
+        if left is None or right is None:
+            continue
+        if left["source_index"] != right["source_index"]:
+            continue
+        if left["shot_scale"] == "unknown" or left["shot_scale"] != right["shot_scale"]:
+            continue
+        if abs(left["timestamp"] - right["timestamp"]) > 8.0:
+            continue
+        subject_union = left["subjects"] | right["subjects"]
+        subject_overlap = (
+            len(left["subjects"] & right["subjects"]) / len(subject_union)
+            if subject_union
+            else 0.0
+        )
+        visual_union = left["description"] | right["description"]
+        visual_overlap = (
+            len(left["description"] & right["description"]) / len(visual_union)
+            if visual_union
+            else 0.0
+        )
+        action_union = left["action"] | right["action"]
+        action_overlap = (
+            len(left["action"] & right["action"]) / len(action_union)
+            if action_union
+            else 0.0
+        )
+        if subject_overlap >= 0.75 and (visual_overlap >= 0.55 or action_overlap >= 0.75):
+            repeated_pairs.append((index + 1, index + 2, left["shot_scale"]))
+
+    if repeated_pairs:
+        examples = ", ".join(
+            f"{first}–{second} ({scale} framing)"
+            for first, second, scale in repeated_pairs[:3]
+        )
+        notes.append(
+            "Potentially repetitive adjacent shots: "
+            + examples
+            + ". Consider swapping one for a different moment or framing if the repetition is not intentional."
+        )
+    else:
+        notes.append(
+            "No strong adjacent near-duplicate pattern was found in the available sampled-frame evidence."
+        )
+    return notes
+
+
 def _refine_final_cut(
     edit: dict[str, Any],
     sources: list[dict],
@@ -772,6 +900,8 @@ def _refine_final_cut(
     notes: list[str] = []
     if len(shots) < 3:
         return refined, notes
+
+    notes.extend(_visual_continuity_notes(refined, sources, analyses))
 
     role_priority = {
         "hook": 0,
