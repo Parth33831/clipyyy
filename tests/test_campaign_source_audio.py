@@ -129,3 +129,32 @@ def test_campaign_music_start_preserves_auto_mode_for_short_tracks() -> None:
         )
         == 0
     )
+
+
+def test_conversation_music_delay_uses_strong_beat_after_opening() -> None:
+    shots = [{"start_seconds": 5.0, "end_seconds": 8.0}]
+    analysis = {
+        "beat_times": [5.5, 8.1, 8.4, 9.0, 11.5],
+        "beat_strengths": [0.9, 0.2, 0.95, 0.6, 1.0],
+    }
+    assert (
+        render._campaign_conversation_music_delay(shots, analysis, music_start=5.0, target_duration=20) == 3.4
+    )
+
+
+def test_conversation_music_delay_falls_back_to_first_beat_or_intro_end() -> None:
+    shots = [{"start_seconds": 0.0, "end_seconds": 2.5}]
+    assert (
+        render._campaign_conversation_music_delay(
+            shots,
+            {"beat_times": [1.0, 4.2], "beat_strengths": [1.0, 0.2]},
+            music_start=0.0,
+            target_duration=10,
+        )
+        == 4.2
+    )
+    assert render._campaign_conversation_music_delay(shots, None, 0.0, 10) == 2.5
+
+
+def test_conversation_music_delay_handles_missing_shots() -> None:
+    assert render._campaign_conversation_music_delay([], None, 0.0, 10) == 0.0

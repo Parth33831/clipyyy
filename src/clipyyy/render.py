@@ -496,14 +496,16 @@ def _campaign_audio_filter(
     music_volume: float = 0.9,
     fade_in_seconds: float = 0.4,
     fade_out_seconds: float = 0.8,
+    fade_in_start_seconds: float = 0.0,
 ) -> str:
     """Build the campaign music filter while preserving the historical mix defaults."""
     volume = max(0.0, min(2.0, float(music_volume)))
     fade_in = min(max(0.0, float(fade_in_seconds)), duration)
     fade_out = min(max(0.0, float(fade_out_seconds)), duration)
     filters = [f"volume={volume:.3f}"]
+    fade_start = min(max(0.0, float(fade_in_start_seconds)), duration)
     if fade_in > 0:
-        filters.append(f"afade=t=in:st=0:d={fade_in:.3f}")
+        filters.append(f"afade=t=in:st={fade_start:.3f}:d={fade_in:.3f}")
     if fade_out > 0:
         filters.append(f"afade=t=out:st={max(0.0, duration - fade_out):.3f}:d={fade_out:.3f}")
     if normalize_audio:
@@ -542,6 +544,43 @@ def _campaign_music_start_seconds(
     return round(min(max(0.0, start), latest_start), 3)
 
 
+def _campaign_conversation_music_delay(
+    shots: list[dict], music_analysis: dict | None, music_start: float, target_duration: float
+) -> float:
+    """Start the song at a strong beat after the preserved natural-conversation opening."""
+    if not shots:
+        return 0.0
+    try:
+        intro_seconds = max(0.0, float(shots[0]["end_seconds"]) - float(shots[0]["start_seconds"]))
+    except (KeyError, TypeError, ValueError):
+        return 0.0
+    intro_seconds = min(intro_seconds, max(0.0, target_duration))
+    if not music_analysis:
+        return round(intro_seconds, 3)
+    beats = music_analysis.get("beat_times") or []
+    strengths = music_analysis.get("beat_strengths") or []
+    candidates = []
+    for index, timestamp in enumerate(beats):
+        try:
+            relative = float(timestamp) - float(music_start)
+            strength = float(strengths[index]) if index < len(strengths) else 0.0
+        except (TypeError, ValueError):
+            continue
+        if intro_seconds <= relative <= min(target_duration, intro_seconds + 3.0):
+            candidates.append((strength, relative))
+    if candidates:
+        return round(max(candidates, key=lambda item: (item[0], -item[1]))[1], 3)
+    later_beats = []
+    for timestamp in beats:
+        try:
+            relative = float(timestamp) - float(music_start)
+        except (TypeError, ValueError):
+            continue
+        if intro_seconds <= relative <= target_duration:
+            later_beats.append(relative)
+    return round(min(later_beats), 3) if later_beats else round(intro_seconds, 3)
+
+
 def _render_campaign_source_audio(
     shots: list[dict],
     sources: list[dict],
@@ -551,6 +590,7 @@ def _render_campaign_source_audio(
     transition_seconds: float = 0.0,
     music_analysis: dict | None = None,
     lyric_cues: list[dict] | None = None,
+    preserve_first_shot: bool = False,
 ) -> Path:
     """Rebuild source-footage audio in storyboard order, matching montage transitions."""
     if not shots:
@@ -566,7 +606,7 @@ def _render_campaign_source_audio(
         start = max(0.0, float(shot["start_seconds"]))
         end = min(float(sources[source_index]["duration_seconds"]), float(shot["end_seconds"]))
         shot_duration = end - start
-        if music_analysis and shot_duration >= 1.5:
+        if music_analysis and shot_duration >= 1.5 and not (preserve_first_shot and index == 0):
             elapsed = sum(durations) - max(0, len(durations) - 1) * transition_seconds
             overlap = transition_seconds if durations else 0.0
             aligned_duration = select_music_cut_duration(
@@ -708,7 +748,8 @@ def render_campaign_montages(
                     start = max(0.0, float(shot["start_seconds"]))
                     end = min(float(sources[source_index]["duration_seconds"]), float(shot["end_seconds"]))
                     duration = end - start
-                    if music_analysis and duration >= 1.5:
+                    preserve_opening = options.get("campaign_conversation_hook") and shot_index == 0
+                    if music_analysis and duration >= 1.5 and not preserve_opening:
                         elapsed = sum(probe(item)[2] for item in segments) if segments else 0.0
                         if use_transitions and segments:
                             elapsed -= (len(segments) - 1) * transition_seconds
@@ -946,22 +987,32 @@ def render_campaign_montages(
                     transition_seconds if use_transitions else 0.0,
                     music_analysis,
                     selection.get("campaign_lyric_cues"),
+                    preserve_first_shot=bool(options.get("campaign_conversation_hook")),
                 )
             if music_path:
                 music_input = []
                 if music_analysis and music_analysis["duration_seconds"] - music_start < duration:
                     music_input = ["-stream_loop", "-1"]
+                conversation_music_delay = (
+                    _campaign_conversation_music_delay(audio_shots, music_analysis, music_start, duration)
+                    if options.get("campaign_conversation_hook")
+                    else 0.0
+                )
                 audio_filter = _campaign_audio_filter(
                     duration,
                     bool(options.get("normalize_audio")),
                     float(options.get("campaign_music_volume", 0.9)),
                     float(options.get("campaign_music_fade_in_seconds", 0.4)),
                     float(options.get("campaign_music_fade_out_seconds", 0.8)),
+                    fade_in_start_seconds=conversation_music_delay,
                 )
                 mix_filter = _campaign_music_mix_filter(
                     audio_filter,
                     source_audio is not None,
-                    bool(options.get("campaign_music_ducking", False)),
+                    bool(
+                        options.get("campaign_music_ducking", False)
+                        or options.get("campaign_conversation_hook", False)
+                    ),
                 )
                 command = [
                     "-i",
