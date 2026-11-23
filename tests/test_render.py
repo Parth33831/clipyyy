@@ -840,6 +840,7 @@ def test_campaign_text_overlay_script_has_independent_timing_and_style(tmp_path)
                 "position_x": 40,
                 "position_y": 62,
                 "font_size_percent": 125,
+                "rotation_degrees": 12,
                 "font_family": "Impact",
                 "font_weight": "regular",
                 "text_effect": "outline",
@@ -866,6 +867,7 @@ def test_campaign_text_overlay_script_has_independent_timing_and_style(tmp_path)
 
     assert "Dialogue: 0,0:00:01.25,0:00:03.75,OverlayBox" in script
     assert r"\pos(432,1190)" in script
+    assert r"\frz12" in script
     assert r"\fscx70\fscy70" in script
     assert r"\fnImpact" in script
     assert r"\b0" in script

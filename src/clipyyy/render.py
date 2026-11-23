@@ -1648,6 +1648,7 @@ def write_campaign_text_overlays(
             x_percent = max(5, min(95, int(overlay.get("position_x", 50))))
             y_percent = max(5, min(95, int(overlay.get("position_y", 50))))
             size_percent = max(60, min(200, int(overlay.get("font_size_percent", 100))))
+            rotation_degrees = max(-30, min(30, int(overlay.get("rotation_degrees", 0))))
             font_family = str(overlay.get("font_family") or "Arial")
             font_weight = str(overlay.get("font_weight") or "bold")
             text_effect = str(overlay.get("text_effect") or "shadow")
@@ -1670,7 +1671,10 @@ def write_campaign_text_overlays(
         if font_family not in {"Arial", "Georgia", "Impact", "Trebuchet MS", "Verdana"}:
             font_family = "Arial"
         bold = 1 if font_weight == "bold" else 0
-        tags = f"{{\\an5\\pos({x},{y})\\fs{font_size}\\fn{font_family}\\b{bold}\\c{_ass_color(text_color)}}}"
+        tags = (
+            f"{{\\an5\\pos({x},{y})\\frz{rotation_degrees}\\fs{font_size}"
+            f"\\fn{font_family}\\b{bold}\\c{_ass_color(text_color)}}}"
+        )
         if text_effect == "outline":
             tags = tags[:-1] + r"\\bord2\\shad0}"
         elif text_effect == "none":

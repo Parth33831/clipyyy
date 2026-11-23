@@ -1595,6 +1595,7 @@ function CampaignTimeline({
   const [previewTextAnimation, setPreviewTextAnimation] = useState<CampaignTextOverlay['animation']>('pop')
   const [positioningTarget, setPositioningTarget] = useState<'none' | 'lyric' | 'text'>('none')
   const positionDragRef = useRef<{ pointerId: number; target: 'lyric' | 'text' } | null>(null)
+  const transformDragRef = useRef<{ pointerId: number; target: 'lyric' | 'text'; action: 'resize' | 'rotate'; startX: number; initialValue: number } | null>(null)
   useEffect(() => setPreviewTransitionStyle(transitionStyle), [transitionStyle])
   const transitionDurationMs = previewTransitionStyle === 'cut' || (previewTransitionStyle === 'auto' && (musicAnalysis?.detected_beats ?? 0) > 0) ? 0 : 240
   useEffect(() => () => {
@@ -1627,13 +1628,50 @@ function CampaignTimeline({
     event.currentTarget.setPointerCapture(event.pointerId)
     updateLiveTextPosition(event, target)
   }
+  const beginTransformDrag = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+    target: 'lyric' | 'text',
+    action: 'resize' | 'rotate',
+    initialValue: number,
+  ) => {
+    event.preventDefault()
+    event.stopPropagation()
+    transformDragRef.current = { pointerId: event.pointerId, target, action, startX: event.clientX, initialValue }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
   const moveLiveTextDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const transformDrag = transformDragRef.current
+    if (transformDrag?.pointerId === event.pointerId) {
+      const stage = event.currentTarget.closest('[data-campaign-preview-stage]') as HTMLDivElement | null
+      const width = stage?.getBoundingClientRect().width ?? 0
+      if (width <= 0) return
+      const delta = event.clientX - transformDrag.startX
+      if (transformDrag.target === 'lyric') {
+        const phrase = lyrics.find((item) => playheadSeconds >= item.start_seconds && playheadSeconds <= item.end_seconds)
+        if (!phrase) return
+        const value = transformDrag.action === 'resize'
+          ? Math.max(50, Math.min(200, Math.round(transformDrag.initialValue + delta / width * 180)))
+          : Math.max(-30, Math.min(30, Math.round(transformDrag.initialValue + delta / width * 90)))
+        onUpdateLyric(phrase.phrase_index, transformDrag.action === 'resize' ? { scale_percent: value } : { rotation_degrees: value })
+      } else {
+        const overlayIndex = textOverlays.findIndex((item) =>
+          item.rank === edit.rank && playheadSeconds >= item.start_seconds && playheadSeconds <= item.end_seconds
+        )
+        if (overlayIndex < 0) return
+        const value = transformDrag.action === 'resize'
+          ? Math.max(60, Math.min(200, Math.round(transformDrag.initialValue + delta / width * 180)))
+          : Math.max(-30, Math.min(30, Math.round(transformDrag.initialValue + delta / width * 90)))
+        onUpdateTextOverlay(overlayIndex, transformDrag.action === 'resize' ? { font_size_percent: value } : { rotation_degrees: value })
+      }
+      return
+    }
     const drag = positionDragRef.current
     if (!drag || drag.pointerId !== event.pointerId) return
     updateLiveTextPosition(event, drag.target)
   }
   const endLiveTextDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (positionDragRef.current?.pointerId === event.pointerId) positionDragRef.current = null
+    if (transformDragRef.current?.pointerId === event.pointerId) transformDragRef.current = null
   }
   const waveformQuery = useQuery({
     queryKey: ['campaign-waveform', runId],
@@ -2002,7 +2040,7 @@ function CampaignTimeline({
                 >
                   <div
                     className={cn('absolute flex w-[90%] justify-center px-3',
-                      positioningTarget === 'lyric' ? 'pointer-events-auto cursor-move touch-none' : 'pointer-events-none')}
+                      positioningTarget === 'lyric' ? 'pointer-events-auto cursor-move touch-none relative' : 'pointer-events-none')}
                     onPointerDown={(event) => beginLiveTextDrag(event, 'lyric')}
                     onPointerMove={moveLiveTextDrag}
                     onPointerUp={endLiveTextDrag}
@@ -2032,18 +2070,30 @@ function CampaignTimeline({
                       ))
                       : activeLyric.text}
                   </span>
+                    {positioningTarget === 'lyric' && (
+                      <>
+                        <button type="button" aria-label="Resize lyric" title="Drag to resize"
+                          onPointerDown={(event) => beginTransformDrag(event, 'lyric', 'resize', activeLyric.scale_percent)}
+                          className="absolute -bottom-3 -right-3 z-10 h-5 w-5 rounded-full border-2 border-white bg-sky-500 shadow-lg cursor-nwse-resize touch-none" />
+                        <button type="button" aria-label="Rotate lyric" title="Drag horizontally to rotate"
+                          onPointerDown={(event) => beginTransformDrag(event, 'lyric', 'rotate', activeLyric.rotation_degrees)}
+                          className="absolute -top-7 left-1/2 z-10 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-white bg-violet-500 shadow-lg cursor-ew-resize touch-none">
+                          <span className="sr-only">Rotate</span>
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
               {activeOverlay && (
                 <div
                   className={cn('absolute flex items-center justify-center px-4',
-                    positioningTarget === 'text' ? 'pointer-events-auto cursor-move touch-none' : 'pointer-events-none')}
+                    positioningTarget === 'text' ? 'pointer-events-auto cursor-move touch-none relative' : 'pointer-events-none')}
                   onPointerDown={(event) => beginLiveTextDrag(event, 'text')}
                   onPointerMove={moveLiveTextDrag}
                   onPointerUp={endLiveTextDrag}
                   onPointerCancel={endLiveTextDrag}
-                  style={{ left: activeOverlay.position_x + '%', top: activeOverlay.position_y + '%', transform: 'translate(-50%, -50%)', width: '90%' }}>
+                  style={{ left: activeOverlay.position_x + '%', top: activeOverlay.position_y + '%', transform: 'translate(-50%, -50%) rotate(' + (activeOverlay.rotation_degrees ?? 0) + 'deg)', width: '90%' }}>
                   <span key={activeOverlay.rank + '-' + activeOverlayIndex + '-' + previewTextAnimation}
                     className="inline-block text-center font-extrabold leading-tight"
                     style={{
@@ -2055,6 +2105,18 @@ function CampaignTimeline({
                       padding: activeOverlay.background ? '0.25em 0.5em' : 0,
                       borderRadius: '0.3em',
                     }}>{activeOverlay.text}</span>
+                  {positioningTarget === 'text' && (
+                    <>
+                      <button type="button" aria-label="Resize title" title="Drag to resize"
+                        onPointerDown={(event) => beginTransformDrag(event, 'text', 'resize', activeOverlay.font_size_percent)}
+                        className="absolute -bottom-3 -right-3 z-10 h-5 w-5 rounded-full border-2 border-white bg-sky-500 shadow-lg cursor-nwse-resize touch-none" />
+                      <button type="button" aria-label="Rotate title" title="Drag horizontally to rotate"
+                        onPointerDown={(event) => beginTransformDrag(event, 'text', 'rotate', activeOverlay.rotation_degrees ?? 0)}
+                        className="absolute -top-7 left-1/2 z-10 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-white bg-violet-500 shadow-lg cursor-ew-resize touch-none">
+                        <span className="sr-only">Rotate</span>
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>

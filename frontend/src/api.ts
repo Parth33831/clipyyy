@@ -12,6 +12,7 @@ export interface CampaignTextOverlay {
   position_x: number
   position_y: number
   font_size_percent: number
+  rotation_degrees?: number
   font_family?: 'Arial' | 'Georgia' | 'Impact' | 'Trebuchet MS' | 'Verdana'
   font_weight?: 'regular' | 'bold'
   text_effect?: 'none' | 'shadow' | 'outline'
