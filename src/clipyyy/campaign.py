@@ -442,6 +442,79 @@ def _annotate_scene_music_matches(
         }
 
 
+
+_STORY_ROLE_CUES = {
+    "call_to_action": (
+        r"\\b(learn more|sign up|join us|join now|visit us|visit now|"
+        r"apply now|shop now|register|subscribe|download|scan the code|"
+        r"get started|contact us)\\b",
+    ),
+    "payoff": (
+        r"\\b(result|results|finished|completed|solved|solution|"
+        r"transformed|transformation|success|achiev(?:e|ed|ement)|"
+        r"celebrat(?:e|ing|ion)|winner|award|final product|"
+        r"before and after|reveal)\\b",
+    ),
+    "reaction": (
+        r"\\b(smiling|laughing|cheering|surprised|excited|"
+        r"emotional reaction|applaud(?:ing)?|clapping|joyful)\\b",
+    ),
+    "hook": (
+        r"\\b(close[- ]up|extreme close[- ]up|dramatic|"
+        r"unexpected|striking|bold text|strong expression|"
+        r"eye contact|intense|attention[- ]grabbing|"
+        r"jumping|sprinting|dancing|explosion|crash)\\b",
+    ),
+    "demonstration": (
+        r"\\b(demonstrat(?:e|es|ing)|showing how|using|operating|"
+        r"building|creating|cooking|typing|testing|installing|"
+        r"assembling|working with|hands[- ]on|in action)\\b",
+    ),
+    "context": (
+        r"\\b(workplace|classroom|office|factory|kitchen|"
+        r"community|team|group|family|city|street|landscape|"
+        r"environment|wide shot|establishing shot|location)\\b",
+    ),
+}
+
+
+def _annotate_story_retention_hints(candidates: list[dict[str, Any]]) -> None:
+    """Attach conservative, evidence-backed story roles to observed scenes.
+
+    Still-frame descriptions cannot prove what happened before or after a frame.
+    Roles are optional planning hints; uncertain scenes remain unclassified.
+    """
+    for candidate in candidates:
+        evidence_text = " ".join(
+            str(candidate.get(field) or "")
+            for field in ("description", "visible_action", "visible_text", "mood", "shot_scale")
+        ).lower()
+        try:
+            confidence = max(0.0, min(1.0, float(candidate.get("confidence", 0.5))))
+        except (TypeError, ValueError):
+            confidence = 0.5
+        roles = []
+        if confidence >= 0.35:
+            for role, pattern in _STORY_ROLE_CUES.items():
+                matches = re.findall(pattern, evidence_text, flags=re.IGNORECASE)
+                if matches:
+                    roles.append(
+                        {
+                            "role": role,
+                            "evidence": sorted({str(match).lower() for match in matches})[:3],
+                            "confidence": round(confidence, 2),
+                        }
+                    )
+        candidate["story_retention_hints"] = {
+            "roles": roles,
+            "unclassified": not bool(roles),
+            "note": (
+                "Use as an optional story-structure hint; do not invent missing narrative beats."
+                if roles
+                else "No reliable story role was identified from this still-frame evidence."
+            ),
+        }
+
 def build_montage_plan(
     llm,
     brief: str,
@@ -478,6 +551,7 @@ def build_montage_plan(
                 }
             )
     _annotate_scene_music_matches(candidates, music_analysis, target_seconds)
+    _annotate_story_retention_hints(candidates)
     # Text-only local models cannot inspect sampled frames. Never treat placeholder
     # observations as real visual descriptions; use an explicitly generic timestamp spread.
     text_only_frames = bool(candidates) and all(
@@ -504,6 +578,11 @@ def build_montage_plan(
         "it genuinely helps explain or connect the story. Seek visual variety in framing, subjects, mood and "
         "source without sacrificing relevance or continuity. "
         "Avoid repeated moments and abrupt semantic jumps. "
+        "Use story_retention_hints when present to identify a compelling but truthful opening, "
+        "supporting context, useful demonstration, human reaction, credible payoff, or requested call "
+        "to action. Treat these labels as weak evidence from still frames, not proof of a complete event. "
+        "Do not force every story role into the edit; prefer a coherent mini-story over a checklist. "
+        "Do not place a call to action unless the brief requests it and the visible text or footage supports it. "
         "Use shot_scale, visible_action, visible_text and confidence as additional evidence "
         "alongside each frame description, mood and subjects. Prefer high-confidence observations when "
         "they improve relevance; treat unknown or low-confidence attributes as uncertain, not as facts. "
@@ -597,6 +676,9 @@ def build_montage_plan(
         "All timestamps must remain inside the source duration. Use reference observations only "
         "to guide style, pacing, framing and text treatment; never copy reference footage. "
         "For each shot, explain its story function and the visible evidence that makes it relevant. "
+        "Use story-retention hints to choose an immediately understandable, relevant opening, "
+        "maintain forward progression, and finish on the strongest supported payoff. Avoid repeating "
+        "the same subject, framing, or moment in adjacent shots when alternatives exist. "
         "Make the opening understandable without prior context, create progression rather than a random "
         "highlight reel, and finish on the strongest truthful payoff available. Do not force a CTA, proof "
         "or product shot when none is supported by the brief and observations. "
