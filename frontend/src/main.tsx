@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
-import { StrictMode } from 'react'
+import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, Link, NavLink, Outlet, RouterProvider } from 'react-router'
 import { Toaster } from 'sonner'
@@ -8,7 +8,7 @@ import { api } from './api'
 import { cn, sourceLabel } from './components/ui'
 import './index.css'
 import { NewRunPage } from './pages/NewRun'
-import { RunDetailPage } from './pages/RunDetail'
+const RunDetailPage = lazy(() => import('./pages/RunDetail').then(({ RunDetailPage }) => ({ default: RunDetailPage })))
 import { RunsPage, useRuns } from './pages/Runs'
 import { SettingsPage } from './pages/Settings'
 
@@ -119,7 +119,9 @@ function Layout() {
       <div className="min-w-0 flex-1">
         <MobileBar />
         <main className="mx-auto max-w-[1240px] px-5 py-8 md:px-10 md:py-10">
+          <Suspense fallback={<p className="text-muted">Loading editor…</p>}>
           <Outlet />
+        </Suspense>
         </main>
       </div>
       <Toaster
