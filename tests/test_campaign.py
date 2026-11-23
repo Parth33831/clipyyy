@@ -1033,8 +1033,9 @@ def test_visual_continuity_flags_adjacent_near_duplicate_shots():
     from clipyyy.campaign import _visual_continuity_notes
 
     sources = [{"duration_seconds": 20}]
-    analyses = [{
-        "frames": [
+    analyses = [
+        {
+            "frames": [
             {
                 "timestamp": 3,
                 "description": "A woman smiling while holding a red coffee cup",
@@ -1051,8 +1052,9 @@ def test_visual_continuity_flags_adjacent_near_duplicate_shots():
                 "visible_action": "holding coffee cup",
                 "confidence": 0.9,
             },
-        ]
-    }]
+            ]
+        }
+    ]
     edit = {
         "shots": [
             {"source_index": 0, "start_seconds": 2, "end_seconds": 4},
@@ -1070,8 +1072,9 @@ def test_visual_continuity_does_not_flag_distinct_framing_as_duplicate():
     from clipyyy.campaign import _visual_continuity_notes
 
     sources = [{"duration_seconds": 20}]
-    analyses = [{
-        "frames": [
+    analyses = [
+        {
+            "frames": [
             {
                 "timestamp": 3,
                 "description": "A wide view of a busy kitchen with several people",
@@ -1088,8 +1091,9 @@ def test_visual_continuity_does_not_flag_distinct_framing_as_duplicate():
                 "visible_action": "chopping vegetables",
                 "confidence": 0.95,
             },
-        ]
-    }]
+            ]
+        }
+    ]
     edit = {
         "shots": [
             {"source_index": 0, "start_seconds": 2, "end_seconds": 4},
@@ -1107,15 +1111,17 @@ def test_visual_continuity_is_honest_when_visual_evidence_is_unavailable():
     from clipyyy.campaign import _visual_continuity_notes
 
     sources = [{"duration_seconds": 20}]
-    analyses = [{
-        "frames": [
+    analyses = [
+        {
+            "frames": [
             {
                 "timestamp": 3,
                 "description": "Visual content unavailable: installed model is text-only.",
                 "confidence": 0.0,
             }
-        ]
-    }]
+            ]
+        }
+    ]
     edit = {
         "shots": [
             {"source_index": 0, "start_seconds": 2, "end_seconds": 4},
@@ -1129,4 +1135,3 @@ def test_visual_continuity_is_honest_when_visual_evidence_is_unavailable():
     assert len(notes) == 1
     assert "could not be assessed" in notes[0]
     assert "repetitive" not in notes[0]
-
