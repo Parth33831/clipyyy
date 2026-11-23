@@ -495,7 +495,7 @@ def _annotate_story_retention_hints(candidates: list[dict[str, Any]]) -> None:
         roles = []
         if confidence >= 0.35:
             for role, pattern in _STORY_ROLE_CUES.items():
-                matches = re.findall(pattern, evidence_text, flags=re.IGNORECASE)
+                matches = re.findall("".join(pattern), evidence_text, flags=re.IGNORECASE)
                 if matches:
                     roles.append(
                         {
