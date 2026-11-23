@@ -1002,3 +1002,27 @@ def test_final_cut_refinement_snaps_small_cut_adjustments_to_detected_beats():
     assert refined["shots"][0]["end_seconds"] == 2.0
     assert any("beat" in note.lower() for note in notes)
     assert edit["shots"][0]["end_seconds"] == 2.1
+
+
+
+def test_final_cut_refinement_never_snaps_a_cut_through_black_footage():
+    from clipyyy.campaign import _refine_final_cut
+
+    edit = {
+        "rank": 1,
+        "title": "Black-frame guard",
+        "shots": [
+            {"source_index": 0, "start_seconds": 0, "end_seconds": 2.1, "reason": "one"},
+            {"source_index": 0, "start_seconds": 3, "end_seconds": 5, "reason": "two"},
+            {"source_index": 0, "start_seconds": 6, "end_seconds": 8, "reason": "three"},
+        ],
+    }
+    refined, notes = _refine_final_cut(
+        edit,
+        [{"duration_seconds": 20}],
+        [{"frames": [], "black_intervals": [[1.95, 2.05]]}],
+        {"best_start_seconds": 0, "beat_times": [2.0]},
+    )
+
+    assert refined["shots"][0]["end_seconds"] == 2.1
+    assert not any("beat" in note.lower() for note in notes)
