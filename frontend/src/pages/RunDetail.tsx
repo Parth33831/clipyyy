@@ -224,9 +224,11 @@ export function RunDetailPage() {
   const [publishing, setPublishing] = useState<Clip | null>(null)
   const [focused, setFocused] = useState<number | null>(null)
   const [selectedConceptId, setSelectedConceptId] = useState<string | null>(null)
+  const [conceptCutVariants, setConceptCutVariants] = useState<Record<string, 'original' | 'refined'>>({})
   const [activeConceptPreviewId, setActiveConceptPreviewId] = useState<string | null>(null)
   useEffect(() => {
     setSelectedConceptId(null)
+    setConceptCutVariants({})
     setActiveConceptPreviewId(null)
   }, [runId])
   const [musicFile, setMusicFile] = useState<File | null>(null)
@@ -858,7 +860,11 @@ export function RunDetailPage() {
           </div>
           <div className="grid items-stretch gap-3 md:grid-cols-2 xl:grid-cols-3">
             {data.campaign_concepts?.map((concept: CampaignConcept) => {
-              const edit = concept.edits[0]
+              const cutVariant = conceptCutVariants[concept.id] ?? 'original'
+              const conceptEdits = cutVariant === 'refined' && concept.refined_edits?.length
+                ? concept.refined_edits
+                : concept.edits
+              const edit = conceptEdits[0]
               const shots = edit?.shots ?? []
               const totalSeconds = shots.reduce((total, shot) => total + Math.max(0, shot.end_seconds - shot.start_seconds), 0)
               const averageShot = shots.length ? totalSeconds / shots.length : 0
@@ -890,6 +896,21 @@ export function RunDetailPage() {
                   ) : (
                     <div className="flex aspect-video items-center justify-center rounded-md bg-sunk text-xs text-muted">No preview shots</div>
                   )}
+                  {concept.refined_edits?.length ? (
+                    <div className="flex flex-col gap-2 rounded-md border border-line bg-surface p-2">
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant={cutVariant === 'original' ? 'ink' : 'line'} onClick={() => setConceptCutVariants((current) => ({ ...current, [concept.id]: 'original' }))}>Original cut</Button>
+                        <Button variant={cutVariant === 'refined' ? 'ink' : 'line'} onClick={() => setConceptCutVariants((current) => ({ ...current, [concept.id]: 'refined' }))}>AI final cut</Button>
+                      </div>
+                      {cutVariant === 'refined' && (
+                        <p className="text-[11px] leading-relaxed text-muted">
+                          {concept.refinement_notes?.length
+                            ? concept.refinement_notes.join(' ')
+                            : 'No safe changes were supported by the available scene and music evidence. The original cut is preserved.'}
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
                   <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted">
                     <span>{shots.length} shots</span>
                     <span>{totalSeconds.toFixed(1)}s total</span>
@@ -921,7 +942,7 @@ export function RunDetailPage() {
                     <Button variant={isSelected ? 'ink' : 'line'} disabled={isSelected} onClick={() => setSelectedConceptId(concept.id)}>
                       {isSelected ? 'Active direction' : 'Select to compare'}
                     </Button>
-                    <Button variant="line" disabled={saveMontage.isPending} loading={saveMontage.isPending && isSelected} onClick={() => saveMontage.mutate(concept.edits)}>
+                    <Button variant="line" disabled={saveMontage.isPending} loading={saveMontage.isPending && isSelected} onClick={() => saveMontage.mutate(conceptEdits)}>
                       Use &amp; render
                     </Button>
                   </div>

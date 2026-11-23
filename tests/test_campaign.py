@@ -911,3 +911,82 @@ def test_story_retention_hints_use_visible_evidence_and_are_added_to_planner_con
     assert '"role": "payoff"' in llm.user
     assert "truthful opening" in llm.system
     assert "Do not force every story role" in llm.system
+
+
+
+def test_final_cut_refinement_reorders_only_grounded_story_roles_and_preserves_original():
+    from clipyyy.campaign import _refine_final_cut
+
+    edit = {
+        "rank": 1,
+        "title": "Unordered cut",
+        "shots": [
+            {"source_index": 0, "start_seconds": 8, "end_seconds": 10, "reason": "payoff"},
+            {"source_index": 0, "start_seconds": 1, "end_seconds": 3, "reason": "opening"},
+            {"source_index": 0, "start_seconds": 5, "end_seconds": 7, "reason": "build"},
+        ],
+    }
+    sources = [{"duration_seconds": 20}]
+    analyses = [{
+        "frames": [
+            {"timestamp": 2, "description": "A dramatic close-up with eye contact", "confidence": 0.95},
+            {"timestamp": 6, "description": "A person demonstrating a device by testing it", "confidence": 0.95},
+            {"timestamp": 9, "description": "The finished product and successful results", "confidence": 0.95},
+        ]
+    }]
+
+    refined, notes = _refine_final_cut(edit, sources, analyses)
+
+    assert [shot["start_seconds"] for shot in refined["shots"]] == [1, 5, 8]
+    assert notes
+    assert [shot["start_seconds"] for shot in edit["shots"]] == [8, 1, 5]
+
+
+def test_final_cut_refinement_does_not_reorder_when_story_evidence_is_sparse():
+    from clipyyy.campaign import _refine_final_cut
+
+    edit = {
+        "rank": 1,
+        "title": "Original",
+        "shots": [
+            {"source_index": 0, "start_seconds": 1, "end_seconds": 3, "reason": "one"},
+            {"source_index": 0, "start_seconds": 5, "end_seconds": 7, "reason": "two"},
+            {"source_index": 0, "start_seconds": 9, "end_seconds": 11, "reason": "three"},
+        ],
+    }
+    analyses = [{
+        "frames": [
+            {"timestamp": 2, "description": "A dramatic close-up", "confidence": 0.9},
+            {"timestamp": 6, "description": "An ordinary room", "confidence": 0.9},
+            {"timestamp": 10, "description": "A quiet landscape", "confidence": 0.9},
+        ]
+    }]
+
+    refined, notes = _refine_final_cut(edit, [{"duration_seconds": 20}], analyses)
+
+    assert refined["shots"] == edit["shots"]
+    assert notes == []
+
+
+def test_final_cut_refinement_snaps_small_cut_adjustments_to_detected_beats():
+    from clipyyy.campaign import _refine_final_cut
+
+    edit = {
+        "rank": 1,
+        "title": "Beat cut",
+        "shots": [
+            {"source_index": 0, "start_seconds": 0, "end_seconds": 2.1, "reason": "one"},
+            {"source_index": 0, "start_seconds": 3, "end_seconds": 5, "reason": "two"},
+            {"source_index": 0, "start_seconds": 6, "end_seconds": 8, "reason": "three"},
+        ],
+    }
+    refined, notes = _refine_final_cut(
+        edit,
+        [{"duration_seconds": 20}],
+        [{"frames": []}],
+        {"best_start_seconds": 0, "beat_times": [2.0, 4.0, 6.0]},
+    )
+
+    assert refined["shots"][0]["end_seconds"] == 2.0
+    assert any("beat" in note.lower() for note in notes)
+    assert edit["shots"][0]["end_seconds"] == 2.1
