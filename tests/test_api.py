@@ -64,17 +64,14 @@ def test_invalid_options_rejected(client):
 
 
 def test_upload_and_health(client, monkeypatch):
+    from unittest.mock import Mock
+
     # Make the health check deterministic even when Ollama is running locally.
+    ollama_response = Mock()
+    ollama_response.json.return_value = {"data": []}
     monkeypatch.setattr(
         "clipyyy.doctor.httpx.get",
-        lambda *args, **kwargs: type(
-            "UnavailableOllama",
-            (),
-            {
-                "raise_for_status": lambda self: None,
-                "json": lambda self: {"data": []},
-            },
-        )(),
+        lambda *args, **kwargs: ollama_response,
     )
     r = client.post("/api/uploads", files={"file": ("talk.mp4", b"data", "video/mp4")})
     assert r.status_code == 200 and r.json()["name"] == "talk.mp4"
