@@ -755,7 +755,6 @@ def build_montage_plan(
     return valid_edits
 
 
-
 def _refine_final_cut(
     edit: dict[str, Any],
     sources: list[dict],
@@ -867,6 +866,7 @@ def _refine_final_cut(
     if notes:
         refined["final_cut_refined"] = True
     return refined, notes
+
 
 _CREATIVE_DIRECTIONS = [
     {

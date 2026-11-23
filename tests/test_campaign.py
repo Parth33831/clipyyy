@@ -929,9 +929,21 @@ def test_final_cut_refinement_reorders_only_grounded_story_roles_and_preserves_o
     sources = [{"duration_seconds": 20}]
     analyses = [{
         "frames": [
-            {"timestamp": 2, "description": "A dramatic close-up with eye contact", "confidence": 0.95},
-            {"timestamp": 6, "description": "A person demonstrating a device by testing it", "confidence": 0.95},
-            {"timestamp": 9, "description": "The finished product and successful results", "confidence": 0.95},
+            {
+                "timestamp": 2,
+                "description": "A dramatic close-up with eye contact",
+                "confidence": 0.95,
+            },
+            {
+                "timestamp": 6,
+                "description": "A person demonstrating a device by testing it",
+                "confidence": 0.95,
+            },
+            {
+                "timestamp": 9,
+                "description": "The finished product and successful results",
+                "confidence": 0.95,
+            },
         ]
     }]
 
