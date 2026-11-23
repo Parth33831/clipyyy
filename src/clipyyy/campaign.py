@@ -755,13 +755,29 @@ def build_montage_concepts(
             }
         ]
 
+    directions = _CREATIVE_DIRECTIONS
+    if not music_analysis:
+        directions = [
+            *_CREATIVE_DIRECTIONS[:2],
+            {
+                "id": "momentum-cut",
+                "name": "Momentum Cut",
+                "angle": (
+                    "Use contrast in the observed visual energy to create momentum. Alternate calmer "
+                    "establishing moments with the strongest active footage, then finish on the most "
+                    "memorable supported visual. Do not assume a soundtrack is present."
+                ),
+                "summary": "A visual-rhythm edit that builds momentum through shot contrast.",
+            },
+        ]
+
     concepts = []
     signatures = set()
-    for direction in _CREATIVE_DIRECTIONS:
+    for direction in directions:
         instructions = (
-            (additional_instructions.strip() + "\\n\\n") if additional_instructions.strip() else ""
+            (additional_instructions.strip() + "\n\n") if additional_instructions.strip() else ""
         ) + "CREATIVE DIRECTOR DIRECTION — " + direction["angle"] + (
-            "\\nCreate a genuinely different edit strategy from other directions, not just a renamed "
+            "\nCreate a genuinely different edit strategy from other directions, not just a renamed "
             "title. Use only supplied footage and evidence; preserve all campaign requirements and "
             "creator constraints."
         )
