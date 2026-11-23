@@ -442,7 +442,6 @@ def _annotate_scene_music_matches(
         }
 
 
-
 _STORY_ROLE_CUES = {
     "call_to_action": (
         r"\b(learn more|sign up|join us|join now|visit us|visit now|"
