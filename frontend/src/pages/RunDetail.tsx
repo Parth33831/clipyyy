@@ -1569,7 +1569,9 @@ function CampaignTimeline({
   const advancingShotRef = useRef(false)
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [transitionPhase, setTransitionPhase] = useState<'idle' | 'out' | 'in'>('idle')
-  const transitionDurationMs = transitionStyle === 'cut' || (transitionStyle === 'auto' && (musicAnalysis?.detected_beats ?? 0) > 0) ? 0 : 240
+  const [previewTransitionStyle, setPreviewTransitionStyle] = useState(transitionStyle)
+  useEffect(() => setPreviewTransitionStyle(transitionStyle), [transitionStyle])
+  const transitionDurationMs = previewTransitionStyle === 'cut' || (previewTransitionStyle === 'auto' && (musicAnalysis?.detected_beats ?? 0) > 0) ? 0 : 240
   useEffect(() => () => {
     if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current)
   }, [])
@@ -1638,7 +1640,7 @@ function CampaignTimeline({
       {shots.length > 0 && (() => {
         const preview = shots[previewShotIndex] ?? shots[0]
         const dynamicTransitionNames = ['fade', 'smoothleft', 'smoothright', 'wipeleft', 'wiperight', 'slideleft', 'slideright']
-        const activeTransition = transitionStyle === 'dynamic' ? dynamicTransitionNames[Math.max(0, preview.index - 1) % dynamicTransitionNames.length] : 'fade'
+        const activeTransition = previewTransitionStyle === 'dynamic' ? dynamicTransitionNames[Math.max(0, preview.index - 1) % dynamicTransitionNames.length] : 'fade'
         const source = sourceByIndex.get(preview.shot.source_index)
         const shotTimelineStart = shots.slice(0, preview.index).reduce((sum, item) => sum + item.duration, 0)
         const activeOverlay = textOverlays.find((overlay) =>
@@ -1723,7 +1725,44 @@ function CampaignTimeline({
           }
         }
         return (
-          <div className="grid gap-3 rounded-md border border-line bg-surface p-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(180px,1fr)] sm:items-center">
+          <div className="flex flex-col gap-3 rounded-md border border-line bg-surface p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <span className="label text-muted">Try transitions on your footage</span>
+                <p className="mt-1 text-[11px] text-muted">Preview-only · does not change your saved edit or final export</p>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {([
+                  ['auto', 'Auto'],
+                  ['cut', 'Clean cut'],
+                  ['cinematic', 'Cinematic'],
+                  ['dynamic', 'Dynamic'],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={previewTransitionStyle === value}
+                    onClick={() => {
+                      videoRef.current?.pause()
+                      audioRef.current?.pause()
+                      setIsPlaying(false)
+                      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current)
+                      transitionTimerRef.current = null
+                      advancingShotRef.current = false
+                      setTransitionPhase('idle')
+                      setPreviewTransitionStyle(value)
+                    }}
+                    className={cn(
+                      'rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                      previewTransitionStyle === value ? 'border-ink bg-ink text-white' : 'border-line bg-panel text-muted hover:border-ink hover:text-ink',
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(180px,1fr)] sm:items-center">
             <div className="relative overflow-hidden rounded-md bg-black">
               <video
                 ref={videoRef}
@@ -1894,6 +1933,7 @@ function CampaignTimeline({
               </div>
               <p className="mt-1 text-xs text-muted">One controller keeps footage, soundtrack and timed text together. Preview transitions follow the selected style; final export remains the exact render reference.</p>
               {lyricsBehindSubject && <p className="text-xs text-muted">Subject-aware lyric masking is on · cached masks refresh while you scrub and play.</p>}
+            </div>
             </div>
           </div>
         )
