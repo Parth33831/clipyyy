@@ -672,7 +672,6 @@ def build_montage_plan(
     return valid_edits
 
 
-
 _CREATIVE_DIRECTIONS = [
     {
         "id": "hook-first",
@@ -828,6 +827,8 @@ def build_montage_concepts(
             "The AI could not produce a valid creative direction. Please retry the campaign plan."
         )
     return concepts
+
+
 
 def _build_text_only_montage(
     sources: list[dict],
