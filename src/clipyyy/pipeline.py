@@ -59,6 +59,9 @@ class ClipOptions(BaseModel):
     campaign_camera_motion: bool = Field(
         True, description="Apply subtle per-shot camera movement to campaign montage footage"
     )
+    campaign_conversation_hook: bool = Field(
+        False, description="Start with genuine source-footage conversation audio before a beat-led music montage"
+    )
     campaign_transition_style: Literal["auto", "cut", "cinematic", "dynamic"] = Field(
         "auto",
         description=(
