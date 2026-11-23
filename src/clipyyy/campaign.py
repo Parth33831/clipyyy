@@ -848,17 +848,8 @@ def _visual_continuity_notes(
 
     grounded = sum(item is not None for item in observations)
     if grounded == 0:
-        return [
-            "Visual continuity could not be assessed: no sufficiently confident "
-            "sampled-frame evidence was available."
-        ]
+        return []
 
-    notes = [
-        (
-            f"Visual continuity evidence was available for {grounded} of {len(shots)} shots; "
-            "this checks sampled still frames, not motion or transitions."
-        )
-    ]
     repeated_pairs = []
     for index, (left, right) in enumerate(zip(observations, observations[1:], strict=False)):
         if left is None or right is None:
@@ -882,21 +873,24 @@ def _visual_continuity_notes(
         if subject_overlap >= 0.75 and (visual_overlap >= 0.55 or action_overlap >= 0.75):
             repeated_pairs.append((index + 1, index + 2, left["shot_scale"]))
 
-    if repeated_pairs:
-        examples = ", ".join(
-            f"{first}–{second} ({scale} framing)" for first, second, scale in repeated_pairs[:3]
-        )
-        notes.append(
+    if not repeated_pairs:
+        return []
+
+    examples = ", ".join(
+        f"{first}–{second} ({scale} framing)" for first, second, scale in repeated_pairs[:3]
+    )
+    return [
+        (
+            f"Visual continuity evidence was available for {grounded} of {len(shots)} shots; "
+            "this checks sampled still frames, not motion or transitions."
+        ),
+        (
             "Potentially repetitive adjacent shots: "
             + examples
             + ". Consider swapping one for a different moment or framing "
             "if the repetition is not intentional."
-        )
-    else:
-        notes.append(
-            "No strong adjacent near-duplicate pattern was found in the available sampled-frame evidence."
-        )
-    return notes
+        ),
+    ]
 
 
 def _refine_final_cut(
