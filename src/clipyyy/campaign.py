@@ -736,11 +736,11 @@ def build_montage_concepts(
             analyses,
             output_count,
             target_seconds,
-            additional_instructions,
-            reference_analyses,
-            music_analysis,
-            campaign_lyrics,
-            lyric_cues,
+            additional_instructions=additional_instructions,
+            reference_analyses=reference_analyses,
+            music_analysis=music_analysis,
+            campaign_lyrics=campaign_lyrics,
+            lyric_cues=lyric_cues,
         )
         return [
             {
@@ -792,11 +792,11 @@ def build_montage_concepts(
                 analyses,
                 output_count,
                 target_seconds,
-                instructions,
-                reference_analyses,
-                music_analysis,
-                campaign_lyrics,
-                lyric_cues,
+                additional_instructions=instructions,
+                reference_analyses=reference_analyses,
+                music_analysis=music_analysis,
+                campaign_lyrics=campaign_lyrics,
+                lyric_cues=lyric_cues,
             )
         except Exception:
             continue
