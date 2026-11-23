@@ -226,6 +226,7 @@ export function RunDetailPage() {
   const [selectedConceptId, setSelectedConceptId] = useState<string | null>(null)
   const [conceptCutVariants, setConceptCutVariants] = useState<Record<string, 'original' | 'refined'>>({})
   const [activeConceptPreviewId, setActiveConceptPreviewId] = useState<string | null>(null)
+  const [activeEditorSection, setActiveEditorSection] = useState('campaign-preview')
   useEffect(() => {
     setSelectedConceptId(null)
     setConceptCutVariants({})
@@ -456,6 +457,35 @@ export function RunDetailPage() {
     return () => window.removeEventListener('keydown', handleEditorShortcut)
   }, [run.data?.options.campaign_mode, run.data?.status, canUndoCampaignEdits, canRedoCampaignEdits, undoCampaignEdits, redoCampaignEdits])
 
+  useEffect(() => {
+    if (!run.data?.options.campaign_mode || ['queued', 'running'].includes(run.data.status)) return
+    const sectionIds = [
+      'campaign-preview',
+      'campaign-hook',
+      'campaign-audio',
+      'campaign-animations',
+      'campaign-lyrics',
+      'campaign-text',
+      'campaign-storyboard',
+    ]
+    const sections = sectionIds
+      .map((id) => document.getElementById(id))
+      .filter((element): element is HTMLElement => element !== null)
+    if (!sections.length) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0]
+        if (visible) setActiveEditorSection(visible.target.id)
+      },
+      { rootMargin: '-18% 0px -68% 0px', threshold: [0, 0.1, 0.25, 0.5] },
+    )
+    sections.forEach((section) => observer.observe(section))
+    return () => observer.disconnect()
+  }, [runId, run.data?.options.campaign_mode, run.data?.status, run.data?.campaign_edits?.length])
+
   if (run.isLoading) return <p className="text-muted">Loading…</p>
   if (run.error || !run.data)
     return (
@@ -548,11 +578,24 @@ export function RunDetailPage() {
               ['campaign-lyrics', 'Lyrics Sync'],
               ['campaign-text', 'Text & Titles'],
               ['campaign-storyboard', 'Shot Editing'],
-            ].map(([target, label]) => (
-              <a key={target} href={`#${target}`} className="shrink-0 rounded-md px-3 py-2 text-left text-xs font-medium text-muted transition-colors hover:bg-sunk hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:w-full">
-                {label}
-              </a>
-            ))}
+            ].map(([target, label]) => {
+              const active = activeEditorSection === target
+              return (
+                <a
+                  key={target}
+                  href={`#${target}`}
+                  aria-current={active ? 'location' : undefined}
+                  className={cn(
+                    'shrink-0 rounded-md border-l-2 px-3 py-2 text-left text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:w-full',
+                    active
+                      ? 'border-acid bg-sunk text-ink'
+                      : 'border-transparent text-muted hover:bg-sunk hover:text-ink',
+                  )}
+                >
+                  {label}
+                </a>
+              )
+            })}
           </nav>
           <div className="flex min-w-0 flex-col gap-6">
             <div id="campaign-preview" className="scroll-mt-5">
