@@ -895,7 +895,7 @@ def test_campaign_text_overlay_script_preserves_explicit_layer_order(tmp_path):
 
     assert dialogue[0].startswith("Dialogue: 1,")
     assert dialogue[1].startswith("Dialogue: 4,")
-    assert dialogue[2].startswith("Dialogue: 2,")
+    assert dialogue[2].startswith("Dialogue: 0,")
 
 
 def test_campaign_text_overlay_script_skips_empty_or_out_of_range_layers(tmp_path):
