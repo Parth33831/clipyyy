@@ -443,6 +443,7 @@ def _annotate_scene_music_matches(
             "matching_music_windows": matching_sections[:3],
         }
 
+
 def build_montage_plan(
     llm,
     brief: str,
