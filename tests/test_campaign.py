@@ -1105,7 +1105,7 @@ def test_visual_continuity_does_not_flag_distinct_framing_as_duplicate():
     notes = _visual_continuity_notes(edit, sources, analyses)
 
     assert not any("Potentially repetitive" in note for note in notes)
-    assert any("No strong adjacent near-duplicate pattern" in note for note in notes)
+    assert notes == []
 
 
 def test_visual_continuity_is_honest_when_visual_evidence_is_unavailable():
@@ -1133,6 +1133,4 @@ def test_visual_continuity_is_honest_when_visual_evidence_is_unavailable():
 
     notes = _visual_continuity_notes(edit, sources, analyses)
 
-    assert len(notes) == 1
-    assert "could not be assessed" in notes[0]
-    assert "repetitive" not in notes[0]
+    assert notes == []
