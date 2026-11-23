@@ -822,6 +822,7 @@ def test_creative_director_text_only_falls_back_to_one_honest_direction():
     assert concepts[0]["id"] == "balanced"
     assert concepts[0]["edits"]
 
+
 def test_story_retention_hints_identify_only_observed_story_roles():
     from clipyyy.campaign import _annotate_story_retention_hints
 
