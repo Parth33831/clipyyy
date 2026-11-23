@@ -515,6 +515,7 @@ def _annotate_story_retention_hints(candidates: list[dict[str, Any]]) -> None:
             ),
         }
 
+
 def build_montage_plan(
     llm,
     brief: str,
