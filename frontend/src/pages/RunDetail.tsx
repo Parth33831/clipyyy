@@ -586,6 +586,7 @@ export function RunDetailPage() {
         />
       )}
             </div>
+          </div>
       {data.options.campaign_mode && !busy && (
         <div id="campaign-hook" hidden={activeCampaignTool !== 'hook' && activeCampaignTool !== 'audio' && activeCampaignTool !== 'animations' && activeCampaignTool !== 'lyrics'} className="scroll-mt-5 flex flex-col gap-4 rounded-xl border border-line bg-surface p-4 lg:col-start-2 lg:row-start-1">
           <div hidden={activeCampaignTool !== 'hook'} className="flex flex-col gap-2 border-b border-line pb-4">
@@ -815,6 +816,7 @@ export function RunDetailPage() {
               <p className="text-xs text-muted">Phrase-level transforms currently apply to line-timed lyrics (LRC or manually entered lines). Word-by-word Whisper timing continues to use the global lyric transform.</p>
             </div>
           )}
+          </div>
           <div className="grid gap-4 rounded-lg border border-line bg-panel p-3 text-sm sm:grid-cols-2">
             <label className="flex flex-col gap-2">
               <span className="flex justify-between"><span className="font-medium">Horizontal position</span><span className="font-mono text-muted">{lyricsPositionX}%</span></span>
@@ -1035,7 +1037,6 @@ export function RunDetailPage() {
 
       {data.campaign_plan && <CampaignPlanCard plan={data.campaign_plan} checks={data.campaign_quality_checks} />}
 
-          </div>
         </div>
       )}
 
