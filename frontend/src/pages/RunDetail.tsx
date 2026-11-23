@@ -574,20 +574,21 @@ export function RunDetailPage() {
               <p className="mt-1 text-xs leading-relaxed text-muted">Work from top to bottom. You can revisit any step whenever you like.</p>
             </div>
             {[
-              ['campaign-preview', 'Video & Timeline', '1'],
-              ['campaign-hook', 'Opening Hook', '2'],
-              ['campaign-audio', 'Music & Audio', '3'],
-              ['campaign-animations', 'Animations', '4'],
-              ['campaign-lyrics', 'Lyrics Sync', '5'],
-              ['campaign-text', 'Text & Titles', '6'],
-              ['campaign-storyboard', 'Shot Editing', '7'],
-            ].map(([target, label, step]) => {
+              ['campaign-preview', 'Video & Timeline', '1', 'Review your clips and the edit timeline.'],
+              ['campaign-hook', 'Opening Hook', '2', 'Add or refine the first on-screen message.'],
+              ['campaign-audio', 'Music & Audio', '3', 'Attach music and balance both audio tracks.'],
+              ['campaign-animations', 'Animations', '4', 'Choose how lyric text moves on screen.'],
+              ['campaign-lyrics', 'Lyrics Sync', '5', 'Add lyrics and adjust their timing and placement.'],
+              ['campaign-text', 'Text & Titles', '6', 'Create and position extra text overlays.'],
+              ['campaign-storyboard', 'Shot Editing', '7', 'Fine-tune the order and timing of each shot.'],
+            ].map(([target, label, step, description]) => {
               const active = activeEditorSection === target
               return (
                 <a
                   key={target}
                   href={`#${target}`}
                   aria-current={active ? 'location' : undefined}
+                  aria-label={`Step ${step}: ${label}. ${description}`}
                   className={cn(
                     'flex shrink-0 items-center gap-2 rounded-md border-l-2 px-3 py-2 text-left text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:w-full',
                     active
@@ -599,7 +600,10 @@ export function RunDetailPage() {
                     'flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] tabular-nums',
                     active ? 'bg-acid text-black' : 'bg-panel text-faint',
                   )}>{step}</span>
-                  {label}
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span>{label}</span>
+                    <span className="hidden text-[10px] font-normal leading-snug text-faint lg:block">{description}</span>
+                  </span>
                 </a>
               )
             })}
