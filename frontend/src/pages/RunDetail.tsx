@@ -569,16 +569,19 @@ export function RunDetailPage() {
       {data.options.campaign_mode && !busy && (
         <div className="grid items-start gap-5 lg:grid-cols-[190px_minmax(0,1fr)]">
           <nav aria-label="Campaign editor tools" className="z-10 flex gap-2 overflow-x-auto rounded-xl border border-line bg-surface p-2 lg:sticky lg:top-5 lg:flex-col lg:gap-1 lg:overflow-visible">
-            <p className="label hidden px-3 py-2 text-faint lg:block">EDITOR TOOLS</p>
+            <div className="hidden px-3 py-2 lg:block">
+              <p className="label text-faint">YOUR EDITING WORKFLOW</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted">Work from top to bottom. You can revisit any step whenever you like.</p>
+            </div>
             {[
-              ['campaign-preview', 'Video & Timeline'],
-              ['campaign-hook', 'Opening Hook'],
-              ['campaign-audio', 'Music & Audio'],
-              ['campaign-animations', 'Animations'],
-              ['campaign-lyrics', 'Lyrics Sync'],
-              ['campaign-text', 'Text & Titles'],
-              ['campaign-storyboard', 'Shot Editing'],
-            ].map(([target, label]) => {
+              ['campaign-preview', 'Video & Timeline', '1'],
+              ['campaign-hook', 'Opening Hook', '2'],
+              ['campaign-audio', 'Music & Audio', '3'],
+              ['campaign-animations', 'Animations', '4'],
+              ['campaign-lyrics', 'Lyrics Sync', '5'],
+              ['campaign-text', 'Text & Titles', '6'],
+              ['campaign-storyboard', 'Shot Editing', '7'],
+            ].map(([target, label, step]) => {
               const active = activeEditorSection === target
               return (
                 <a
@@ -586,12 +589,16 @@ export function RunDetailPage() {
                   href={`#${target}`}
                   aria-current={active ? 'location' : undefined}
                   className={cn(
-                    'shrink-0 rounded-md border-l-2 px-3 py-2 text-left text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:w-full',
+                    'flex shrink-0 items-center gap-2 rounded-md border-l-2 px-3 py-2 text-left text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:w-full',
                     active
                       ? 'border-acid bg-sunk text-ink'
                       : 'border-transparent text-muted hover:bg-sunk hover:text-ink',
                   )}
                 >
+                  <span className={cn(
+                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] tabular-nums',
+                    active ? 'bg-acid text-black' : 'bg-panel text-faint',
+                  )}>{step}</span>
                   {label}
                 </a>
               )
