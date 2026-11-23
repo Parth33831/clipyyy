@@ -537,7 +537,55 @@ export function RunDetailPage() {
       </header>
 
       {data.options.campaign_mode && !busy && (
-        <div className="flex flex-col gap-4 rounded-xl border border-line bg-surface p-4">
+        <div className="grid items-start gap-5 lg:grid-cols-[190px_minmax(0,1fr)]">
+          <nav aria-label="Campaign editor tools" className="z-10 flex gap-2 overflow-x-auto rounded-xl border border-line bg-surface p-2 lg:sticky lg:top-5 lg:flex-col lg:gap-1 lg:overflow-visible">
+            <p className="label hidden px-3 py-2 text-faint lg:block">EDITOR TOOLS</p>
+            {[
+              ['campaign-preview', 'Video & Timeline'],
+              ['campaign-hook', 'Opening Hook'],
+              ['campaign-audio', 'Music & Audio'],
+              ['campaign-animations', 'Animations'],
+              ['campaign-lyrics', 'Lyrics Sync'],
+              ['campaign-text', 'Text & Titles'],
+              ['campaign-storyboard', 'Shot Editing'],
+            ].map(([target, label]) => (
+              <a key={target} href={`#${target}`} className="shrink-0 rounded-md px-3 py-2 text-left text-xs font-medium text-muted transition-colors hover:bg-sunk hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:w-full">
+                {label}
+              </a>
+            ))}
+          </nav>
+          <div className="flex min-w-0 flex-col gap-6">
+            <div id="campaign-preview" className="scroll-mt-5">
+      {data.options.campaign_mode && !busy && campaignEdits.length > 0 && (
+        <CampaignStoryboardEditor
+          runId={runId}
+          edits={campaignEdits}
+          savedEdits={data.campaign_edits}
+          originalEdits={data.campaign_original_edits ?? data.campaign_edits}
+          sources={data.campaign_sources ?? []}
+          musicAnalysis={data.campaign_quality_checks?.music_analysis ?? null}
+          musicStartSeconds={musicStartSeconds}
+          onMusicStartChange={setMusicStartSeconds}
+          hasMusic={Boolean(data.options.campaign_music_path)}
+          lyricsBehindSubject={lyricsBehindSubject}
+          lyrics={campaignTimelineLyrics}
+          onUpdateLyric={updateLyricPhrase}
+          lyricWords={campaignTimelineWords}
+          wordsOnScreen={data.options.campaign_lyrics_words_on_screen ?? 3}
+          lyricsColor={lyricsColor}
+          lyricsHighlightColor={lyricsHighlightColor}
+          textOverlays={campaignTextOverlays}
+          onUpdateTextOverlay={(overlayIndex, patch) => setCampaignTextOverlays((current) => current.map((overlay, index) => index === overlayIndex ? { ...overlay, ...patch } : overlay))}
+          transitionStyle={data.options.campaign_transition_style ?? 'auto'}
+          saving={saveMontage.isPending}
+          onChange={setCampaignEdits}
+          onSave={() => saveMontage.mutate()}
+          onReset={() => setCampaignEdits(data.campaign_original_edits ?? data.campaign_edits)}
+        />
+      )}
+            </div>
+      {data.options.campaign_mode && !busy && (
+        <div id="campaign-hook" className="scroll-mt-5 flex flex-col gap-4 rounded-xl border border-line bg-surface p-4">
           <div className="flex flex-col gap-2 border-b border-line pb-4">
             <div className="flex items-center justify-between gap-3">
               <span className="font-medium">Opening text hook</span>
@@ -554,7 +602,7 @@ export function RunDetailPage() {
               className="w-full rounded-lg border border-line bg-panel p-3 text-sm text-ink placeholder:text-muted" />
             <span className="text-xs text-muted">Off by default. Your edit does not need campaign branding or AI-generated text.</span>
           </div>
-          <div className="flex flex-wrap items-end gap-3">
+          <div id="campaign-audio" className="scroll-mt-5 flex flex-wrap items-end gap-3">
           <label className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
             <span className="font-medium">Campaign music</span>
             <input
@@ -635,7 +683,7 @@ export function RunDetailPage() {
               </Button>
             </div>
           </div>
-          <div className="flex flex-col gap-3 text-sm">
+          <div id="campaign-animations" className="scroll-mt-5 flex flex-col gap-3 text-sm">
             <span className="font-medium">Lyrics animation preset</span>
             <div className="grid gap-2 sm:grid-cols-2">
               {([
@@ -826,6 +874,7 @@ export function RunDetailPage() {
             </div>
             <p className="text-xs text-muted sm:col-span-2">Colors are independent of animation style. Apply updates the existing edit without re-picking footage or re-transcribing the song.</p>
           </div>
+          <div id="campaign-lyrics" className="scroll-mt-5 flex flex-col gap-3">
           <label className="flex flex-col gap-2 text-sm">
             <span className="font-medium">Lyrics / timed captions</span>
             <textarea
@@ -845,6 +894,7 @@ export function RunDetailPage() {
             <Button variant="ink" loading={saveLyrics.isPending} onClick={() => saveLyrics.mutate()}>
               Apply to existing edit
             </Button>
+          </div>
           </div>
         </div>
       )}
@@ -968,34 +1018,7 @@ export function RunDetailPage() {
       )}
 
       {data.options.campaign_mode && !busy && campaignEdits.length > 0 && (
-        <CampaignStoryboardEditor
-          runId={runId}
-          edits={campaignEdits}
-          savedEdits={data.campaign_edits}
-          originalEdits={data.campaign_original_edits ?? data.campaign_edits}
-          sources={data.campaign_sources ?? []}
-          musicAnalysis={data.campaign_quality_checks?.music_analysis ?? null}
-          musicStartSeconds={musicStartSeconds}
-          onMusicStartChange={setMusicStartSeconds}
-          hasMusic={Boolean(data.options.campaign_music_path)}
-          lyricsBehindSubject={lyricsBehindSubject}
-          lyrics={campaignTimelineLyrics}
-          onUpdateLyric={updateLyricPhrase}
-          lyricWords={campaignTimelineWords}
-          wordsOnScreen={data.options.campaign_lyrics_words_on_screen ?? 3}
-          lyricsColor={lyricsColor}
-          lyricsHighlightColor={lyricsHighlightColor}
-          textOverlays={campaignTextOverlays}
-          onUpdateTextOverlay={(overlayIndex, patch) => setCampaignTextOverlays((current) => current.map((overlay, index) => index === overlayIndex ? { ...overlay, ...patch } : overlay))}
-          transitionStyle={data.options.campaign_transition_style ?? 'auto'}
-          saving={saveMontage.isPending}
-          onChange={setCampaignEdits}
-          onSave={() => saveMontage.mutate()}
-          onReset={() => setCampaignEdits(data.campaign_original_edits ?? data.campaign_edits)}
-        />
-      )}
-
-      {data.options.campaign_mode && !busy && campaignEdits.length > 0 && (
+        <div id="campaign-text" className="scroll-mt-5">
         <CampaignTextOverlayEditor
           overlays={campaignTextOverlays}
           savedOverlays={data.options.campaign_text_overlays ?? []}
@@ -1004,9 +1027,14 @@ export function RunDetailPage() {
           onChange={setCampaignTextOverlays}
           onSave={() => saveCampaignTextOverlays.mutate()}
         />
+        </div>
       )}
 
       {data.campaign_plan && <CampaignPlanCard plan={data.campaign_plan} checks={data.campaign_quality_checks} />}
+
+          </div>
+        </div>
+      )}
 
       {data.clips.length > 0 && data.source_duration && !data.options.campaign_mode ? (
         <Timeline run={data} focused={focused} onFocus={setFocused} />
@@ -1168,7 +1196,7 @@ function CampaignStoryboardEditor({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <Eyebrow>Campaign editor</Eyebrow>
-          <h2 className="display mt-1 text-2xl">Edit your storyboard</h2>
+          <h2 id="campaign-storyboard" className="display mt-1 scroll-mt-5 text-2xl">Edit your storyboard</h2>
           <p className="mt-1 text-[13px] text-muted">
             Reorder, trim, split or remove shots. Splitting keeps the original source range and creates two consecutive shots.
           </p>
