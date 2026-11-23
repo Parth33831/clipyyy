@@ -1643,7 +1643,7 @@ def write_campaign_text_overlays(
     ]
     for overlay_index, overlay in enumerate(overlays[:30]):
         try:
-            layer = max(0, min(99, int(overlay.get("z_index", overlay_index))))
+            layer = max(0, min(99, int(overlay.get("z_index", 0)))
             start = float(overlay.get("start_seconds", 0))
             end = float(overlay.get("end_seconds", 0))
             x_percent = max(5, min(95, int(overlay.get("position_x", 50))))
