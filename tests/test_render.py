@@ -891,11 +891,7 @@ def test_campaign_text_overlay_script_preserves_explicit_layer_order(tmp_path):
         1080,
         1920,
     )
-    dialogue = [
-        line
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.startswith("Dialogue:")
-    ]
+    dialogue = [line for line in path.read_text(encoding="utf-8").splitlines() if line.startswith("Dialogue:")]
 
     assert dialogue[0].startswith("Dialogue: 1,")
     assert dialogue[1].startswith("Dialogue: 4,")
