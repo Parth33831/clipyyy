@@ -445,35 +445,35 @@ def _annotate_scene_music_matches(
 
 _STORY_ROLE_CUES = {
     "call_to_action": (
-        r"\\b(learn more|sign up|join us|join now|visit us|visit now|"
+        r"\b(learn more|sign up|join us|join now|visit us|visit now|"
         r"apply now|shop now|register|subscribe|download|scan the code|"
-        r"get started|contact us)\\b",
+        r"get started|contact us)\b",
     ),
     "payoff": (
-        r"\\b(result|results|finished|completed|solved|solution|"
+        r"\b(result|results|finished|completed|solved|solution|"
         r"transformed|transformation|success|achiev(?:e|ed|ement)|"
         r"celebrat(?:e|ing|ion)|winner|award|final product|"
-        r"before and after|reveal)\\b",
+        r"before and after|reveal)\b",
     ),
     "reaction": (
-        r"\\b(smiling|laughing|cheering|surprised|excited|"
-        r"emotional reaction|applaud(?:ing)?|clapping|joyful)\\b",
+        r"\b(smiling|laughing|cheering|surprised|excited|"
+        r"emotional reaction|applaud(?:ing)?|clapping|joyful)\b",
     ),
     "hook": (
-        r"\\b(close[- ]up|extreme close[- ]up|dramatic|"
+        r"\b(close[- ]up|extreme close[- ]up|dramatic|"
         r"unexpected|striking|bold text|strong expression|"
         r"eye contact|intense|attention[- ]grabbing|"
-        r"jumping|sprinting|dancing|explosion|crash)\\b",
+        r"jumping|sprinting|dancing|explosion|crash)\b",
     ),
     "demonstration": (
-        r"\\b(demonstrat(?:e|es|ing)|showing how|using|operating|"
+        r"\b(demonstrat(?:e|es|ing)|showing how|using|operating|"
         r"building|creating|cooking|typing|testing|installing|"
-        r"assembling|working with|hands[- ]on|in action)\\b",
+        r"assembling|working with|hands[- ]on|in action)\b",
     ),
     "context": (
-        r"\\b(workplace|classroom|office|factory|kitchen|"
+        r"\b(workplace|classroom|office|factory|kitchen|"
         r"community|team|group|family|city|street|landscape|"
-        r"environment|wide shot|establishing shot|location)\\b",
+        r"environment|wide shot|establishing shot|location)\b",
     ),
 }
 
