@@ -95,3 +95,37 @@ def test_campaign_music_mix_filter_ignores_ducking_without_source_audio() -> Non
 
     assert "sidechaincompress" not in graph
     assert graph.endswith("[music]anull[aout]")
+
+
+def test_campaign_music_start_defaults_to_ai_selected_section() -> None:
+    assert (
+        render._campaign_music_start_seconds(
+            {"best_start_seconds": 12.5, "duration_seconds": 90}, {}, target_duration=30
+        )
+        == 12.5
+    )
+
+
+def test_campaign_music_start_uses_manual_alignment_and_clamps_to_track() -> None:
+    analysis = {"best_start_seconds": 12.5, "duration_seconds": 90}
+    assert (
+        render._campaign_music_start_seconds(
+            analysis, {"campaign_music_start_seconds": 24.35}, target_duration=30
+        )
+        == 24.35
+    )
+    assert (
+        render._campaign_music_start_seconds(
+            analysis, {"campaign_music_start_seconds": 80}, target_duration=30
+        )
+        == 60
+    )
+
+
+def test_campaign_music_start_preserves_auto_mode_for_short_tracks() -> None:
+    assert (
+        render._campaign_music_start_seconds(
+            {"best_start_seconds": 4.25, "duration_seconds": 12}, {}, target_duration=30
+        )
+        == 0
+    )
