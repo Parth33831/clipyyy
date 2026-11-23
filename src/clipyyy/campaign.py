@@ -851,9 +851,7 @@ def _refine_final_cut(
             if proposed_end - float(shot["start_seconds"]) < 1.5 or proposed_end > source_duration:
                 continue
             black_intervals = (
-                analyses[source_index].get("black_intervals", [])
-                if source_index < len(analyses)
-                else []
+                analyses[source_index].get("black_intervals", []) if source_index < len(analyses) else []
             )
             if _intersects_black_interval(float(shot["start_seconds"]), proposed_end, black_intervals):
                 continue
