@@ -1028,3 +1028,109 @@ def test_final_cut_refinement_never_snaps_a_cut_through_black_footage():
 
     assert refined["shots"][0]["end_seconds"] == 2.1
     assert not any("beat" in note.lower() for note in notes)
+
+
+def test_visual_continuity_flags_adjacent_near_duplicate_shots():
+    from clipyyy.campaign import _visual_continuity_notes
+
+    sources = [{"duration_seconds": 20}]
+    analyses = [
+        {
+            "frames": [
+                {
+                    "timestamp": 3,
+                    "description": "A woman smiling while holding a red coffee cup",
+                    "subjects": "woman, coffee cup",
+                    "shot_scale": "close-up",
+                    "visible_action": "holding coffee cup",
+                    "confidence": 0.9,
+                },
+                {
+                    "timestamp": 6,
+                    "description": "A woman smiling while holding a red coffee cup",
+                    "subjects": "woman, coffee cup",
+                    "shot_scale": "close-up",
+                    "visible_action": "holding coffee cup",
+                    "confidence": 0.9,
+                },
+            ]
+        }
+    ]
+    edit = {
+        "shots": [
+            {"source_index": 0, "start_seconds": 2, "end_seconds": 4},
+            {"source_index": 0, "start_seconds": 5, "end_seconds": 7},
+        ]
+    }
+
+    notes = _visual_continuity_notes(edit, sources, analyses)
+
+    assert any("Potentially repetitive adjacent shots: 1–2" in note for note in notes)
+    assert any("sampled still frames" in note for note in notes)
+
+
+def test_visual_continuity_does_not_flag_distinct_framing_as_duplicate():
+    from clipyyy.campaign import _visual_continuity_notes
+
+    sources = [{"duration_seconds": 20}]
+    analyses = [
+        {
+            "frames": [
+                {
+                    "timestamp": 3,
+                    "description": "A wide view of a busy kitchen with several people",
+                    "subjects": "kitchen, people",
+                    "shot_scale": "wide",
+                    "visible_action": "people preparing food",
+                    "confidence": 0.9,
+                },
+                {
+                    "timestamp": 6,
+                    "description": "Close detail of hands chopping vegetables",
+                    "subjects": "hands, vegetables",
+                    "shot_scale": "detail",
+                    "visible_action": "chopping vegetables",
+                    "confidence": 0.95,
+                },
+            ]
+        }
+    ]
+    edit = {
+        "shots": [
+            {"source_index": 0, "start_seconds": 2, "end_seconds": 4},
+            {"source_index": 0, "start_seconds": 5, "end_seconds": 7},
+        ]
+    }
+
+    notes = _visual_continuity_notes(edit, sources, analyses)
+
+    assert not any("Potentially repetitive" in note for note in notes)
+    assert notes == []
+
+
+def test_visual_continuity_is_honest_when_visual_evidence_is_unavailable():
+    from clipyyy.campaign import _visual_continuity_notes
+
+    sources = [{"duration_seconds": 20}]
+    analyses = [
+        {
+            "frames": [
+                {
+                    "timestamp": 3,
+                    "description": "Visual content unavailable: installed model is text-only.",
+                    "confidence": 0.0,
+                }
+            ]
+        }
+    ]
+    edit = {
+        "shots": [
+            {"source_index": 0, "start_seconds": 2, "end_seconds": 4},
+            {"source_index": 0, "start_seconds": 5, "end_seconds": 7},
+            {"source_index": 0, "start_seconds": 8, "end_seconds": 10},
+        ]
+    }
+
+    notes = _visual_continuity_notes(edit, sources, analyses)
+
+    assert notes == []
