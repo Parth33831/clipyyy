@@ -153,6 +153,13 @@ export interface CampaignEdit {
   shots: CampaignShot[]
 }
 
+export interface CampaignConcept {
+  id: string
+  name: string
+  summary: string
+  edits: CampaignEdit[]
+}
+
 export interface CampaignSource {
   index: number
   title: string
@@ -196,6 +203,7 @@ export interface RunDetail extends Run {
   campaign_plan: CampaignPlan | null
   campaign_edits: CampaignEdit[]
   campaign_original_edits: CampaignEdit[]
+  campaign_concepts?: CampaignConcept[]
   campaign_sources: CampaignSource[]
   campaign_quality_checks: CampaignQualityChecks | null
   source_duration: number | null
