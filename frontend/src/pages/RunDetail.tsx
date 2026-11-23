@@ -1957,6 +1957,7 @@ function CampaignTimeline({
                 Drag active title
               </button>
               <button type="button"
+                title="Snap text to the 25%, 50%, and 75% alignment guides while dragging"
                 aria-pressed={snapTextToGuides}
                 onClick={() => {
                   setSnapTextToGuides((current) => !current)
@@ -2078,7 +2079,7 @@ function CampaignTimeline({
                 >
                   <div
                     className={cn('absolute flex w-[90%] justify-center px-3',
-                      positioningTarget === 'lyric' ? 'pointer-events-auto cursor-move touch-none relative' : 'pointer-events-none')}
+                      positioningTarget === 'lyric' ? 'pointer-events-auto cursor-move touch-none relative rounded-sm outline outline-1 outline-dashed outline-sky-300 outline-offset-4' : 'pointer-events-none')}
                     onPointerDown={(event) => beginLiveTextDrag(event, 'lyric')}
                     onPointerMove={moveLiveTextDrag}
                     onPointerUp={endLiveTextDrag}
@@ -2126,7 +2127,7 @@ function CampaignTimeline({
               {activeOverlay && (
                 <div
                   className={cn('absolute flex items-center justify-center px-4',
-                    positioningTarget === 'text' ? 'pointer-events-auto cursor-move touch-none relative' : 'pointer-events-none')}
+                    positioningTarget === 'text' ? 'pointer-events-auto cursor-move touch-none relative rounded-sm outline outline-1 outline-dashed outline-sky-300 outline-offset-4' : 'pointer-events-none')}
                   onPointerDown={(event) => beginLiveTextDrag(event, 'text')}
                   onPointerMove={moveLiveTextDrag}
                   onPointerUp={endLiveTextDrag}
