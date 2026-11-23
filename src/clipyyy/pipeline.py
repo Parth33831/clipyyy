@@ -380,6 +380,23 @@ def stage_select(ctx: Context) -> dict:
                 db.update_run(ctx.run_id, options={**ctx.options, **lyric_options})
             except Exception as exc:
                 logger.warning("Local campaign lyric analysis was unavailable during shot planning: %s", exc)
+        if options.get("campaign_conversation_hook") and not music_path:
+            raise ValueError("Conversation-to-music hook mode needs a campaign music track. Upload a song or turn this option off.")
+        creative_instructions = options.get("instructions", "")
+        if options.get("campaign_conversation_hook"):
+            creative_instructions = (
+                creative_instructions
+                + "\n\nOPTIONAL CONVERSATION-TO-MUSIC HOOK MODE (creator explicitly enabled): "
+                "Order the opening as one short 2–4 second shot that visibly supports a genuine, natural "
+                "conversation or interaction between two people, using only the original source-footage "
+                "audio. Do not write, synthesize, invent, subtitle or claim any dialogue that is not present "
+                "in the footage. Preserve this opening shot before the music-led montage. After it, build "
+                "a faster sequence from the strongest campaign-relevant moments and aim its first energetic "
+                "switch at a strong detected music beat. If no credible two-person conversation is visible, "
+                "choose the most natural human interaction available without pretending it is dialogue. "
+                "Where the footage supports it, finish with a visual/action that can cut naturally back to "
+                "the opening for a loop; do not force a false match. The first shot must remain the opening."
+            ).strip()
         edits = build_montage_plan(
             llm,
             campaign_brief,
@@ -388,7 +405,7 @@ def stage_select(ctx: Context) -> dict:
             analyses,
             count,
             target,
-            options.get("instructions", ""),
+            creative_instructions,
             reference_analyses=reference_analyses,
             music_analysis=music_analysis,
             campaign_lyrics=lyric_options["campaign_lyrics"],
