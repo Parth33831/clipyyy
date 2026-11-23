@@ -36,6 +36,7 @@ export function RunDetailPage() {
   const [musicFile, setMusicFile] = useState<File | null>(null)
   const [musicVolume, setMusicVolume] = useState(90)
   const [sourceAudioVolume, setSourceAudioVolume] = useState(100)
+  const [musicDucking, setMusicDucking] = useState(false)
   const [musicFadeIn, setMusicFadeIn] = useState(0.4)
   const [musicFadeOut, setMusicFadeOut] = useState(0.8)
   const [lyricsText, setLyricsText] = useState('')
@@ -84,6 +85,7 @@ export function RunDetailPage() {
   useEffect(() => {
     setMusicVolume(Math.round((run.data?.options.campaign_music_volume ?? 0.9) * 100))
     setSourceAudioVolume(Math.round((run.data?.options.campaign_source_audio_volume ?? 1) * 100))
+    setMusicDucking(Boolean(run.data?.options.campaign_music_ducking))
     setMusicFadeIn(run.data?.options.campaign_music_fade_in_seconds ?? 0.4)
     setMusicFadeOut(run.data?.options.campaign_music_fade_out_seconds ?? 0.8)
     setLyricsText(run.data?.options.campaign_lyrics ?? '')
@@ -104,7 +106,7 @@ export function RunDetailPage() {
       edits: run.data?.campaign_edits ?? [],
       overlays: run.data?.options.campaign_text_overlays ?? [],
     })
-  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_source_audio_volume, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.options.campaign_text_overlays, run.data?.campaign_plan?.generated_hook, resetCampaignHistory])
+  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_source_audio_volume, run.data?.options.campaign_music_ducking, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.options.campaign_text_overlays, run.data?.campaign_plan?.generated_hook, resetCampaignHistory])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -128,7 +130,7 @@ export function RunDetailPage() {
     onError: (e) => toast.error(e.message),
   })
   const saveCampaignAudio = useMutation({
-    mutationFn: () => api.saveCampaignAudio(runId, musicVolume / 100, sourceAudioVolume / 100, musicFadeIn, musicFadeOut),
+    mutationFn: () => api.saveCampaignAudio(runId, musicVolume / 100, sourceAudioVolume / 100, musicDucking, musicFadeIn, musicFadeOut),
     onSuccess: (result) => {
       toast.success(`Applied music mix to ${result.outputs} campaign edit(s).`)
       refresh()
@@ -260,9 +262,10 @@ export function RunDetailPage() {
   const busy = data.status === 'queued' || data.status === 'running'
   const savedMusicVolume = Math.round((data.options.campaign_music_volume ?? 0.9) * 100)
   const savedSourceAudioVolume = Math.round((data.options.campaign_source_audio_volume ?? 1) * 100)
+  const savedMusicDucking = Boolean(data.options.campaign_music_ducking)
   const savedMusicFadeIn = data.options.campaign_music_fade_in_seconds ?? 0.4
   const savedMusicFadeOut = data.options.campaign_music_fade_out_seconds ?? 0.8
-  const musicSettingsChanged = musicVolume !== savedMusicVolume || musicFadeIn !== savedMusicFadeIn || musicFadeOut !== savedMusicFadeOut
+  const musicSettingsChanged = musicVolume !== savedMusicVolume || musicDucking !== savedMusicDucking || musicFadeIn !== savedMusicFadeIn || musicFadeOut !== savedMusicFadeOut
   const sourceAudioSettingsChanged = sourceAudioVolume !== savedSourceAudioVolume
   const readyClips = data.clips.filter((c) => c.status === 'ready')
 
@@ -391,6 +394,18 @@ export function RunDetailPage() {
                   <span className="text-xs text-muted">How quickly music fades at the end</span>
                 </label>
               </div>
+              <label className="flex items-start gap-3 rounded-md border border-line bg-surface p-3">
+                <input
+                  type="checkbox"
+                  checked={musicDucking}
+                  onChange={(event) => setMusicDucking(event.target.checked)}
+                  className="mt-0.5 accent-current"
+                />
+                <span className="flex flex-col gap-1">
+                  <span className="font-medium">Auto-duck music under original audio</span>
+                  <span className="text-xs text-muted">Automatically lower the campaign track when source footage gets loud, helping speech stay clear.</span>
+                </span>
+              </label>
               <div className="flex justify-end">
                 <Button variant="ink" disabled={!musicSettingsChanged || saveCampaignAudio.isPending} loading={saveCampaignAudio.isPending} onClick={() => saveCampaignAudio.mutate()}>
                   Apply music mix &amp; re-render

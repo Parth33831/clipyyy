@@ -511,6 +511,23 @@ def _campaign_audio_filter(
     return ",".join(filters)
 
 
+def _campaign_music_mix_filter(audio_filter: str, source_audio: bool, duck_music: bool) -> str:
+    """Mix campaign music with source audio, optionally ducking music under speech."""
+    mix_filter = f"[1:a]{audio_filter}[music]"
+    if source_audio:
+        mix_filter += ";[2:a]anull[src];"
+        if duck_music:
+            mix_filter += (
+                "[music][src]sidechaincompress=threshold=0.03:ratio=6:attack=20:release=350[ducked];"
+                "[ducked][src]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]"
+            )
+        else:
+            mix_filter += "[music][src]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]"
+    else:
+        mix_filter += ";[music]anull[aout]"
+    return mix_filter
+
+
 def _render_campaign_source_audio(
     shots: list[dict],
     sources: list[dict],
@@ -927,14 +944,11 @@ def render_campaign_montages(
                     float(options.get("campaign_music_fade_in_seconds", 0.4)),
                     float(options.get("campaign_music_fade_out_seconds", 0.8)),
                 )
-                mix_filter = f"[1:a]{audio_filter}[music]"
-                if source_audio:
-                    mix_filter += (
-                        ";[2:a]anull[src];[music][src]"
-                        "amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]"
-                    )
-                else:
-                    mix_filter += ";[music]anull[aout]"
+                mix_filter = _campaign_music_mix_filter(
+                    audio_filter,
+                    source_audio is not None,
+                    bool(options.get("campaign_music_ducking", False)),
+                )
                 command = [
                     "-i",
                     str(visual),
@@ -1022,6 +1036,9 @@ def render_campaign_montages(
                     ),
                     "source_audio_included": bool(source_audio),
                     "source_audio_volume": source_audio_volume,
+                    "music_ducking": bool(
+                        music_path and source_audio and options.get("campaign_music_ducking", False)
+                    ),
                     "lyrics_overlay": bool(lyrics),
                     "lyrics_behind_subject": lyrics_behind_subject_applied,
                     "beat_synced": bool(beat_times),
