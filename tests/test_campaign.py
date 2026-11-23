@@ -708,9 +708,7 @@ def test_scene_music_matching_pairs_visual_energy_with_selected_music_windows():
 
     _annotate_scene_music_matches(candidates, music, target_seconds=10)
 
-    sprint, sunset, working, unknown, low_confidence = [
-        item["music_alignment"] for item in candidates
-    ]
+    sprint, sunset, working, unknown, low_confidence = [item["music_alignment"] for item in candidates]
     assert sprint["visual_energy"] == "high"
     assert sprint["evidence"] == ["sprinting"]
     assert sprint["matching_music_windows"][0]["start_seconds"] == 16
