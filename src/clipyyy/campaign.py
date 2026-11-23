@@ -775,11 +775,14 @@ def build_montage_concepts(
     signatures = set()
     for direction in directions:
         instructions = (
-            (additional_instructions.strip() + "\n\n") if additional_instructions.strip() else ""
-        ) + "CREATIVE DIRECTOR DIRECTION — " + direction["angle"] + (
-            "\nCreate a genuinely different edit strategy from other directions, not just a renamed "
-            "title. Use only supplied footage and evidence; preserve all campaign requirements and "
-            "creator constraints."
+            ((additional_instructions.strip() + "\n\n") if additional_instructions.strip() else "")
+            + "CREATIVE DIRECTOR DIRECTION — "
+            + direction["angle"]
+            + (
+                "\nCreate a genuinely different edit strategy from other directions, not just a renamed "
+                "title. Use only supplied footage and evidence; preserve all campaign requirements and "
+                "creator constraints."
+            )
         )
         try:
             edits = build_montage_plan(
