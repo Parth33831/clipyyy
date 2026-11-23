@@ -876,9 +876,7 @@ def _visual_continuity_notes(
     if not repeated_pairs:
         return []
 
-    examples = ", ".join(
-        f"{first}–{second} ({scale} framing)" for first, second, scale in repeated_pairs[:3]
-    )
+    examples = ", ".join(f"{first}–{second} ({scale} framing)" for first, second, scale in repeated_pairs[:3])
     return [
         (
             f"Visual continuity evidence was available for {grounded} of {len(shots)} shots; "
