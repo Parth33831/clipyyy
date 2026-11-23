@@ -341,6 +341,108 @@ def _rank_lyric_scene_matches(
     return matches
 
 
+
+_VISUAL_ENERGY_CUES = {
+    "high": (
+        r"\\b(sprint(?:ing)?|run(?:ning)?|jump(?:ing)?|dance|dancing|"
+        r"fight(?:ing)?|chase|chasing|explod(?:e|es|ing)|crash(?:ing)?|"
+        r"slam(?:ming)?|racing|rapid(?:ly)?|fast[- ]paced|"
+        r"cheer(?:ing)?|celebrat(?:e|ing)|perform(?:ing)?|"
+        r"workout|exercise|action[- ]packed)\\b"
+    ),
+    "medium": (
+        r"\\b(walk(?:ing)?|talk(?:ing)?|speaking|working|build(?:ing)?|"
+        r"cook(?:ing)?|typing|driv(?:ing)?|mov(?:e|ing)|"
+        r"demonstrat(?:e|ing)|present(?:ing)?|interact(?:ing)?|"
+        r"playing|creating|showing)\\b"
+    ),
+    "low": (
+        r"\\b(still|calm|peaceful|quiet|rest(?:ing)?|"
+        r"meditat(?:e|ing)|sleep(?:ing)?|sunset|sunrise|"
+        r"landscape|scenic|slow[- ]motion|reflective)\\b"
+    ),
+}
+
+
+def _annotate_scene_music_matches(
+    candidates: list[dict[str, Any]],
+    music_analysis: dict[str, Any] | None,
+    target_seconds: float,
+) -> None:
+    """Attach evidence-based visual-energy hints and matching windows in the selected music section.
+
+    Source-video timestamps are never treated as music timestamps. Only the visual action
+    classification is matched to the independent, selected music energy-section clock.
+    Unknown visual energy remains unknown rather than being guessed.
+    """
+    if not music_analysis:
+        return
+    try:
+        music_start = max(0.0, float(music_analysis.get("best_start_seconds") or 0.0))
+        music_end = music_start + max(0.0, float(target_seconds))
+    except (TypeError, ValueError):
+        return
+    sections = []
+    for section in music_analysis.get("energy_sections") or []:
+        try:
+            start = float(section.get("start_seconds", 0.0))
+            end = float(section.get("end_seconds", start))
+            energy = float(section.get("average_energy", 0.5))
+        except (TypeError, ValueError):
+            continue
+        if end < music_start or start > music_end:
+            continue
+        level = str(section.get("level") or "")
+        if level not in {"low", "medium", "high"}:
+            level = "low" if energy < 0.34 else "medium" if energy < 0.68 else "high"
+        sections.append(
+            {
+                "start_seconds": round(max(start, music_start), 3),
+                "end_seconds": round(min(end, music_end), 3),
+                "level": level,
+                "average_energy": round(max(0.0, min(1.0, energy)), 3),
+            }
+        )
+    for candidate in candidates:
+        evidence_text = " ".join(
+            str(candidate.get(field) or "")
+            for field in ("description", "visible_action", "mood")
+        ).lower()
+        try:
+            confidence = max(0.0, min(1.0, float(candidate.get("confidence", 0.5))))
+        except (TypeError, ValueError):
+            confidence = 0.5
+        visual_level = "unknown"
+        evidence = []
+        if confidence >= 0.25:
+            for level in ("high", "low", "medium"):
+                matches = re.findall(_VISUAL_ENERGY_CUES[level], evidence_text, flags=re.IGNORECASE)
+                if matches:
+                    visual_level = level
+                    evidence = sorted({str(match).lower() for match in matches})[:3]
+                    break
+        matching_sections = (
+            [section for section in sections if section["level"] == visual_level]
+            if visual_level != "unknown"
+            else []
+        )
+        matching_sections.sort(
+            key=lambda section: (
+                -section["average_energy"]
+                if visual_level == "high"
+                else section["average_energy"]
+                if visual_level == "low"
+                else abs(section["average_energy"] - 0.5),
+                section["start_seconds"],
+            )
+        )
+        candidate["music_alignment"] = {
+            "visual_energy": visual_level,
+            "evidence": evidence,
+            "confidence": round(confidence, 2),
+            "matching_music_windows": matching_sections[:3],
+        }
+
 def build_montage_plan(
     llm,
     brief: str,
@@ -376,6 +478,7 @@ def build_montage_plan(
                     **frame,
                 }
             )
+    _annotate_scene_music_matches(candidates, music_analysis, target_seconds)
     # Text-only local models cannot inspect sampled frames. Never treat placeholder
     # observations as real visual descriptions; use an explicitly generic timestamp spread.
     text_only_frames = bool(candidates) and all(
@@ -501,7 +604,12 @@ def build_montage_plan(
         "If multiple edits are requested, give each a distinct angle or emotional emphasis while still "
         "meeting the same campaign requirements. "
         "Use the supplied shot_scale, visible_action, visible_text and confidence fields as evidence. "
-        "Treat low-confidence or unknown attributes as uncertain, not facts.\n\n"
+        "Treat low-confidence or unknown attributes as uncertain, not facts. "
+        "When music_alignment is present, use its visual-energy label and matched music windows "
+        "to place calm scenes in low-energy passages, active scenes in high-energy passages, and "
+        "moderate scenes in medium-energy passages. These are evidence-based pacing hints, not "
+        "hard constraints: campaign meaning, visual quality and continuity always take priority. "
+        "Never compare source-video timestamps with music timestamps.\n\n"
         "Visual observations from supplied source footage:\n"
         + json.dumps(candidates, ensure_ascii=False)
         + "\n\nVisual observations from reference videos (style guidance only):\n"
