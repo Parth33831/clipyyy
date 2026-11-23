@@ -662,7 +662,7 @@ export function RunDetailPage() {
             <p className="mt-1 text-sm text-muted">Different approaches using the same footage and brief. Choose one to rebuild the editable storyboard; your manual controls stay available.</p>
           </div>
           <div className="grid gap-3 md:grid-cols-3">
-            {data.campaign_concepts.map((concept: CampaignConcept) => (
+            {data.campaign_concepts?.map((concept: CampaignConcept) => (
               <article key={concept.id} className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3">
                 <div>
                   <h3 className="font-semibold">{concept.name}</h3>
