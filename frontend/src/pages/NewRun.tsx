@@ -57,6 +57,21 @@ const LENGTH_PRESETS: [number, number][] = [
   [45, 90],
 ]
 
+function appendVideoFiles(current: File[], incoming: File[]): File[] {
+  const next = [...current]
+  for (const file of incoming) {
+    if (!file.type.startsWith('video/')) continue
+    const duplicate = next.some(
+      (existing) =>
+        existing.name === file.name &&
+        existing.size === file.size &&
+        existing.lastModified === file.lastModified,
+    )
+    if (!duplicate) next.push(file)
+  }
+  return next
+}
+
 export function NewRunPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -99,9 +114,10 @@ export function NewRunPage() {
   const onDrop = (event: DragEvent) => {
     event.preventDefault()
     setDragging(false)
-    const dropped = Array.from(event.dataTransfer.files).filter((f) => f.type.startsWith('video/'))
-    if (dropped.length) setFiles((current) => [...current, ...dropped])
-    else toast.error('Drop a video file')
+    const dropped = Array.from(event.dataTransfer.files)
+    if (dropped.some((file) => file.type.startsWith('video/'))) {
+      setFiles((current) => appendVideoFiles(current, dropped))
+    } else toast.error('Drop a video file')
   }
 
   return (
@@ -268,7 +284,10 @@ export function NewRunPage() {
                 accept="video/*"
                 multiple
                 hidden
-                onChange={(e) => setFiles((current) => [...current, ...Array.from(e.target.files ?? [])])}
+                onChange={(e) => {
+                  setFiles((current) => appendVideoFiles(current, Array.from(e.target.files ?? [])))
+                  e.target.value = ''
+                }}
               />
               {files.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -277,7 +296,7 @@ export function NewRunPage() {
                       <FileVideo className="h-3.5 w-3.5 text-acid" />
                       <span className="max-w-[240px] truncate">{file.name}</span>
                       <span className="font-mono text-[11px] text-white/40">{(file.size / 1e6).toFixed(0)} MB</span>
-                      <button aria-label={`Remove ${file.name}`} onClick={() => setFiles(files.filter((_, j) => j !== i))} className="text-white/40 hover:text-white">
+                      <button aria-label={`Remove ${file.name}`} onClick={() => setFiles((current) => current.filter((_, j) => j !== i))} className="text-white/40 hover:text-white">
                         <X className="h-3.5 w-3.5" />
                       </button>
                     </span>
