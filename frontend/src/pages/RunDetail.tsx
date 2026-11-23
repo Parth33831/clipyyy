@@ -876,17 +876,17 @@ export function RunDetailPage() {
                   </div>
                   {shots[0] ? (
                     <CreativeConceptPlayer
-                    runId={runId}
-                    conceptId={concept.id}
-                    edit={edit}
-                    hasMusic={Boolean(data.options.campaign_music_path)}
-                    musicStartSeconds={musicStartSeconds}
-                    musicVolume={musicVolume}
-                    sourceAudioVolume={sourceAudioVolume}
-                    transitionStyle={data.options.campaign_transition_style}
-                    isActive={activeConceptPreviewId === concept.id}
-                    onActivate={setActiveConceptPreviewId}
-                  />
+                      runId={runId}
+                      conceptId={concept.id}
+                      edit={edit}
+                      hasMusic={Boolean(data.options.campaign_music_path)}
+                      musicStartSeconds={musicStartSeconds}
+                      musicVolume={musicVolume}
+                      sourceAudioVolume={sourceAudioVolume}
+                      transitionStyle={data.options.campaign_transition_style}
+                      isActive={activeConceptPreviewId === concept.id}
+                      onActivate={setActiveConceptPreviewId}
+                    />
                   ) : (
                     <div className="flex aspect-video items-center justify-center rounded-md bg-sunk text-xs text-muted">No preview shots</div>
                   )}
