@@ -405,8 +405,7 @@ def _annotate_scene_music_matches(
         )
     for candidate in candidates:
         evidence_text = " ".join(
-            str(candidate.get(field) or "")
-            for field in ("description", "visible_action", "mood")
+            str(candidate.get(field) or "") for field in ("description", "visible_action", "mood")
         ).lower()
         try:
             confidence = max(0.0, min(1.0, float(candidate.get("confidence", 0.5))))
