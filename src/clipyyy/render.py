@@ -1643,6 +1643,7 @@ def write_campaign_text_overlays(
     ]
     for overlay in overlays[:30]:
         try:
+            layer = max(0, min(99, int(overlay.get("z_index", 0))))
             start = float(overlay.get("start_seconds", 0))
             end = float(overlay.get("end_seconds", 0))
             x_percent = max(5, min(95, int(overlay.get("position_x", 50))))
@@ -1691,7 +1692,7 @@ def write_campaign_text_overlays(
             tags = tags[:-1] + r"\\fad(100,120)" + "}"
         style = "OverlayBox" if overlay.get("background", True) else "Overlay"
         escaped = r"\N".join(_escape(part) for part in text.splitlines())
-        script.append(f"Dialogue: 0,{_ts(start)},{_ts(end)},{style},,0,0,0,,{tags}{escaped}")
+        script.append(f"Dialogue: {layer},{_ts(start)},{_ts(end)},{style},,0,0,0,,{tags}{escaped}")
     path.write_text("\\n".join(script) + "\\n", encoding="utf-8")
     return path
 
