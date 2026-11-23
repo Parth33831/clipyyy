@@ -1007,7 +1007,6 @@ def test_final_cut_refinement_snaps_small_cut_adjustments_to_detected_beats():
     assert edit["shots"][0]["end_seconds"] == 2.1
 
 
-
 def test_final_cut_refinement_never_snaps_a_cut_through_black_footage():
     from clipyyy.campaign import _refine_final_cut
 
