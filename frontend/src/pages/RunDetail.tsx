@@ -1570,6 +1570,8 @@ function CampaignTimeline({
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [transitionPhase, setTransitionPhase] = useState<'idle' | 'out' | 'in'>('idle')
   const [previewTransitionStyle, setPreviewTransitionStyle] = useState(transitionStyle)
+  const [previewLyricAnimation, setPreviewLyricAnimation] = useState<CampaignLyricPhraseEdit['animation_style']>('dynamic')
+  const [previewTextAnimation, setPreviewTextAnimation] = useState<CampaignTextOverlay['animation']>('pop')
   useEffect(() => setPreviewTransitionStyle(transitionStyle), [transitionStyle])
   const transitionDurationMs = previewTransitionStyle === 'cut' || (previewTransitionStyle === 'auto' && (musicAnalysis?.detected_beats ?? 0) > 0) ? 0 : 240
   useEffect(() => () => {
@@ -1643,9 +1645,10 @@ function CampaignTimeline({
         const activeTransition = previewTransitionStyle === 'dynamic' ? dynamicTransitionNames[Math.max(0, preview.index - 1) % dynamicTransitionNames.length] : 'fade'
         const source = sourceByIndex.get(preview.shot.source_index)
         const shotTimelineStart = shots.slice(0, preview.index).reduce((sum, item) => sum + item.duration, 0)
-        const activeOverlay = textOverlays.find((overlay) =>
+        const activeOverlayIndex = textOverlays.findIndex((overlay) =>
           overlay.rank === edit.rank && playheadSeconds >= overlay.start_seconds && playheadSeconds <= overlay.end_seconds
         )
+        const activeOverlay = activeOverlayIndex >= 0 ? textOverlays[activeOverlayIndex] : undefined
         const activeLyric = lyrics.find((lyric) =>
           playheadSeconds >= lyric.start_seconds && playheadSeconds <= lyric.end_seconds
         )
@@ -1762,6 +1765,68 @@ function CampaignTimeline({
                 ))}
               </div>
             </div>
+            <style>{`
+              @keyframes clipyyy-lyric-pop { 0% { opacity: 0; transform: scale(.55); } 68% { opacity: 1; transform: scale(1.12); } 100% { opacity: 1; transform: scale(1); } }
+              @keyframes clipyyy-lyric-fade { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
+              @keyframes clipyyy-lyric-karaoke { from { opacity: .25; clip-path: inset(0 100% 0 0); } to { opacity: 1; clip-path: inset(0 0 0 0); } }
+              @keyframes clipyyy-text-pop { 0% { opacity: 0; transform: scale(.65); } 70% { opacity: 1; transform: scale(1.08); } 100% { opacity: 1; transform: scale(1); } }
+              @keyframes clipyyy-text-fade { from { opacity: 0; } to { opacity: 1; } }
+              @keyframes clipyyy-text-slide { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+            `}</style>
+            <div className="grid gap-3 rounded-md border border-line bg-panel p-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <div>
+                  <span className="text-xs font-semibold text-ink">Try lyric animations on your footage</span>
+                  <p className="text-[11px] text-muted">Preview-only · apply to the current phrase when it looks right</p>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {([
+                    ['dynamic', 'Pop punch'],
+                    ['cinematic', 'Cinematic fade'],
+                    ['minimal', 'Minimal'],
+                    ['karaoke', 'Karaoke'],
+                  ] as const).map(([value, label]) => (
+                    <button key={value} type="button" aria-pressed={previewLyricAnimation === value}
+                      onClick={() => setPreviewLyricAnimation(value)}
+                      className={cn('rounded-md border px-2.5 py-1.5 text-xs font-medium',
+                        previewLyricAnimation === value ? 'border-ink bg-ink text-white' : 'border-line bg-surface text-muted hover:border-ink')}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <button type="button" disabled={!activeLyric}
+                  onClick={() => activeLyric && onUpdateLyric(activeLyric.phrase_index, { animation_style: previewLyricAnimation })}
+                  className="self-start rounded-md border border-line px-3 py-1.5 text-xs font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-40">
+                  Apply to current lyric phrase
+                </button>
+              </div>
+              <div className="flex flex-col gap-2">
+                <div>
+                  <span className="text-xs font-semibold text-ink">Try title animations on your footage</span>
+                  <p className="text-[11px] text-muted">Preview-only · apply to the active text layer separately</p>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {([
+                    ['none', 'None'],
+                    ['fade', 'Fade'],
+                    ['pop', 'Pop'],
+                    ['slide', 'Slide up'],
+                  ] as const).map(([value, label]) => (
+                    <button key={value} type="button" aria-pressed={previewTextAnimation === value}
+                      onClick={() => setPreviewTextAnimation(value)}
+                      className={cn('rounded-md border px-2.5 py-1.5 text-xs font-medium',
+                        previewTextAnimation === value ? 'border-ink bg-ink text-white' : 'border-line bg-surface text-muted hover:border-ink')}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <button type="button" disabled={activeOverlayIndex < 0}
+                  onClick={() => activeOverlayIndex >= 0 && onUpdateTextOverlay(activeOverlayIndex, { animation: previewTextAnimation })}
+                  className="self-start rounded-md border border-line px-3 py-1.5 text-xs font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-40">
+                  Apply to active text layer
+                </button>
+              </div>
+            </div>
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(180px,1fr)] sm:items-center">
             <div className="relative overflow-hidden rounded-md bg-black">
               <video
@@ -1862,8 +1927,10 @@ function CampaignTimeline({
                     }}
                   >
                   <span
-                    className="text-center font-extrabold leading-tight"
+                    key={activeLyric.phrase_index + '-' + previewLyricAnimation}
+                    className="inline-block text-center font-extrabold leading-tight"
                     style={{
+                      animation: previewLyricAnimation === 'dynamic' ? 'clipyyy-lyric-pop 520ms cubic-bezier(.2,.8,.2,1) both' : previewLyricAnimation === 'cinematic' || previewLyricAnimation === 'minimal' ? 'clipyyy-lyric-fade 420ms ease-out both' : 'clipyyy-lyric-karaoke 650ms ease-out both',
                       color: lyricsColor,
                       fontSize: 'clamp(14px, ' + (22 * activeLyric.scale_percent / 100) + 'px, 42px)',
                       textShadow: '0 2px 8px #000, 0 0 12px ' + lyricsHighlightColor,
@@ -1884,8 +1951,10 @@ function CampaignTimeline({
               {activeOverlay && (
                 <div className="pointer-events-none absolute flex items-center justify-center px-4"
                   style={{ left: activeOverlay.position_x + '%', top: activeOverlay.position_y + '%', transform: 'translate(-50%, -50%)', width: '90%' }}>
-                  <span className="text-center font-extrabold leading-tight"
+                  <span key={activeOverlay.rank + '-' + activeOverlayIndex + '-' + previewTextAnimation}
+                    className="inline-block text-center font-extrabold leading-tight"
                     style={{
+                      animation: previewTextAnimation === 'none' ? 'none' : previewTextAnimation === 'pop' ? 'clipyyy-text-pop 520ms cubic-bezier(.2,.8,.2,1) both' : previewTextAnimation === 'fade' ? 'clipyyy-text-fade 420ms ease-out both' : 'clipyyy-text-slide 460ms ease-out both',
                       color: activeOverlay.color,
                       fontSize: 'clamp(14px, ' + (activeOverlay.font_size_percent * 0.22) + 'vw, 44px)',
                       textShadow: activeOverlay.background ? 'none' : '0 2px 8px #000',
