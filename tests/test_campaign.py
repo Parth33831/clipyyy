@@ -1029,6 +1029,7 @@ def test_final_cut_refinement_never_snaps_a_cut_through_black_footage():
     assert refined["shots"][0]["end_seconds"] == 2.1
     assert not any("beat" in note.lower() for note in notes)
 
+
 def test_visual_continuity_flags_adjacent_near_duplicate_shots():
     from clipyyy.campaign import _visual_continuity_notes
 
