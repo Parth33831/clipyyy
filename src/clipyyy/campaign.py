@@ -829,7 +829,6 @@ def build_montage_concepts(
     return concepts
 
 
-
 def _build_text_only_montage(
     sources: list[dict],
     output_count: int,
