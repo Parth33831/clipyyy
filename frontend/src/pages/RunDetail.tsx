@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 import { Link, useNavigate, useParams } from 'react-router'
 import { useUndoRedo } from '../hooks/useUndoRedo'
 import { toast } from 'sonner'
-import { api, type CampaignEdit, type CampaignTextOverlay, type CampaignMusicAnalysis, type CampaignLyricPhraseEdit, type CampaignShot, type CampaignSource, type Clip, type Post, type RunDetail } from '../api'
+import { api, type CampaignEdit, type CampaignConcept, type CampaignTextOverlay, type CampaignMusicAnalysis, type CampaignLyricPhraseEdit, type CampaignShot, type CampaignSource, type Clip, type Post, type RunDetail } from '../api'
 import { PublishDialog } from '../components/PublishDialog'
 import { Button, Eyebrow, Panel, Squares, StatusChip, cn, formatDuration, sourceHost, sourceLabel, timeAgo } from '../components/ui'
 type CampaignPreviewLyric = {
@@ -218,7 +218,7 @@ export function RunDetailPage() {
     onError: (e) => toast.error(e.message),
   })
   const saveMontage = useMutation({
-    mutationFn: () => api.saveCampaignMontage(runId, campaignEdits),
+    mutationFn: (edits?: CampaignEdit[]) => api.saveCampaignMontage(runId, edits ?? campaignEdits),
     onSuccess: (result) => {
       toast.success(`Rebuilt ${result.outputs} campaign edit(s) from your storyboard.`)
       refresh()
@@ -653,6 +653,30 @@ export function RunDetailPage() {
       )}
 
       {(busy || data.status === 'failed') && <Progress run={data} />}
+
+      {data.options.campaign_mode && !busy && (data.campaign_concepts?.length ?? 0) > 1 && (
+        <section className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-4">
+          <div>
+            <p className="label text-muted">AI CREATIVE DIRECTOR</p>
+            <h2 className="display mt-1 text-2xl">Choose your edit direction</h2>
+            <p className="mt-1 text-sm text-muted">Different approaches using the same footage and brief. Choose one to rebuild the editable storyboard; your manual controls stay available.</p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            {data.campaign_concepts?.map((concept: CampaignConcept) => (
+              <article key={concept.id} className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3">
+                <div>
+                  <h3 className="font-semibold">{concept.name}</h3>
+                  <p className="mt-1 text-xs leading-relaxed text-muted">{concept.summary}</p>
+                  <p className="mt-2 text-xs text-faint">{concept.edits.length} edit{concept.edits.length === 1 ? '' : 's'} · {concept.edits.reduce((total, edit) => total + edit.shots.length, 0)} selected shots</p>
+                </div>
+                <Button variant="line" disabled={saveMontage.isPending} onClick={() => saveMontage.mutate(concept.edits)}>
+                  Use this direction &amp; render
+                </Button>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       {data.options.campaign_mode && !busy && campaignEdits.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-panel px-4 py-3">
