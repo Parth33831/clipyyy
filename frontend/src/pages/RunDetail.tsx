@@ -1928,7 +1928,7 @@ function CampaignTimeline({
                   >
                   <span
                     key={activeLyric.phrase_index + '-' + previewLyricAnimation}
-                    className="text-center font-extrabold leading-tight"
+                    className="inline-block text-center font-extrabold leading-tight"
                     style={{
                       animation: previewLyricAnimation === 'dynamic' ? 'clipyyy-lyric-pop 520ms cubic-bezier(.2,.8,.2,1) both' : previewLyricAnimation === 'cinematic' || previewLyricAnimation === 'minimal' ? 'clipyyy-lyric-fade 420ms ease-out both' : 'clipyyy-lyric-karaoke 650ms ease-out both',
                       color: lyricsColor,
@@ -1952,7 +1952,7 @@ function CampaignTimeline({
                 <div className="pointer-events-none absolute flex items-center justify-center px-4"
                   style={{ left: activeOverlay.position_x + '%', top: activeOverlay.position_y + '%', transform: 'translate(-50%, -50%)', width: '90%' }}>
                   <span key={activeOverlay.rank + '-' + activeOverlayIndex + '-' + previewTextAnimation}
-                    className="text-center font-extrabold leading-tight"
+                    className="inline-block text-center font-extrabold leading-tight"
                     style={{
                       animation: previewTextAnimation === 'none' ? 'none' : previewTextAnimation === 'pop' ? 'clipyyy-text-pop 520ms cubic-bezier(.2,.8,.2,1) both' : previewTextAnimation === 'fade' ? 'clipyyy-text-fade 420ms ease-out both' : 'clipyyy-text-slide 460ms ease-out both',
                       color: activeOverlay.color,
