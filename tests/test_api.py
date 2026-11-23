@@ -719,3 +719,50 @@ def test_campaign_subject_mask_endpoint_rejects_invalid_source_and_timestamp(cli
 
     assert invalid_source.status_code == 404
     assert invalid_timestamp.status_code == 400
+
+
+def test_campaign_run_detail_exposes_creative_director_concepts(client, monkeypatch, tmp_path):
+    run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
+    run_root = tmp_path / run["id"]
+    work_dir = run_root / "work"
+    work_dir.mkdir(parents=True)
+    monkeypatch.setattr(pipeline, "run_dir", lambda run_id: run_root)
+    concept = {
+        "id": "hook-first",
+        "name": "Hook First",
+        "summary": "Lead with the strongest moment.",
+        "edits": [
+            {
+                "rank": 1,
+                "title": "Hook cut",
+                "shots": [
+                    {
+                        "source_index": 0,
+                        "start_seconds": 0,
+                        "end_seconds": 2,
+                        "reason": "hook",
+                    },
+                    {
+                        "source_index": 0,
+                        "start_seconds": 3,
+                        "end_seconds": 5,
+                        "reason": "build",
+                    },
+                    {
+                        "source_index": 0,
+                        "start_seconds": 6,
+                        "end_seconds": 8,
+                        "reason": "payoff",
+                    },
+                ],
+            }
+        ],
+    }
+    (work_dir / "select.json").write_text(
+        json.dumps({"campaign_edits": concept["edits"], "campaign_concepts": [concept]}),
+        encoding="utf-8",
+    )
+
+    detail = client.get(f"/api/runs/{run['id']}").json()
+
+    assert detail["campaign_concepts"] == [concept]

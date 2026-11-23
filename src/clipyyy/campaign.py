@@ -672,6 +672,163 @@ def build_montage_plan(
     return valid_edits
 
 
+_CREATIVE_DIRECTIONS = [
+    {
+        "id": "hook-first",
+        "name": "Hook First",
+        "angle": (
+            "Open with the most arresting, immediately understandable moment. Build curiosity quickly, "
+            "reveal context, then land the strongest truthful payoff. Use punchier pacing without "
+            "sacrificing clarity."
+        ),
+        "summary": "A bold opening designed to stop the scroll, then reveal why the moment matters.",
+    },
+    {
+        "id": "story-build",
+        "name": "Story Build",
+        "angle": (
+            "Prioritize a satisfying narrative arc: establish context, build anticipation through "
+            "meaningful visual progression, and end with the clearest supported payoff. Let pacing "
+            "breathe where comprehension matters."
+        ),
+        "summary": "A clear beginning-to-payoff mini-story with deliberate emotional progression.",
+    },
+    {
+        "id": "music-driven",
+        "name": "Music Driven",
+        "angle": (
+            "Shape the sequence around the supplied music's energy curve and strong transients. Build "
+            "shot intensity as the track rises, and reserve the strongest relevant moment for a musical "
+            "peak. Music never overrides truth or relevance."
+        ),
+        "summary": "A rhythm-led cut that builds with the soundtrack and lands on a strong musical moment.",
+    },
+]
+
+
+def build_montage_concepts(
+    llm,
+    brief: str,
+    campaign_plan: dict[str, Any],
+    sources: list[dict],
+    analyses: list[dict],
+    output_count: int,
+    target_seconds: float,
+    additional_instructions: str = "",
+    reference_analyses: list[dict] | None = None,
+    music_analysis: dict[str, Any] | None = None,
+    campaign_lyrics: str = "",
+    lyric_cues: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Generate distinct editable montage directions from the same analysed footage."""
+    visible_frames = [
+        frame
+        for analysis in analyses
+        for frame in analysis.get("frames", [])
+        if "Visual content unavailable" not in str(frame.get("description", ""))
+    ]
+    if len(visible_frames) < 3:
+        edits = build_montage_plan(
+            llm,
+            brief,
+            campaign_plan,
+            sources,
+            analyses,
+            output_count,
+            target_seconds,
+            additional_instructions=additional_instructions,
+            reference_analyses=reference_analyses,
+            music_analysis=music_analysis,
+            campaign_lyrics=campaign_lyrics,
+            lyric_cues=lyric_cues,
+        )
+        return [
+            {
+                "id": "balanced",
+                "name": "Balanced Edit",
+                "summary": (
+                    "The original AI-selected montage. Alternative visual directions require "
+                    "analysed footage."
+                ),
+                "edits": edits,
+            }
+        ]
+
+    directions = _CREATIVE_DIRECTIONS
+    if not music_analysis:
+        directions = [
+            *_CREATIVE_DIRECTIONS[:2],
+            {
+                "id": "momentum-cut",
+                "name": "Momentum Cut",
+                "angle": (
+                    "Use contrast in the observed visual energy to create momentum. Alternate calmer "
+                    "establishing moments with the strongest active footage, then finish on the most "
+                    "memorable supported visual. Do not assume a soundtrack is present."
+                ),
+                "summary": "A visual-rhythm edit that builds momentum through shot contrast.",
+            },
+        ]
+
+    concepts = []
+    signatures = set()
+    for direction in directions:
+        instructions = (
+            ((additional_instructions.strip() + "\n\n") if additional_instructions.strip() else "")
+            + "CREATIVE DIRECTOR DIRECTION — "
+            + direction["angle"]
+            + (
+                "\nCreate a genuinely different edit strategy from other directions, not just a renamed "
+                "title. Use only supplied footage and evidence; preserve all campaign requirements and "
+                "creator constraints."
+            )
+        )
+        try:
+            edits = build_montage_plan(
+                llm,
+                brief,
+                campaign_plan,
+                sources,
+                analyses,
+                output_count,
+                target_seconds,
+                additional_instructions=instructions,
+                reference_analyses=reference_analyses,
+                music_analysis=music_analysis,
+                campaign_lyrics=campaign_lyrics,
+                lyric_cues=lyric_cues,
+            )
+        except Exception:
+            continue
+        signature = tuple(
+            tuple(
+                (
+                    shot["source_index"],
+                    round(shot["start_seconds"], 1),
+                    round(shot["end_seconds"], 1),
+                )
+                for shot in edit["shots"]
+            )
+            for edit in edits
+        )
+        if signature in signatures:
+            continue
+        signatures.add(signature)
+        concepts.append(
+            {
+                "id": direction["id"],
+                "name": direction["name"],
+                "summary": direction["summary"],
+                "edits": edits,
+            }
+        )
+    if not concepts:
+        raise ValueError(
+            "The AI could not produce a valid creative direction. Please retry the campaign plan."
+        )
+    return concepts
+
+
 def _build_text_only_montage(
     sources: list[dict],
     output_count: int,
