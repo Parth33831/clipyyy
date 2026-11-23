@@ -57,6 +57,10 @@ const LENGTH_PRESETS: [number, number][] = [
   [45, 90],
 ]
 
+function uploadCacheKey(file: File): string {
+  return `${file.name}:${file.size}:${file.lastModified}`
+}
+
 function appendVideoFiles(current: File[], incoming: File[]): File[] {
   const next = [...current]
   for (const file of incoming) {
@@ -82,6 +86,7 @@ export function NewRunPage() {
   const [dragging, setDragging] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ name: string; percent: number; index: number; total: number } | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+  const uploadedFiles = useRef(new Map<string, string>())
   const health = useQuery({ queryKey: ['health'], queryFn: api.health })
   const settings = useQuery({ queryKey: ['settings'], queryFn: api.settings })
 
@@ -103,31 +108,44 @@ export function NewRunPage() {
       const totalUploads = files.length + (musicFile ? 1 : 0)
       for (let index = 0; index < files.length; index += 1) {
         const file = files[index]
-        setUploadProgress({ name: file.name, percent: 0, index: index + 1, total: totalUploads })
-        const result = await api.upload(file, (percent) => {
-          setUploadProgress({ name: file.name, percent, index: index + 1, total: totalUploads })
-        })
-        uploaded.push(result.source)
+        const cacheKey = uploadCacheKey(file)
+        let source = uploadedFiles.current.get(cacheKey)
+        if (!source) {
+          setUploadProgress({ name: file.name, percent: 0, index: index + 1, total: totalUploads })
+          const result = await api.upload(file, (percent) => {
+            setUploadProgress({ name: file.name, percent, index: index + 1, total: totalUploads })
+          })
+          source = result.source
+          uploadedFiles.current.set(cacheKey, source)
+        }
+        uploaded.push(source)
       }
       let music: string | null = null
       if (musicFile) {
-        const index = files.length + 1
-        setUploadProgress({ name: musicFile.name, percent: 0, index, total: totalUploads })
-        music = (await api.upload(musicFile, (percent) => {
-          setUploadProgress({ name: musicFile.name, percent, index, total: totalUploads })
-        })).source
+        const cacheKey = uploadCacheKey(musicFile)
+        music = uploadedFiles.current.get(cacheKey) ?? null
+        if (!music) {
+          const index = files.length + 1
+          setUploadProgress({ name: musicFile.name, percent: 0, index, total: totalUploads })
+          const result = await api.upload(musicFile, (percent) => {
+            setUploadProgress({ name: musicFile.name, percent, index, total: totalUploads })
+          })
+          music = result.source
+          uploadedFiles.current.set(cacheKey, music)
+        }
       }
       return api.createRuns([...urls, ...uploaded], { ...options, campaign_music_path: music })
     },
     onSuccess: (runs) => {
       setUploadProgress(null)
+      uploadedFiles.current.clear()
       queryClient.invalidateQueries({ queryKey: ['runs'] })
       toast.success(options.campaign_mode ? 'Campaign montage queued' : runs.length === 1 ? 'Clipping started' : `${runs.length} videos queued`)
       navigate(runs.length === 1 ? `/runs/${runs[0].id}` : '/runs')
     },
     onError: (error) => {
       setUploadProgress(null)
-      toast.error(error.message)
+      toast.error(`${error.message} Successfully uploaded files are kept temporarily; retry to continue without uploading them again.`)
     },
   })
 
