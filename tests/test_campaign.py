@@ -727,3 +727,50 @@ def test_scene_music_matching_does_not_invent_music_alignment_without_track():
     candidates = [{"description": "A person sprinting"}]
     _annotate_scene_music_matches(candidates, None, target_seconds=12)
     assert "music_alignment" not in candidates[0]
+
+
+
+def test_creative_director_generates_distinct_edit_directions():
+    from clipyyy.campaign import build_montage_concepts
+
+    class DirectionAwareLLM:
+        def complete_json(self, system, user, schema, name):
+            if "most arresting" in user:
+                offset, title = 1, "Hook-first cut"
+            elif "satisfying narrative arc" in user:
+                offset, title = 5, "Story-build cut"
+            else:
+                offset, title = 9, "Music-driven cut"
+            return {"edits": [{"title": title, "shots": [
+                {"source_index": 0, "start_seconds": offset, "end_seconds": offset + 2, "reason": "opening"},
+                {"source_index": 0, "start_seconds": offset + 2, "end_seconds": offset + 4, "reason": "build"},
+                {"source_index": 0, "start_seconds": offset + 4, "end_seconds": offset + 6, "reason": "payoff"},
+            ]}]}
+
+    source = {"title": "Footage", "duration_seconds": 30}
+    analysis = {"frames": [
+        {"timestamp": 2, "description": "Person running toward camera", "confidence": 0.9},
+        {"timestamp": 8, "description": "Close-up of hands building a model", "confidence": 0.9},
+        {"timestamp": 14, "description": "People celebrating together", "confidence": 0.9},
+    ]}
+    concepts = build_montage_concepts(DirectionAwareLLM(), "A short campaign", {}, [source], [analysis], 1, 6)
+
+    assert [concept["id"] for concept in concepts] == ["hook-first", "story-build", "music-driven"]
+    assert len({concept["edits"][0]["shots"][0]["start_seconds"] for concept in concepts}) == 3
+    assert all(len(concept["edits"][0]["shots"]) == 3 for concept in concepts)
+
+
+def test_creative_director_text_only_falls_back_to_one_honest_direction():
+    from clipyyy.campaign import build_montage_concepts
+
+    class TextOnlyModel:
+        def complete_json(self, *args, **kwargs):
+            raise AssertionError("Text-only footage must not trigger creative visual inference")
+
+    sources = [{"duration_seconds": 90}]
+    analyses = [{"frames": [{"timestamp": 10, "description": "Visual content unavailable: text-only model."}]}]
+    concepts = build_montage_concepts(TextOnlyModel(), "Campaign", {}, sources, analyses, 1, 12)
+
+    assert len(concepts) == 1
+    assert concepts[0]["id"] == "balanced"
+    assert concepts[0]["edits"]
