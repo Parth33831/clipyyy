@@ -911,5 +911,3 @@ def test_story_retention_hints_use_visible_evidence_and_are_added_to_planner_con
     assert '"role": "payoff"' in llm.user
     assert "truthful opening" in llm.system
     assert "Do not force every story role" in llm.system
-
-
