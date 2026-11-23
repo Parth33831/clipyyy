@@ -8,6 +8,7 @@ import { api, type CampaignEdit, type CampaignTextOverlay, type CampaignMusicAna
 import { PublishDialog } from '../components/PublishDialog'
 import { Button, Eyebrow, Panel, Squares, StatusChip, cn, formatDuration, sourceHost, sourceLabel, timeAgo } from '../components/ui'
 type CampaignPreviewLyric = {
+  phrase_index: number
   text: string
   start_seconds: number
   end_seconds: number
@@ -168,6 +169,7 @@ export function RunDetailPage() {
     const end = rawEnd - lyricOffset
     if (end <= start) return []
     return [{
+      phrase_index: index,
       text: phrase.text,
       start_seconds: start,
       end_seconds: end,
@@ -198,6 +200,13 @@ export function RunDetailPage() {
       const existing = current.find((edit) => edit.phrase_index === selectedLyricPhrase)
       const next = { phrase_index: selectedLyricPhrase, ...existing, ...patch }
       return [...current.filter((edit) => edit.phrase_index !== selectedLyricPhrase), next].sort((left, right) => left.phrase_index - right.phrase_index)
+    })
+  }
+  const updateLyricPhrase = (phraseIndex: number, patch: Partial<CampaignLyricPhraseEdit>) => {
+    setPhraseEdits((current) => {
+      const existing = current.find((edit) => edit.phrase_index === phraseIndex)
+      const next = { phrase_index: phraseIndex, ...existing, ...patch }
+      return [...current.filter((edit) => edit.phrase_index !== phraseIndex), next].sort((left, right) => left.phrase_index - right.phrase_index)
     })
   }
   const saveCampaignTextOverlays = useMutation({
@@ -671,6 +680,7 @@ export function RunDetailPage() {
           hasMusic={Boolean(data.options.campaign_music_path)}
           lyricsBehindSubject={lyricsBehindSubject}
           lyrics={campaignTimelineLyrics}
+          onUpdateLyric={updateLyricPhrase}
           lyricWords={campaignTimelineWords}
           wordsOnScreen={data.options.campaign_lyrics_words_on_screen ?? 3}
           lyricsColor={lyricsColor}
@@ -771,6 +781,7 @@ function CampaignStoryboardEditor({
   hasMusic,
   lyricsBehindSubject,
   lyrics,
+  onUpdateLyric,
   lyricWords,
   wordsOnScreen,
   lyricsColor,
@@ -794,6 +805,7 @@ function CampaignStoryboardEditor({
   hasMusic: boolean
   lyricsBehindSubject: boolean
   lyrics: CampaignPreviewLyric[]
+  onUpdateLyric: (phraseIndex: number, patch: Partial<CampaignLyricPhraseEdit>) => void
   lyricWords: CampaignPreviewWord[]
   wordsOnScreen: 1 | 2 | 3
   lyricsColor: string
@@ -887,6 +899,7 @@ function CampaignStoryboardEditor({
             hasMusic={hasMusic}
             lyricsBehindSubject={lyricsBehindSubject}
             lyrics={lyrics}
+            onUpdateLyric={onUpdateLyric}
             lyricWords={lyricWords}
             wordsOnScreen={wordsOnScreen}
             lyricsColor={lyricsColor}
@@ -1228,6 +1241,7 @@ function CampaignTimeline({
   hasMusic,
   lyricsBehindSubject,
   lyrics,
+  onUpdateLyric,
   lyricWords,
   wordsOnScreen,
   lyricsColor,
@@ -1247,6 +1261,7 @@ function CampaignTimeline({
   hasMusic: boolean
   lyricsBehindSubject: boolean
   lyrics: CampaignPreviewLyric[]
+  onUpdateLyric: (phraseIndex: number, patch: Partial<CampaignLyricPhraseEdit>) => void
   lyricWords: CampaignPreviewWord[]
   wordsOnScreen: 1 | 2 | 3
   lyricsColor: string
@@ -1278,6 +1293,16 @@ function CampaignTimeline({
     enabled: hasMusic,
     staleTime: Infinity,
   })
+  const [activeLyricTrim, setActiveLyricTrim] = useState<{
+    pointerId: number
+    phraseIndex: number
+    side: 'move' | 'start' | 'end'
+    startX: number
+    initialStart: number
+    initialEnd: number
+    trackWidth: number
+    initialTotal: number
+  } | null>(null)
   const [activeOverlayTrim, setActiveOverlayTrim] = useState<{
     pointerId: number
     overlayIndex: number
@@ -1740,19 +1765,73 @@ function CampaignTimeline({
           <div className="overflow-x-auto">
             <div className="grid min-w-[780px] grid-cols-[76px_minmax(680px,1fr)] items-center gap-2">
               <span className="label text-muted">LYRICS</span>
-              <div className="relative h-10 overflow-hidden rounded-md border border-line bg-surface">
-                {lyrics.length > 0 ? lyrics.map((lyric, index) => {
+              <div
+                data-campaign-lyrics-track
+                className="relative h-10 overflow-hidden rounded-md border border-line bg-surface"
+                onPointerMove={(event) => {
+                  if (!activeLyricTrim || event.pointerId !== activeLyricTrim.pointerId) return
+                  const delta = ((event.clientX - activeLyricTrim.startX) / activeLyricTrim.trackWidth) * activeLyricTrim.initialTotal
+                  const length = activeLyricTrim.initialEnd - activeLyricTrim.initialStart
+                  let start = activeLyricTrim.initialStart
+                  let end = activeLyricTrim.initialEnd
+                  if (activeLyricTrim.side === 'move') {
+                    start = Math.max(0, Math.min(activeLyricTrim.initialTotal - length, start + delta))
+                    end = start + length
+                  } else if (activeLyricTrim.side === 'start') {
+                    start = Math.max(0, Math.min(end - 0.1, start + delta))
+                  } else {
+                    end = Math.max(start + 0.1, Math.min(activeLyricTrim.initialTotal, end + delta))
+                  }
+                  onUpdateLyric(activeLyricTrim.phraseIndex, {
+                    start_seconds: Math.round((start + musicStart) * 100) / 100,
+                    end_seconds: Math.round((end + musicStart) * 100) / 100,
+                  })
+                }}
+                onPointerUp={(event) => {
+                  if (activeLyricTrim?.pointerId === event.pointerId) setActiveLyricTrim(null)
+                }}
+                onPointerCancel={() => setActiveLyricTrim(null)}
+              >
+                {lyrics.length > 0 ? lyrics.map((lyric) => {
                   const left = Math.max(0, Math.min(100, (lyric.start_seconds / total) * 100))
-                  const width = Math.max(0.8, Math.min(100 - left, ((lyric.end_seconds - lyric.start_seconds) / total) * 100))
+                  const width = Math.max(1.2, Math.min(100 - left, ((lyric.end_seconds - lyric.start_seconds) / total) * 100))
+                  const beginDrag = (event: ReactPointerEvent<HTMLDivElement>, side: 'move' | 'start' | 'end') => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    const track = event.currentTarget.closest('[data-campaign-lyrics-track]') as HTMLDivElement | null
+                    if (!track) return
+                    const trackWidth = track.getBoundingClientRect().width
+                    if (trackWidth <= 0) return
+                    track.setPointerCapture(event.pointerId)
+                    setActiveLyricTrim({
+                      pointerId: event.pointerId,
+                      phraseIndex: lyric.phrase_index,
+                      side,
+                      startX: event.clientX,
+                      initialStart: lyric.start_seconds,
+                      initialEnd: lyric.end_seconds,
+                      trackWidth,
+                      initialTotal: total,
+                    })
+                  }
                   return (
-                    <button key={`lyric-track-${index}`} type="button"
+                    <div key={`lyric-track-${lyric.phrase_index}`} role="group" tabIndex={0}
                       title={`${lyric.text} · ${formatDuration(lyric.start_seconds)}–${formatDuration(lyric.end_seconds)}`}
-                      aria-label={`Seek to lyric: ${lyric.text}`}
+                      aria-label={`Move or trim lyric: ${lyric.text}`}
                       onClick={() => seekToTimelineRef.current(lyric.start_seconds)}
-                      className="absolute inset-y-1 overflow-hidden rounded border border-acid/70 bg-acid/20 px-1 text-left text-[10px] font-medium text-ink hover:bg-acid/35"
+                      onPointerDown={(event) => beginDrag(event, 'move')}
+                      className="group absolute inset-y-1 flex min-w-0 cursor-grab touch-none items-center overflow-hidden rounded border border-acid/70 bg-acid/20 px-1 text-[10px] font-medium text-ink active:cursor-grabbing"
                       style={{ left: `${left}%`, width: `${width}%` }}>
-                      <span className="block truncate">{lyric.text}</span>
-                    </button>
+                      <span className="pointer-events-none truncate">{lyric.text}</span>
+                      <span role="slider" tabIndex={0} aria-label={`Trim start of lyric: ${lyric.text}`}
+                        aria-valuemin={0} aria-valuemax={Math.max(0, lyric.end_seconds - 0.1)} aria-valuenow={lyric.start_seconds}
+                        onPointerDown={(event) => beginDrag(event, 'start')}
+                        className="absolute inset-y-0 left-0 z-10 w-2 cursor-ew-resize bg-white/40 opacity-0 transition-opacity group-hover:opacity-100" />
+                      <span role="slider" tabIndex={0} aria-label={`Trim end of lyric: ${lyric.text}`}
+                        aria-valuemin={lyric.start_seconds + 0.1} aria-valuemax={total} aria-valuenow={lyric.end_seconds}
+                        onPointerDown={(event) => beginDrag(event, 'end')}
+                        className="absolute inset-y-0 right-0 z-10 w-2 cursor-ew-resize bg-white/40 opacity-0 transition-opacity group-hover:opacity-100" />
+                    </div>
                   )
                 }) : lyricWords.map((word, index) => {
                   const left = Math.max(0, Math.min(100, (word.start_seconds / total) * 100))
