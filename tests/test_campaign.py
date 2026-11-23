@@ -683,3 +683,49 @@ def test_lyric_scene_matcher_does_not_force_unmatched_or_text_only_scenes():
         "matches": [],
     }
     assert result == [expected]
+
+
+def test_scene_music_matching_pairs_visual_energy_with_selected_music_windows():
+    from clipyyy.campaign import _annotate_scene_music_matches
+
+    candidates = [
+        {"description": "A person sprinting through a city", "confidence": 0.95},
+        {"description": "A calm sunset over a peaceful landscape", "confidence": 0.9},
+        {"description": "A person working at a desk", "confidence": 0.8},
+        {"description": "An unclassified visual scene", "confidence": 0.9},
+        {"description": "A person dancing", "confidence": 0.1},
+    ]
+    music = {
+        "best_start_seconds": 10.0,
+        "energy_sections": [
+            {"start_seconds": 0, "end_seconds": 9, "level": "high", "average_energy": 0.95},
+            {"start_seconds": 10, "end_seconds": 13, "level": "low", "average_energy": 0.12},
+            {"start_seconds": 13, "end_seconds": 16, "level": "medium", "average_energy": 0.51},
+            {"start_seconds": 16, "end_seconds": 20, "level": "high", "average_energy": 0.91},
+            {"start_seconds": 20, "end_seconds": 30, "level": "high", "average_energy": 0.99},
+        ],
+    }
+
+    _annotate_scene_music_matches(candidates, music, target_seconds=10)
+
+    sprint, sunset, working, unknown, low_confidence = [
+        item["music_alignment"] for item in candidates
+    ]
+    assert sprint["visual_energy"] == "high"
+    assert sprint["evidence"] == ["sprinting"]
+    assert sprint["matching_music_windows"][0]["start_seconds"] == 16
+    assert sunset["visual_energy"] == "low"
+    assert sunset["matching_music_windows"][0]["start_seconds"] == 10
+    assert working["visual_energy"] == "medium"
+    assert working["matching_music_windows"][0]["level"] == "medium"
+    assert unknown["visual_energy"] == "unknown"
+    assert unknown["matching_music_windows"] == []
+    assert low_confidence["visual_energy"] == "unknown"
+
+
+def test_scene_music_matching_does_not_invent_music_alignment_without_track():
+    from clipyyy.campaign import _annotate_scene_music_matches
+
+    candidates = [{"description": "A person sprinting"}]
+    _annotate_scene_music_matches(candidates, None, target_seconds=12)
+    assert "music_alignment" not in candidates[0]
