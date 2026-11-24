@@ -924,3 +924,68 @@ def test_campaign_lyrics_update_rejects_word_timing_without_positive_duration(cl
     assert db.get_run(run["id"])["options"]["campaign_lyric_words"] == [
         {"word": "Hello", "start": 1.0, "end": 1.4}
     ]
+
+
+
+def test_campaign_lyrics_resync_returns_review_only_proposal(tmp_path, client, monkeypatch):
+    music = tmp_path / "track.mp3"
+    music.write_bytes(b"audio")
+    run = db.create_run(
+        "campaign",
+        {"campaign_mode": True, "campaign_music_path": str(music), "campaign_lyrics": "Original words"},
+        status="completed",
+    )
+    words = [{"word": "Hello", "start": 0.2, "end": 0.6}, {"word": "world", "start": 0.7, "end": 1.1}]
+    monkeypatch.setattr(api.pipeline, "run_dir", lambda run_id: tmp_path)
+    monkeypatch.setattr(api, "get_setting", lambda key: "tiny")
+    monkeypatch.setattr(
+        "clipyyy.transcribe.transcribe_music",
+        lambda path, work_dir, model_size, language: {"words": words, "language": "en"},
+    )
+
+    response = client.post(f"/api/runs/{run['id']}/campaign-lyrics-resync")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["words"] == words
+    assert payload["word_count"] == 2
+    assert payload["saved"] is False
+    assert payload["rendered"] is False
+    assert db.get_run(run["id"])["options"]["campaign_lyrics"] == "Original words"
+    assert db.get_run(run["id"])["options"].get("campaign_lyric_words", []) == []
+
+
+def test_campaign_lyrics_resync_requires_attached_music(client):
+    run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
+    response = client.post(f"/api/runs/{run['id']}/campaign-lyrics-resync")
+    assert response.status_code == 404
+
+
+def test_campaign_lyrics_accept_replaces_word_timings_and_renders(client, monkeypatch):
+    run = db.create_run(
+        "campaign",
+        {"campaign_mode": True, "campaign_lyrics": "Old lyrics", "campaign_lyric_words": []},
+        status="completed",
+    )
+    captured = {}
+
+    def fake_rerender(run_id):
+        captured["options"] = db.get_run(run_id)["options"]
+        return {"renders": [{"rank": 1, "status": "ready"}]}
+
+    monkeypatch.setattr(api.pipeline, "rerender_campaign", fake_rerender)
+    response = client.put(
+        f"/api/runs/{run['id']}/campaign-lyrics",
+        json={
+            "lyrics": "[00:00.20] Hello world",
+            "replace_words": [
+                {"word": "Hello", "start": 0.2, "end": 0.6},
+                {"word": "world", "start": 0.7, "end": 1.1},
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["options"]["campaign_lyrics"] == "[00:00.20] Hello world"
+    assert captured["options"]["campaign_lyric_words"][1]["word"] == "world"
+    assert response.json()["rendered"] is True
