@@ -69,6 +69,19 @@ class CampaignLyricPhraseEdit(BaseModel):
         return self
 
 
+class CampaignLyricWordEdit(BaseModel):
+    word_index: int = Field(..., ge=0, le=1999)
+    word: str | None = Field(None, min_length=1, max_length=80)
+    start: float | None = Field(None, ge=0)
+    end: float | None = Field(None, gt=0)
+
+    @model_validator(mode="after")
+    def _valid_timing(self) -> CampaignLyricWordEdit:
+        if self.start is not None and self.end is not None and self.end <= self.start:
+            raise ValueError("Word end must be after word start")
+        return self
+
+
 class CampaignLyricsUpdate(BaseModel):
     lyrics: str = Field("", max_length=12000)
     lyrics_style: Literal[
@@ -85,6 +98,7 @@ class CampaignLyricsUpdate(BaseModel):
     hook_text: str = Field("", max_length=160)
     include_hook: bool = False
     phrase_edits: list[CampaignLyricPhraseEdit] = Field(default_factory=list, max_length=200)
+    word_edits: list[CampaignLyricWordEdit] = Field(default_factory=list, max_length=2000)
 
 
 class CampaignTextOverlay(BaseModel):
@@ -224,6 +238,22 @@ def create_app(start_worker: bool = True) -> FastAPI:
         if run["status"] in {"queued", "running"}:
             raise HTTPException(409, "Wait for the campaign run to finish before editing lyrics.")
         lyrics_unchanged = body.lyrics == run["options"].get("campaign_lyrics", "")
+        existing_words = (
+            list(run["options"].get("campaign_lyric_words", [])) if lyrics_unchanged else []
+        )
+        for edit in body.word_edits:
+            if edit.word_index >= len(existing_words):
+                raise HTTPException(422, f"Lyrics word {edit.word_index + 1} no longer exists.")
+            word = dict(existing_words[edit.word_index])
+            if edit.word is not None:
+                word["word"] = edit.word.strip()
+            if edit.start is not None:
+                word["start"] = edit.start
+            if edit.end is not None:
+                word["end"] = edit.end
+            if float(word.get("end", 0)) <= float(word.get("start", 0)):
+                raise HTTPException(422, f"Timing for word {edit.word_index + 1} must have a positive duration.")
+            existing_words[edit.word_index] = word
         options = {
             **run["options"],
             "campaign_lyrics": body.lyrics,
@@ -233,9 +263,7 @@ def create_app(start_worker: bool = True) -> FastAPI:
                 else "Creator-edited"
             ),
             # Preserve Whisper's word timings when only style or hook settings change.
-            "campaign_lyric_words": (
-                run["options"].get("campaign_lyric_words", []) if lyrics_unchanged else []
-            ),
+            "campaign_lyric_words": existing_words,
             "campaign_lyrics_style": body.lyrics_style,
             "campaign_lyrics_color": body.lyrics_color.upper(),
             "campaign_lyrics_highlight_color": body.highlight_color.upper(),
