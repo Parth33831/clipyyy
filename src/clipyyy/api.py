@@ -238,9 +238,7 @@ def create_app(start_worker: bool = True) -> FastAPI:
         if run["status"] in {"queued", "running"}:
             raise HTTPException(409, "Wait for the campaign run to finish before editing lyrics.")
         lyrics_unchanged = body.lyrics == run["options"].get("campaign_lyrics", "")
-        existing_words = (
-            list(run["options"].get("campaign_lyric_words", [])) if lyrics_unchanged else []
-        )
+        existing_words = list(run["options"].get("campaign_lyric_words", [])) if lyrics_unchanged else []
         for edit in body.word_edits:
             if edit.word_index >= len(existing_words):
                 raise HTTPException(422, f"Lyrics word {edit.word_index + 1} no longer exists.")
