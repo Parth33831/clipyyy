@@ -1196,6 +1196,12 @@ function CampaignStoryboardEditor({
   onSave: () => void
   onReset: () => void
 }) {
+  const [selectedEditRank, setSelectedEditRank] = useState(edits[0]?.rank ?? 1)
+  useEffect(() => {
+    if (!edits.some((edit) => edit.rank === selectedEditRank) && edits[0]) {
+      setSelectedEditRank(edits[0].rank)
+    }
+  }, [edits, selectedEditRank])
   const sourceByIndex = new Map(sources.map((source) => [source.index, source]))
   const changed = JSON.stringify(edits) !== JSON.stringify(savedEdits)
   const resetAvailable = JSON.stringify(savedEdits) !== JSON.stringify(originalEdits) || changed
@@ -1260,8 +1266,33 @@ function CampaignStoryboardEditor({
           </Button>
         </div>
       </div>
-      <p className="label text-muted">{edits.length} output(s) · {shotCount} shots · Keep at least 3 shots per output; each shot must be 1.5–5 seconds.</p>
-      {edits.map((edit, editIndex) => (
+      <div className="flex flex-col gap-2 rounded-lg border border-line bg-panel p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="label text-muted">SELECT A CLIP TO EDIT</span>
+          <span className="text-xs text-faint">{edits.length} generated clips · {shotCount} shots total</span>
+        </div>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Select generated clip to edit">
+          {edits.map((edit) => (
+            <button
+              key={edit.rank}
+              type="button"
+              aria-pressed={selectedEditRank === edit.rank}
+              onClick={() => setSelectedEditRank(edit.rank)}
+              className={cn(
+                'flex min-w-[120px] flex-col items-start rounded-md border px-3 py-2 text-left transition-colors',
+                selectedEditRank === edit.rank ? 'border-ink bg-sunk text-ink' : 'border-line bg-surface text-muted hover:border-line-strong hover:text-ink',
+              )}
+            >
+              <span className="text-xs font-semibold">Clip {edit.rank}</span>
+              <span className="mt-0.5 max-w-full truncate text-[11px]">{edit.title}</span>
+              <span className="mt-1 text-[10px] text-faint">{edit.shots.length} shots</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      {edits.filter((edit) => edit.rank === selectedEditRank).map((edit) => {
+        const editIndex = edits.findIndex((item) => item.rank === edit.rank)
+        return (
         <section key={edit.rank} className="flex flex-col gap-3 border-t border-line pt-4">
           <div className="flex items-center justify-between gap-3">
             <h3 className="font-semibold">#{edit.rank} · {edit.title}</h3>
@@ -1360,7 +1391,8 @@ function CampaignStoryboardEditor({
           </ol>
           {edit.shots.length < 3 && <p className="text-xs text-bad">Restore the AI plan or keep at least 3 shots in this output.</p>}
         </section>
-      ))}
+        )
+      })}
     </Panel>
   )
 }
