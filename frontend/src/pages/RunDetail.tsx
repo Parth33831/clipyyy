@@ -1273,7 +1273,7 @@ function CampaignStoryboardEditor({
             {edit.shots.map((shot, shotIndex) => {
               const source = sourceByIndex.get(shot.source_index)
               return (
-                <li id={`campaign-shot-${edit.rank}-${shotIndex}`} key={`${edit.rank}-${shotIndex}-${shot.source_index}`} className="grid gap-3 rounded-lg border border-line bg-panel p-3 md:grid-cols-[112px_minmax(0,1fr)_150px_150px_auto] md:items-center">
+                <li id={`campaign-shot-${edit.rank}-${shotIndex}`} key={`${edit.rank}-${shotIndex}-${shot.source_index}`} className="grid gap-3 rounded-lg border border-line bg-panel p-3 md:grid-cols-[112px_minmax(0,1fr)_minmax(220px,300px)_auto] md:items-center">
                   <img
                     src={`/api/runs/${runId}/campaign-frame?source_index=${shot.source_index}&timestamp=${shot.start_seconds.toFixed(1)}`}
                     alt={`Preview of shot ${shotIndex + 1}`}
@@ -1291,31 +1291,36 @@ function CampaignStoryboardEditor({
                       {source ? ` / ${formatDuration(source.duration_seconds)} source` : ''}
                     </p>
                   </div>
-                  <label className="flex flex-col gap-1 text-xs text-muted">
-                    Start (seconds)
-                    <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.start_seconds}
-                      onChange={(event) => updateShot(editIndex, shotIndex, { start_seconds: Number(event.target.value) })} disabled={saving}
-                      className="w-full rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
-                  </label>
-                  <label className="flex flex-col gap-1 text-xs text-muted">
-                    <span className="flex items-center justify-between gap-1">
-                      End (seconds)
-                      {(() => {
-                        const snappedEnd = getBeatSnappedShotEnd(edit, shotIndex, musicAnalysis, source?.duration_seconds)
-                        return (
-                          <button type="button" disabled={saving || snappedEnd === null}
-                            onClick={() => snappedEnd !== null && updateShot(editIndex, shotIndex, { end_seconds: snappedEnd })}
-                            className="rounded border border-line px-1.5 py-0.5 text-[10px] text-ink hover:bg-surface disabled:opacity-30"
-                            title="Align this shot's end with the nearest suitable music beat">
-                            Snap to beat
-                          </button>
-                        )
-                      })()}
-                    </span>
-                    <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.end_seconds}
-                      onChange={(event) => updateShot(editIndex, shotIndex, { end_seconds: Number(event.target.value) })} disabled={saving}
-                      className="w-full rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
-                  </label>
+                  <details className="min-w-0 rounded-md border border-line bg-surface px-3 py-2 text-xs text-muted md:col-span-1">
+                    <summary className="cursor-pointer select-none font-medium text-ink">Precise timing · Advanced</summary>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <label className="flex min-w-0 flex-col gap-1">
+                        Start (seconds)
+                        <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.start_seconds}
+                          onChange={(event) => updateShot(editIndex, shotIndex, { start_seconds: Number(event.target.value) })} disabled={saving}
+                          className="w-full min-w-0 rounded-md border border-line bg-panel px-2 py-2 font-mono text-sm text-ink" />
+                      </label>
+                      <label className="flex min-w-0 flex-col gap-1">
+                        <span className="flex items-center justify-between gap-1">
+                          End (seconds)
+                          {(() => {
+                            const snappedEnd = getBeatSnappedShotEnd(edit, shotIndex, musicAnalysis, source?.duration_seconds)
+                            return (
+                              <button type="button" disabled={saving || snappedEnd === null}
+                                onClick={() => snappedEnd !== null && updateShot(editIndex, shotIndex, { end_seconds: snappedEnd })}
+                                className="rounded border border-line px-1.5 py-0.5 text-[10px] text-ink hover:bg-panel disabled:opacity-30"
+                                title="Align this shot's end with the nearest suitable music beat">
+                                Snap
+                              </button>
+                            )
+                          })()}
+                        </span>
+                        <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.end_seconds}
+                          onChange={(event) => updateShot(editIndex, shotIndex, { end_seconds: Number(event.target.value) })} disabled={saving}
+                          className="w-full min-w-0 rounded-md border border-line bg-panel px-2 py-2 font-mono text-sm text-ink" />
+                      </label>
+                    </div>
+                  </details>
                   <div className="flex items-center justify-end gap-1">
                     <button type="button" title="Move shot up" aria-label="Move shot up" disabled={saving || shotIndex === 0}
                       onClick={() => moveShot(editIndex, shotIndex, -1)} className="rounded-md border border-line p-2 text-muted hover:text-ink disabled:opacity-30">
@@ -2105,7 +2110,7 @@ function CampaignTimeline({
                 {' '}Positions update in the edit draft; use the existing Apply controls to save and render.
               </span>
             </div>
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(180px,1fr)] sm:items-center">
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)] lg:items-start">
             <div data-campaign-preview-stage className="relative overflow-hidden rounded-md bg-black">
               <video
                 ref={videoRef}
@@ -2184,7 +2189,7 @@ function CampaignTimeline({
                     ? 'opacity ' + transitionDurationMs + 'ms ease, transform ' + transitionDurationMs + 'ms ease, clip-path ' + transitionDurationMs + 'ms ease'
                     : 'none',
                 }}
-                className="max-h-64 w-full bg-black object-contain"
+                className="min-h-[280px] max-h-[min(72vh,720px)] w-full bg-black object-contain"
               />
               {alignmentGuides.vertical !== null && (
                 <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 z-30 border-l border-dashed border-sky-300 shadow-[0_0_5px_rgba(125,211,252,0.8)]"
