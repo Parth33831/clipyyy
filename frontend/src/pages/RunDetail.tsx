@@ -1088,17 +1088,6 @@ function CampaignStoryboardEditor({
   const [generatingProposalRank, setGeneratingProposalRank] = useState<number | null>(null)
   const [selectedPhraseIndex, setSelectedPhraseIndex] = useState(0)
   const [selectedLyricWordIndex, setSelectedLyricWordIndex] = useState(0)
-  const lyricWordDragRef = useRef<{
-    wordIndex: number
-    mode: 'move' | 'start' | 'end'
-    pointerId: number
-    startX: number
-    initialStart: number
-    initialEnd: number
-    timelineWidth: number
-    moved: boolean
-  } | null>(null)
-  const suppressLyricWordClickRef = useRef(false)
   const selectedTextOverlays = textOverlays
     .map((overlay, index) => ({ overlay, index }))
     .filter(({ overlay }) => overlay.rank === selectedEditRank)
@@ -1234,6 +1223,7 @@ function CampaignStoryboardEditor({
             lyricWords={lyricWords}
             selectedLyricWordIndex={selectedLyricWordIndex}
             onSelectLyricWord={setSelectedLyricWordIndex}
+            onUpdateLyricWord={onUpdateLyricWord}
             wordsOnScreen={wordsOnScreen}
             lyricsColor={lyricsColor}
             lyricsHighlightColor={lyricsHighlightColor}
@@ -2225,6 +2215,7 @@ function CampaignTimeline({
   lyricWords,
   selectedLyricWordIndex,
   onSelectLyricWord,
+  onUpdateLyricWord,
   wordsOnScreen,
   lyricsColor,
   lyricsHighlightColor,
@@ -2249,6 +2240,7 @@ function CampaignTimeline({
   lyricWords: CampaignPreviewWord[]
   selectedLyricWordIndex: number
   onSelectLyricWord: (wordIndex: number) => void
+  onUpdateLyricWord: (wordIndex: number, patch: { word?: string; start_seconds?: number; end_seconds?: number }) => void
   wordsOnScreen: 1 | 2 | 3
   lyricsColor: string
   lyricsHighlightColor: string
@@ -2262,6 +2254,17 @@ function CampaignTimeline({
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const lyricWordDragRef = useRef<{
+    wordIndex: number
+    mode: 'move' | 'start' | 'end'
+    pointerId: number
+    startX: number
+    initialStart: number
+    initialEnd: number
+    timelineWidth: number
+    moved: boolean
+  } | null>(null)
+  const suppressLyricWordClickRef = useRef(false)
   const pendingSeekRef = useRef<number | null>(null)
   const seekToTimelineRef = useRef<(seconds: number) => void>(() => undefined)
   const advancingShotRef = useRef(false)
