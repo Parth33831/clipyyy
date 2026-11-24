@@ -853,3 +853,77 @@ def test_campaign_ai_edit_rejects_non_campaign_run(client):
     )
     assert response.status_code == 400
     assert response.json()["detail"] == "AI Edit is only available for campaign runs."
+
+
+def test_campaign_lyrics_update_persists_word_level_text_and_timing(client, monkeypatch):
+    run = client.post(
+        "/api/runs",
+        json={
+            "sources": ["https://example.com/campaign.mp4"],
+            "options": {
+                "campaign_mode": True,
+                "campaign_brief": "Music campaign",
+                "campaign_lyrics": "Hello world",
+                "campaign_lyric_words": [
+                    {"word": "Helo", "start": 1.0, "end": 1.35},
+                    {"word": "world", "start": 1.4, "end": 1.9},
+                ],
+                "campaign_lyrics_source": "Local Whisper draft",
+            },
+        },
+    ).json()[0]
+    db.update_run(run["id"], status="completed")
+    monkeypatch.setattr(
+        pipeline,
+        "rerender_campaign",
+        lambda run_id: {"renders": [{"status": "ready"}]},
+    )
+
+    response = client.put(
+        f"/api/runs/{run['id']}/campaign-lyrics",
+        json={
+            "lyrics": "Hello world",
+            "word_edits": [
+                {"word_index": 0, "word": "Hello", "start": 0.95, "end": 1.4},
+                {"word_index": 1, "start": 1.42, "end": 1.95},
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    saved = db.get_run(run["id"])["options"]
+    assert saved["campaign_lyric_words"] == [
+        {"word": "Hello", "start": 0.95, "end": 1.4},
+        {"word": "world", "start": 1.42, "end": 1.95},
+    ]
+    assert saved["campaign_lyrics_source"] == "Local Whisper draft"
+
+
+def test_campaign_lyrics_update_rejects_word_timing_without_positive_duration(client, monkeypatch):
+    run = client.post(
+        "/api/runs",
+        json={
+            "sources": ["https://example.com/campaign.mp4"],
+            "options": {
+                "campaign_mode": True,
+                "campaign_lyrics": "Hello",
+                "campaign_lyric_words": [{"word": "Hello", "start": 1.0, "end": 1.4}],
+            },
+        },
+    ).json()[0]
+    db.update_run(run["id"], status="completed")
+    monkeypatch.setattr(
+        pipeline,
+        "rerender_campaign",
+        lambda run_id: {"renders": [{"status": "ready"}]},
+    )
+
+    response = client.put(
+        f"/api/runs/{run['id']}/campaign-lyrics",
+        json={"lyrics": "Hello", "word_edits": [{"word_index": 0, "start": 1.5, "end": 1.2}]},
+    )
+
+    assert response.status_code == 422
+    assert db.get_run(run["id"])["options"]["campaign_lyric_words"] == [
+        {"word": "Hello", "start": 1.0, "end": 1.4}
+    ]
