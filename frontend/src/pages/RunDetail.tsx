@@ -19,7 +19,7 @@ type CampaignPreviewLyric = {
   animation_style?: CampaignLyricPhraseEdit['animation_style']
 }
 
-type CampaignPreviewWord = { word: string; start_seconds: number; end_seconds: number }
+type CampaignPreviewWord = { word_index: number; word: string; start_seconds: number; end_seconds: number }
 
 
 type CreativeConceptPlayerProps = {
@@ -255,6 +255,7 @@ export function RunDetailPage() {
   const [lyricsScale, setLyricsScale] = useState(100)
   const [lyricsRotation, setLyricsRotation] = useState(0)
   const [phraseEdits, setPhraseEdits] = useState<CampaignLyricPhraseEdit[]>([])
+  const [wordEdits, setWordEdits] = useState<CampaignLyricWordEdit[]>([])
   const campaignHistory = useUndoRedo({
     edits: [] as CampaignEdit[],
     overlays: [] as CampaignTextOverlay[],
@@ -302,11 +303,12 @@ export function RunDetailPage() {
     setLyricsScale(run.data?.options.campaign_lyrics_scale_percent ?? 100)
     setLyricsRotation(run.data?.options.campaign_lyrics_rotation_degrees ?? 0)
     setPhraseEdits(run.data?.options.campaign_lyric_phrase_edits ?? [])
+    setWordEdits([])
     resetCampaignHistory({
       edits: run.data?.campaign_edits ?? [],
       overlays: run.data?.options.campaign_text_overlays ?? [],
     })
-  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_source_audio_volume, run.data?.options.campaign_music_ducking, run.data?.options.campaign_music_start_seconds, run.data?.campaign_quality_checks?.music_analysis?.selected_start_seconds, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.options.campaign_text_overlays, run.data?.campaign_plan?.generated_hook, resetCampaignHistory])
+  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_source_audio_volume, run.data?.options.campaign_music_ducking, run.data?.options.campaign_music_start_seconds, run.data?.campaign_quality_checks?.music_analysis?.selected_start_seconds, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.options.campaign_lyric_words, run.data?.options.campaign_text_overlays, run.data?.campaign_plan?.generated_hook, resetCampaignHistory])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -338,9 +340,10 @@ export function RunDetailPage() {
     onError: (e) => toast.error(e.message),
   })
   const saveLyrics = useMutation({
-    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook, lyricsColor, lyricsHighlightColor, lyricsWordsOnScreen, lyricsBehindSubject, lyricsPositionX, lyricsPositionY, lyricsScale, lyricsRotation, phraseEdits),
+    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook, lyricsColor, lyricsHighlightColor, lyricsWordsOnScreen, lyricsBehindSubject, lyricsPositionX, lyricsPositionY, lyricsScale, lyricsRotation, phraseEdits, wordEdits),
     onSuccess: (result) => {
-      toast.success(`Applied to ${result.outputs} existing edit(s) — no re-picking or lyric transcription.`)
+      toast.success(`Applied word-level lyric sync to ${result.outputs} existing edit(s).`)
+      setWordEdits([])
       refresh()
     },
     onError: (e) => toast.error(e.message),
@@ -375,13 +378,29 @@ export function RunDetailPage() {
       animation_style: phraseEdit?.animation_style,
     }]
   })
-  const campaignTimelineWords: CampaignPreviewWord[] = (run.data?.options.campaign_lyric_words ?? []).flatMap((item) => {
-    const start = Number(item.start) - lyricOffset
-    const end = Number(item.end) - lyricOffset
-    const word = String(item.word ?? '').trim()
+  const campaignTimelineWords: CampaignPreviewWord[] = (run.data?.options.campaign_lyric_words ?? []).flatMap((item, wordIndex) => {
+    const edit = wordEdits.find((candidate) => candidate.word_index === wordIndex)
+    const start = Number(edit?.start ?? item.start) - lyricOffset
+    const end = Number(edit?.end ?? item.end) - lyricOffset
+    const word = String(edit?.word ?? item.word ?? '').trim()
     if (!word || end <= 0 || end <= start) return []
-    return [{ word, start_seconds: Math.max(0, start), end_seconds: end }]
+    return [{ word_index: wordIndex, word, start_seconds: Math.max(0, start), end_seconds: end }]
   })
+  const updateLyricWord = (wordIndex: number, patch: { word?: string; start_seconds?: number; end_seconds?: number }) => {
+    const original = run.data?.options.campaign_lyric_words?.[wordIndex]
+    if (!original) return
+    setWordEdits((current) => {
+      const existing = current.find((edit) => edit.word_index === wordIndex)
+      const next: CampaignLyricWordEdit = {
+        word_index: wordIndex,
+        ...existing,
+        ...(patch.word !== undefined ? { word: patch.word } : {}),
+        ...(patch.start_seconds !== undefined ? { start: Math.max(0, patch.start_seconds + musicStartSeconds) } : {}),
+        ...(patch.end_seconds !== undefined ? { end: Math.max(0.05, patch.end_seconds + musicStartSeconds) } : {}),
+      }
+      return [...current.filter((edit) => edit.word_index !== wordIndex), next].sort((a, b) => a.word_index - b.word_index)
+    })
+  }
   const updateLyricPhrase = (phraseIndex: number, patch: Partial<CampaignLyricPhraseEdit>) => {
     setPhraseEdits((current) => {
       const existing = current.find((edit) => edit.phrase_index === phraseIndex)
@@ -617,6 +636,7 @@ export function RunDetailPage() {
           lyrics={campaignTimelineLyrics}
           onUpdateLyric={updateLyricPhrase}
           lyricWords={campaignTimelineWords}
+          onUpdateLyricWord={updateLyricWord}
           wordsOnScreen={lyricsWordsOnScreen}
           lyricsStyle={lyricsStyle}
           onLyricsStyleChange={setLyricsStyle}
