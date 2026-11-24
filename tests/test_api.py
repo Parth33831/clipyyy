@@ -766,3 +766,68 @@ def test_campaign_run_detail_exposes_creative_director_concepts(client, monkeypa
     detail = client.get(f"/api/runs/{run['id']}").json()
 
     assert detail["campaign_concepts"] == [concept]
+
+
+def test_campaign_ai_edit_returns_review_only_proposal_without_persisting(tmp_path, client, monkeypatch):
+    run = db.create_run(
+        "campaign",
+        {"campaign_mode": True, "campaign_brief": "Show the product honestly."},
+        status="completed",
+    )
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+    selection_path = work_dir / "select.json"
+    selection_path.write_text(
+        json.dumps({
+            "campaign_sources": [{"title": "Demo", "duration_seconds": 30, "video_path": "demo.mp4"}],
+            "campaign_edits": [{"rank": 1, "title": "Original", "shots": []}],
+        }),
+        encoding="utf-8",
+    )
+    original_selection = selection_path.read_text(encoding="utf-8")
+    captured = {}
+    proposal = {
+        "rank": 1,
+        "title": "Original",
+        "shots": [
+            {"source_index": 0, "start_seconds": 0, "end_seconds": 3, "reason": "Opening"},
+            {"source_index": 0, "start_seconds": 5, "end_seconds": 8, "reason": "Detail"},
+            {"source_index": 0, "start_seconds": 12, "end_seconds": 15, "reason": "Payoff"},
+        ],
+    }
+
+    monkeypatch.setattr(api.pipeline, "run_dir", lambda run_id: tmp_path)
+    monkeypatch.setattr(api, "get_llm", lambda: object())
+
+    def fake_proposal(llm, brief, edit, sources, creative_direction):
+        captured.update(brief=brief, edit=edit, sources=sources, direction=creative_direction)
+        return proposal, ["A clearer opening and payoff."]
+
+    monkeypatch.setattr(api.campaign, "generate_ai_edit_proposal", fake_proposal)
+    response = client.post(
+        f"/api/runs/{run['id']}/campaign-ai-edit",
+        json={
+            "current_edit": {
+                "rank": 1,
+                "title": "Original",
+                "shots": [
+                    {"source_index": 0, "start_seconds": 0, "end_seconds": 3, "reason": "Opening"},
+                    {"source_index": 0, "start_seconds": 5, "end_seconds": 8, "reason": "Detail"},
+                    {"source_index": 0, "start_seconds": 12, "end_seconds": 15, "reason": "Payoff"},
+                ],
+            },
+            "creative_direction": "Hook first",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "proposal": proposal,
+        "notes": ["A clearer opening and payoff."],
+        "saved": False,
+        "rendered": False,
+    }
+    assert captured["brief"] == "Show the product honestly."
+    assert captured["direction"] == "Hook first"
+    assert selection_path.read_text(encoding="utf-8") == original_selection
+    assert db.get_run(run["id"])["options"]["campaign_brief"] == "Show the product honestly."
