@@ -252,7 +252,10 @@ def create_app(start_worker: bool = True) -> FastAPI:
             if edit.end is not None:
                 word["end"] = edit.end
             if float(word.get("end", 0)) <= float(word.get("start", 0)):
-                raise HTTPException(422, f"Timing for word {edit.word_index + 1} must have a positive duration.")
+                raise HTTPException(
+                    422,
+                    f"Timing for word {edit.word_index + 1} must have a positive duration.",
+                )
             existing_words[edit.word_index] = word
         options = {
             **run["options"],
