@@ -575,12 +575,11 @@ export function RunDetailPage() {
             </div>
             {[
               ['campaign-preview', 'Video & Timeline', '1'],
-              ['campaign-hook', 'Opening Hook', '2'],
-              ['campaign-audio', 'Music & Audio', '3'],
-              ['campaign-animations', 'Animations', '4'],
-              ['campaign-lyrics', 'Lyrics Sync', '5'],
-              ['campaign-text', 'Text & Titles', '6'],
-              ['campaign-storyboard', 'Shot Editing', '7'],
+              ['campaign-audio', 'Music & Audio', '2'],
+              ['campaign-animations', 'Animations', '3'],
+              ['campaign-lyrics', 'Lyrics Sync', '4'],
+              ['campaign-text', 'Text & Titles', '5'],
+              ['campaign-storyboard', 'Shot Editing', '6'],
             ].map(([target, label, step]) => {
               const active = activeEditorSection === target
               return (
@@ -646,7 +645,7 @@ export function RunDetailPage() {
       )}
             </div>
       {data.options.campaign_mode && !busy && (
-        <div id="campaign-hook" className="scroll-mt-5 flex flex-col gap-4 rounded-xl border border-line bg-surface p-4">
+        <div className="scroll-mt-5 flex flex-col gap-4 rounded-xl border border-line bg-surface p-4">
           <div id="campaign-audio" className="scroll-mt-5 flex flex-wrap items-end gap-3">
           <label className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
             <span className="font-medium">Campaign music</span>
