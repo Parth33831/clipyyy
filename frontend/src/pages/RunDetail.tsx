@@ -20,6 +20,7 @@ type CampaignPreviewLyric = {
 }
 
 type CampaignPreviewWord = { word_index: number; word: string; start_seconds: number; end_seconds: number }
+type CampaignLyricResyncProposal = { lyrics: string; words: { word: string; start: number; end: number }[]; language: string | null; word_count: number; saved: false; rendered: false }
 
 
 type CreativeConceptPlayerProps = {
@@ -256,6 +257,7 @@ export function RunDetailPage() {
   const [lyricsRotation, setLyricsRotation] = useState(0)
   const [phraseEdits, setPhraseEdits] = useState<CampaignLyricPhraseEdit[]>([])
   const [wordEdits, setWordEdits] = useState<CampaignLyricWordEdit[]>([])
+  const [lyricResyncProposal, setLyricResyncProposal] = useState<CampaignLyricResyncProposal | null>(null)
   const campaignHistory = useUndoRedo({
     edits: [] as CampaignEdit[],
     overlays: [] as CampaignTextOverlay[],
@@ -339,11 +341,24 @@ export function RunDetailPage() {
     },
     onError: (e) => toast.error(e.message),
   })
+  const resyncLyrics = useMutation({
+    mutationFn: () => api.resyncCampaignLyrics(runId),
+    onSuccess: (proposal) => {
+      setLyricResyncProposal(proposal)
+      toast.success(`Found ${proposal.word_count} words. Review the re-sync before applying it.`)
+    },
+    onError: (e) => toast.error(e.message),
+  })
   const saveLyrics = useMutation({
-    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook, lyricsColor, lyricsHighlightColor, lyricsWordsOnScreen, lyricsBehindSubject, lyricsPositionX, lyricsPositionY, lyricsScale, lyricsRotation, phraseEdits, wordEdits),
+    mutationFn: (replacement?: CampaignLyricResyncProposal) => api.saveCampaignLyrics(
+      runId, replacement?.lyrics ?? lyricsText, lyricsStyle, hookText, includeHook, lyricsColor, lyricsHighlightColor,
+      lyricsWordsOnScreen, lyricsBehindSubject, lyricsPositionX, lyricsPositionY, lyricsScale, lyricsRotation,
+      replacement ? [] : phraseEdits, replacement ? [] : wordEdits, replacement?.words,
+    ),
     onSuccess: (result) => {
       toast.success(`Applied word-level lyric sync to ${result.outputs} existing edit(s).`)
       setWordEdits([])
+      setLyricResyncProposal(null)
       refresh()
     },
     onError: (e) => toast.error(e.message),
@@ -636,6 +651,11 @@ export function RunDetailPage() {
           lyrics={campaignTimelineLyrics}
           onUpdateLyric={updateLyricPhrase}
           lyricWords={campaignTimelineWords}
+          lyricResyncProposal={lyricResyncProposal}
+          resyncingLyrics={resyncLyrics.isPending}
+          onResyncLyrics={() => resyncLyrics.mutate()}
+          onAcceptLyricResync={() => lyricResyncProposal && saveLyrics.mutate(lyricResyncProposal)}
+          onRejectLyricResync={() => setLyricResyncProposal(null)}
           onUpdateLyricWord={updateLyricWord}
           wordsOnScreen={lyricsWordsOnScreen}
           lyricsStyle={lyricsStyle}
@@ -919,6 +939,11 @@ function CampaignStoryboardEditor({
   lyrics,
   onUpdateLyric,
   lyricWords,
+  lyricResyncProposal,
+  resyncingLyrics,
+  onResyncLyrics,
+  onAcceptLyricResync,
+  onRejectLyricResync,
   onUpdateLyricWord,
   wordsOnScreen,
   lyricsStyle,
@@ -996,6 +1021,11 @@ function CampaignStoryboardEditor({
   lyrics: CampaignPreviewLyric[]
   onUpdateLyric: (phraseIndex: number, patch: Partial<CampaignLyricPhraseEdit>) => void
   lyricWords: CampaignPreviewWord[]
+  lyricResyncProposal: CampaignLyricResyncProposal | null
+  resyncingLyrics: boolean
+  onResyncLyrics: () => void
+  onAcceptLyricResync: () => void
+  onRejectLyricResync: () => void
   onUpdateLyricWord: (wordIndex: number, patch: { word?: string; start_seconds?: number; end_seconds?: number }) => void
   wordsOnScreen: 1 | 2 | 3
   lyricsStyle: 'dynamic' | 'cinematic' | 'minimal' | 'karaoke' | 'zoom' | 'bounce' | 'pulse' | 'glitch'
@@ -1518,6 +1548,37 @@ function CampaignStoryboardEditor({
                     className="resize-y rounded-md border border-line bg-panel p-2 text-ink" />
                 </label>
                 <p className="text-muted">{lyricsSourceLabel ?? 'No lyric draft yet. Attach music and choose Pick again to create a local draft.'} Singing recognition can be inaccurate; review the words before publishing.</p>
+                <div className="flex flex-col gap-2 rounded-md border border-line bg-panel p-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-ink">AI lyric re-sync</p>
+                      <p className="mt-0.5 text-muted">Re-analyze the attached song with Whisper and review fresh word timings before replacing your current lyric draft.</p>
+                    </div>
+                    <button type="button" onClick={onResyncLyrics} disabled={!hasMusic || resyncingLyrics || savingLyrics}
+                      className="rounded-md border border-line bg-surface px-3 py-2 font-semibold text-ink disabled:opacity-40">
+                      {resyncingLyrics ? 'Analyzing song…' : 'Re-sync lyrics with AI'}
+                    </button>
+                  </div>
+                  {!hasMusic && <p className="text-muted">Attach a soundtrack first to enable re-sync.</p>}
+                  {lyricResyncProposal && (
+                    <div className="flex flex-col gap-2 border-t border-line pt-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-semibold text-ink">New proposal · {lyricResyncProposal.word_count} words · {lyricResyncProposal.language ?? 'language auto-detected'}</span>
+                        <span className="text-muted">Not saved yet</span>
+                      </div>
+                      <pre className="max-h-36 overflow-auto whitespace-pre-wrap rounded bg-surface p-2 font-sans text-ink">{lyricResyncProposal.lyrics || 'No timed lyric lines were detected.'}</pre>
+                      <p className="text-muted">Accepting replaces the current lyric text and word timings, then renders the updated captions. Reject keeps your existing lyrics untouched.</p>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={onAcceptLyricResync} disabled={savingLyrics || !lyricResyncProposal.word_count}
+                          className="flex-1 rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">
+                          {savingLyrics ? 'Applying re-sync…' : 'Accept & apply re-sync'}
+                        </button>
+                        <button type="button" onClick={onRejectLyricResync} disabled={savingLyrics}
+                          className="rounded-md border border-line px-3 py-2 font-semibold text-ink disabled:opacity-40">Reject</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 {lyricWords.length > 0 && (
                   <div className="rounded-md border border-line bg-panel p-2">
                     <div className="mb-2 flex items-center justify-between gap-2">
