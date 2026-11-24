@@ -1369,7 +1369,7 @@ function CampaignStoryboardEditor({
                   <span className="label text-muted">SHOT EDITING</span>
                   <span className="text-[10px] text-faint">{edit.shots.length} clips</span>
                 </div>
-
+                <ol className="flex max-h-[min(70vh,760px)] flex-col gap-2 overflow-y-auto pr-1">
             {edit.shots.map((shot, shotIndex) => {
               const source = sourceByIndex.get(shot.source_index)
               return (
