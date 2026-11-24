@@ -20,7 +20,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, model_validator
 
-from clipyyy import __version__, db, pipeline
+from clipyyy import __version__, campaign, db, pipeline
+from clipyyy.llm import get_llm
 from clipyyy.config import PACKAGE_DIR, SETTINGS, get_setting, home, mask, uploads_dir
 from clipyyy.doctor import checks
 from clipyyy.publish import BufferClient, PublishError, PublishMode, publish_clip
@@ -122,6 +123,11 @@ class CampaignEditUpdate(BaseModel):
 
 class CampaignMontageUpdate(BaseModel):
     edits: list[CampaignEditUpdate] = Field(..., min_length=1, max_length=10)
+
+
+class CampaignAiEditRequest(BaseModel):
+    current_edit: CampaignEditUpdate
+    creative_direction: str = Field("", max_length=1000)
 
 
 class UpdateSettings(BaseModel):
@@ -318,6 +324,39 @@ def create_app(start_worker: bool = True) -> FastAPI:
             "rendered": True,
             "outputs": len(result.get("renders", [])),
         }
+
+    @app.post("/api/runs/{run_id}/campaign-ai-edit")
+    def generate_campaign_ai_edit(run_id: str, body: CampaignAiEditRequest) -> dict:
+        """Generate a fresh AI proposal without saving or rendering any edit."""
+        run = _run_or_404(run_id)
+        if not run["options"].get("campaign_mode"):
+            raise HTTPException(400, "AI Edit is only available for campaign runs.")
+        if run["status"] in {"queued", "running"}:
+            raise HTTPException(409, "Wait for the campaign run to finish before using AI Edit.")
+        if body.current_edit.rank < 1:
+            raise HTTPException(400, "Choose a valid campaign clip.")
+        select_file = pipeline.run_dir(run_id) / "work" / "select.json"
+        if not select_file.is_file():
+            raise HTTPException(404, "Campaign analysis is not available yet.")
+        try:
+            selection = json.loads(select_file.read_text(encoding="utf-8"))
+            sources = selection.get("campaign_sources") or []
+            if not sources:
+                raise HTTPException(404, "Campaign source footage is not available.")
+            proposal, notes = campaign.generate_ai_edit_proposal(
+                get_llm(),
+                str(run["options"].get("campaign_brief") or ""),
+                body.current_edit.model_dump(),
+                sources,
+                body.creative_direction,
+            )
+        except HTTPException:
+            raise
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(503, f"AI Edit could not generate a proposal: {exc}") from exc
+        return {"proposal": proposal, "notes": notes, "saved": False, "rendered": False}
 
     @app.post("/api/runs/{run_id}/campaign-music")
     def attach_campaign_music(run_id: str, file: UploadFile) -> dict:
