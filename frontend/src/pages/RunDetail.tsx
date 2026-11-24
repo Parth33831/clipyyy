@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 import { Link, useNavigate, useParams } from 'react-router'
 import { useUndoRedo } from '../hooks/useUndoRedo'
 import { toast } from 'sonner'
-import { api, type CampaignEdit, type CampaignConcept, type CampaignTextOverlay, type CampaignMusicAnalysis, type CampaignLyricPhraseEdit, type CampaignShot, type CampaignSource, type Clip, type Post, type RunDetail } from '../api'
+import { api, type CampaignEdit, type CampaignConcept, type CampaignTextOverlay, type CampaignMusicAnalysis, type CampaignLyricPhraseEdit, type CampaignLyricWordEdit, type CampaignShot, type CampaignSource, type Clip, type Post, type RunDetail } from '../api'
 import { PublishDialog } from '../components/PublishDialog'
 import { Button, Eyebrow, Panel, Squares, StatusChip, cn, formatDuration, sourceHost, sourceLabel, timeAgo } from '../components/ui'
 type CampaignPreviewLyric = {
@@ -919,6 +919,7 @@ function CampaignStoryboardEditor({
   lyrics,
   onUpdateLyric,
   lyricWords,
+  onUpdateLyricWord,
   wordsOnScreen,
   lyricsStyle,
   onLyricsStyleChange,
@@ -995,6 +996,7 @@ function CampaignStoryboardEditor({
   lyrics: CampaignPreviewLyric[]
   onUpdateLyric: (phraseIndex: number, patch: Partial<CampaignLyricPhraseEdit>) => void
   lyricWords: CampaignPreviewWord[]
+  onUpdateLyricWord: (wordIndex: number, patch: { word?: string; start_seconds?: number; end_seconds?: number }) => void
   wordsOnScreen: 1 | 2 | 3
   lyricsStyle: 'dynamic' | 'cinematic' | 'minimal' | 'karaoke' | 'zoom' | 'bounce' | 'pulse' | 'glitch'
   onLyricsStyleChange: (value: 'dynamic' | 'cinematic' | 'minimal' | 'karaoke' | 'zoom' | 'bounce' | 'pulse' | 'glitch') => void
@@ -1045,6 +1047,7 @@ function CampaignStoryboardEditor({
   const [onDemandProposals, setOnDemandProposals] = useState<Record<number, { proposal: CampaignEdit; notes: string[]; id: string }>>({})
   const [generatingProposalRank, setGeneratingProposalRank] = useState<number | null>(null)
   const [selectedPhraseIndex, setSelectedPhraseIndex] = useState(0)
+  const [selectedLyricWordIndex, setSelectedLyricWordIndex] = useState(0)
   const selectedTextOverlays = textOverlays
     .map((overlay, index) => ({ overlay, index }))
     .filter(({ overlay }) => overlay.rank === selectedEditRank)
@@ -1178,6 +1181,8 @@ function CampaignStoryboardEditor({
             lyrics={lyrics}
             onUpdateLyric={onUpdateLyric}
             lyricWords={lyricWords}
+            selectedLyricWordIndex={selectedLyricWordIndex}
+            onSelectLyricWord={setSelectedLyricWordIndex}
             wordsOnScreen={wordsOnScreen}
             lyricsColor={lyricsColor}
             lyricsHighlightColor={lyricsHighlightColor}
@@ -2036,6 +2041,8 @@ function CampaignTimeline({
   lyrics,
   onUpdateLyric,
   lyricWords,
+  selectedLyricWordIndex,
+  onSelectLyricWord,
   wordsOnScreen,
   lyricsColor,
   lyricsHighlightColor,
@@ -2058,6 +2065,8 @@ function CampaignTimeline({
   lyrics: CampaignPreviewLyric[]
   onUpdateLyric: (phraseIndex: number, patch: Partial<CampaignLyricPhraseEdit>) => void
   lyricWords: CampaignPreviewWord[]
+  selectedLyricWordIndex: number
+  onSelectLyricWord: (wordIndex: number) => void
   wordsOnScreen: 1 | 2 | 3
   lyricsColor: string
   lyricsHighlightColor: string
@@ -2944,16 +2953,22 @@ function CampaignTimeline({
                         className="absolute inset-y-0 right-0 z-10 w-2 cursor-ew-resize bg-white/40 opacity-0 transition-opacity group-hover:opacity-100" />
                     </div>
                   )
-                }) : lyricWords.map((word, index) => {
+                }) : lyricWords.map((word) => {
                   const left = Math.max(0, Math.min(100, (word.start_seconds / total) * 100))
                   const width = Math.max(0.55, Math.min(100 - left, ((word.end_seconds - word.start_seconds) / total) * 100))
                   return (
-                    <button key={`lyric-word-track-${index}`} type="button"
+                    <button key={`lyric-word-track-${word.word_index}`} type="button"
                       title={`${word.word} · ${formatDuration(word.start_seconds)}–${formatDuration(word.end_seconds)}`}
-                      aria-label={`Seek to lyric word: ${word.word}`}
-                      onClick={() => seekToTimelineRef.current(word.start_seconds)}
-                      className="absolute inset-y-1 overflow-hidden rounded-sm border border-acid/50 bg-acid/20 text-[9px] text-ink hover:bg-acid/40"
-                      style={{ left: `${left}%`, width: `${width}%` }} />
+                      aria-label={`Select lyric word: ${word.word}`}
+                      onClick={() => {
+                        onSelectLyricWord(word.word_index)
+                        seekToTimelineRef.current(word.start_seconds)
+                      }}
+                      className={cn("absolute inset-y-1 overflow-hidden rounded-sm border text-[9px] text-ink hover:bg-acid/40",
+                        selectedLyricWordIndex === word.word_index ? "border-ink bg-acid/50" : "border-acid/50 bg-acid/20")}
+                      style={{ left: `${left}%`, width: `${width}%` }}>
+                      <span className="sr-only">{word.word}</span>
+                    </button>
                   )
                 })}
                 <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 z-10 w-0.5 bg-red-500"
