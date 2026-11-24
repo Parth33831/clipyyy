@@ -666,6 +666,12 @@ export function RunDetailPage() {
           lyricsHighlightColor={lyricsHighlightColor}
           textOverlays={campaignTextOverlays}
           onUpdateTextOverlay={(overlayIndex, patch) => setCampaignTextOverlays((current) => current.map((overlay, index) => index === overlayIndex ? { ...overlay, ...patch } : overlay))}
+          onAddTextOverlay={(rank, durationSeconds) => setCampaignTextOverlays((current) => current.length >= 30 ? current : [...current, {
+            rank, text: 'YOUR MESSAGE', start_seconds: 0, end_seconds: Math.min(2.5, durationSeconds),
+            position_x: 50, position_y: 50, font_size_percent: 100, font_family: 'Arial',
+            font_weight: 'bold', text_effect: 'shadow', color: '#FFFFFF', animation: 'fade', background: true,
+          }])}
+          onRemoveTextOverlay={(overlayIndex) => setCampaignTextOverlays((current) => current.filter((_, index) => index !== overlayIndex))}
           transitionStyle={data.options.campaign_transition_style ?? 'auto'}
           saving={saveMontage.isPending}
           onChange={setCampaignEdits}
@@ -954,6 +960,8 @@ function CampaignStoryboardEditor({
   lyricsHighlightColor,
   textOverlays,
   onUpdateTextOverlay,
+  onAddTextOverlay,
+  onRemoveTextOverlay,
   transitionStyle,
   saving,
   onChange,
@@ -1036,6 +1044,8 @@ function CampaignStoryboardEditor({
   lyricsHighlightColor: string
   textOverlays: CampaignTextOverlay[]
   onUpdateTextOverlay: (overlayIndex: number, patch: Partial<CampaignTextOverlay>) => void
+  onAddTextOverlay: (rank: number, durationSeconds: number) => void
+  onRemoveTextOverlay: (overlayIndex: number) => void
   transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
   saving: boolean
   onChange: (edits: CampaignEdit[]) => void
@@ -1793,31 +1803,80 @@ function CampaignStoryboardEditor({
                   <p className="font-semibold text-ink">{activeTool === 'titles' ? 'Text layers' : 'Title entrance animations'}</p>
                   <p className="mt-1 text-muted">{activeTool === 'titles' ? 'Edit the title layers attached to this clip.' : 'Choose an entrance animation for each title layer.'}</p>
                 </div>
-                {selectedTextOverlays.length === 0 ? <p className="rounded-md border border-dashed border-line p-2 text-muted">No text layers are assigned to this clip yet. Add one in Text & Titles below.</p> : selectedTextOverlays.map(({ overlay, index }) => (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-muted">{selectedTextOverlays.length}/30 layers on this clip</span>
+                  <button type="button" onClick={() => {
+                    const selected = edits.find((item) => item.rank === selectedEditRank)
+                    if (selected && selectedTextOverlays.length < 30) onAddTextOverlay(selected.rank, selected.shots.reduce((total, shot) => total + shot.end_seconds - shot.start_seconds, 0))
+                  }} disabled={selectedTextOverlays.length >= 30 || !edits.find((item) => item.rank === selectedEditRank)}
+                    className="rounded border border-line px-2.5 py-1.5 font-semibold text-ink hover:border-ink">+ Add text layer</button>
+                </div>
+                {selectedTextOverlays.length === 0 ? <p className="rounded-md border border-dashed border-line p-2 text-muted">No title layers yet. Add one to this clip to create a title, label or call to action.</p> : selectedTextOverlays.map(({ overlay, index }) => (
                   <div key={index} className="flex flex-col gap-2 rounded-md border border-line bg-panel p-2">
-                    {activeTool === 'titles' ? (
-                      <>
-                        <label className="flex flex-col gap-1 text-muted">Title text
-                          <input value={overlay.text} maxLength={160} onChange={(event) => onUpdateTextOverlay(index, { text: event.target.value })}
-                            className="rounded border border-line bg-surface px-2 py-2 text-ink" />
-                        </label>
-                        <label className="flex flex-col gap-1 text-muted">Starts · {formatDuration(overlay.start_seconds)}
-                          <input type="range" min={0} max={Math.max(0.1, overlay.end_seconds - 0.1)} step={0.1} value={overlay.start_seconds}
-                            onChange={(event) => onUpdateTextOverlay(index, { start_seconds: Number(event.target.value) })} />
-                        </label>
-                      </>
-                    ) : (
-                      <label className="flex flex-col gap-1 text-muted">Entrance animation
-                        <select value={overlay.animation} onChange={(event) => onUpdateTextOverlay(index, { animation: event.target.value as CampaignTextOverlay['animation'] })}
-                          className="rounded border border-line bg-surface px-2 py-2 text-ink">
-                          <option value="none">None</option><option value="fade">Fade</option><option value="pop">Pop</option><option value="slide">Slide up</option>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-ink">Text layer {index + 1}</span>
+                      <button type="button" onClick={() => onRemoveTextOverlay(index)} className="text-[11px] text-bad underline">Remove</button>
+                    </div>
+                    <label className="flex flex-col gap-1 text-muted">Title text
+                      <input value={overlay.text} maxLength={160} onChange={(event) => onUpdateTextOverlay(index, { text: event.target.value })}
+                        className="rounded border border-line bg-surface px-2 py-2 text-ink" />
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="flex flex-col gap-1 text-muted">Start · {formatDuration(overlay.start_seconds)}
+                        <input type="number" min={0} max={Math.max(0, overlay.end_seconds - 0.1)} step={0.1} value={overlay.start_seconds}
+                          onChange={(event) => onUpdateTextOverlay(index, { start_seconds: Math.max(0, Math.min(overlay.end_seconds - 0.1, Number(event.target.value))) })}
+                          className="rounded border border-line bg-surface px-2 py-1.5 text-ink" />
+                      </label>
+                      <label className="flex flex-col gap-1 text-muted">End · {formatDuration(overlay.end_seconds)}
+                        <input type="number" min={overlay.start_seconds + 0.1} step={0.1} value={overlay.end_seconds}
+                          onChange={(event) => onUpdateTextOverlay(index, { end_seconds: Math.max(overlay.start_seconds + 0.1, Number(event.target.value)) })}
+                          className="rounded border border-line bg-surface px-2 py-1.5 text-ink" />
+                      </label>
+                    </div>
+                    {([
+                      ['Horizontal', overlay.position_x, 'position_x', 5, 95, '%'],
+                      ['Vertical', overlay.position_y, 'position_y', 5, 95, '%'],
+                      ['Text size', overlay.font_size_percent, 'font_size_percent', 60, 200, '%'],
+                    ] as const).map(([label, value, key, min, max, suffix]) => (
+                      <label key={label} className="flex flex-col gap-1 text-muted">{label} · {value}{suffix}
+                        <input type="range" min={min} max={max} step={key === 'font_size_percent' ? 5 : 1} value={value}
+                          onChange={(event) => onUpdateTextOverlay(index, { [key]: Number(event.target.value) })} />
+                      </label>
+                    ))}
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="flex items-center justify-between gap-2 text-muted">Text color
+                        <input type="color" value={overlay.color} onChange={(event) => onUpdateTextOverlay(index, { color: event.target.value.toUpperCase() })} className="h-8 w-10 rounded border border-line bg-transparent" />
+                      </label>
+                      <label className="flex flex-col gap-1 text-muted">Font
+                        <select value={overlay.font_family ?? 'Arial'} onChange={(event) => onUpdateTextOverlay(index, { font_family: event.target.value as CampaignTextOverlay['font_family'] })} className="rounded border border-line bg-surface px-2 py-1.5 text-ink">
+                          <option value="Arial">Arial</option><option value="Georgia">Georgia</option><option value="Impact">Impact</option><option value="Trebuchet MS">Trebuchet MS</option><option value="Verdana">Verdana</option>
                         </select>
                       </label>
-                    )}
+                      <label className="flex flex-col gap-1 text-muted">Weight
+                        <select value={overlay.font_weight ?? 'bold'} onChange={(event) => onUpdateTextOverlay(index, { font_weight: event.target.value as CampaignTextOverlay['font_weight'] })} className="rounded border border-line bg-surface px-2 py-1.5 text-ink">
+                          <option value="regular">Regular</option><option value="bold">Bold</option>
+                        </select>
+                      </label>
+                      <label className="flex flex-col gap-1 text-muted">Text effect
+                        <select value={overlay.text_effect ?? 'shadow'} onChange={(event) => onUpdateTextOverlay(index, { text_effect: event.target.value as CampaignTextOverlay['text_effect'] })} className="rounded border border-line bg-surface px-2 py-1.5 text-ink">
+                          <option value="none">None</option><option value="shadow">Soft shadow</option><option value="outline">Outline</option>
+                        </select>
+                      </label>
+                    </div>
+                    <label className="flex items-center gap-2 text-muted">
+                      <input type="checkbox" checked={overlay.background} onChange={(event) => onUpdateTextOverlay(index, { background: event.target.checked })} />
+                      Background panel
+                    </label>
+                    <label className="flex flex-col gap-1 text-muted">Entrance animation
+                      <select value={overlay.animation} onChange={(event) => onUpdateTextOverlay(index, { animation: event.target.value as CampaignTextOverlay['animation'] })}
+                        className="rounded border border-line bg-surface px-2 py-2 text-ink">
+                        <option value="none">None</option><option value="fade">Fade</option><option value="pop">Pop</option><option value="slide">Slide up</option>
+                      </select>
+                    </label>
                   </div>
                 ))}
                 <button type="button" onClick={onSaveText} disabled={savingText}
-                  className="rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">{savingText ? 'Applying…' : 'Apply text changes'}</button>
+                  className="rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">{savingText ? 'Applying…' : 'Apply text changes & re-render'}</button>
               </div>
             )}
           </aside>
