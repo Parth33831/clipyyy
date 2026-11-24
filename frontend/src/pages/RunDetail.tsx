@@ -631,6 +631,10 @@ export function RunDetailPage() {
           onChange={setCampaignEdits}
           onSave={() => saveMontage.mutate()}
           onReset={() => setCampaignEdits(data.campaign_original_edits ?? data.campaign_edits)}
+          savingAudio={saveCampaignAudio.isPending}
+          savingText={saveCampaignTextOverlays.isPending}
+          onSaveAudio={() => saveCampaignAudio.mutate()}
+          onSaveText={() => saveCampaignTextOverlays.mutate()}
         />
       )}
             </div>
@@ -1195,9 +1199,19 @@ function CampaignStoryboardEditor({
   onChange: (edits: CampaignEdit[]) => void
   onSave: () => void
   onReset: () => void
+  savingAudio: boolean
+  savingText: boolean
+  onSaveAudio: () => void
+  onSaveText: () => void
 }) {
   const [selectedEditRank, setSelectedEditRank] = useState(edits[0]?.rank ?? 1)
   const [selectedShotIndex, setSelectedShotIndex] = useState(0)
+  const [activeTool, setActiveTool] = useState<'shots' | 'audio' | 'lyrics' | 'titles' | 'animations'>('shots')
+  const [selectedPhraseIndex, setSelectedPhraseIndex] = useState(0)
+  const selectedEdit = edits.find((item) => item.rank === selectedEditRank)
+  const selectedTextOverlays = textOverlays
+    .map((overlay, index) => ({ overlay, index }))
+    .filter(({ overlay }) => overlay.rank === selectedEditRank)
   useEffect(() => {
     if (!edits.some((edit) => edit.rank === selectedEditRank) && edits[0]) {
       setSelectedEditRank(edits[0].rank)
@@ -1334,12 +1348,29 @@ function CampaignStoryboardEditor({
             onUpdateShot={(shotIndex, patch) => updateShot(editIndex, shotIndex, patch)}
           />
           </div>
-          <aside className="flex min-w-0 flex-col gap-2 rounded-lg border border-line bg-surface p-3 lg:col-start-1 lg:row-start-1">
-            <div className="flex items-center justify-between gap-2">
-              <span className="label text-muted">SHOT EDITING</span>
-              <span className="text-[10px] text-faint">{edit.shots.length} clips</span>
+          <aside className="flex min-w-0 flex-col gap-3 rounded-lg border border-line bg-surface p-3 lg:col-start-1 lg:row-start-1">
+            <div className="grid grid-cols-2 gap-1" role="group" aria-label="Clip editing tools">
+              {([
+                ['shots', 'Shot editing'],
+                ['audio', 'Music & audio'],
+                ['lyrics', 'Lyrics sync'],
+                ['titles', 'Text & titles'],
+                ['animations', 'Animations'],
+              ] as const).map(([tool, label]) => (
+                <button key={tool} type="button" onClick={() => setActiveTool(tool)} aria-pressed={activeTool === tool}
+                  className={cn('rounded-md border px-2 py-2 text-left text-[11px] font-semibold transition-colors',
+                    activeTool === tool ? 'border-ink bg-sunk text-ink' : 'border-line text-muted hover:border-line-strong hover:text-ink')}>
+                  {label}
+                </button>
+              ))}
             </div>
-          <ol className="flex max-h-[min(70vh,760px)] flex-col gap-2 overflow-y-auto pr-1">
+            {activeTool === 'shots' && (
+              <>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="label text-muted">SHOT EDITING</span>
+                  <span className="text-[10px] text-faint">{edit.shots.length} clips</span>
+                </div>
+
             {edit.shots.map((shot, shotIndex) => {
               const source = sourceByIndex.get(shot.source_index)
               return (
@@ -1414,6 +1445,105 @@ function CampaignStoryboardEditor({
               )
             })}
           </ol>
+              </>
+            )}
+            {activeTool === 'audio' && (
+              <div className="flex flex-col gap-3 text-xs">
+                <div>
+                  <p className="font-semibold text-ink">Music alignment</p>
+                  <p className="mt-1 text-muted">Move the attached soundtrack start. The preview and timeline follow this offset.</p>
+                </div>
+                <label className="flex flex-col gap-2">
+                  <span className="flex justify-between gap-2 text-muted"><span>Track start</span><span className="font-mono">{formatDuration(musicStartSeconds)}</span></span>
+                  <input type="range" min={0} max={Math.max(1, musicAnalysis?.duration_seconds ?? musicStartSeconds + 30)} step={0.1}
+                    value={musicStartSeconds} onChange={(event) => onMusicStartChange(Number(event.target.value))} disabled={!hasMusic}
+                    className="w-full accent-current" />
+                </label>
+                {musicAnalysis && (
+                  <div className="rounded-md border border-line bg-panel p-2 text-muted">
+                    <p>Track length: {formatDuration(musicAnalysis.duration_seconds)}</p>
+                    <p>Detected beats: {musicAnalysis.detected_beats}{musicAnalysis.estimated_bpm ? ` · ${Math.round(musicAnalysis.estimated_bpm)} BPM` : ''}</p>
+                    <p className="mt-1">Suggested start: {formatDuration(musicAnalysis.selected_start_seconds)}</p>
+                    <button type="button" onClick={() => onMusicStartChange(musicAnalysis.selected_start_seconds)} disabled={!hasMusic}
+                      className="mt-2 rounded border border-line px-2 py-1.5 font-semibold text-ink disabled:opacity-40">Use suggested start</button>
+                  </div>
+                )}
+                {!hasMusic && <p className="rounded-md border border-dashed border-line p-2 text-muted">Attach a music track in the Music & Audio section below to enable soundtrack alignment.</p>}
+                <button type="button" onClick={onSaveAudio} disabled={!hasMusic || savingAudio}
+                  className="rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">{savingAudio ? 'Applying…' : 'Apply music settings'}</button>
+              </div>
+            )}
+            {activeTool === 'lyrics' && (
+              <div className="flex flex-col gap-3 text-xs">
+                <div>
+                  <p className="font-semibold text-ink">Phrase placement</p>
+                  <p className="mt-1 text-muted">Choose a lyric phrase and adjust its position on the video.</p>
+                </div>
+                {lyrics.length === 0 ? <p className="rounded-md border border-dashed border-line p-2 text-muted">Add timed lyrics in the Lyrics Sync section to edit phrase placement here.</p> : (
+                  <>
+                    <label className="flex flex-col gap-1 text-muted">Lyric phrase
+                      <select value={selectedPhraseIndex} onChange={(event) => setSelectedPhraseIndex(Number(event.target.value))}
+                        className="rounded-md border border-line bg-panel px-2 py-2 text-ink">
+                        {lyrics.map((phrase) => <option key={phrase.phrase_index} value={phrase.phrase_index}>{phrase.text.slice(0, 42) || `Phrase ${phrase.phrase_index + 1}`}</option>)}
+                      </select>
+                    </label>
+                    {(() => {
+                      const phrase = lyrics.find((item) => item.phrase_index === selectedPhraseIndex) ?? lyrics[0]
+                      return (
+                        <div className="flex flex-col gap-3">
+                          <p className="rounded-md bg-panel p-2 text-muted">{phrase.text}</p>
+                          <label className="flex flex-col gap-1 text-muted">Horizontal · {phrase.position_x}%
+                            <input type="range" min={5} max={95} value={phrase.position_x}
+                              onChange={(event) => onUpdateLyric(phrase.phrase_index, { position_x: Number(event.target.value) })} />
+                          </label>
+                          <label className="flex flex-col gap-1 text-muted">Vertical · {phrase.position_y}%
+                            <input type="range" min={5} max={95} value={phrase.position_y}
+                              onChange={(event) => onUpdateLyric(phrase.phrase_index, { position_y: Number(event.target.value) })} />
+                          </label>
+                          <label className="flex flex-col gap-1 text-muted">Scale · {phrase.scale_percent}%
+                            <input type="range" min={50} max={180} step={5} value={phrase.scale_percent}
+                              onChange={(event) => onUpdateLyric(phrase.phrase_index, { scale_percent: Number(event.target.value) })} />
+                          </label>
+                        </div>
+                      )
+                    })()}
+                  </>
+                )}
+              </div>
+            )}
+            {(activeTool === 'titles' || activeTool === 'animations') && (
+              <div className="flex flex-col gap-3 text-xs">
+                <div>
+                  <p className="font-semibold text-ink">{activeTool === 'titles' ? 'Text layers' : 'Text animations'}</p>
+                  <p className="mt-1 text-muted">{activeTool === 'titles' ? 'Edit the title layers attached to this clip.' : 'Choose an entrance animation for each title layer.'}</p>
+                </div>
+                {selectedTextOverlays.length === 0 ? <p className="rounded-md border border-dashed border-line p-2 text-muted">No text layers are assigned to this clip yet. Add one in Text & Titles below.</p> : selectedTextOverlays.map(({ overlay, index }) => (
+                  <div key={index} className="flex flex-col gap-2 rounded-md border border-line bg-panel p-2">
+                    {activeTool === 'titles' ? (
+                      <>
+                        <label className="flex flex-col gap-1 text-muted">Title text
+                          <input value={overlay.text} maxLength={160} onChange={(event) => onUpdateTextOverlay(index, { text: event.target.value })}
+                            className="rounded border border-line bg-surface px-2 py-2 text-ink" />
+                        </label>
+                        <label className="flex flex-col gap-1 text-muted">Starts · {formatDuration(overlay.start_seconds)}
+                          <input type="range" min={0} max={Math.max(0.1, overlay.end_seconds - 0.1)} step={0.1} value={overlay.start_seconds}
+                            onChange={(event) => onUpdateTextOverlay(index, { start_seconds: Number(event.target.value) })} />
+                        </label>
+                      </>
+                    ) : (
+                      <label className="flex flex-col gap-1 text-muted">Entrance animation
+                        <select value={overlay.animation} onChange={(event) => onUpdateTextOverlay(index, { animation: event.target.value as CampaignTextOverlay['animation'] })}
+                          className="rounded border border-line bg-surface px-2 py-2 text-ink">
+                          <option value="none">None</option><option value="fade">Fade</option><option value="pop">Pop</option><option value="slide">Slide up</option>
+                        </select>
+                      </label>
+                    )}
+                  </div>
+                ))}
+                <button type="button" onClick={onSaveText} disabled={savingText}
+                  className="rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">{savingText ? 'Applying…' : 'Apply text changes'}</button>
+              </div>
+            )}
           </aside>
           </div>
           {edit.shots.length < 3 && <p className="text-xs text-bad">Restore the AI plan or keep at least 3 shots in this output.</p>}
