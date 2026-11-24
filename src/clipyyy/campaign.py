@@ -1375,3 +1375,120 @@ def format_campaign_plan(plan: dict[str, Any]) -> str:
     if lines:
         return "\n".join(lines)
     return "- No structured requirements extracted; follow the original brief exactly."
+
+
+
+AI_EDIT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "shots": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "candidate_index": {"type": "integer"},
+                    "start_seconds": {"type": "number"},
+                    "end_seconds": {"type": "number"},
+                    "reason": {"type": "string"},
+                },
+                "required": ["candidate_index", "start_seconds", "end_seconds", "reason"],
+                "additionalProperties": False,
+            },
+        },
+        "notes": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["shots", "notes"],
+    "additionalProperties": False,
+}
+
+
+def generate_ai_edit_proposal(
+    llm,
+    brief: str,
+    edit: dict[str, Any],
+    sources: list[dict[str, Any]],
+    creative_direction: str = "",
+) -> tuple[dict[str, Any], list[str]]:
+    """Generate a fresh, review-only edit from the selected clip's existing footage moments.
+
+    The model may reorder and tighten supplied shots, but cannot introduce footage or timestamps
+    outside the creator's current shot ranges. The input edit is never mutated or persisted.
+    """
+    candidates = []
+    for index, shot in enumerate(edit.get("shots") or []):
+        try:
+            source_index = int(shot["source_index"])
+            start = float(shot["start_seconds"])
+            end = float(shot["end_seconds"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("The selected clip contains an invalid shot.") from exc
+        if not 0 <= source_index < len(sources):
+            raise ValueError("The selected clip refers to a missing source video.")
+        duration = float(sources[source_index].get("duration_seconds") or 0)
+        if start < 0 or end <= start or end > duration:
+            raise ValueError("The selected clip contains a shot outside its source video.")
+        candidates.append({
+            "candidate_index": index,
+            "source_title": str(sources[source_index].get("title") or f"Source {source_index + 1}"),
+            "source_index": source_index,
+            "start_seconds": start,
+            "end_seconds": end,
+            "reason": str(shot.get("reason") or "")[:300],
+            "duration_seconds": round(end - start, 3),
+        })
+    if len(candidates) < 3:
+        raise ValueError("AI Edit needs at least three existing shots. Add more shots before generating a proposal.")
+
+    system = (
+        "You are CLIPYYY's AI video editor. Create a fresh, reviewable edit for the selected clip. "
+        "Use only the supplied candidate shots. You may change their order and trim within each "
+        "candidate's existing source-time range, but must never invent footage, source indexes, or "
+        "timestamps outside those ranges. Keep at least three distinct shots, avoid duplicate candidates, "
+        "preserve factual meaning, and make a coherent short-form sequence. Follow the campaign brief "
+        "and the creator's selected creative direction. Prefer a strong, immediately understandable "
+        "opening and a satisfying truthful progression. Each output shot must be at least 1.5 seconds "
+        "and no longer than its candidate's original range. Explain each choice briefly. Return JSON only."
+    )
+    user = (
+        f"Campaign brief:\n{brief[:6000] or 'No written brief was supplied.'}\n\n"
+        f"Selected creative direction:\n{creative_direction[:1000] or 'Use the campaign brief.'}\n\n"
+        f"Selected clip title: {str(edit.get('title') or 'Untitled')[:100]}\n"
+        f"Current candidate shots (timestamps are source-video seconds):\n"
+        f"{json.dumps(candidates, ensure_ascii=False)}\n\n"
+        "Return a revised sequence. candidate_index must refer to one supplied candidate. "
+        "You may omit weak shots, but return at least three. Keep the overall duration reasonably "
+        "close to the current clip and do not add new shots."
+    )
+    result = llm.complete_json(system, user, AI_EDIT_SCHEMA, "campaign_ai_edit_proposal")
+    proposed = []
+    used = set()
+    for item in result.get("shots", [])[:40]:
+        try:
+            index = int(item["candidate_index"])
+            if index in used or not 0 <= index < len(candidates):
+                continue
+            candidate = candidates[index]
+            start = float(item["start_seconds"])
+            end = float(item["end_seconds"])
+            if start < candidate["start_seconds"] or end > candidate["end_seconds"] or end - start < 1.5:
+                continue
+            used.add(index)
+            proposed.append({
+                "source_index": candidate["source_index"],
+                "start_seconds": round(start, 3),
+                "end_seconds": round(end, 3),
+                "reason": str(item.get("reason") or candidate["reason"])[:300],
+            })
+        except (KeyError, TypeError, ValueError):
+            continue
+    if len(proposed) < 3:
+        raise ValueError("The AI could not produce a safe edit from these shots. Your current edit is unchanged.")
+    proposal = {
+        "rank": int(edit["rank"]),
+        "title": str(edit.get("title") or "Campaign edit")[:100],
+        "shots": proposed,
+    }
+    notes = [str(note)[:300] for note in result.get("notes", [])[:8] if str(note).strip()]
+    if not notes:
+        notes = ["Generated a new sequence using only the selected clip's existing footage moments."]
+    return proposal, notes
