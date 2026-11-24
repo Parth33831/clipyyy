@@ -1946,6 +1946,21 @@ function CampaignTimeline({
   }))
   const total = Math.max(0.1, shots.reduce((sum, item) => sum + item.duration, 0))
   const musicStart = Math.max(0, musicStartSeconds)
+  useEffect(() => {
+    const selected = shots[selectedShotIndex]
+    if (!selected) return
+    const timelineStart = shots.slice(0, selectedShotIndex).reduce((sum, item) => sum + item.duration, 0)
+    videoRef.current?.pause()
+    audioRef.current?.pause()
+    setIsPlaying(false)
+    pendingSeekRef.current = selected.shot.start_seconds
+    if (videoRef.current && videoRef.current.readyState >= 1) {
+      videoRef.current.currentTime = selected.shot.start_seconds
+      pendingSeekRef.current = null
+    }
+    if (audioRef.current) audioRef.current.currentTime = musicStart + timelineStart
+    setPlayheadSeconds(timelineStart)
+  }, [selectedShotIndex, edit.rank])
   const waveform = waveformQuery.data
   const waveformPeaks = waveform && waveform.duration_seconds > 0
     ? waveform.peaks.slice(
