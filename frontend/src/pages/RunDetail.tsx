@@ -1567,6 +1567,14 @@ function CampaignStoryboardEditor({
                         <span className="text-muted">Not saved yet</span>
                       </div>
                       <pre className="max-h-36 overflow-auto whitespace-pre-wrap rounded bg-surface p-2 font-sans text-ink">{lyricResyncProposal.lyrics || 'No timed lyric lines were detected.'}</pre>
+                      <div className="flex flex-wrap gap-1.5">
+                        {lyricResyncProposal.words.slice(0, 24).map((word, index) => (
+                          <span key={`resync-word-${index}`} className="rounded border border-line bg-surface px-1.5 py-1 font-mono text-[10px] text-ink">
+                            {word.word} · {formatDuration(word.start)}–{formatDuration(word.end)}
+                          </span>
+                        ))}
+                        {lyricResyncProposal.words.length > 24 && <span className="self-center text-muted">+{lyricResyncProposal.words.length - 24} more words</span>}
+                      </div>
                       <p className="text-muted">Accepting replaces the current lyric text and word timings, then renders the updated captions. Reject keeps your existing lyrics untouched.</p>
                       <div className="flex gap-2">
                         <button type="button" onClick={onAcceptLyricResync} disabled={savingLyrics || !lyricResyncProposal.word_count}
