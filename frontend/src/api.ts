@@ -156,6 +156,13 @@ export interface CampaignEdit {
   shots: CampaignShot[]
 }
 
+export interface CampaignAiEditProposal {
+  proposal: CampaignEdit
+  notes: string[]
+  saved: false
+  rendered: false
+}
+
 export interface CampaignConcept {
   id: string
   name: string
@@ -334,6 +341,11 @@ export const api = {
     request<{ saved: boolean; rendered: boolean; outputs: number }>(`/api/runs/${id}/campaign-montage`, {
       method: 'PUT',
       body: JSON.stringify({ edits }),
+    }),
+  generateCampaignAiEdit: (id: string, currentEdit: CampaignEdit, creativeDirection: string) =>
+    request<CampaignAiEditProposal>(`/api/runs/${id}/campaign-ai-edit`, {
+      method: 'POST',
+      body: JSON.stringify({ current_edit: currentEdit, creative_direction: creativeDirection }),
     }),
   retry: (id: string, fromStage?: string) =>
     request<RunDetail>(`/api/runs/${id}/retry`, {
