@@ -611,6 +611,8 @@ export function RunDetailPage() {
           edits={campaignEdits}
           savedEdits={data.campaign_edits}
           originalEdits={data.campaign_original_edits ?? data.campaign_edits}
+          aiProposalEdits={(data.campaign_concepts?.find((concept) => concept.id === (selectedConceptId ?? data.campaign_concepts?.[0]?.id)) ?? data.campaign_concepts?.[0])?.refined_edits ?? []}
+          aiProposalNotes={(data.campaign_concepts?.find((concept) => concept.id === (selectedConceptId ?? data.campaign_concepts?.[0]?.id)) ?? data.campaign_concepts?.[0])?.refinement_notes ?? []}
           sources={data.campaign_sources ?? []}
           musicAnalysis={data.campaign_quality_checks?.music_analysis ?? null}
           musicStartSeconds={musicStartSeconds}
@@ -1086,6 +1088,8 @@ function CampaignStoryboardEditor({
   edits,
   savedEdits,
   originalEdits,
+  aiProposalEdits,
+  aiProposalNotes,
   sources,
   musicAnalysis,
   musicStartSeconds,
@@ -1138,6 +1142,8 @@ function CampaignStoryboardEditor({
   edits: CampaignEdit[]
   savedEdits: CampaignEdit[]
   originalEdits: CampaignEdit[]
+  aiProposalEdits: CampaignEdit[]
+  aiProposalNotes: string[]
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
   musicStartSeconds: number
@@ -1188,7 +1194,8 @@ function CampaignStoryboardEditor({
 }) {
   const [selectedEditRank, setSelectedEditRank] = useState(edits[0]?.rank ?? 1)
   const [selectedShotIndex, setSelectedShotIndex] = useState(0)
-  const [activeTool, setActiveTool] = useState<'shots' | 'hook' | 'audio' | 'lyrics' | 'titles' | 'animations'>('shots')
+  const [activeTool, setActiveTool] = useState<'ai' | 'shots' | 'hook' | 'audio' | 'lyrics' | 'titles' | 'animations'>('ai')
+  const [proposalDecisions, setProposalDecisions] = useState<Record<number, 'accepted' | 'rejected'>>({})
   const [selectedPhraseIndex, setSelectedPhraseIndex] = useState(0)
   const selectedTextOverlays = textOverlays
     .map((overlay, index) => ({ overlay, index }))
@@ -1297,6 +1304,9 @@ function CampaignStoryboardEditor({
       </div>
       {edits.filter((edit) => edit.rank === selectedEditRank).map((edit) => {
         const editIndex = edits.findIndex((item) => item.rank === edit.rank)
+        const aiProposal = aiProposalEdits.find((item) => item.rank === edit.rank)
+        const aiProposalChanged = Boolean(aiProposal && JSON.stringify(aiProposal.shots) !== JSON.stringify(edit.shots))
+        const proposalDecision = proposalDecisions[edit.rank]
         return (
         <section key={edit.rank} className="flex flex-col gap-3 border-t border-line pt-4">
           <div className="flex items-center justify-between gap-3">
@@ -1332,6 +1342,7 @@ function CampaignStoryboardEditor({
           <aside className="flex min-w-0 flex-col gap-3 rounded-lg border border-line bg-surface p-3 lg:col-start-1 lg:row-start-1">
             <div className="grid grid-cols-2 gap-1" role="group" aria-label="Clip editing tools">
               {([
+                ['ai', 'AI Edit'],
                 ['shots', 'Shot editing'],
                 ['hook', 'Opening Hook'],
                 ['audio', 'Music & audio'],
@@ -1346,6 +1357,98 @@ function CampaignStoryboardEditor({
                 </button>
               ))}
             </div>
+            {activeTool === 'ai' && (
+              <div className="flex flex-col gap-3 text-xs">
+                <div>
+                  <p className="font-semibold text-ink">AI final-cut proposal</p>
+                  <p className="mt-1 leading-relaxed text-muted">
+                    CLIPYYY has already analyzed this campaign's footage and music. Review the proposed shot sequence before deciding whether to use it.
+                  </p>
+                </div>
+                {aiProposal ? (
+                  <>
+                    <div className="rounded-md border border-line bg-panel p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-ink">Clip {edit.rank} · proposed sequence</span>
+                        <span className="font-mono text-[10px] text-muted">{aiProposal.shots.length} shots</span>
+                      </div>
+                      <div className="mt-2 flex flex-col gap-2">
+                        {aiProposal.shots.slice(0, 6).map((shot, index) => {
+                          const source = sourceByIndex.get(shot.source_index)
+                          return (
+                            <div key={`ai-proposal-${edit.rank}-${index}`} className="flex min-w-0 items-center gap-2">
+                              <img
+                                src={`/api/runs/${runId}/campaign-frame?source_index=${shot.source_index}&timestamp=${shot.start_seconds.toFixed(1)}`}
+                                alt=""
+                                loading="lazy"
+                                className="h-9 w-12 shrink-0 rounded border border-line bg-surface object-cover"
+                              />
+                              <div className="min-w-0">
+                                <p className="truncate font-medium text-ink">Shot {index + 1} · {source?.title ?? `Source ${shot.source_index + 1}`}</p>
+                                <p className="font-mono text-[10px] text-muted">{formatDuration(shot.start_seconds)}–{formatDuration(shot.end_seconds)}</p>
+                              </div>
+                            </div>
+                          )
+                        })}
+                        {aiProposal.shots.length > 6 && (
+                          <p className="text-[10px] text-faint">Plus {aiProposal.shots.length - 6} more shots in the proposed timeline.</p>
+                        )}
+                      </div>
+                    </div>
+                    {aiProposalChanged ? (
+                      <div className="rounded-md border border-line bg-surface p-3">
+                        <p className="font-semibold text-ink">What the AI recommends</p>
+                        {aiProposalNotes.length > 0 ? (
+                          <ul className="mt-2 list-disc space-y-1 pl-4 text-muted">
+                            {aiProposalNotes.map((note, index) => <li key={index}>{note}</li>)}
+                          </ul>
+                        ) : (
+                          <p className="mt-2 text-muted">A revised shot order or cut timing is available for review.</p>
+                        )}
+                        <p className="mt-2 text-[10px] text-faint">This is only a proposal. Your current edit remains unchanged until you accept it.</p>
+                      </div>
+                    ) : (
+                      <div className="rounded-md border border-line bg-surface p-3 text-muted">
+                        {proposalDecision === 'accepted'
+                          ? 'AI proposal is applied to this clip in your current editing session. Save & re-render when you are ready.'
+                          : 'The AI found no additional safe changes for this clip. Your current edit is already the recommended cut.'}
+                      </div>
+                    )}
+                    {aiProposalChanged && proposalDecision !== 'accepted' && proposalDecision !== 'rejected' && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <button type="button" disabled={saving} onClick={() => {
+                          onChange(edits.map((item) => item.rank === edit.rank ? { ...aiProposal, rank: item.rank } : item))
+                          setProposalDecisions((current) => ({ ...current, [edit.rank]: 'accepted' }))
+                        }} className="rounded-md bg-ink px-3 py-2 font-semibold text-panel hover:opacity-90 disabled:opacity-40">
+                          Accept AI Edit
+                        </button>
+                        <button type="button" onClick={() => setProposalDecisions((current) => ({ ...current, [edit.rank]: 'rejected' }))}
+                          className="rounded-md border border-line px-3 py-2 font-semibold text-muted hover:border-ink hover:text-ink">
+                          Reject proposal
+                        </button>
+                      </div>
+                    )}
+                    {proposalDecision === 'rejected' && (
+                      <div className="rounded-md border border-line bg-surface p-3">
+                        <p className="text-muted">Proposal rejected. Your current manual edit has not been changed.</p>
+                        <button type="button" onClick={() => setProposalDecisions((current) => {
+                          const next = { ...current }
+                          delete next[edit.rank]
+                          return next
+                        })} className="mt-2 font-semibold text-ink underline">Review proposal again</button>
+                      </div>
+                    )}
+                    {proposalDecision === 'accepted' && (
+                      <p className="text-muted">Your accepted proposal is now in the editable timeline. You can still change any shot, undo, or reset before rendering.</p>
+                    )}
+                  </>
+                ) : (
+                  <div className="rounded-md border border-line bg-surface p-3 text-muted">
+                    No AI final-cut proposal is available for this clip. The original campaign edit is safe and can still be edited manually.
+                  </div>
+                )}
+              </div>
+            )}
             {activeTool === 'shots' && (
               <>
                 <div className="flex items-center justify-between gap-2">
