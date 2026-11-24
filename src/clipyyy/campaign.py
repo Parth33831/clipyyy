@@ -1377,7 +1377,6 @@ def format_campaign_plan(plan: dict[str, Any]) -> str:
     return "- No structured requirements extracted; follow the original brief exactly."
 
 
-
 AI_EDIT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -1427,15 +1426,17 @@ def generate_ai_edit_proposal(
         duration = float(sources[source_index].get("duration_seconds") or 0)
         if start < 0 or end <= start or end > duration:
             raise ValueError("The selected clip contains a shot outside its source video.")
-        candidates.append({
-            "candidate_index": index,
-            "source_title": str(sources[source_index].get("title") or f"Source {source_index + 1}"),
-            "source_index": source_index,
-            "start_seconds": start,
-            "end_seconds": end,
-            "reason": str(shot.get("reason") or "")[:300],
-            "duration_seconds": round(end - start, 3),
-        })
+        candidates.append(
+            {
+                "candidate_index": index,
+                "source_title": str(sources[source_index].get("title") or f"Source {source_index + 1}"),
+                "source_index": source_index,
+                "start_seconds": start,
+                "end_seconds": end,
+                "reason": str(shot.get("reason") or "")[:300],
+                "duration_seconds": round(end - start, 3),
+            }
+        )
     if len(candidates) < 3:
         raise ValueError(
             "AI Edit needs at least three existing shots. Add more shots before generating a proposal."
@@ -1475,12 +1476,14 @@ def generate_ai_edit_proposal(
             if start < candidate["start_seconds"] or end > candidate["end_seconds"] or end - start < 1.5:
                 continue
             used.add(index)
-            proposed.append({
-                "source_index": candidate["source_index"],
-                "start_seconds": round(start, 3),
-                "end_seconds": round(end, 3),
-                "reason": str(item.get("reason") or candidate["reason"])[:300],
-            })
+            proposed.append(
+                {
+                    "source_index": candidate["source_index"],
+                    "start_seconds": round(start, 3),
+                    "end_seconds": round(end, 3),
+                    "reason": str(item.get("reason") or candidate["reason"])[:300],
+                }
+            )
         except (KeyError, TypeError, ValueError):
             continue
     if len(proposed) < 3:
