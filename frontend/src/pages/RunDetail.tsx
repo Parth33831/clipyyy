@@ -574,12 +574,7 @@ export function RunDetailPage() {
               <p className="mt-1 text-xs leading-relaxed text-muted">Work from top to bottom. You can revisit any step whenever you like.</p>
             </div>
             {[
-              ['campaign-preview', 'Video & Timeline', '1'],
-              ['campaign-audio', 'Music & Audio', '2'],
-              ['campaign-animations', 'Animations', '3'],
-              ['campaign-lyrics', 'Lyrics Sync', '4'],
-              ['campaign-text', 'Text & Titles', '5'],
-              ['campaign-storyboard', 'Shot Editing', '6'],
+              ['campaign-preview', 'Clip editing workspace', '1'],
             ].map(([target, label, step]) => {
               const active = activeEditorSection === target
               return (
@@ -624,6 +619,10 @@ export function RunDetailPage() {
           onUpdateLyric={updateLyricPhrase}
           lyricWords={campaignTimelineWords}
           wordsOnScreen={data.options.campaign_lyrics_words_on_screen ?? 3}
+          lyricsStyle={lyricsStyle}
+          onLyricsStyleChange={setLyricsStyle}
+          lyricsWordsOnScreen={lyricsWordsOnScreen}
+          onLyricsWordsOnScreenChange={setLyricsWordsOnScreen}
           lyricsColor={lyricsColor}
           lyricsHighlightColor={lyricsHighlightColor}
           textOverlays={campaignTextOverlays}
@@ -670,37 +669,6 @@ export function RunDetailPage() {
             </div>
       {data.options.campaign_mode && !busy && (
         <div className="scroll-mt-5 flex flex-col gap-4 rounded-xl border border-line bg-surface p-4">
-          <div id="campaign-animations" className="scroll-mt-5 flex flex-col gap-3 text-sm">
-            <span className="font-medium">Lyrics animation preset</span>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {([
-                ['dynamic', '01 · Pop Punch', 'Quick zoom + colour hit', 'lyric-preview-pop'],
-                ['karaoke', '02 · Karaoke Sweep', 'Word-by-word highlight', 'lyric-preview-karaoke'],
-                ['cinematic', '03 · Cinematic Fade', 'Smooth, clean entrance', 'lyric-preview-fade'],
-                ['minimal', '04 · Minimal', 'Simple readable lyrics', 'lyric-preview-minimal'],
-                ['zoom', '05 · Zoom Burst', 'Big pop-in, settle back', 'lyric-preview-zoom'],
-                ['bounce', '06 · Elastic Bounce', 'Springy movement', 'lyric-preview-bounce'],
-                ['pulse', '07 · Beat Pulse', 'Scale pulse on each phrase', 'lyric-preview-pulse'],
-                ['glitch', '08 · Tilt Pop', 'Tilted punch and settle', 'lyric-preview-tilt'],
-              ] as const).map(([value, title, description, animationClass]) => (
-                <button key={value} type="button" onClick={() => setLyricsStyle(value)}
-                  aria-pressed={lyricsStyle === value}
-                  className={cn('flex items-center gap-3 rounded-lg border p-3 text-left transition-colors',
-                    lyricsStyle === value ? 'border-ink bg-sunk' : 'border-line bg-panel hover:border-line-strong')}>
-                  <span className="flex h-12 w-24 shrink-0 items-center justify-center overflow-hidden rounded-md bg-ink">
-                    <span className={cn('text-sm font-black tracking-tight', animationClass)}
-                      style={{ color: lyricsColor, textShadow: '0 1px 3px #000' }}>Lyric!</span>
-                  </span>
-                  <span className="flex min-w-0 flex-col gap-1">
-                    <span className="font-medium">{title}</span>
-                    <span className="text-xs text-muted">{description}</span>
-                    {lyricsStyle === value && <span className="text-[10px] font-semibold uppercase tracking-wider text-ok">Selected</span>}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <span className="text-xs text-muted">Each tile previews the motion. Change the preset or lyrics, then apply it to the existing montage; saved shots and Whisper word timings are reused.</span>
-          </div>
           <div className="flex flex-col gap-2 rounded-lg border border-line bg-panel p-3 text-sm">
             <span className="font-medium">Words on screen at once</span>
             <div className="flex gap-2">
@@ -1102,6 +1070,10 @@ function CampaignStoryboardEditor({
   onUpdateLyric,
   lyricWords,
   wordsOnScreen,
+  lyricsStyle,
+  onLyricsStyleChange,
+  lyricsWordsOnScreen,
+  onLyricsWordsOnScreenChange,
   lyricsColor,
   lyricsHighlightColor,
   textOverlays,
@@ -1157,6 +1129,10 @@ function CampaignStoryboardEditor({
   onUpdateLyric: (phraseIndex: number, patch: Partial<CampaignLyricPhraseEdit>) => void
   lyricWords: CampaignPreviewWord[]
   wordsOnScreen: 1 | 2 | 3
+  lyricsStyle: 'dynamic' | 'cinematic' | 'minimal' | 'karaoke' | 'zoom' | 'bounce' | 'pulse' | 'glitch'
+  onLyricsStyleChange: (value: 'dynamic' | 'cinematic' | 'minimal' | 'karaoke' | 'zoom' | 'bounce' | 'pulse' | 'glitch') => void
+  lyricsWordsOnScreen: 1 | 2 | 3
+  onLyricsWordsOnScreenChange: (value: 1 | 2 | 3) => void
   lyricsColor: string
   lyricsHighlightColor: string
   textOverlays: CampaignTextOverlay[]
@@ -1670,8 +1646,46 @@ function CampaignStoryboardEditor({
             )}
             {(activeTool === 'titles' || activeTool === 'animations') && (
               <div className="flex flex-col gap-3 text-xs">
+                {activeTool === 'animations' && (
+                  <div className="flex flex-col gap-3 rounded-md border border-line bg-panel p-3">
+                    <div>
+                      <p className="font-semibold text-ink">Global lyric animation</p>
+                      <p className="mt-1 text-muted">Choose how timed lyrics enter the video. Individual phrases can still override this style in Lyrics Sync.</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {([
+                        ['dynamic', 'Pop punch'], ['cinematic', 'Cinematic fade'], ['minimal', 'Minimal'], ['karaoke', 'Karaoke sweep'],
+                        ['zoom', 'Zoom burst'], ['bounce', 'Elastic bounce'], ['pulse', 'Beat pulse'], ['glitch', 'Tilt pop'],
+                      ] as const).map(([value, label]) => (
+                        <button key={value} type="button" aria-pressed={lyricsStyle === value}
+                          onClick={() => onLyricsStyleChange(value)}
+                          className={cn('rounded-md border px-2 py-2 text-left font-semibold transition-colors',
+                            lyricsStyle === value ? 'border-ink bg-ink text-white' : 'border-line bg-surface text-muted hover:border-ink')}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <div>
+                      <p className="mb-1.5 font-semibold text-ink">Words on screen at once</p>
+                      <div className="flex gap-1.5">
+                        {([1, 2, 3] as const).map((count) => (
+                          <button key={count} type="button" aria-pressed={lyricsWordsOnScreen === count}
+                            onClick={() => onLyricsWordsOnScreenChange(count)}
+                            className={cn('flex-1 rounded-md border px-2 py-2 font-semibold transition-colors',
+                              lyricsWordsOnScreen === count ? 'border-ink bg-ink text-white' : 'border-line bg-surface text-muted hover:border-ink')}>
+                            {count} {count === 1 ? 'word' : 'words'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button type="button" onClick={onSaveLyrics} disabled={savingLyrics}
+                      className="rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">
+                      {savingLyrics ? 'Applying lyric style…' : 'Apply lyric animation'}
+                    </button>
+                  </div>
+                )}
                 <div>
-                  <p className="font-semibold text-ink">{activeTool === 'titles' ? 'Text layers' : 'Text animations'}</p>
+                  <p className="font-semibold text-ink">{activeTool === 'titles' ? 'Text layers' : 'Title entrance animations'}</p>
                   <p className="mt-1 text-muted">{activeTool === 'titles' ? 'Edit the title layers attached to this clip.' : 'Choose an entrance animation for each title layer.'}</p>
                 </div>
                 {selectedTextOverlays.length === 0 ? <p className="rounded-md border border-dashed border-line p-2 text-muted">No text layers are assigned to this clip yet. Add one in Text & Titles below.</p> : selectedTextOverlays.map(({ overlay, index }) => (
