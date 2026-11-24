@@ -1282,7 +1282,7 @@ function CampaignStoryboardEditor({
               key={edit.rank}
               type="button"
               aria-pressed={selectedEditRank === edit.rank}
-              onClick={() => setSelectedEditRank(edit.rank)}
+              onClick={() => { setSelectedEditRank(edit.rank); setSelectedShotIndex(0) }}
               className={cn(
                 'flex min-w-[120px] flex-col items-start rounded-md border px-3 py-2 text-left transition-colors',
                 selectedEditRank === edit.rank ? 'border-ink bg-sunk text-ink' : 'border-line bg-surface text-muted hover:border-line-strong hover:text-ink',
@@ -1377,33 +1377,41 @@ function CampaignStoryboardEditor({
                     </p>
                   </div>
                   </button>
-                  <div className="grid grid-cols-2 gap-2">
-                  <label className="flex flex-col gap-1 text-xs text-muted">
-                    Start (seconds)
-                    <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.start_seconds}
-                      onChange={(event) => updateShot(editIndex, shotIndex, { start_seconds: Number(event.target.value) })} disabled={saving}
-                      className="w-full rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
-                  </label>
-                  <label className="flex flex-col gap-1 text-xs text-muted">
-                    <span className="flex items-center justify-between gap-1">
-                      End (seconds)
-                      {(() => {
-                        const snappedEnd = getBeatSnappedShotEnd(edit, shotIndex, musicAnalysis, source?.duration_seconds)
-                        return (
-                          <button type="button" disabled={saving || snappedEnd === null}
-                            onClick={() => snappedEnd !== null && updateShot(editIndex, shotIndex, { end_seconds: snappedEnd })}
-                            className="rounded border border-line px-1.5 py-0.5 text-[10px] text-ink hover:bg-surface disabled:opacity-30"
-                            title="Align this shot's end with the nearest suitable music beat">
-                            Snap to beat
-                          </button>
-                        )
-                      })()}
-                    </span>
-                    <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.end_seconds}
-                      onChange={(event) => updateShot(editIndex, shotIndex, { end_seconds: Number(event.target.value) })} disabled={saving}
-                      className="w-full rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
-                  </label>
-                  </div>
+                  <p className="text-[10px] leading-relaxed text-muted">
+                    Drag the clip edges on the timeline to trim. Drag the clip itself to change its order.
+                  </p>
+                  <details className="rounded-md border border-line bg-surface/60 px-2 py-1.5">
+                    <summary className="cursor-pointer select-none text-[11px] font-semibold text-muted hover:text-ink">
+                      Precise timing · Advanced
+                    </summary>
+                    <div className="mt-2 grid grid-cols-2 gap-2 border-t border-line pt-2">
+                      <label className="flex flex-col gap-1 text-xs text-muted">
+                        Start
+                        <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.start_seconds}
+                          onChange={(event) => updateShot(editIndex, shotIndex, { start_seconds: Number(event.target.value) })} disabled={saving}
+                          className="w-full rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
+                      </label>
+                      <label className="flex flex-col gap-1 text-xs text-muted">
+                        <span className="flex items-center justify-between gap-1">
+                          End
+                          {(() => {
+                            const snappedEnd = getBeatSnappedShotEnd(edit, shotIndex, musicAnalysis, source?.duration_seconds)
+                            return (
+                              <button type="button" disabled={saving || snappedEnd === null}
+                                onClick={() => snappedEnd !== null && updateShot(editIndex, shotIndex, { end_seconds: snappedEnd })}
+                                className="rounded border border-line px-1.5 py-0.5 text-[10px] text-ink hover:bg-surface disabled:opacity-30"
+                                title="Align this shot's end with the nearest suitable music beat">
+                                Snap to beat
+                              </button>
+                            )
+                          })()}
+                        </span>
+                        <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.end_seconds}
+                          onChange={(event) => updateShot(editIndex, shotIndex, { end_seconds: Number(event.target.value) })} disabled={saving}
+                          className="w-full rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
+                      </label>
+                    </div>
+                  </details>
                   <div className="flex items-center justify-end gap-1">
                     <button type="button" title="Move shot up" aria-label="Move shot up" disabled={saving || shotIndex === 0}
                       onClick={() => moveShot(editIndex, shotIndex, -1)} className="rounded-md border border-line p-2 text-muted hover:text-ink disabled:opacity-30">
@@ -2147,7 +2155,7 @@ function CampaignTimeline({
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3">
       <div className="flex items-center justify-between gap-3">
-        <span className="label text-muted">Video timeline · drag shots to reorder</span>
+        <span className="label text-muted">Video timeline · drag clips to reorder and trim</span>
         <span className="font-mono text-[11px] text-faint">{formatDuration(total)} estimated</span>
       </div>
       {shots.length > 0 && (() => {
