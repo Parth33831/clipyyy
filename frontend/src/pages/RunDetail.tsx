@@ -571,7 +571,7 @@ export function RunDetailPage() {
           <nav aria-label="Campaign editor tools" className="z-10 flex gap-2 overflow-x-auto rounded-xl border border-line bg-surface p-2 lg:sticky lg:top-5 lg:flex-col lg:gap-1 lg:overflow-visible">
             <div className="hidden px-3 py-2 lg:block">
               <p className="label text-faint">YOUR EDITING WORKFLOW</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted">Work from top to bottom. You can revisit any step whenever you like.</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted">The preview, timeline and editing tools stay together while you work.</p>
             </div>
             {[
               ['campaign-preview', 'Clip editing workspace', '1'],
@@ -618,7 +618,7 @@ export function RunDetailPage() {
           lyrics={campaignTimelineLyrics}
           onUpdateLyric={updateLyricPhrase}
           lyricWords={campaignTimelineWords}
-          wordsOnScreen={data.options.campaign_lyrics_words_on_screen ?? 3}
+          wordsOnScreen={lyricsWordsOnScreen}
           lyricsStyle={lyricsStyle}
           onLyricsStyleChange={setLyricsStyle}
           lyricsWordsOnScreen={lyricsWordsOnScreen}
@@ -669,20 +669,6 @@ export function RunDetailPage() {
             </div>
       {data.options.campaign_mode && !busy && (
         <div className="scroll-mt-5 flex flex-col gap-4 rounded-xl border border-line bg-surface p-4">
-          <div className="flex flex-col gap-2 rounded-lg border border-line bg-panel p-3 text-sm">
-            <span className="font-medium">Words on screen at once</span>
-            <div className="flex gap-2">
-              {([1, 2, 3] as const).map((count) => (
-                <button key={count} type="button" onClick={() => setLyricsWordsOnScreen(count)}
-                  aria-pressed={lyricsWordsOnScreen === count}
-                  className={cn('flex-1 rounded-lg border px-3 py-2 font-semibold transition-colors',
-                    lyricsWordsOnScreen === count ? 'border-ink bg-sunk text-ink' : 'border-line bg-panel text-muted hover:border-line-strong')}>
-                  {count} {count === 1 ? 'word' : 'words'}
-                </button>
-              ))}
-            </div>
-            <span className="text-xs text-muted">Shows a rolling group of 1, 2, or 3 words as the song progresses. Default: 3.</span>
-          </div>
           <LyricsPositionPreview
             frameUrl={campaignEdits[0]?.shots[0] ? `/api/runs/${runId}/campaign-frame?source_index=${campaignEdits[0].shots[0].source_index}&timestamp=${campaignEdits[0].shots[0].start_seconds.toFixed(1)}` : null}
             text={lyricPhrases[selectedLyricPhrase] ?? 'Your lyrics appear here'}
