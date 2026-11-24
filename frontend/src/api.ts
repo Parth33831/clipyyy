@@ -139,6 +139,15 @@ export interface CampaignShot {
   reason: string
 }
 
+export interface CampaignLyricResyncProposal {
+  lyrics: string
+  words: { word: string; start: number; end: number }[]
+  language: string | null
+  word_count: number
+  saved: false
+  rendered: false
+}
+
 export interface CampaignLyricWordEdit {
   word_index: number
   word?: string
@@ -335,11 +344,14 @@ export const api = {
     rotationDegrees: number,
     phraseEdits: CampaignLyricPhraseEdit[] = [],
     wordEdits: CampaignLyricWordEdit[] = [],
+    replaceWords?: { word: string; start: number; end: number }[],
   ) =>
     request<{ saved: boolean; rendered: boolean; characters: number; outputs: number }>(`/api/runs/${id}/campaign-lyrics`, {
       method: 'PUT',
-      body: JSON.stringify({ lyrics, lyrics_style: lyricsStyle, hook_text: hookText, include_hook: includeHook, lyrics_color: lyricsColor, highlight_color: highlightColor, words_on_screen: wordsOnScreen, lyrics_behind_subject: lyricsBehindSubject, position_x: positionX, position_y: positionY, scale_percent: scalePercent, rotation_degrees: rotationDegrees, phrase_edits: phraseEdits, word_edits: wordEdits }),
+      body: JSON.stringify({ lyrics, lyrics_style: lyricsStyle, hook_text: hookText, include_hook: includeHook, lyrics_color: lyricsColor, highlight_color: highlightColor, words_on_screen: wordsOnScreen, lyrics_behind_subject: lyricsBehindSubject, position_x: positionX, position_y: positionY, scale_percent: scalePercent, rotation_degrees: rotationDegrees, phrase_edits: phraseEdits, word_edits: wordEdits, ...(replaceWords ? { replace_words: replaceWords } : {}) }),
     }),
+  resyncCampaignLyrics: (id: string) =>
+    request<CampaignLyricResyncProposal>(`/api/runs/${id}/campaign-lyrics-resync`, { method: 'POST' }),
   saveCampaignTextOverlays: (id: string, overlays: CampaignTextOverlay[]) =>
     request<{ saved: boolean; rendered: boolean; overlays: number; outputs: number }>(`/api/runs/${id}/campaign-text-overlays`, {
       method: 'PUT',
