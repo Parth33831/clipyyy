@@ -632,8 +632,10 @@ export function RunDetailPage() {
           onSave={() => saveMontage.mutate()}
           onReset={() => setCampaignEdits(data.campaign_original_edits ?? data.campaign_edits)}
           savingAudio={saveCampaignAudio.isPending}
+          savingLyrics={saveLyrics.isPending}
           savingText={saveCampaignTextOverlays.isPending}
           onSaveAudio={() => saveCampaignAudio.mutate()}
+          onSaveLyrics={() => saveLyrics.mutate()}
           onSaveText={() => saveCampaignTextOverlays.mutate()}
         />
       )}
@@ -1176,8 +1178,10 @@ function CampaignStoryboardEditor({
   onSave,
   onReset,
   savingAudio,
+  savingLyrics,
   savingText,
   onSaveAudio,
+  onSaveLyrics,
   onSaveText,
 }: {
   runId: string
@@ -1204,8 +1208,10 @@ function CampaignStoryboardEditor({
   onSave: () => void
   onReset: () => void
   savingAudio: boolean
+  savingLyrics: boolean
   savingText: boolean
   onSaveAudio: () => void
+  onSaveLyrics: () => void
   onSaveText: () => void
 }) {
   const [selectedEditRank, setSelectedEditRank] = useState(edits[0]?.rank ?? 1)
@@ -1512,6 +1518,8 @@ function CampaignStoryboardEditor({
                     })()}
                   </>
                 )}
+                <button type="button" onClick={onSaveLyrics} disabled={savingLyrics || lyrics.length === 0}
+                  className="rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">{savingLyrics ? 'Applying…' : 'Apply lyric changes'}</button>
               </div>
             )}
             {(activeTool === 'titles' || activeTool === 'animations') && (
