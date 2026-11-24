@@ -139,6 +139,13 @@ export interface CampaignShot {
   reason: string
 }
 
+export interface CampaignLyricWordEdit {
+  word_index: number
+  word?: string
+  start?: number
+  end?: number
+}
+
 export interface CampaignLyricPhraseEdit {
   phrase_index: number
   start_seconds?: number
@@ -327,10 +334,11 @@ export const api = {
     scalePercent: number,
     rotationDegrees: number,
     phraseEdits: CampaignLyricPhraseEdit[] = [],
+    wordEdits: CampaignLyricWordEdit[] = [],
   ) =>
     request<{ saved: boolean; rendered: boolean; characters: number; outputs: number }>(`/api/runs/${id}/campaign-lyrics`, {
       method: 'PUT',
-      body: JSON.stringify({ lyrics, lyrics_style: lyricsStyle, hook_text: hookText, include_hook: includeHook, lyrics_color: lyricsColor, highlight_color: highlightColor, words_on_screen: wordsOnScreen, lyrics_behind_subject: lyricsBehindSubject, position_x: positionX, position_y: positionY, scale_percent: scalePercent, rotation_degrees: rotationDegrees, phrase_edits: phraseEdits }),
+      body: JSON.stringify({ lyrics, lyrics_style: lyricsStyle, hook_text: hookText, include_hook: includeHook, lyrics_color: lyricsColor, highlight_color: highlightColor, words_on_screen: wordsOnScreen, lyrics_behind_subject: lyricsBehindSubject, position_x: positionX, position_y: positionY, scale_percent: scalePercent, rotation_degrees: rotationDegrees, phrase_edits: phraseEdits, word_edits: wordEdits }),
     }),
   saveCampaignTextOverlays: (id: string, overlays: CampaignTextOverlay[]) =>
     request<{ saved: boolean; rendered: boolean; overlays: number; outputs: number }>(`/api/runs/${id}/campaign-text-overlays`, {
