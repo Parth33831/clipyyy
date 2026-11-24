@@ -631,6 +631,11 @@ export function RunDetailPage() {
           onChange={setCampaignEdits}
           onSave={() => saveMontage.mutate()}
           onReset={() => setCampaignEdits(data.campaign_original_edits ?? data.campaign_edits)}
+          hookText={hookText}
+          includeHook={includeHook}
+          generatedHook={typeof data.campaign_plan?.generated_hook === 'string' ? data.campaign_plan.generated_hook : null}
+          onHookTextChange={setHookText}
+          onIncludeHookChange={setIncludeHook}
           savingAudio={saveCampaignAudio.isPending}
           savingLyrics={saveLyrics.isPending}
           savingText={saveCampaignTextOverlays.isPending}
@@ -642,22 +647,6 @@ export function RunDetailPage() {
             </div>
       {data.options.campaign_mode && !busy && (
         <div id="campaign-hook" className="scroll-mt-5 flex flex-col gap-4 rounded-xl border border-line bg-surface p-4">
-          <div className="flex flex-col gap-2 border-b border-line pb-4">
-            <div className="flex items-center justify-between gap-3">
-              <span className="font-medium">Opening text hook</span>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={includeHook} onChange={(event) => setIncludeHook(event.target.checked)} />
-                Include in video
-              </label>
-            </div>
-            {typeof data.campaign_plan?.generated_hook === 'string' && data.campaign_plan.generated_hook && (
-              <p className="text-xs text-muted">AI suggestion: {data.campaign_plan.generated_hook}</p>
-            )}
-            <textarea value={hookText} onChange={(event) => setHookText(event.target.value)} rows={2} maxLength={160}
-              placeholder="Write your own opening text, or leave blank for no text hook."
-              className="w-full rounded-lg border border-line bg-panel p-3 text-sm text-ink placeholder:text-muted" />
-            <span className="text-xs text-muted">Off by default. Your edit does not need campaign branding or AI-generated text.</span>
-          </div>
           <div id="campaign-audio" className="scroll-mt-5 flex flex-wrap items-end gap-3">
           <label className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
             <span className="font-medium">Campaign music</span>
@@ -1177,6 +1166,11 @@ function CampaignStoryboardEditor({
   onChange,
   onSave,
   onReset,
+  hookText,
+  includeHook,
+  generatedHook,
+  onHookTextChange,
+  onIncludeHookChange,
   savingAudio,
   savingLyrics,
   savingText,
@@ -1207,6 +1201,11 @@ function CampaignStoryboardEditor({
   onChange: (edits: CampaignEdit[]) => void
   onSave: () => void
   onReset: () => void
+  hookText: string
+  includeHook: boolean
+  generatedHook: string | null
+  onHookTextChange: (value: string) => void
+  onIncludeHookChange: (value: boolean) => void
   savingAudio: boolean
   savingLyrics: boolean
   savingText: boolean
@@ -1216,7 +1215,7 @@ function CampaignStoryboardEditor({
 }) {
   const [selectedEditRank, setSelectedEditRank] = useState(edits[0]?.rank ?? 1)
   const [selectedShotIndex, setSelectedShotIndex] = useState(0)
-  const [activeTool, setActiveTool] = useState<'shots' | 'audio' | 'lyrics' | 'titles' | 'animations'>('shots')
+  const [activeTool, setActiveTool] = useState<'shots' | 'hook' | 'audio' | 'lyrics' | 'titles' | 'animations'>('shots')
   const [selectedPhraseIndex, setSelectedPhraseIndex] = useState(0)
   const selectedTextOverlays = textOverlays
     .map((overlay, index) => ({ overlay, index }))
@@ -1361,6 +1360,7 @@ function CampaignStoryboardEditor({
             <div className="grid grid-cols-2 gap-1" role="group" aria-label="Clip editing tools">
               {([
                 ['shots', 'Shot editing'],
+                ['hook', 'Opening Hook'],
                 ['audio', 'Music & audio'],
                 ['lyrics', 'Lyrics sync'],
                 ['titles', 'Text & titles'],
@@ -1455,6 +1455,33 @@ function CampaignStoryboardEditor({
             })}
           </ol>
               </>
+            )}
+            {activeTool === 'hook' && (
+              <div className="flex flex-col gap-3 text-xs">
+                <div>
+                  <p className="font-semibold text-ink">Opening text hook</p>
+                  <p className="mt-1 text-muted">Add a short opening line to catch attention at the start of this campaign video.</p>
+                </div>
+                <label className="flex items-center justify-between gap-3 rounded-md border border-line bg-panel p-2 text-ink">
+                  <span className="font-medium">Include hook in video</span>
+                  <input type="checkbox" checked={includeHook} onChange={(event) => onIncludeHookChange(event.target.checked)} />
+                </label>
+                {generatedHook && (
+                  <div className="rounded-md border border-line bg-panel p-2">
+                    <p className="font-semibold text-ink">AI suggestion</p>
+                    <p className="mt-1 text-muted">{generatedHook}</p>
+                    <button type="button" onClick={() => onHookTextChange(generatedHook)}
+                      className="mt-2 rounded border border-line px-2 py-1.5 font-semibold text-ink">Use suggestion</button>
+                  </div>
+                )}
+                <label className="flex flex-col gap-1 text-muted">Opening text · {hookText.length}/160
+                  <textarea value={hookText} onChange={(event) => onHookTextChange(event.target.value)} rows={3} maxLength={160}
+                    placeholder="Write your opening hook…" className="resize-y rounded-md border border-line bg-panel p-2 text-ink" />
+                </label>
+                <p className="text-muted">Leave it disabled if you want the video to open directly on the footage.</p>
+                <button type="button" onClick={onSaveLyrics} disabled={savingLyrics}
+                  className="rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">{savingLyrics ? 'Applying…' : 'Apply opening hook'}</button>
+              </div>
             )}
             {activeTool === 'audio' && (
               <div className="flex flex-col gap-3 text-xs">
