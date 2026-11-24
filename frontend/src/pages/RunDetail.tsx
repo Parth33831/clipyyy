@@ -635,6 +635,27 @@ export function RunDetailPage() {
           generatedHook={typeof data.campaign_plan?.generated_hook === 'string' ? data.campaign_plan.generated_hook : null}
           onHookTextChange={setHookText}
           onIncludeHookChange={setIncludeHook}
+          musicFile={musicFile}
+          onMusicFileChange={setMusicFile}
+          onAttachMusic={() => musicFile && attachMusic.mutate(musicFile)}
+          attachingMusic={attachMusic.isPending}
+          musicTrackDescription={data.options.campaign_music_path
+            ? data.campaign_plan?.official_platform_sound_required
+              ? 'A track is attached. TikTok’s official sound must still be selected separately when publishing.'
+              : 'A soundtrack is attached. Choose another file to replace it.'
+            : 'No soundtrack attached yet. Add a local audio file to use it in the export.'}
+          musicVolume={musicVolume}
+          onMusicVolumeChange={setMusicVolume}
+          musicFadeIn={musicFadeIn}
+          onMusicFadeInChange={setMusicFadeIn}
+          musicFadeOut={musicFadeOut}
+          onMusicFadeOutChange={setMusicFadeOut}
+          musicDucking={musicDucking}
+          onMusicDuckingChange={setMusicDucking}
+          sourceAudioVolume={sourceAudioVolume}
+          onSourceAudioVolumeChange={setSourceAudioVolume}
+          musicSettingsChanged={musicSettingsChanged}
+          sourceAudioSettingsChanged={sourceAudioSettingsChanged}
           savingAudio={saveCampaignAudio.isPending}
           savingLyrics={saveLyrics.isPending}
           savingText={saveCampaignTextOverlays.isPending}
@@ -646,87 +667,6 @@ export function RunDetailPage() {
             </div>
       {data.options.campaign_mode && !busy && (
         <div className="scroll-mt-5 flex flex-col gap-4 rounded-xl border border-line bg-surface p-4">
-          <div id="campaign-audio" className="scroll-mt-5 flex flex-wrap items-end gap-3">
-          <label className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
-            <span className="font-medium">Campaign music</span>
-            <input
-              type="file"
-              accept="audio/*"
-              onChange={(event) => setMusicFile(event.target.files?.[0] ?? null)}
-              className="block w-full text-sm text-muted file:mr-3 file:border file:border-line file:bg-panel file:px-3 file:py-2 file:text-ink"
-            />
-            <span className="text-xs text-muted">
-              {data.options.campaign_music_path
-                ? data.campaign_plan?.official_platform_sound_required
-                  ? 'A track is attached and will be included in the export. TikTok’s official sound must still be selected separately when publishing.'
-                  : 'A track is attached and will be included in the export. Upload another to replace it.'
-                : 'No track attached. Add your downloaded campaign track here.'}
-            </span>
-          </label>
-          <Button
-            variant="line"
-            disabled={!musicFile}
-            loading={attachMusic.isPending}
-            onClick={() => musicFile && attachMusic.mutate(musicFile)}
-          >
-            Attach music
-          </Button>
-          </div>
-          {data.options.campaign_music_path && (
-            <div className="flex flex-col gap-4 rounded-lg border border-line bg-panel p-3 text-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-medium">Music mix</span>
-                <span className="text-xs text-muted">Adjust the attached track, then re-render</span>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <label className="flex flex-col gap-2">
-                  <span className="flex justify-between gap-2"><span className="font-medium">Music volume</span><span className="font-mono text-muted">{musicVolume}%</span></span>
-                  <input type="range" min={0} max={200} step={5} value={musicVolume} onChange={(event) => setMusicVolume(Number(event.target.value))} className="w-full accent-current" />
-                  <span className="text-xs text-muted">0% mute · 100% original level · 200% boost</span>
-                </label>
-                <label className="flex flex-col gap-2">
-                  <span className="flex justify-between gap-2"><span className="font-medium">Fade in</span><span className="font-mono text-muted">{musicFadeIn.toFixed(1)}s</span></span>
-                  <input type="range" min={0} max={5} step={0.1} value={musicFadeIn} onChange={(event) => setMusicFadeIn(Number(event.target.value))} className="w-full accent-current" />
-                  <span className="text-xs text-muted">How quickly music reaches its set level</span>
-                </label>
-                <label className="flex flex-col gap-2">
-                  <span className="flex justify-between gap-2"><span className="font-medium">Fade out</span><span className="font-mono text-muted">{musicFadeOut.toFixed(1)}s</span></span>
-                  <input type="range" min={0} max={5} step={0.1} value={musicFadeOut} onChange={(event) => setMusicFadeOut(Number(event.target.value))} className="w-full accent-current" />
-                  <span className="text-xs text-muted">How quickly music fades at the end</span>
-                </label>
-              </div>
-              <label className="flex items-start gap-3 rounded-md border border-line bg-surface p-3">
-                <input
-                  type="checkbox"
-                  checked={musicDucking}
-                  onChange={(event) => setMusicDucking(event.target.checked)}
-                  className="mt-0.5 accent-current"
-                />
-                <span className="flex flex-col gap-1">
-                  <span className="font-medium">Auto-duck music under original audio</span>
-                  <span className="text-xs text-muted">Automatically lower the campaign track when source footage gets loud, helping speech stay clear.</span>
-                </span>
-              </label>
-              <div className="flex justify-end">
-                <Button variant="ink" disabled={!musicSettingsChanged || saveCampaignAudio.isPending} loading={saveCampaignAudio.isPending} onClick={() => saveCampaignAudio.mutate()}>
-                  Apply music mix &amp; re-render
-                </Button>
-              </div>
-            </div>
-          )}
-          <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-medium">Original video audio</span>
-              <span className="font-mono text-muted">{sourceAudioVolume}%</span>
-            </div>
-            <input type="range" min={0} max={200} step={5} value={sourceAudioVolume} onChange={(event) => setSourceAudioVolume(Number(event.target.value))} className="w-full accent-current" aria-label="Original video audio volume" />
-            <span className="text-xs text-muted">0% mutes the source footage · 100% keeps its original level · 200% boosts it. Mixes with campaign music when attached.</span>
-            <div className="flex justify-end">
-              <Button variant="ink" disabled={!sourceAudioSettingsChanged || saveCampaignAudio.isPending} loading={saveCampaignAudio.isPending} onClick={() => saveCampaignAudio.mutate()}>
-                Apply original audio mix
-              </Button>
-            </div>
-          </div>
           <div id="campaign-animations" className="scroll-mt-5 flex flex-col gap-3 text-sm">
             <span className="font-medium">Lyrics animation preset</span>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -1170,6 +1110,23 @@ function CampaignStoryboardEditor({
   generatedHook,
   onHookTextChange,
   onIncludeHookChange,
+  musicFile,
+  onMusicFileChange,
+  onAttachMusic,
+  attachingMusic,
+  musicTrackDescription,
+  musicVolume,
+  onMusicVolumeChange,
+  musicFadeIn,
+  onMusicFadeInChange,
+  musicFadeOut,
+  onMusicFadeOutChange,
+  musicDucking,
+  onMusicDuckingChange,
+  sourceAudioVolume,
+  onSourceAudioVolumeChange,
+  musicSettingsChanged,
+  sourceAudioSettingsChanged,
   savingAudio,
   savingLyrics,
   savingText,
@@ -1205,6 +1162,23 @@ function CampaignStoryboardEditor({
   generatedHook: string | null
   onHookTextChange: (value: string) => void
   onIncludeHookChange: (value: boolean) => void
+  musicFile: File | null
+  onMusicFileChange: (file: File | null) => void
+  onAttachMusic: () => void
+  attachingMusic: boolean
+  musicTrackDescription: string
+  musicVolume: number
+  onMusicVolumeChange: (value: number) => void
+  musicFadeIn: number
+  onMusicFadeInChange: (value: number) => void
+  musicFadeOut: number
+  onMusicFadeOutChange: (value: number) => void
+  musicDucking: boolean
+  onMusicDuckingChange: (value: boolean) => void
+  sourceAudioVolume: number
+  onSourceAudioVolumeChange: (value: number) => void
+  musicSettingsChanged: boolean
+  sourceAudioSettingsChanged: boolean
   savingAudio: boolean
   savingLyrics: boolean
   savingText: boolean
@@ -1504,8 +1478,39 @@ function CampaignStoryboardEditor({
                   </div>
                 )}
                 {!hasMusic && <p className="rounded-md border border-dashed border-line p-2 text-muted">Attach a music track in the Music & Audio section below to enable soundtrack alignment.</p>}
-                <button type="button" onClick={onSaveAudio} disabled={!hasMusic || savingAudio}
-                  className="rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">{savingAudio ? 'Applying…' : 'Apply music settings'}</button>
+                <div className="mt-2 flex flex-col gap-3 rounded-md border border-line bg-panel p-3">
+                  <div><p className="font-semibold text-ink">Soundtrack</p><p className="mt-1 text-muted">{musicTrackDescription}</p></div>
+                  <label className="flex flex-col gap-1 text-muted">Choose audio file
+                    <input type="file" accept="audio/*" onChange={(event) => onMusicFileChange(event.target.files?.[0] ?? null)}
+                      className="block w-full text-xs text-muted file:mr-2 file:rounded file:border file:border-line file:bg-surface file:px-2 file:py-2 file:text-ink" />
+                  </label>
+                  <button type="button" onClick={onAttachMusic} disabled={!musicFile || attachingMusic}
+                    className="rounded-md border border-line px-3 py-2 font-semibold text-ink disabled:opacity-40">
+                    {attachingMusic ? 'Attaching track…' : hasMusic ? 'Replace soundtrack' : 'Attach soundtrack'}
+                  </button>
+                  {hasMusic && <>
+                    <label className="flex flex-col gap-1 text-muted">Music volume · {musicVolume}%
+                      <input type="range" min={0} max={200} step={5} value={musicVolume} onChange={(event) => onMusicVolumeChange(Number(event.target.value))} />
+                    </label>
+                    <label className="flex flex-col gap-1 text-muted">Fade in · {musicFadeIn.toFixed(1)}s
+                      <input type="range" min={0} max={5} step={0.1} value={musicFadeIn} onChange={(event) => onMusicFadeInChange(Number(event.target.value))} />
+                    </label>
+                    <label className="flex flex-col gap-1 text-muted">Fade out · {musicFadeOut.toFixed(1)}s
+                      <input type="range" min={0} max={5} step={0.1} value={musicFadeOut} onChange={(event) => onMusicFadeOutChange(Number(event.target.value))} />
+                    </label>
+                    <label className="flex items-start gap-2 rounded border border-line bg-surface p-2 text-muted">
+                      <input type="checkbox" checked={musicDucking} onChange={(event) => onMusicDuckingChange(event.target.checked)} />
+                      <span>Auto-duck music under original speech and source audio</span>
+                    </label>
+                  </>}
+                  <label className="flex flex-col gap-1 text-muted">Original video audio · {sourceAudioVolume}%
+                    <input type="range" min={0} max={200} step={5} value={sourceAudioVolume} onChange={(event) => onSourceAudioVolumeChange(Number(event.target.value))} />
+                  </label>
+                  <button type="button" onClick={onSaveAudio} disabled={savingAudio || (!musicSettingsChanged && !sourceAudioSettingsChanged)}
+                    className="rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">
+                    {savingAudio ? 'Applying audio mix…' : 'Apply audio mix & re-render'}
+                  </button>
+                </div>
               </div>
             )}
             {activeTool === 'lyrics' && (
