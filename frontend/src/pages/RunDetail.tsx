@@ -1518,6 +1518,49 @@ function CampaignStoryboardEditor({
                     className="resize-y rounded-md border border-line bg-panel p-2 text-ink" />
                 </label>
                 <p className="text-muted">{lyricsSourceLabel ?? 'No lyric draft yet. Attach music and choose Pick again to create a local draft.'} Singing recognition can be inaccurate; review the words before publishing.</p>
+                {lyricWords.length > 0 && (
+                  <div className="rounded-md border border-line bg-panel p-2">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="font-semibold text-ink">Word-by-word sync</span>
+                      <span className="text-muted">{lyricWords.length} detected words</span>
+                    </div>
+                    <p className="mb-2 text-muted">Select a word on the timeline or below, correct recognition, then fine-tune its exact start and end. Changes stay local until you apply lyrics.</p>
+                    <label className="flex flex-col gap-1 text-muted">Select word
+                      <select value={lyricWords.some((word) => word.word_index === selectedLyricWordIndex) ? selectedLyricWordIndex : lyricWords[0].word_index}
+                        onChange={(event) => setSelectedLyricWordIndex(Number(event.target.value))}
+                        className="rounded border border-line bg-surface px-2 py-2 text-ink">
+                        {lyricWords.map((word) => <option key={word.word_index} value={word.word_index}>{word.word_index + 1}. {word.word}</option>)}
+                      </select>
+                    </label>
+                    {(() => {
+                      const word = lyricWords.find((item) => item.word_index === selectedLyricWordIndex) ?? lyricWords[0]
+                      return (
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          <label className="col-span-2 flex flex-col gap-1 text-muted">Recognized word
+                            <input value={word.word} maxLength={80}
+                              onChange={(event) => onUpdateLyricWord(word.word_index, { word: event.target.value })}
+                              className="rounded border border-line bg-surface px-2 py-1.5 text-ink" />
+                          </label>
+                          <label className="flex flex-col gap-1 text-muted">Start · {formatDuration(word.start_seconds)}
+                            <input type="number" min={0} max={word.end_seconds - 0.05} step={0.01} value={word.start_seconds.toFixed(2)}
+                              onChange={(event) => onUpdateLyricWord(word.word_index, { start_seconds: Math.max(0, Math.min(word.end_seconds - 0.05, Number(event.target.value))) })}
+                              className="rounded border border-line bg-surface px-2 py-1.5 font-mono text-ink" />
+                          </label>
+                          <label className="flex flex-col gap-1 text-muted">End · {formatDuration(word.end_seconds)}
+                            <input type="number" min={word.start_seconds + 0.05} step={0.01} value={word.end_seconds.toFixed(2)}
+                              onChange={(event) => onUpdateLyricWord(word.word_index, { end_seconds: Math.max(word.start_seconds + 0.05, Number(event.target.value)) })}
+                              className="rounded border border-line bg-surface px-2 py-1.5 font-mono text-ink" />
+                          </label>
+                          <button type="button" onClick={() => {
+                            onUpdateLyricWord(word.word_index, { start_seconds: Math.max(0, word.start_seconds - 0.05), end_seconds: word.end_seconds + 0.05 })
+                          }} className="col-span-2 rounded border border-line px-2 py-1.5 text-left font-semibold text-ink hover:border-ink">
+                            Widen timing by 0.05s on both sides
+                          </button>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
                 <div className="rounded-md border border-line bg-panel p-2">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <span className="font-semibold text-ink">Phrase timing & placement</span>
