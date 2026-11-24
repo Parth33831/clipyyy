@@ -1078,6 +1078,17 @@ function CampaignStoryboardEditor({
   const [generatingProposalRank, setGeneratingProposalRank] = useState<number | null>(null)
   const [selectedPhraseIndex, setSelectedPhraseIndex] = useState(0)
   const [selectedLyricWordIndex, setSelectedLyricWordIndex] = useState(0)
+  const lyricWordDragRef = useRef<{
+    wordIndex: number
+    mode: 'move' | 'start' | 'end'
+    pointerId: number
+    startX: number
+    initialStart: number
+    initialEnd: number
+    timelineWidth: number
+    moved: boolean
+  } | null>(null)
+  const suppressLyricWordClickRef = useRef(false)
   const selectedTextOverlays = textOverlays
     .map((overlay, index) => ({ overlay, index }))
     .filter(({ overlay }) => overlay.rank === selectedEditRank)
@@ -3072,23 +3083,89 @@ function CampaignTimeline({
               {lyricWords.length > 0 && (
                 <>
                   <span className="label mt-1 text-muted">WORDS</span>
-                  <div className="relative h-9 overflow-hidden rounded-md border border-line bg-surface">
+                  <span className="text-[10px] text-muted">Drag a word to move it; drag its left or right edge to trim timing. Changes remain local until you save lyrics.</span>
+                  <div data-lyric-word-timeline className="relative h-9 overflow-hidden rounded-md border border-line bg-surface touch-none select-none">
                     {lyricWords.map((word) => {
                       const left = Math.max(0, Math.min(100, (word.start_seconds / total) * 100))
                       const width = Math.max(0.55, Math.min(100 - left, ((word.end_seconds - word.start_seconds) / total) * 100))
-                      return (
-                        <button key={`lyric-word-track-${word.word_index}`} type="button"
-                          title={`${word.word} · ${formatDuration(word.start_seconds)}–${formatDuration(word.end_seconds)}`}
-                          aria-label={`Select lyric word: ${word.word}`}
-                          onClick={() => {
-                            onSelectLyricWord(word.word_index)
+                      const beginWordDrag = (event: ReactPointerEvent<HTMLButtonElement>, mode: 'move' | 'start' | 'end') => {
+                        const timeline = event.currentTarget.closest('[data-lyric-word-timeline]')
+                        if (!(timeline instanceof HTMLElement)) return
+                        const bounds = timeline.getBoundingClientRect()
+                        event.preventDefault()
+                        event.stopPropagation()
+                        event.currentTarget.setPointerCapture(event.pointerId)
+                        lyricWordDragRef.current = {
+                          wordIndex: word.word_index,
+                          mode,
+                          pointerId: event.pointerId,
+                          startX: event.clientX,
+                          initialStart: word.start_seconds,
+                          initialEnd: word.end_seconds,
+                          timelineWidth: Math.max(1, bounds.width),
+                          moved: false,
+                        }
+                        onSelectLyricWord(word.word_index)
+                      }
+                      const moveWordDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+                        const drag = lyricWordDragRef.current
+                        if (!drag || drag.pointerId !== event.pointerId || !event.currentTarget.hasPointerCapture(event.pointerId)) return
+                        const delta = ((event.clientX - drag.startX) / drag.timelineWidth) * total
+                        if (Math.abs(event.clientX - drag.startX) > 2) drag.moved = true
+                        if (!drag.moved) return
+                        suppressLyricWordClickRef.current = true
+                        const minDuration = 0.05
+                        if (drag.mode === 'move') {
+                          const duration = drag.initialEnd - drag.initialStart
+                          const nextStart = Math.max(0, Math.min(total - duration, drag.initialStart + delta))
+                          onUpdateLyricWord(drag.wordIndex, { start_seconds: nextStart, end_seconds: nextStart + duration })
+                        } else if (drag.mode === 'start') {
+                          onUpdateLyricWord(drag.wordIndex, { start_seconds: Math.max(0, Math.min(drag.initialEnd - minDuration, drag.initialStart + delta)) })
+                        } else {
+                          onUpdateLyricWord(drag.wordIndex, { end_seconds: Math.max(drag.initialStart + minDuration, Math.min(total, drag.initialEnd + delta)) })
+                        }
+                      }
+                      const finishWordDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+                        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+                        if (lyricWordDragRef.current?.pointerId === event.pointerId) {
+                          if (lyricWordDragRef.current.moved) {
+                            suppressLyricWordClickRef.current = true
                             seekToTimelineRef.current(word.start_seconds)
-                          }}
-                          className={cn("absolute inset-y-1 overflow-hidden rounded-sm border text-[9px] text-ink hover:bg-acid/40",
-                            selectedLyricWordIndex === word.word_index ? "border-ink bg-acid/50" : "border-acid/50 bg-acid/20")}
-                          style={{ left: `${left}%`, width: `${width}%` }}>
-                          <span className="sr-only">{word.word}</span>
-                        </button>
+                          }
+                          lyricWordDragRef.current = null
+                        }
+                      }
+                      return (
+                        <div key={`lyric-word-track-${word.word_index}`} className="absolute inset-y-1 group/word"
+                          style={{ left: `${left}%`, width: `${width}%`, minWidth: '8px' }}>
+                          <button type="button"
+                            title={`${word.word} · Drag to move · Drag edges to trim · ${formatDuration(word.start_seconds)}–${formatDuration(word.end_seconds)}`}
+                            aria-label={`Drag to move lyric word: ${word.word}; use edges to adjust timing`}
+                            onPointerDown={(event) => beginWordDrag(event, 'move')}
+                            onPointerMove={moveWordDrag}
+                            onPointerUp={finishWordDrag}
+                            onPointerCancel={finishWordDrag}
+                            onClick={() => {
+                              if (suppressLyricWordClickRef.current) {
+                                suppressLyricWordClickRef.current = false
+                                return
+                              }
+                              onSelectLyricWord(word.word_index)
+                              seekToTimelineRef.current(word.start_seconds)
+                            }}
+                            className={cn("absolute inset-0 w-full overflow-hidden rounded-sm border text-[9px] text-ink touch-none cursor-grab active:cursor-grabbing hover:bg-acid/40",
+                              selectedLyricWordIndex === word.word_index ? "border-ink bg-acid/50" : "border-acid/50 bg-acid/20")}>
+                            <span className="sr-only">{word.word}</span>
+                          </button>
+                          <button type="button" aria-label={`Trim start of ${word.word}`} title="Drag to change word start"
+                            onPointerDown={(event) => beginWordDrag(event, 'start')} onPointerMove={moveWordDrag}
+                            onPointerUp={finishWordDrag} onPointerCancel={finishWordDrag}
+                            className="absolute inset-y-0 left-0 z-10 w-2 cursor-ew-resize touch-none bg-white/70 opacity-0 group-hover/word:opacity-100" />
+                          <button type="button" aria-label={`Trim end of ${word.word}`} title="Drag to change word end"
+                            onPointerDown={(event) => beginWordDrag(event, 'end')} onPointerMove={moveWordDrag}
+                            onPointerUp={finishWordDrag} onPointerCancel={finishWordDrag}
+                            className="absolute inset-y-0 right-0 z-10 w-2 cursor-ew-resize touch-none bg-white/70 opacity-0 group-hover/word:opacity-100" />
+                        </div>
                       )
                     })}
                     <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 z-10 w-0.5 bg-red-500"
