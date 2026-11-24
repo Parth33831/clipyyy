@@ -611,6 +611,7 @@ export function RunDetailPage() {
           edits={campaignEdits}
           savedEdits={data.campaign_edits}
           originalEdits={data.campaign_original_edits ?? data.campaign_edits}
+          aiProposalId={(data.campaign_concepts?.find((concept) => concept.id === (selectedConceptId ?? data.campaign_concepts?.[0]?.id)) ?? data.campaign_concepts?.[0])?.id ?? 'default'}
           aiProposalEdits={(data.campaign_concepts?.find((concept) => concept.id === (selectedConceptId ?? data.campaign_concepts?.[0]?.id)) ?? data.campaign_concepts?.[0])?.refined_edits ?? []}
           aiProposalNotes={(data.campaign_concepts?.find((concept) => concept.id === (selectedConceptId ?? data.campaign_concepts?.[0]?.id)) ?? data.campaign_concepts?.[0])?.refinement_notes ?? []}
           sources={data.campaign_sources ?? []}
@@ -1088,6 +1089,7 @@ function CampaignStoryboardEditor({
   edits,
   savedEdits,
   originalEdits,
+  aiProposalId,
   aiProposalEdits,
   aiProposalNotes,
   sources,
@@ -1142,6 +1144,7 @@ function CampaignStoryboardEditor({
   edits: CampaignEdit[]
   savedEdits: CampaignEdit[]
   originalEdits: CampaignEdit[]
+  aiProposalId: string
   aiProposalEdits: CampaignEdit[]
   aiProposalNotes: string[]
   sources: CampaignSource[]
@@ -1195,7 +1198,7 @@ function CampaignStoryboardEditor({
   const [selectedEditRank, setSelectedEditRank] = useState(edits[0]?.rank ?? 1)
   const [selectedShotIndex, setSelectedShotIndex] = useState(0)
   const [activeTool, setActiveTool] = useState<'ai' | 'shots' | 'hook' | 'audio' | 'lyrics' | 'titles' | 'animations'>('ai')
-  const [proposalDecisions, setProposalDecisions] = useState<Record<number, 'accepted' | 'rejected'>>({})
+  const [proposalDecisions, setProposalDecisions] = useState<Record<string, 'accepted' | 'rejected'>>({})
   const [selectedPhraseIndex, setSelectedPhraseIndex] = useState(0)
   const selectedTextOverlays = textOverlays
     .map((overlay, index) => ({ overlay, index }))
@@ -1306,7 +1309,8 @@ function CampaignStoryboardEditor({
         const editIndex = edits.findIndex((item) => item.rank === edit.rank)
         const aiProposal = aiProposalEdits.find((item) => item.rank === edit.rank)
         const aiProposalChanged = Boolean(aiProposal && JSON.stringify(aiProposal.shots) !== JSON.stringify(edit.shots))
-        const proposalDecision = proposalDecisions[edit.rank]
+        const proposalDecisionKey = `${aiProposalId}:${edit.rank}`
+        const proposalDecision = proposalDecisions[proposalDecisionKey]
         return (
         <section key={edit.rank} className="flex flex-col gap-3 border-t border-line pt-4">
           <div className="flex items-center justify-between gap-3">
@@ -1418,11 +1422,11 @@ function CampaignStoryboardEditor({
                       <div className="grid grid-cols-2 gap-2">
                         <button type="button" disabled={saving} onClick={() => {
                           onChange(edits.map((item) => item.rank === edit.rank ? { ...aiProposal, rank: item.rank } : item))
-                          setProposalDecisions((current) => ({ ...current, [edit.rank]: 'accepted' }))
+                          setProposalDecisions((current) => ({ ...current, [proposalDecisionKey]: 'accepted' }))
                         }} className="rounded-md bg-ink px-3 py-2 font-semibold text-panel hover:opacity-90 disabled:opacity-40">
                           Accept AI Edit
                         </button>
-                        <button type="button" onClick={() => setProposalDecisions((current) => ({ ...current, [edit.rank]: 'rejected' }))}
+                        <button type="button" onClick={() => setProposalDecisions((current) => ({ ...current, [proposalDecisionKey]: 'rejected' }))}
                           className="rounded-md border border-line px-3 py-2 font-semibold text-muted hover:border-ink hover:text-ink">
                           Reject proposal
                         </button>
@@ -1433,7 +1437,7 @@ function CampaignStoryboardEditor({
                         <p className="text-muted">Proposal rejected. Your current manual edit has not been changed.</p>
                         <button type="button" onClick={() => setProposalDecisions((current) => {
                           const next = { ...current }
-                          delete next[edit.rank]
+                          delete next[proposalDecisionKey]
                           return next
                         })} className="mt-2 font-semibold text-ink underline">Review proposal again</button>
                       </div>
