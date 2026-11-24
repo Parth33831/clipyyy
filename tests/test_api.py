@@ -778,10 +778,12 @@ def test_campaign_ai_edit_returns_review_only_proposal_without_persisting(tmp_pa
     work_dir.mkdir()
     selection_path = work_dir / "select.json"
     selection_path.write_text(
-        json.dumps({
-            "campaign_sources": [{"title": "Demo", "duration_seconds": 30, "video_path": "demo.mp4"}],
-            "campaign_edits": [{"rank": 1, "title": "Original", "shots": []}],
-        }),
+        json.dumps(
+            {
+                "campaign_sources": [{"title": "Demo", "duration_seconds": 30, "video_path": "demo.mp4"}],
+                "campaign_edits": [{"rank": 1, "title": "Original", "shots": []}],
+            }
+        ),
         encoding="utf-8",
     )
     original_selection = selection_path.read_text(encoding="utf-8")
