@@ -925,7 +925,6 @@ def test_campaign_lyrics_update_rejects_word_timing_without_positive_duration(cl
         {"word": "Hello", "start": 1.0, "end": 1.4}
     ]
 
-
 def test_campaign_lyrics_resync_returns_review_only_proposal(tmp_path, client, monkeypatch):
     music = tmp_path / "track.mp3"
     music.write_bytes(b"audio")
