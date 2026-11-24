@@ -16,6 +16,7 @@ type CampaignPreviewLyric = {
   position_y: number
   scale_percent: number
   rotation_degrees: number
+  animation_style?: CampaignLyricPhraseEdit['animation_style']
 }
 
 type CampaignPreviewWord = { word: string; start_seconds: number; end_seconds: number }
@@ -354,7 +355,6 @@ export function RunDetailPage() {
     return { text, start }
   }).filter((phrase) => phrase.text)
   const lyricPhrases = lyricRows.map((phrase) => phrase.text)
-  const lyricPhraseTimes = lyricRows.map((phrase) => phrase.start)
   const lyricOffset = musicStartSeconds
   const campaignTimelineLyrics: CampaignPreviewLyric[] = lyricRows.flatMap((phrase, index) => {
     if (phrase.start == null) return []
@@ -374,6 +374,7 @@ export function RunDetailPage() {
       position_y: phraseEdit?.position_y ?? lyricsPositionY,
       scale_percent: phraseEdit?.scale_percent ?? lyricsScale,
       rotation_degrees: phraseEdit?.rotation_degrees ?? lyricsRotation,
+      animation_style: phraseEdit?.animation_style,
     }]
   })
   const campaignTimelineWords: CampaignPreviewWord[] = (run.data?.options.campaign_lyric_words ?? []).flatMap((item) => {
@@ -1526,6 +1527,17 @@ function CampaignStoryboardEditor({
                                   className="rounded border border-line bg-surface px-2 py-1.5 text-ink" />
                               </label>
                             </div>
+                            <label className="flex flex-col gap-1 text-muted">Phrase animation
+                              <select value={phrase.animation_style ?? 'global'}
+                                onChange={(event) => onUpdateLyric(phrase.phrase_index, { animation_style: event.target.value === 'global' ? undefined : event.target.value as CampaignLyricPhraseEdit['animation_style'] })}
+                                className="rounded border border-line bg-surface px-2 py-1.5 text-ink">
+                                <option value="global">Use global style</option>
+                                <option value="dynamic">Dynamic pop</option>
+                                <option value="cinematic">Cinematic fade</option>
+                                <option value="minimal">Minimal fade</option>
+                                <option value="karaoke">Karaoke highlight</option>
+                              </select>
+                            </label>
                             <button type="button" onClick={() => onResetLyricPhrase(phrase.phrase_index)}
                               className="self-start text-[11px] underline text-muted">Reset phrase overrides</button>
                           </div>
