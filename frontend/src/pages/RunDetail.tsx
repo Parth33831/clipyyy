@@ -2996,27 +2996,37 @@ function CampaignTimeline({
                         className="absolute inset-y-0 right-0 z-10 w-2 cursor-ew-resize bg-white/40 opacity-0 transition-opacity group-hover:opacity-100" />
                     </div>
                   )
-                }) : lyricWords.map((word) => {
-                  const left = Math.max(0, Math.min(100, (word.start_seconds / total) * 100))
-                  const width = Math.max(0.55, Math.min(100 - left, ((word.end_seconds - word.start_seconds) / total) * 100))
-                  return (
-                    <button key={`lyric-word-track-${word.word_index}`} type="button"
-                      title={`${word.word} · ${formatDuration(word.start_seconds)}–${formatDuration(word.end_seconds)}`}
-                      aria-label={`Select lyric word: ${word.word}`}
-                      onClick={() => {
-                        onSelectLyricWord(word.word_index)
-                        seekToTimelineRef.current(word.start_seconds)
-                      }}
-                      className={cn("absolute inset-y-1 overflow-hidden rounded-sm border text-[9px] text-ink hover:bg-acid/40",
-                        selectedLyricWordIndex === word.word_index ? "border-ink bg-acid/50" : "border-acid/50 bg-acid/20")}
-                      style={{ left: `${left}%`, width: `${width}%` }}>
-                      <span className="sr-only">{word.word}</span>
-                    </button>
-                  )
-                })}
+                }) : null}
                 <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 z-10 w-0.5 bg-red-500"
                   style={{ left: `${Math.max(0, Math.min(100, (playheadSeconds / total) * 100))}%` }} />
               </div>
+              {lyricWords.length > 0 && (
+                <>
+                  <span className="label mt-1 text-muted">WORDS</span>
+                  <div className="relative h-9 overflow-hidden rounded-md border border-line bg-surface">
+                    {lyricWords.map((word) => {
+                      const left = Math.max(0, Math.min(100, (word.start_seconds / total) * 100))
+                      const width = Math.max(0.55, Math.min(100 - left, ((word.end_seconds - word.start_seconds) / total) * 100))
+                      return (
+                        <button key={`lyric-word-track-${word.word_index}`} type="button"
+                          title={`${word.word} · ${formatDuration(word.start_seconds)}–${formatDuration(word.end_seconds)}`}
+                          aria-label={`Select lyric word: ${word.word}`}
+                          onClick={() => {
+                            onSelectLyricWord(word.word_index)
+                            seekToTimelineRef.current(word.start_seconds)
+                          }}
+                          className={cn("absolute inset-y-1 overflow-hidden rounded-sm border text-[9px] text-ink hover:bg-acid/40",
+                            selectedLyricWordIndex === word.word_index ? "border-ink bg-acid/50" : "border-acid/50 bg-acid/20")}
+                          style={{ left: `${left}%`, width: `${width}%` }}>
+                          <span className="sr-only">{word.word}</span>
+                        </button>
+                      )
+                    })}
+                    <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 z-10 w-0.5 bg-red-500"
+                      style={{ left: `${Math.max(0, Math.min(100, (playheadSeconds / total) * 100))}%` }} />
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
