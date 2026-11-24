@@ -1197,11 +1197,19 @@ function CampaignStoryboardEditor({
   onReset: () => void
 }) {
   const [selectedEditRank, setSelectedEditRank] = useState(edits[0]?.rank ?? 1)
+  const [selectedShotIndex, setSelectedShotIndex] = useState(0)
   useEffect(() => {
     if (!edits.some((edit) => edit.rank === selectedEditRank) && edits[0]) {
       setSelectedEditRank(edits[0].rank)
+      setSelectedShotIndex(0)
     }
   }, [edits, selectedEditRank])
+  useEffect(() => {
+    const selectedEdit = edits.find((edit) => edit.rank === selectedEditRank)
+    if (!selectedEdit || selectedShotIndex >= selectedEdit.shots.length) {
+      setSelectedShotIndex(Math.max(0, (selectedEdit?.shots.length ?? 1) - 1))
+    }
+  }, [edits, selectedEditRank, selectedShotIndex])
   const sourceByIndex = new Map(sources.map((source) => [source.index, source]))
   const changed = JSON.stringify(edits) !== JSON.stringify(savedEdits)
   const resetAvailable = JSON.stringify(savedEdits) !== JSON.stringify(originalEdits) || changed
@@ -1298,6 +1306,8 @@ function CampaignStoryboardEditor({
             <h3 className="font-semibold">#{edit.rank} · {edit.title}</h3>
             <span className="label text-muted">{edit.shots.length} shots</span>
           </div>
+          <div className="grid min-w-0 gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+          <div className="min-w-0 lg:col-start-2 lg:row-start-1">
           <CampaignTimeline
             edit={edit}
             runId={runId}
@@ -1316,21 +1326,31 @@ function CampaignStoryboardEditor({
             textOverlays={textOverlays}
             onUpdateTextOverlay={onUpdateTextOverlay}
             transitionStyle={transitionStyle}
+            selectedShotIndex={selectedShotIndex}
+            onSelectShot={setSelectedShotIndex}
             onMoveShot={(fromIndex, toIndex) => moveShotTo(editIndex, fromIndex, toIndex)}
             onUpdateShot={(shotIndex, patch) => updateShot(editIndex, shotIndex, patch)}
           />
-          <ol className="flex flex-col gap-2">
+          </div>
+          <aside className="flex min-w-0 flex-col gap-2 rounded-lg border border-line bg-surface p-3 lg:col-start-1 lg:row-start-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="label text-muted">SHOT EDITING</span>
+              <span className="text-[10px] text-faint">{edit.shots.length} clips</span>
+            </div>
+          <ol className="flex max-h-[min(70vh,760px)] flex-col gap-2 overflow-y-auto pr-1">
             {edit.shots.map((shot, shotIndex) => {
               const source = sourceByIndex.get(shot.source_index)
               return (
-                <li id={`campaign-shot-${edit.rank}-${shotIndex}`} key={`${edit.rank}-${shotIndex}-${shot.source_index}`} className="grid gap-3 rounded-lg border border-line bg-panel p-3 md:grid-cols-[112px_minmax(0,1fr)_150px_150px_auto] md:items-center">
+                <li id={`campaign-shot-${edit.rank}-${shotIndex}`} key={`${edit.rank}-${shotIndex}-${shot.source_index}`} className={cn('flex flex-col gap-2 rounded-lg border bg-panel p-2 transition-colors', selectedShotIndex === shotIndex ? 'border-ink ring-1 ring-ink/20' : 'border-line')}>
+                  <button type="button" onClick={() => setSelectedShotIndex(shotIndex)} aria-pressed={selectedShotIndex === shotIndex} className="flex items-start gap-2 text-left">
                   <img
                     src={`/api/runs/${runId}/campaign-frame?source_index=${shot.source_index}&timestamp=${shot.start_seconds.toFixed(1)}`}
                     alt={`Preview of shot ${shotIndex + 1}`}
                     loading="lazy"
-                    className="h-20 w-28 rounded-md border border-line bg-surface object-cover"
+                    className="h-16 w-20 shrink-0 rounded-md border border-line bg-surface object-cover"
                   />
                   <div className="min-w-0">
+
                     <div className="flex items-center gap-2">
                       <span className="label shrink-0 text-faint">SHOT {String(shotIndex + 1).padStart(2, '0')}</span>
                       <span className="truncate text-sm font-medium">{source?.title ?? `Source ${shot.source_index + 1}`}</span>
@@ -1341,6 +1361,8 @@ function CampaignStoryboardEditor({
                       {source ? ` / ${formatDuration(source.duration_seconds)} source` : ''}
                     </p>
                   </div>
+                  </button>
+                  <div className="grid grid-cols-2 gap-2">
                   <label className="flex flex-col gap-1 text-xs text-muted">
                     Start (seconds)
                     <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.start_seconds}
@@ -1366,6 +1388,7 @@ function CampaignStoryboardEditor({
                       onChange={(event) => updateShot(editIndex, shotIndex, { end_seconds: Number(event.target.value) })} disabled={saving}
                       className="w-full rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
                   </label>
+                  </div>
                   <div className="flex items-center justify-end gap-1">
                     <button type="button" title="Move shot up" aria-label="Move shot up" disabled={saving || shotIndex === 0}
                       onClick={() => moveShot(editIndex, shotIndex, -1)} className="rounded-md border border-line p-2 text-muted hover:text-ink disabled:opacity-30">
@@ -1389,6 +1412,8 @@ function CampaignStoryboardEditor({
               )
             })}
           </ol>
+          </aside>
+          </div>
           {edit.shots.length < 3 && <p className="text-xs text-bad">Restore the AI plan or keep at least 3 shots in this output.</p>}
         </section>
         )
