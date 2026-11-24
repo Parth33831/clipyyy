@@ -1151,6 +1151,12 @@ function CampaignStoryboardEditor({
   onReset: () => void
 }) {
   const sourceByIndex = new Map(sources.map((source) => [source.index, source]))
+  const [selectedOutputRank, setSelectedOutputRank] = useState(edits[0]?.rank ?? 1)
+  useEffect(() => {
+    if (!edits.some((edit) => edit.rank === selectedOutputRank) && edits[0]) {
+      setSelectedOutputRank(edits[0].rank)
+    }
+  }, [edits, selectedOutputRank])
   const changed = JSON.stringify(edits) !== JSON.stringify(savedEdits)
   const resetAvailable = JSON.stringify(savedEdits) !== JSON.stringify(originalEdits) || changed
   const shotCount = edits.reduce((total, edit) => total + edit.shots.length, 0)
@@ -1214,9 +1220,30 @@ function CampaignStoryboardEditor({
           </Button>
         </div>
       </div>
-      <p className="label text-muted">{edits.length} output(s) · {shotCount} shots · Keep at least 3 shots per output; each shot must be 1.5–5 seconds.</p>
+      <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold">Choose a clip to edit</p>
+            <p className="text-xs text-muted">Each output opens as its own focused editing workspace.</p>
+          </div>
+          <span className="label text-muted">{edits.length} clips · {shotCount} shots total</span>
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {edits.map((edit) => (
+            <button key={edit.rank} type="button" onClick={() => setSelectedOutputRank(edit.rank)}
+              aria-pressed={selectedOutputRank === edit.rank}
+              className={cn('min-w-[150px] rounded-lg border px-3 py-2 text-left transition-colors',
+                selectedOutputRank === edit.rank ? 'border-ink bg-ink text-white' : 'border-line bg-surface text-ink hover:border-ink')}>
+              <span className="block text-xs font-semibold">CLIP {String(edit.rank).padStart(2, '0')}</span>
+              <span className={cn('mt-1 block truncate text-sm', selectedOutputRank === edit.rank ? 'text-white/90' : 'text-muted')}>{edit.title}</span>
+              <span className={cn('mt-1 block text-[11px]', selectedOutputRank === edit.rank ? 'text-white/70' : 'text-faint')}>{edit.shots.length} timeline segments</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="label text-muted">Editing clip {String(selectedOutputRank).padStart(2, '0')} · Keep at least 3 shots per output; each shot must be 1.5–5 seconds.</p>
       {edits.map((edit, editIndex) => (
-        <section key={edit.rank} className="flex flex-col gap-3 border-t border-line pt-4">
+        <section key={edit.rank} hidden={edit.rank !== selectedOutputRank} className="flex flex-col gap-3 border-t border-line pt-4">
           <div className="flex items-center justify-between gap-3">
             <h3 className="font-semibold">#{edit.rank} · {edit.title}</h3>
             <span className="label text-muted">{edit.shots.length} shots</span>
