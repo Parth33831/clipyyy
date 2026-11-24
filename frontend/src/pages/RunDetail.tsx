@@ -1200,6 +1200,12 @@ function CampaignStoryboardEditor({
   onSave: () => void
   onReset: () => void
 }) {
+  const [selectedEditRank, setSelectedEditRank] = useState(edits[0]?.rank ?? 1)
+  useEffect(() => {
+    if (!edits.some((edit) => edit.rank === selectedEditRank) && edits[0]) {
+      setSelectedEditRank(edits[0].rank)
+    }
+  }, [edits, selectedEditRank])
   const sourceByIndex = new Map(sources.map((source) => [source.index, source]))
   const changed = JSON.stringify(edits) !== JSON.stringify(savedEdits)
   const resetAvailable = JSON.stringify(savedEdits) !== JSON.stringify(originalEdits) || changed
