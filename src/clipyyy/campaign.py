@@ -1437,7 +1437,9 @@ def generate_ai_edit_proposal(
             "duration_seconds": round(end - start, 3),
         })
     if len(candidates) < 3:
-        raise ValueError("AI Edit needs at least three existing shots. Add more shots before generating a proposal.")
+        raise ValueError(
+            "AI Edit needs at least three existing shots. Add more shots before generating a proposal."
+        )
 
     system = (
         "You are CLIPYYY's AI video editor. Create a fresh, reviewable edit for the selected clip. "
@@ -1482,7 +1484,9 @@ def generate_ai_edit_proposal(
         except (KeyError, TypeError, ValueError):
             continue
     if len(proposed) < 3:
-        raise ValueError("The AI could not produce a safe edit from these shots. Your current edit is unchanged.")
+        raise ValueError(
+            "The AI could not produce a safe edit from these shots. Your current edit is unchanged."
+        )
     proposal = {
         "rank": int(edit["rank"]),
         "title": str(edit.get("title") or "Campaign edit")[:100],
