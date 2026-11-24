@@ -224,6 +224,7 @@ export function RunDetailPage() {
   const [publishing, setPublishing] = useState<Clip | null>(null)
   const [focused, setFocused] = useState<number | null>(null)
   const [selectedConceptId, setSelectedConceptId] = useState<string | null>(null)
+  const [activeCampaignTool, setActiveCampaignTool] = useState<'preview' | 'hook' | 'audio' | 'animations' | 'lyrics' | 'text' | 'shots'>('preview')
   const [conceptCutVariants, setConceptCutVariants] = useState<Record<string, 'original' | 'refined'>>({})
   const [activeConceptPreviewId, setActiveConceptPreviewId] = useState<string | null>(null)
   useEffect(() => {
@@ -537,8 +538,58 @@ export function RunDetailPage() {
       </header>
 
       {data.options.campaign_mode && !busy && (
-        <div className="flex flex-col gap-4 rounded-xl border border-line bg-surface p-4">
-          <div className="flex flex-col gap-2 border-b border-line pb-4">
+        <div className="grid items-start gap-4 lg:grid-cols-[150px_minmax(280px,340px)_minmax(0,1fr)]">
+          <nav aria-label="Campaign editor tools" className="z-10 flex gap-2 overflow-x-auto rounded-xl border border-line bg-surface p-2 lg:sticky lg:top-5 lg:col-start-1 lg:row-start-1 lg:flex-col lg:gap-1 lg:overflow-visible">
+            <p className="label hidden px-3 py-2 text-faint lg:block">TOOLS</p>
+            {([
+              ['preview', 'Video & Timeline'],
+              ['hook', 'Opening Hook'],
+              ['audio', 'Music & Audio'],
+              ['animations', 'Animations'],
+              ['lyrics', 'Lyrics Sync'],
+              ['text', 'Text & Titles'],
+              ['shots', 'Shot Editing'],
+            ] as const).map(([tool, label]) => (
+              <button key={tool} type="button" onClick={() => setActiveCampaignTool(tool)} aria-pressed={activeCampaignTool === tool}
+                className={cn('shrink-0 rounded-md px-3 py-2 text-left text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:w-full', activeCampaignTool === tool ? 'bg-ink text-panel' : 'text-muted hover:bg-sunk hover:text-ink')}>
+                {label}
+              </button>
+            ))}
+          </nav>
+          <div className="flex min-w-0 flex-col gap-6 lg:col-start-3 lg:row-start-1">
+            <div id="campaign-preview" className="scroll-mt-5">
+      {data.options.campaign_mode && !busy && campaignEdits.length > 0 && (
+        <CampaignStoryboardEditor
+          runId={runId}
+          edits={campaignEdits}
+          savedEdits={data.campaign_edits}
+          originalEdits={data.campaign_original_edits ?? data.campaign_edits}
+          sources={data.campaign_sources ?? []}
+          musicAnalysis={data.campaign_quality_checks?.music_analysis ?? null}
+          musicStartSeconds={musicStartSeconds}
+          onMusicStartChange={setMusicStartSeconds}
+          hasMusic={Boolean(data.options.campaign_music_path)}
+          lyricsBehindSubject={lyricsBehindSubject}
+          lyrics={campaignTimelineLyrics}
+          onUpdateLyric={updateLyricPhrase}
+          lyricWords={campaignTimelineWords}
+          wordsOnScreen={data.options.campaign_lyrics_words_on_screen ?? 3}
+          lyricsColor={lyricsColor}
+          lyricsHighlightColor={lyricsHighlightColor}
+          textOverlays={campaignTextOverlays}
+          onUpdateTextOverlay={(overlayIndex, patch) => setCampaignTextOverlays((current) => current.map((overlay, index) => index === overlayIndex ? { ...overlay, ...patch } : overlay))}
+          transitionStyle={data.options.campaign_transition_style ?? 'auto'}
+          saving={saveMontage.isPending}
+          onChange={setCampaignEdits}
+          onSave={() => saveMontage.mutate()}
+          onReset={() => setCampaignEdits(data.campaign_original_edits ?? data.campaign_edits)}
+        />
+      )}
+            </div>
+          </div>
+      {data.options.campaign_mode && !busy && (
+        <div id="campaign-hook" hidden={activeCampaignTool !== 'hook' && activeCampaignTool !== 'audio' && activeCampaignTool !== 'animations' && activeCampaignTool !== 'lyrics'} className="scroll-mt-5 flex flex-col gap-4 rounded-xl border border-line bg-surface p-4 lg:col-start-2 lg:row-start-1">
+          <div hidden={activeCampaignTool !== 'hook'} className="flex flex-col gap-2 border-b border-line pb-4">
             <div className="flex items-center justify-between gap-3">
               <span className="font-medium">Opening text hook</span>
               <label className="flex items-center gap-2 text-sm">
@@ -554,7 +605,7 @@ export function RunDetailPage() {
               className="w-full rounded-lg border border-line bg-panel p-3 text-sm text-ink placeholder:text-muted" />
             <span className="text-xs text-muted">Off by default. Your edit does not need campaign branding or AI-generated text.</span>
           </div>
-          <div className="flex flex-wrap items-end gap-3">
+          <div id="campaign-audio" hidden={activeCampaignTool !== 'audio'} className="scroll-mt-5 flex flex-wrap items-end gap-3">
           <label className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
             <span className="font-medium">Campaign music</span>
             <input
@@ -581,7 +632,7 @@ export function RunDetailPage() {
           </Button>
           </div>
           {data.options.campaign_music_path && (
-            <div className="flex flex-col gap-4 rounded-lg border border-line bg-panel p-3 text-sm">
+            <div hidden={activeCampaignTool !== 'audio'} className="flex flex-col gap-4 rounded-lg border border-line bg-panel p-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-medium">Music mix</span>
                 <span className="text-xs text-muted">Adjust the attached track, then re-render</span>
@@ -622,7 +673,7 @@ export function RunDetailPage() {
               </div>
             </div>
           )}
-          <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
+          <div hidden={activeCampaignTool !== 'audio'} className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="font-medium">Original video audio</span>
               <span className="font-mono text-muted">{sourceAudioVolume}%</span>
@@ -635,7 +686,7 @@ export function RunDetailPage() {
               </Button>
             </div>
           </div>
-          <div className="flex flex-col gap-3 text-sm">
+          <div id="campaign-animations" hidden={activeCampaignTool !== 'animations'} className="scroll-mt-5 flex flex-col gap-3 text-sm">
             <span className="font-medium">Lyrics animation preset</span>
             <div className="grid gap-2 sm:grid-cols-2">
               {([
@@ -666,7 +717,7 @@ export function RunDetailPage() {
             </div>
             <span className="text-xs text-muted">Each tile previews the motion. Change the preset or lyrics, then apply it to the existing montage; saved shots and Whisper word timings are reused.</span>
           </div>
-          <div className="flex flex-col gap-2 rounded-lg border border-line bg-panel p-3 text-sm">
+          <div hidden={activeCampaignTool !== 'animations'} className="flex flex-col gap-2 rounded-lg border border-line bg-panel p-3 text-sm">
             <span className="font-medium">Words on screen at once</span>
             <div className="flex gap-2">
               {([1, 2, 3] as const).map((count) => (
@@ -680,6 +731,7 @@ export function RunDetailPage() {
             </div>
             <span className="text-xs text-muted">Shows a rolling group of 1, 2, or 3 words as the song progresses. Default: 3.</span>
           </div>
+          <div hidden={activeCampaignTool !== 'animations'}>
           <LyricsPositionPreview
             frameUrl={campaignEdits[0]?.shots[0] ? `/api/runs/${runId}/campaign-frame?source_index=${campaignEdits[0].shots[0].source_index}&timestamp=${campaignEdits[0].shots[0].start_seconds.toFixed(1)}` : null}
             text={lyricPhrases[selectedLyricPhrase] ?? 'Your lyrics appear here'}
@@ -764,7 +816,8 @@ export function RunDetailPage() {
               <p className="text-xs text-muted">Phrase-level transforms currently apply to line-timed lyrics (LRC or manually entered lines). Word-by-word Whisper timing continues to use the global lyric transform.</p>
             </div>
           )}
-          <div className="grid gap-4 rounded-lg border border-line bg-panel p-3 text-sm sm:grid-cols-2">
+          </div>
+          <div hidden={activeCampaignTool !== 'animations'} className="grid gap-4 rounded-lg border border-line bg-panel p-3 text-sm sm:grid-cols-2">
             <label className="flex flex-col gap-2">
               <span className="flex justify-between"><span className="font-medium">Horizontal position</span><span className="font-mono text-muted">{lyricsPositionX}%</span></span>
               <input type="range" min={5} max={95} value={lyricsPositionX} onChange={(event) => setLyricsPositionX(Number(event.target.value))} className="w-full accent-current" />
@@ -798,7 +851,7 @@ export function RunDetailPage() {
               </span>
             </span>
           </label>
-          <div className="grid gap-4 rounded-lg border border-line bg-panel p-3 sm:grid-cols-2">
+          <div hidden={activeCampaignTool !== 'animations'} className="grid gap-4 rounded-lg border border-line bg-panel p-3 sm:grid-cols-2">
             <label className="flex items-center justify-between gap-3 text-sm">
               <span className="flex flex-col gap-1"><span className="font-medium">Lyrics color</span><span className="text-xs text-muted">Main caption text</span></span>
               <input type="color" aria-label="Lyrics text color" value={lyricsColor} onChange={(event) => setLyricsColor(event.target.value.toUpperCase())} className="h-10 w-14 cursor-pointer rounded border border-line bg-transparent p-1" />
@@ -826,6 +879,7 @@ export function RunDetailPage() {
             </div>
             <p className="text-xs text-muted sm:col-span-2">Colors are independent of animation style. Apply updates the existing edit without re-picking footage or re-transcribing the song.</p>
           </div>
+          <div id="campaign-lyrics" hidden={activeCampaignTool !== 'lyrics'} className="scroll-mt-5 flex flex-col gap-3">
           <label className="flex flex-col gap-2 text-sm">
             <span className="font-medium">Lyrics / timed captions</span>
             <textarea
@@ -845,6 +899,7 @@ export function RunDetailPage() {
             <Button variant="ink" loading={saveLyrics.isPending} onClick={() => saveLyrics.mutate()}>
               Apply to existing edit
             </Button>
+          </div>
           </div>
         </div>
       )}
@@ -968,34 +1023,7 @@ export function RunDetailPage() {
       )}
 
       {data.options.campaign_mode && !busy && campaignEdits.length > 0 && (
-        <CampaignStoryboardEditor
-          runId={runId}
-          edits={campaignEdits}
-          savedEdits={data.campaign_edits}
-          originalEdits={data.campaign_original_edits ?? data.campaign_edits}
-          sources={data.campaign_sources ?? []}
-          musicAnalysis={data.campaign_quality_checks?.music_analysis ?? null}
-          musicStartSeconds={musicStartSeconds}
-          onMusicStartChange={setMusicStartSeconds}
-          hasMusic={Boolean(data.options.campaign_music_path)}
-          lyricsBehindSubject={lyricsBehindSubject}
-          lyrics={campaignTimelineLyrics}
-          onUpdateLyric={updateLyricPhrase}
-          lyricWords={campaignTimelineWords}
-          wordsOnScreen={data.options.campaign_lyrics_words_on_screen ?? 3}
-          lyricsColor={lyricsColor}
-          lyricsHighlightColor={lyricsHighlightColor}
-          textOverlays={campaignTextOverlays}
-          onUpdateTextOverlay={(overlayIndex, patch) => setCampaignTextOverlays((current) => current.map((overlay, index) => index === overlayIndex ? { ...overlay, ...patch } : overlay))}
-          transitionStyle={data.options.campaign_transition_style ?? 'auto'}
-          saving={saveMontage.isPending}
-          onChange={setCampaignEdits}
-          onSave={() => saveMontage.mutate()}
-          onReset={() => setCampaignEdits(data.campaign_original_edits ?? data.campaign_edits)}
-        />
-      )}
-
-      {data.options.campaign_mode && !busy && campaignEdits.length > 0 && (
+        <div id="campaign-text" hidden={activeCampaignTool !== 'text'} className="scroll-mt-5 lg:col-start-2 lg:row-start-1">
         <CampaignTextOverlayEditor
           overlays={campaignTextOverlays}
           savedOverlays={data.options.campaign_text_overlays ?? []}
@@ -1004,9 +1032,13 @@ export function RunDetailPage() {
           onChange={setCampaignTextOverlays}
           onSave={() => saveCampaignTextOverlays.mutate()}
         />
+        </div>
       )}
 
       {data.campaign_plan && <CampaignPlanCard plan={data.campaign_plan} checks={data.campaign_quality_checks} />}
+
+        </div>
+      )}
 
       {data.clips.length > 0 && data.source_duration && !data.options.campaign_mode ? (
         <Timeline run={data} focused={focused} onFocus={setFocused} />
@@ -1119,6 +1151,12 @@ function CampaignStoryboardEditor({
   onReset: () => void
 }) {
   const sourceByIndex = new Map(sources.map((source) => [source.index, source]))
+  const [selectedOutputRank, setSelectedOutputRank] = useState(edits[0]?.rank ?? 1)
+  useEffect(() => {
+    if (!edits.some((edit) => edit.rank === selectedOutputRank) && edits[0]) {
+      setSelectedOutputRank(edits[0].rank)
+    }
+  }, [edits, selectedOutputRank])
   const changed = JSON.stringify(edits) !== JSON.stringify(savedEdits)
   const resetAvailable = JSON.stringify(savedEdits) !== JSON.stringify(originalEdits) || changed
   const shotCount = edits.reduce((total, edit) => total + edit.shots.length, 0)
@@ -1168,7 +1206,7 @@ function CampaignStoryboardEditor({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <Eyebrow>Campaign editor</Eyebrow>
-          <h2 className="display mt-1 text-2xl">Edit your storyboard</h2>
+          <h2 id="campaign-storyboard" className="display mt-1 scroll-mt-5 text-2xl">Edit your storyboard</h2>
           <p className="mt-1 text-[13px] text-muted">
             Reorder, trim, split or remove shots. Splitting keeps the original source range and creates two consecutive shots.
           </p>
@@ -1182,9 +1220,30 @@ function CampaignStoryboardEditor({
           </Button>
         </div>
       </div>
-      <p className="label text-muted">{edits.length} output(s) · {shotCount} shots · Keep at least 3 shots per output; each shot must be 1.5–5 seconds.</p>
+      <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold">Choose a clip to edit</p>
+            <p className="text-xs text-muted">Each output opens as its own focused editing workspace.</p>
+          </div>
+          <span className="label text-muted">{edits.length} clips · {shotCount} shots total</span>
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {edits.map((edit) => (
+            <button key={edit.rank} type="button" onClick={() => setSelectedOutputRank(edit.rank)}
+              aria-pressed={selectedOutputRank === edit.rank}
+              className={cn('min-w-[150px] rounded-lg border px-3 py-2 text-left transition-colors',
+                selectedOutputRank === edit.rank ? 'border-ink bg-ink text-white' : 'border-line bg-surface text-ink hover:border-ink')}>
+              <span className="block text-xs font-semibold">CLIP {String(edit.rank).padStart(2, '0')}</span>
+              <span className={cn('mt-1 block truncate text-sm', selectedOutputRank === edit.rank ? 'text-white/90' : 'text-muted')}>{edit.title}</span>
+              <span className={cn('mt-1 block text-[11px]', selectedOutputRank === edit.rank ? 'text-white/70' : 'text-faint')}>{edit.shots.length} timeline segments</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="label text-muted">Editing clip {String(selectedOutputRank).padStart(2, '0')} · Keep at least 3 shots per output; each shot must be 1.5–5 seconds.</p>
       {edits.map((edit, editIndex) => (
-        <section key={edit.rank} className="flex flex-col gap-3 border-t border-line pt-4">
+        <section key={edit.rank} hidden={edit.rank !== selectedOutputRank} className="flex flex-col gap-3 border-t border-line pt-4">
           <div className="flex items-center justify-between gap-3">
             <h3 className="font-semibold">#{edit.rank} · {edit.title}</h3>
             <span className="label text-muted">{edit.shots.length} shots</span>
@@ -1214,7 +1273,7 @@ function CampaignStoryboardEditor({
             {edit.shots.map((shot, shotIndex) => {
               const source = sourceByIndex.get(shot.source_index)
               return (
-                <li id={`campaign-shot-${edit.rank}-${shotIndex}`} key={`${edit.rank}-${shotIndex}-${shot.source_index}`} className="grid gap-3 rounded-lg border border-line bg-panel p-3 md:grid-cols-[112px_minmax(0,1fr)_150px_150px_auto] md:items-center">
+                <li id={`campaign-shot-${edit.rank}-${shotIndex}`} key={`${edit.rank}-${shotIndex}-${shot.source_index}`} className="grid gap-3 rounded-lg border border-line bg-panel p-3 md:grid-cols-[112px_minmax(0,1fr)_minmax(220px,300px)_auto] md:items-center">
                   <img
                     src={`/api/runs/${runId}/campaign-frame?source_index=${shot.source_index}&timestamp=${shot.start_seconds.toFixed(1)}`}
                     alt={`Preview of shot ${shotIndex + 1}`}
@@ -1232,31 +1291,36 @@ function CampaignStoryboardEditor({
                       {source ? ` / ${formatDuration(source.duration_seconds)} source` : ''}
                     </p>
                   </div>
-                  <label className="flex flex-col gap-1 text-xs text-muted">
-                    Start (seconds)
-                    <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.start_seconds}
-                      onChange={(event) => updateShot(editIndex, shotIndex, { start_seconds: Number(event.target.value) })} disabled={saving}
-                      className="w-full rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
-                  </label>
-                  <label className="flex flex-col gap-1 text-xs text-muted">
-                    <span className="flex items-center justify-between gap-1">
-                      End (seconds)
-                      {(() => {
-                        const snappedEnd = getBeatSnappedShotEnd(edit, shotIndex, musicAnalysis, source?.duration_seconds)
-                        return (
-                          <button type="button" disabled={saving || snappedEnd === null}
-                            onClick={() => snappedEnd !== null && updateShot(editIndex, shotIndex, { end_seconds: snappedEnd })}
-                            className="rounded border border-line px-1.5 py-0.5 text-[10px] text-ink hover:bg-surface disabled:opacity-30"
-                            title="Align this shot's end with the nearest suitable music beat">
-                            Snap to beat
-                          </button>
-                        )
-                      })()}
-                    </span>
-                    <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.end_seconds}
-                      onChange={(event) => updateShot(editIndex, shotIndex, { end_seconds: Number(event.target.value) })} disabled={saving}
-                      className="w-full rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
-                  </label>
+                  <details className="min-w-0 rounded-md border border-line bg-surface px-3 py-2 text-xs text-muted md:col-span-1">
+                    <summary className="cursor-pointer select-none font-medium text-ink">Precise timing · Advanced</summary>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <label className="flex min-w-0 flex-col gap-1">
+                        Start (seconds)
+                        <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.start_seconds}
+                          onChange={(event) => updateShot(editIndex, shotIndex, { start_seconds: Number(event.target.value) })} disabled={saving}
+                          className="w-full min-w-0 rounded-md border border-line bg-panel px-2 py-2 font-mono text-sm text-ink" />
+                      </label>
+                      <label className="flex min-w-0 flex-col gap-1">
+                        <span className="flex items-center justify-between gap-1">
+                          End (seconds)
+                          {(() => {
+                            const snappedEnd = getBeatSnappedShotEnd(edit, shotIndex, musicAnalysis, source?.duration_seconds)
+                            return (
+                              <button type="button" disabled={saving || snappedEnd === null}
+                                onClick={() => snappedEnd !== null && updateShot(editIndex, shotIndex, { end_seconds: snappedEnd })}
+                                className="rounded border border-line px-1.5 py-0.5 text-[10px] text-ink hover:bg-panel disabled:opacity-30"
+                                title="Align this shot's end with the nearest suitable music beat">
+                                Snap
+                              </button>
+                            )
+                          })()}
+                        </span>
+                        <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.end_seconds}
+                          onChange={(event) => updateShot(editIndex, shotIndex, { end_seconds: Number(event.target.value) })} disabled={saving}
+                          className="w-full min-w-0 rounded-md border border-line bg-panel px-2 py-2 font-mono text-sm text-ink" />
+                      </label>
+                    </div>
+                  </details>
                   <div className="flex items-center justify-end gap-1">
                     <button type="button" title="Move shot up" aria-label="Move shot up" disabled={saving || shotIndex === 0}
                       onClick={() => moveShot(editIndex, shotIndex, -1)} className="rounded-md border border-line p-2 text-muted hover:text-ink disabled:opacity-30">
@@ -2046,7 +2110,7 @@ function CampaignTimeline({
                 {' '}Positions update in the edit draft; use the existing Apply controls to save and render.
               </span>
             </div>
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(180px,1fr)] sm:items-center">
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)] lg:items-start">
             <div data-campaign-preview-stage className="relative overflow-hidden rounded-md bg-black">
               <video
                 ref={videoRef}
@@ -2125,7 +2189,7 @@ function CampaignTimeline({
                     ? 'opacity ' + transitionDurationMs + 'ms ease, transform ' + transitionDurationMs + 'ms ease, clip-path ' + transitionDurationMs + 'ms ease'
                     : 'none',
                 }}
-                className="max-h-64 w-full bg-black object-contain"
+                className="min-h-[280px] max-h-[min(72vh,720px)] w-full bg-black object-contain"
               />
               {alignmentGuides.vertical !== null && (
                 <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 z-30 border-l border-dashed border-sky-300 shadow-[0_0_5px_rgba(125,211,252,0.8)]"
