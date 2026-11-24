@@ -302,7 +302,6 @@ export function RunDetailPage() {
     setLyricsScale(run.data?.options.campaign_lyrics_scale_percent ?? 100)
     setLyricsRotation(run.data?.options.campaign_lyrics_rotation_degrees ?? 0)
     setPhraseEdits(run.data?.options.campaign_lyric_phrase_edits ?? [])
-    setSelectedLyricPhrase(0)
     resetCampaignHistory({
       edits: run.data?.campaign_edits ?? [],
       overlays: run.data?.options.campaign_text_overlays ?? [],
@@ -354,7 +353,6 @@ export function RunDetailPage() {
       : null
     return { text, start }
   }).filter((phrase) => phrase.text)
-  const lyricPhrases = lyricRows.map((phrase) => phrase.text)
   const lyricOffset = musicStartSeconds
   const campaignTimelineLyrics: CampaignPreviewLyric[] = lyricRows.flatMap((phrase, index) => {
     if (phrase.start == null) return []
