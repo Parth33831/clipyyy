@@ -82,6 +82,20 @@ class CampaignLyricWordEdit(BaseModel):
         return self
 
 
+class CampaignLyricWord(BaseModel):
+    word: str = Field(..., min_length=1, max_length=80)
+    start: float = Field(..., ge=0)
+    end: float = Field(..., gt=0)
+
+    @model_validator(mode="after")
+    def _valid_timing(self) -> CampaignLyricWord:
+        if self.end <= self.start:
+            raise ValueError("Word end must be after word start")
+        if not self.word.strip():
+            raise ValueError("Lyric words cannot be blank")
+        return self
+
+
 class CampaignLyricsUpdate(BaseModel):
     lyrics: str = Field("", max_length=12000)
     lyrics_style: Literal[
@@ -99,6 +113,7 @@ class CampaignLyricsUpdate(BaseModel):
     include_hook: bool = False
     phrase_edits: list[CampaignLyricPhraseEdit] = Field(default_factory=list, max_length=200)
     word_edits: list[CampaignLyricWordEdit] = Field(default_factory=list, max_length=2000)
+    replace_words: list[CampaignLyricWord] | None = Field(None, max_length=2000)
 
 
 class CampaignTextOverlay(BaseModel):
@@ -239,6 +254,8 @@ def create_app(start_worker: bool = True) -> FastAPI:
             raise HTTPException(409, "Wait for the campaign run to finish before editing lyrics.")
         lyrics_unchanged = body.lyrics == run["options"].get("campaign_lyrics", "")
         existing_words = list(run["options"].get("campaign_lyric_words", [])) if lyrics_unchanged else []
+        if body.replace_words is not None:
+            existing_words = [item.model_dump() for item in body.replace_words]
         for edit in body.word_edits:
             if edit.word_index >= len(existing_words):
                 raise HTTPException(422, f"Lyrics word {edit.word_index + 1} no longer exists.")
@@ -288,6 +305,47 @@ def create_app(start_worker: bool = True) -> FastAPI:
             "rendered": True,
             "characters": len(body.lyrics),
             "outputs": len(result.get("renders", [])),
+        }
+
+    @app.post("/api/runs/{run_id}/campaign-lyrics-resync")
+    def propose_campaign_lyrics_resync(run_id: str) -> dict:
+        """Transcribe attached campaign music and return a review-only lyric proposal."""
+        run = _run_or_404(run_id)
+        if not run["options"].get("campaign_mode"):
+            raise HTTPException(400, "Lyric re-sync is only available for campaign runs.")
+        if run["status"] in {"queued", "running"}:
+            raise HTTPException(409, "Wait for the campaign run to finish before re-syncing lyrics.")
+        music_path = run["options"].get("campaign_music_path")
+        if not music_path or not Path(str(music_path)).is_file():
+            raise HTTPException(404, "Attach an available music track before re-syncing lyrics.")
+        try:
+            from clipyyy.transcribe import transcribe_music
+
+            work_dir = pipeline.run_dir(run_id) / "work" / "campaign-lyrics-resync"
+            result = transcribe_music(
+                Path(str(music_path)), work_dir, get_setting("whisper_model") or "tiny", "auto"
+            )
+            words = result.get("words") or []
+            if not words:
+                raise HTTPException(422, "No lyric words could be detected in this soundtrack.")
+            lyric_offset = float(run["options"].get("campaign_music_start_seconds") or 0)
+            selection_path = pipeline.run_dir(run_id) / "work" / "select.json"
+            if selection_path.is_file():
+                selection = json.loads(selection_path.read_text(encoding="utf-8"))
+                analysis = selection.get("campaign_music_analysis") or {}
+                lyric_offset = float(analysis.get("best_start_seconds") or lyric_offset)
+            draft, _ = pipeline._campaign_lyric_draft(words, lyric_offset, 180.0)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(503, f"Could not re-sync soundtrack lyrics: {exc}") from exc
+        return {
+            "lyrics": draft,
+            "words": words,
+            "language": result.get("language"),
+            "word_count": len(words),
+            "saved": False,
+            "rendered": False,
         }
 
     @app.put("/api/runs/{run_id}/campaign-text-overlays")
