@@ -254,7 +254,6 @@ export function RunDetailPage() {
   const [lyricsScale, setLyricsScale] = useState(100)
   const [lyricsRotation, setLyricsRotation] = useState(0)
   const [phraseEdits, setPhraseEdits] = useState<CampaignLyricPhraseEdit[]>([])
-  const [selectedLyricPhrase, setSelectedLyricPhrase] = useState(0)
   const campaignHistory = useUndoRedo({
     edits: [] as CampaignEdit[],
     overlays: [] as CampaignTextOverlay[],
@@ -384,22 +383,6 @@ export function RunDetailPage() {
     if (!word || end <= 0 || end <= start) return []
     return [{ word, start_seconds: Math.max(0, start), end_seconds: end }]
   })
-  const selectedPhraseEdit = phraseEdits.find((edit) => edit.phrase_index === selectedLyricPhrase)
-  const selectedPhraseStart = selectedPhraseEdit?.start_seconds ?? lyricPhraseTimes[selectedLyricPhrase]
-  const selectedPhraseEnd = selectedPhraseEdit?.end_seconds ?? (
-    lyricPhraseTimes[selectedLyricPhrase + 1] ?? (selectedPhraseStart == null ? null : selectedPhraseStart + 3)
-  )
-  const previewPositionX = selectedPhraseEdit?.position_x ?? lyricsPositionX
-  const previewPositionY = selectedPhraseEdit?.position_y ?? lyricsPositionY
-  const previewScale = selectedPhraseEdit?.scale_percent ?? lyricsScale
-  const previewRotation = selectedPhraseEdit?.rotation_degrees ?? lyricsRotation
-  const updateSelectedPhrase = (patch: Partial<CampaignLyricPhraseEdit>) => {
-    setPhraseEdits((current) => {
-      const existing = current.find((edit) => edit.phrase_index === selectedLyricPhrase)
-      const next = { phrase_index: selectedLyricPhrase, ...existing, ...patch }
-      return [...current.filter((edit) => edit.phrase_index !== selectedLyricPhrase), next].sort((left, right) => left.phrase_index - right.phrase_index)
-    })
-  }
   const updateLyricPhrase = (phraseIndex: number, patch: Partial<CampaignLyricPhraseEdit>) => {
     setPhraseEdits((current) => {
       const existing = current.find((edit) => edit.phrase_index === phraseIndex)
@@ -616,6 +599,22 @@ export function RunDetailPage() {
           onMusicStartChange={setMusicStartSeconds}
           hasMusic={Boolean(data.options.campaign_music_path)}
           lyricsBehindSubject={lyricsBehindSubject}
+          lyricsText={lyricsText}
+          onLyricsTextChange={setLyricsText}
+          lyricsSourceLabel={data.options.campaign_lyrics_source ?? null}
+          lyricsAspectRatio={data.options.aspect_ratio}
+          lyricsPositionX={lyricsPositionX}
+          onLyricsPositionXChange={setLyricsPositionX}
+          lyricsPositionY={lyricsPositionY}
+          onLyricsPositionYChange={setLyricsPositionY}
+          lyricsScale={lyricsScale}
+          onLyricsScaleChange={setLyricsScale}
+          lyricsRotation={lyricsRotation}
+          onLyricsRotationChange={setLyricsRotation}
+          onLyricsBehindSubjectChange={setLyricsBehindSubject}
+          onLyricsColorChange={setLyricsColor}
+          onLyricsHighlightColorChange={setLyricsHighlightColor}
+          onResetLyricPhrase={(phraseIndex) => setPhraseEdits((current) => current.filter((edit) => edit.phrase_index !== phraseIndex))}
           lyrics={campaignTimelineLyrics}
           onUpdateLyric={updateLyricPhrase}
           lyricWords={campaignTimelineWords}
@@ -668,178 +667,6 @@ export function RunDetailPage() {
         />
       )}
             </div>
-      {data.options.campaign_mode && !busy && (
-        <div className="scroll-mt-5 flex flex-col gap-4 rounded-xl border border-line bg-surface p-4">
-          <LyricsPositionPreview
-            frameUrl={campaignEdits[0]?.shots[0] ? `/api/runs/${runId}/campaign-frame?source_index=${campaignEdits[0].shots[0].source_index}&timestamp=${campaignEdits[0].shots[0].start_seconds.toFixed(1)}` : null}
-            text={lyricPhrases[selectedLyricPhrase] ?? 'Your lyrics appear here'}
-            x={previewPositionX}
-            y={previewPositionY}
-            scale={previewScale}
-            rotation={previewRotation}
-            aspectRatio={data.options.aspect_ratio}
-            onPositionChange={(x, y) => lyricPhrases.length ? updateSelectedPhrase({ position_x: x, position_y: y }) : (setLyricsPositionX(x), setLyricsPositionY(y))}
-          />
-          {lyricPhrases.length > 0 && (
-            <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-medium">Individual lyric phrase</span>
-                <span className="text-xs text-muted">Overrides only the selected phrase</span>
-              </div>
-              <label className="flex flex-col gap-2">
-                <span className="text-xs text-muted">Select phrase</span>
-                <select value={selectedLyricPhrase} onChange={(event) => setSelectedLyricPhrase(Number(event.target.value))}
-                  className="rounded-lg border border-line bg-panel p-2 text-ink">
-                  {lyricPhrases.map((phrase, index) => <option key={index} value={index}>{index + 1}. {phrase.slice(0, 70)}</option>)}
-                </select>
-              </label>
-              {selectedPhraseStart != null && selectedPhraseEnd != null && (
-                <div className="grid gap-3 border-t border-line pt-3 sm:grid-cols-2">
-                  <label className="flex flex-col gap-1">
-                    <span className="font-medium">Phrase start (song seconds)</span>
-                    <input type="number" min={0} step={0.05} value={selectedPhraseStart}
-                      onChange={(event) => {
-                        const start = Math.max(0, Number(event.target.value))
-                        updateSelectedPhrase({ start_seconds: start, ...(selectedPhraseEnd <= start ? { end_seconds: start + 0.2 } : {}) })
-                      }}
-                      className="rounded-lg border border-line bg-panel p-2 text-ink" />
-                  </label>
-                  <label className="flex flex-col gap-1">
-                    <span className="font-medium">Phrase end (song seconds)</span>
-                    <input type="number" min={selectedPhraseStart + 0.05} step={0.05} value={selectedPhraseEnd}
-                      onChange={(event) => updateSelectedPhrase({ end_seconds: Math.max(selectedPhraseStart + 0.05, Number(event.target.value)) })}
-                      className="rounded-lg border border-line bg-panel p-2 text-ink" />
-                  </label>
-                  <p className="text-xs text-muted sm:col-span-2">Times are measured against the original song, so changing this phrase does not move the following phrases.</p>
-                </div>
-              )}
-              <div className="grid gap-3 sm:grid-cols-2">
-                {([
-                  ['position_x', 'Horizontal position', 5, 95, lyricsPositionX, '%'],
-                  ['position_y', 'Vertical position', 5, 95, lyricsPositionY, '%'],
-                  ['scale_percent', 'Text size', 50, 200, lyricsScale, '%'],
-                  ['rotation_degrees', 'Rotation', -30, 30, lyricsRotation, '°'],
-                ] as const).map(([key, label, min, max, fallback, suffix]) => {
-                  const value = selectedPhraseEdit?.[key] ?? fallback
-                  return (
-                    <label key={key} className="flex flex-col gap-2">
-                      <span className="flex justify-between"><span>{label}</span><span className="font-mono text-muted">{value}{suffix}</span></span>
-                      <input type="range" min={min} max={max} step={key === 'scale_percent' ? 5 : 1} value={value}
-                        onChange={(event) => updateSelectedPhrase({ [key]: Number(event.target.value) })}
-                        className="w-full accent-current" />
-                    </label>
-                  )
-                })}
-              </div>
-              <label className="flex flex-col gap-2">
-                <span className="text-xs text-muted">Animation style</span>
-                <select
-                  value={selectedPhraseEdit?.animation_style ?? 'global'}
-                  onChange={(event) => updateSelectedPhrase({ animation_style: event.target.value === 'global' ? undefined : event.target.value as CampaignLyricPhraseEdit['animation_style'] })}
-                  className="rounded-lg border border-line bg-panel p-2 text-ink"
-                >
-                  <option value="global">Use global style</option>
-                  <option value="dynamic">Dynamic pop</option>
-                  <option value="cinematic">Cinematic fade</option>
-                  <option value="minimal">Minimal fade</option>
-                  <option value="karaoke">Karaoke highlight</option>
-                </select>
-              </label>
-              <div className="flex justify-end">
-                <button type="button" className="text-xs underline text-muted"
-                  onClick={() => setPhraseEdits((current) => current.filter((edit) => edit.phrase_index !== selectedLyricPhrase))}>
-                  Reset this phrase to global settings
-                </button>
-              </div>
-              <p className="text-xs text-muted">Phrase-level transforms currently apply to line-timed lyrics (LRC or manually entered lines). Word-by-word Whisper timing continues to use the global lyric transform.</p>
-            </div>
-          )}
-          <div className="grid gap-4 rounded-lg border border-line bg-panel p-3 text-sm sm:grid-cols-2">
-            <label className="flex flex-col gap-2">
-              <span className="flex justify-between"><span className="font-medium">Horizontal position</span><span className="font-mono text-muted">{lyricsPositionX}%</span></span>
-              <input type="range" min={5} max={95} value={lyricsPositionX} onChange={(event) => setLyricsPositionX(Number(event.target.value))} className="w-full accent-current" />
-            </label>
-            <label className="flex flex-col gap-2">
-              <span className="flex justify-between"><span className="font-medium">Vertical position</span><span className="font-mono text-muted">{lyricsPositionY}%</span></span>
-              <input type="range" min={5} max={95} value={lyricsPositionY} onChange={(event) => setLyricsPositionY(Number(event.target.value))} className="w-full accent-current" />
-            </label>
-            <label className="flex flex-col gap-2">
-              <span className="flex justify-between"><span className="font-medium">Text size</span><span className="font-mono text-muted">{lyricsScale}%</span></span>
-              <input type="range" min={50} max={200} step={5} value={lyricsScale} onChange={(event) => setLyricsScale(Number(event.target.value))} className="w-full accent-current" />
-            </label>
-            <label className="flex flex-col gap-2">
-              <span className="flex justify-between"><span className="font-medium">Rotation</span><span className="font-mono text-muted">{lyricsRotation}°</span></span>
-              <input type="range" min={-30} max={30} value={lyricsRotation} onChange={(event) => setLyricsRotation(Number(event.target.value))} className="w-full accent-current" />
-            </label>
-            <p className="text-xs text-muted sm:col-span-2">These controls position, resize and rotate the complete timed lyric layer. Defaults preserve the existing lower-center layout. Changes are applied when you re-render.</p>
-          </div>
-          <label className="flex items-start gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
-            <input
-              type="checkbox"
-              checked={lyricsBehindSubject}
-              onChange={(event) => setLyricsBehindSubject(event.target.checked)}
-              className="mt-1 h-4 w-4 accent-current"
-            />
-            <span className="flex flex-col gap-1">
-              <span className="font-medium">Place lyrics behind the person (AI depth effect)</span>
-              <span className="text-xs text-muted">
-                Uses AI person segmentation to keep the foreground subject in front of the words.
-                This takes extra processing time. If segmentation is unavailable, CLIPYYY safely uses normal lyrics.
-              </span>
-            </span>
-          </label>
-          <div className="grid gap-4 rounded-lg border border-line bg-panel p-3 sm:grid-cols-2">
-            <label className="flex items-center justify-between gap-3 text-sm">
-              <span className="flex flex-col gap-1"><span className="font-medium">Lyrics color</span><span className="text-xs text-muted">Main caption text</span></span>
-              <input type="color" aria-label="Lyrics text color" value={lyricsColor} onChange={(event) => setLyricsColor(event.target.value.toUpperCase())} className="h-10 w-14 cursor-pointer rounded border border-line bg-transparent p-1" />
-            </label>
-            <label className="flex items-center justify-between gap-3 text-sm">
-              <span className="flex flex-col gap-1"><span className="font-medium">Highlight color</span><span className="text-xs text-muted">Second color / alternating words</span></span>
-              <input type="color" aria-label="Lyrics highlight color" value={lyricsHighlightColor} onChange={(event) => setLyricsHighlightColor(event.target.value.toUpperCase())} className="h-10 w-14 cursor-pointer rounded border border-line bg-transparent p-1" />
-            </label>
-            <div className="flex flex-wrap gap-2 sm:col-span-2">
-              {[
-                ['White', '#FFFFFF'], ['Red', '#FF3B4F'], ['Blue', '#3488FF'], ['Yellow', '#FFE14A'],
-                ['Pink', '#FF62B8'], ['Purple', '#A978FF'], ['Green', '#45D483'], ['Orange', '#FF963D'],
-              ].map(([name, value]) => (
-                <button key={value} type="button" onClick={() => setLyricsColor(value)} aria-label={name + ' lyrics color'} aria-pressed={lyricsColor === value}
-                  className={cn('h-7 w-7 rounded-full border-2 transition-transform', lyricsColor === value ? 'scale-110 border-ink' : 'border-line')}
-                  style={{ backgroundColor: value }} />
-              ))}
-            </div>
-            <div className="flex items-center justify-center rounded-lg bg-ink px-4 py-5 sm:col-span-2">
-              <p className="text-center text-xl font-extrabold tracking-wide" style={{ textShadow: '0 2px 4px #000, 0 0 10px #000' }}>
-                <span style={{ color: lyricsColor }}>Pop </span><span style={{ color: lyricsHighlightColor }}>it, </span>
-                <span style={{ color: lyricsColor }}>feel </span><span style={{ color: lyricsHighlightColor }}>the </span>
-                <span style={{ color: lyricsColor }}>beat</span>
-              </p>
-            </div>
-            <p className="text-xs text-muted sm:col-span-2">Colors are independent of animation style. Apply updates the existing edit without re-picking footage or re-transcribing the song.</p>
-          </div>
-          <div id="campaign-lyrics" className="scroll-mt-5 flex flex-col gap-3">
-          <label className="flex flex-col gap-2 text-sm">
-            <span className="font-medium">Lyrics / timed captions</span>
-            <textarea
-              value={lyricsText}
-              onChange={(event) => setLyricsText(event.target.value)}
-              rows={5}
-              maxLength={12000}
-              placeholder={'Local Whisper will draft lyrics from the attached song. You can correct them here.\nFor precise timing, use LRC lines such as [00:12.40] lyric text.'}
-              className="w-full rounded-lg border border-line bg-panel p-3 text-sm text-ink placeholder:text-muted"
-            />
-            <span className="text-xs text-muted">
-              {data.options.campaign_lyrics_source || 'No lyric draft yet. Attach music and choose Pick again to create a local draft.'}
-              {' '}Singing recognition can be inaccurate; review the words before publishing.
-            </span>
-          </label>
-          <div className="flex justify-end">
-            <Button variant="ink" loading={saveLyrics.isPending} onClick={() => saveLyrics.mutate()}>
-              Apply to existing edit
-            </Button>
-          </div>
-          </div>
-        </div>
-      )}
 
       {(busy || data.status === 'failed') && <Progress run={data} />}
 
@@ -1054,6 +881,22 @@ function CampaignStoryboardEditor({
   onMusicStartChange,
   hasMusic,
   lyricsBehindSubject,
+  lyricsText,
+  onLyricsTextChange,
+  lyricsSourceLabel,
+  lyricsAspectRatio,
+  lyricsPositionX,
+  onLyricsPositionXChange,
+  lyricsPositionY,
+  onLyricsPositionYChange,
+  lyricsScale,
+  onLyricsScaleChange,
+  lyricsRotation,
+  onLyricsRotationChange,
+  onLyricsBehindSubjectChange,
+  onLyricsColorChange,
+  onLyricsHighlightColorChange,
+  onResetLyricPhrase,
   lyrics,
   onUpdateLyric,
   lyricWords,
@@ -1114,6 +957,22 @@ function CampaignStoryboardEditor({
   onMusicStartChange: (seconds: number) => void
   hasMusic: boolean
   lyricsBehindSubject: boolean
+  lyricsText: string
+  onLyricsTextChange: (value: string) => void
+  lyricsSourceLabel: string | null
+  lyricsAspectRatio: string
+  lyricsPositionX: number
+  onLyricsPositionXChange: (value: number) => void
+  lyricsPositionY: number
+  onLyricsPositionYChange: (value: number) => void
+  lyricsScale: number
+  onLyricsScaleChange: (value: number) => void
+  lyricsRotation: number
+  onLyricsRotationChange: (value: number) => void
+  onLyricsBehindSubjectChange: (value: boolean) => void
+  onLyricsColorChange: (value: string) => void
+  onLyricsHighlightColorChange: (value: string) => void
+  onResetLyricPhrase: (phraseIndex: number) => void
   lyrics: CampaignPreviewLyric[]
   onUpdateLyric: (phraseIndex: number, patch: Partial<CampaignLyricPhraseEdit>) => void
   lyricWords: CampaignPreviewWord[]
@@ -1624,43 +1483,112 @@ function CampaignStoryboardEditor({
               </div>
             )}
             {activeTool === 'lyrics' && (
-              <div className="flex flex-col gap-3 text-xs">
+              <div className="flex max-h-[min(76vh,900px)] flex-col gap-3 overflow-y-auto pr-1 text-xs">
                 <div>
-                  <p className="font-semibold text-ink">Phrase placement</p>
-                  <p className="mt-1 text-muted">Choose a lyric phrase and adjust its position on the video.</p>
+                  <p className="font-semibold text-ink">Lyrics & timed captions</p>
+                  <p className="mt-1 text-muted">Edit the words, timing, placement and depth treatment without leaving the clip workspace.</p>
                 </div>
-                {lyrics.length === 0 ? <p className="rounded-md border border-dashed border-line p-2 text-muted">Add timed lyrics in the Lyrics Sync section to edit phrase placement here.</p> : (
-                  <>
-                    <label className="flex flex-col gap-1 text-muted">Lyric phrase
-                      <select value={selectedPhraseIndex} onChange={(event) => setSelectedPhraseIndex(Number(event.target.value))}
-                        className="rounded-md border border-line bg-panel px-2 py-2 text-ink">
-                        {lyrics.map((phrase) => <option key={phrase.phrase_index} value={phrase.phrase_index}>{phrase.text.slice(0, 42) || `Phrase ${phrase.phrase_index + 1}`}</option>)}
-                      </select>
+                <label className="flex flex-col gap-1 text-muted">Lyrics / timed captions
+                  <textarea value={lyricsText} onChange={(event) => onLyricsTextChange(event.target.value)} rows={5} maxLength={12000}
+                    placeholder={'Correct the detected lyrics here. For precise timing, use LRC lines such as [00:12.40] lyric text.'}
+                    className="resize-y rounded-md border border-line bg-panel p-2 text-ink" />
+                </label>
+                <p className="text-muted">{lyricsSourceLabel ?? 'No lyric draft yet. Attach music and choose Pick again to create a local draft.'} Singing recognition can be inaccurate; review the words before publishing.</p>
+                <div className="rounded-md border border-line bg-panel p-2">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="font-semibold text-ink">Phrase timing & placement</span>
+                    <span className="text-muted">{lyrics.length} timed phrases</span>
+                  </div>
+                  {lyrics.length === 0 ? <p className="text-muted">Add LRC timestamps to edit individual phrase timing and placement.</p> : (
+                    <>
+                      <label className="flex flex-col gap-1 text-muted">Select phrase
+                        <select value={selectedPhraseIndex} onChange={(event) => setSelectedPhraseIndex(Number(event.target.value))}
+                          className="rounded border border-line bg-surface px-2 py-2 text-ink">
+                          {lyrics.map((phrase) => <option key={phrase.phrase_index} value={phrase.phrase_index}>{phrase.phrase_index + 1}. {phrase.text.slice(0, 48)}</option>)}
+                        </select>
+                      </label>
+                      {(() => {
+                        const phrase = lyrics.find((item) => item.phrase_index === selectedPhraseIndex) ?? lyrics[0]
+                        const start = phrase.start_seconds + musicStartSeconds
+                        const end = phrase.end_seconds + musicStartSeconds
+                        return (
+                          <div className="mt-2 flex flex-col gap-2">
+                            <p className="rounded bg-surface p-2 text-muted">{phrase.text}</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              <label className="flex flex-col gap-1 text-muted">Start · {start.toFixed(2)}s
+                                <input type="number" min={0} step={0.05} value={start}
+                                  onChange={(event) => onUpdateLyric(phrase.phrase_index, { start_seconds: Math.max(0, Number(event.target.value)) })}
+                                  className="rounded border border-line bg-surface px-2 py-1.5 text-ink" />
+                              </label>
+                              <label className="flex flex-col gap-1 text-muted">End · {end.toFixed(2)}s
+                                <input type="number" min={start + 0.05} step={0.05} value={end}
+                                  onChange={(event) => onUpdateLyric(phrase.phrase_index, { end_seconds: Math.max(start + 0.05, Number(event.target.value)) })}
+                                  className="rounded border border-line bg-surface px-2 py-1.5 text-ink" />
+                              </label>
+                            </div>
+                            <button type="button" onClick={() => onResetLyricPhrase(phrase.phrase_index)}
+                              className="self-start text-[11px] underline text-muted">Reset phrase overrides</button>
+                          </div>
+                        )
+                      })()}
+                    </>
+                  )}
+                </div>
+                <LyricsPositionPreview
+                  frameUrl={edit.shots[selectedShotIndex] ? `/api/runs/${runId}/campaign-frame?source_index=${edit.shots[selectedShotIndex].source_index}&timestamp=${edit.shots[selectedShotIndex].start_seconds.toFixed(1)}` : null}
+                  text={lyrics.find((phrase) => phrase.phrase_index === selectedPhraseIndex)?.text ?? 'Your lyrics appear here'}
+                  x={lyrics.find((phrase) => phrase.phrase_index === selectedPhraseIndex)?.position_x ?? lyricsPositionX}
+                  y={lyrics.find((phrase) => phrase.phrase_index === selectedPhraseIndex)?.position_y ?? lyricsPositionY}
+                  scale={lyrics.find((phrase) => phrase.phrase_index === selectedPhraseIndex)?.scale_percent ?? lyricsScale}
+                  rotation={lyrics.find((phrase) => phrase.phrase_index === selectedPhraseIndex)?.rotation_degrees ?? lyricsRotation}
+                  aspectRatio={lyricsAspectRatio}
+                  onPositionChange={(x, y) => {
+                    const phrase = lyrics.find((item) => item.phrase_index === selectedPhraseIndex)
+                    if (phrase) onUpdateLyric(phrase.phrase_index, { position_x: x, position_y: y })
+                    else { onLyricsPositionXChange(x); onLyricsPositionYChange(y) }
+                  }}
+                />
+                <div className="rounded-md border border-line bg-panel p-2">
+                  <p className="mb-2 font-semibold text-ink">Default lyric placement</p>
+                  {([
+                    ['Horizontal', lyricsPositionX, onLyricsPositionXChange, 5, 95, '%'],
+                    ['Vertical', lyricsPositionY, onLyricsPositionYChange, 5, 95, '%'],
+                    ['Text size', lyricsScale, onLyricsScaleChange, 50, 200, '%'],
+                    ['Rotation', lyricsRotation, onLyricsRotationChange, -30, 30, '°'],
+                  ] as const).map(([label, value, onChange, min, max, suffix]) => (
+                    <label key={label} className="mb-2 flex flex-col gap-1 text-muted">{label} · {value}{suffix}
+                      <input type="range" min={min} max={max} step={label === 'Text size' ? 5 : 1} value={value} onChange={(event) => onChange(Number(event.target.value))} />
                     </label>
-                    {(() => {
-                      const phrase = lyrics.find((item) => item.phrase_index === selectedPhraseIndex) ?? lyrics[0]
-                      return (
-                        <div className="flex flex-col gap-3">
-                          <p className="rounded-md bg-panel p-2 text-muted">{phrase.text}</p>
-                          <label className="flex flex-col gap-1 text-muted">Horizontal · {phrase.position_x}%
-                            <input type="range" min={5} max={95} value={phrase.position_x}
-                              onChange={(event) => onUpdateLyric(phrase.phrase_index, { position_x: Number(event.target.value) })} />
-                          </label>
-                          <label className="flex flex-col gap-1 text-muted">Vertical · {phrase.position_y}%
-                            <input type="range" min={5} max={95} value={phrase.position_y}
-                              onChange={(event) => onUpdateLyric(phrase.phrase_index, { position_y: Number(event.target.value) })} />
-                          </label>
-                          <label className="flex flex-col gap-1 text-muted">Scale · {phrase.scale_percent}%
-                            <input type="range" min={50} max={180} step={5} value={phrase.scale_percent}
-                              onChange={(event) => onUpdateLyric(phrase.phrase_index, { scale_percent: Number(event.target.value) })} />
-                          </label>
-                        </div>
-                      )
-                    })()}
-                  </>
-                )}
-                <button type="button" onClick={onSaveLyrics} disabled={savingLyrics || lyrics.length === 0}
-                  className="rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">{savingLyrics ? 'Applying…' : 'Apply lyric changes'}</button>
+                  ))}
+                </div>
+                <label className="flex items-start gap-2 rounded-md border border-line bg-panel p-2 text-muted">
+                  <input type="checkbox" checked={lyricsBehindSubject} onChange={(event) => onLyricsBehindSubjectChange(event.target.checked)} />
+                  <span><span className="font-semibold text-ink">AI depth effect</span><span className="mt-0.5 block">Place lyrics behind the person using AI segmentation. This takes extra processing; normal lyrics are used if segmentation is unavailable.</span></span>
+                </label>
+                <div className="rounded-md border border-line bg-panel p-2">
+                  <p className="mb-2 font-semibold text-ink">Lyric colors</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex items-center justify-between gap-2 text-muted">Main color
+                      <input type="color" value={lyricsColor} onChange={(event) => onLyricsColorChange(event.target.value.toUpperCase())} className="h-8 w-10 rounded border border-line bg-transparent" />
+                    </label>
+                    <label className="flex items-center justify-between gap-2 text-muted">Highlight
+                      <input type="color" value={lyricsHighlightColor} onChange={(event) => onLyricsHighlightColorChange(event.target.value.toUpperCase())} className="h-8 w-10 rounded border border-line bg-transparent" />
+                    </label>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {[
+                      ['White', '#FFFFFF'], ['Red', '#FF3B4F'], ['Blue', '#3488FF'], ['Yellow', '#FFE14A'],
+                      ['Pink', '#FF62B8'], ['Purple', '#A978FF'], ['Green', '#45D483'], ['Orange', '#FF963D'],
+                    ].map(([name, value]) => (
+                      <button key={value} type="button" onClick={() => onLyricsColorChange(value)} aria-label={name + ' lyrics color'} aria-pressed={lyricsColor === value}
+                        className={cn('h-6 w-6 rounded-full border-2', lyricsColor === value ? 'border-ink' : 'border-line')} style={{ backgroundColor: value }} />
+                    ))}
+                  </div>
+                </div>
+                <button type="button" onClick={onSaveLyrics} disabled={savingLyrics}
+                  className="rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">
+                  {savingLyrics ? 'Applying lyrics…' : 'Apply lyrics & sync'}
+                </button>
               </div>
             )}
             {(activeTool === 'titles' || activeTool === 'animations') && (
