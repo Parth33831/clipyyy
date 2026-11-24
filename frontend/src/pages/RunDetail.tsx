@@ -1208,7 +1208,6 @@ function CampaignStoryboardEditor({
   const [selectedShotIndex, setSelectedShotIndex] = useState(0)
   const [activeTool, setActiveTool] = useState<'shots' | 'audio' | 'lyrics' | 'titles' | 'animations'>('shots')
   const [selectedPhraseIndex, setSelectedPhraseIndex] = useState(0)
-  const selectedEdit = edits.find((item) => item.rank === selectedEditRank)
   const selectedTextOverlays = textOverlays
     .map((overlay, index) => ({ overlay, index }))
     .filter(({ overlay }) => overlay.rank === selectedEditRank)
