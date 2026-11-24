@@ -900,18 +900,15 @@ def test_campaign_lyrics_update_persists_word_level_text_and_timing(client, monk
 
 
 def test_campaign_lyrics_update_rejects_word_timing_without_positive_duration(client, monkeypatch):
-    run = client.post(
-        "/api/runs",
-        json={
-            "sources": ["https://example.com/campaign.mp4"],
-            "options": {
-                "campaign_mode": True,
-                "campaign_lyrics": "Hello",
-                "campaign_lyric_words": [{"word": "Hello", "start": 1.0, "end": 1.4}],
-            },
+    run = db.create_run(
+        "campaign",
+        {
+            "campaign_mode": True,
+            "campaign_lyrics": "Hello",
+            "campaign_lyric_words": [{"word": "Hello", "start": 1.0, "end": 1.4}],
         },
-    ).json()[0]
-    db.update_run(run["id"], status="completed")
+        status="completed",
+    )
     monkeypatch.setattr(
         pipeline,
         "rerender_campaign",
