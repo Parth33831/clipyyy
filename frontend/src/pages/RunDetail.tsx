@@ -1175,6 +1175,10 @@ function CampaignStoryboardEditor({
   onChange,
   onSave,
   onReset,
+  savingAudio,
+  savingText,
+  onSaveAudio,
+  onSaveText,
 }: {
   runId: string
   edits: CampaignEdit[]
