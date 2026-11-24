@@ -831,3 +831,23 @@ def test_campaign_ai_edit_returns_review_only_proposal_without_persisting(tmp_pa
     assert captured["direction"] == "Hook first"
     assert selection_path.read_text(encoding="utf-8") == original_selection
     assert db.get_run(run["id"])["options"]["campaign_brief"] == "Show the product honestly."
+
+
+def test_campaign_ai_edit_rejects_non_campaign_run(client):
+    run = db.create_run("ordinary-video.mp4", {}, status="completed")
+    response = client.post(
+        f"/api/runs/{run['id']}/campaign-ai-edit",
+        json={
+            "current_edit": {
+                "rank": 1,
+                "title": "Clip",
+                "shots": [
+                    {"source_index": 0, "start_seconds": 0, "end_seconds": 2, "reason": ""},
+                    {"source_index": 0, "start_seconds": 3, "end_seconds": 5, "reason": ""},
+                    {"source_index": 0, "start_seconds": 6, "end_seconds": 8, "reason": ""},
+                ],
+            },
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "AI Edit is only available for campaign runs."
