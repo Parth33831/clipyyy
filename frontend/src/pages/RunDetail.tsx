@@ -1232,7 +1232,9 @@ function CampaignStoryboardEditor({
     }))
   }
   const moveShot = (editIndex: number, shotIndex: number, direction: -1 | 1) => {
-    moveShotTo(editIndex, shotIndex, shotIndex + direction)
+    const targetIndex = shotIndex + direction
+    moveShotTo(editIndex, shotIndex, targetIndex)
+    if (targetIndex >= 0 && targetIndex < edits[editIndex]?.shots.length) setSelectedShotIndex(targetIndex)
   }
   const removeShot = (editIndex: number, shotIndex: number) => {
     onChange(edits.map((edit, index) => index !== editIndex ? edit : {
@@ -1260,9 +1262,9 @@ function CampaignStoryboardEditor({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <Eyebrow>Campaign editor</Eyebrow>
-          <h2 id="campaign-storyboard" className="display mt-1 scroll-mt-5 text-2xl">Edit your storyboard</h2>
+          <h2 id="campaign-storyboard" className="display mt-1 scroll-mt-5 text-2xl">Clip editing workspace</h2>
           <p className="mt-1 text-[13px] text-muted">
-            Reorder, trim, split or remove shots. Splitting keeps the original source range and creates two consecutive shots.
+            Select a shot on the left to edit its source range. The preview and timeline stay in place while you work.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -1762,6 +1764,8 @@ function CampaignTimeline({
   textOverlays,
   onUpdateTextOverlay,
   transitionStyle,
+  selectedShotIndex,
+  onSelectShot,
   onMoveShot,
   onUpdateShot,
 }: {
@@ -1782,10 +1786,11 @@ function CampaignTimeline({
   textOverlays: CampaignTextOverlay[]
   onUpdateTextOverlay: (overlayIndex: number, patch: Partial<CampaignTextOverlay>) => void
   transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
+  selectedShotIndex: number
+  onSelectShot: (index: number) => void
   onMoveShot: (fromIndex: number, toIndex: number) => void
   onUpdateShot: (shotIndex: number, patch: Partial<CampaignShot>) => void
 }) {
-  const [previewShotIndex, setPreviewShotIndex] = useState(0)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const pendingSeekRef = useRef<number | null>(null)
@@ -1956,7 +1961,7 @@ function CampaignTimeline({
         <span className="font-mono text-[11px] text-faint">{formatDuration(total)} estimated</span>
       </div>
       {shots.length > 0 && (() => {
-        const preview = shots[previewShotIndex] ?? shots[0]
+        const preview = shots[selectedShotIndex] ?? shots[0]
         const dynamicTransitionNames = ['fade', 'smoothleft', 'smoothright', 'wipeleft', 'wiperight', 'slideleft', 'slideright']
         const activeTransition = previewTransitionStyle === 'dynamic' ? dynamicTransitionNames[Math.max(0, preview.index - 1) % dynamicTransitionNames.length] : 'fade'
         const source = sourceByIndex.get(preview.shot.source_index)
@@ -1998,7 +2003,7 @@ function CampaignTimeline({
           pendingSeekRef.current = sourceTime
           setPlayheadSeconds(boundedTime)
           if (targetIndex !== preview.index) {
-            setPreviewShotIndex(targetIndex)
+            onSelectShot(targetIndex)
           } else if (videoRef.current) {
             videoRef.current.currentTime = sourceTime
             pendingSeekRef.current = null
@@ -2232,7 +2237,7 @@ function CampaignTimeline({
                     transitionTimerRef.current = setTimeout(() => {
                       if (preview.index < shots.length - 1) {
                         setTransitionPhase('in')
-                        setPreviewShotIndex(preview.index + 1)
+                        onSelectShot(preview.index + 1)
                       } else {
                         videoRef.current?.pause()
                         audio?.pause()
@@ -2427,15 +2432,16 @@ function CampaignTimeline({
                 type="button"
                 title={`Shot ${index + 1}: ${source?.title ?? `Source ${shot.source_index + 1}`} · ${formatDuration(shot.end_seconds - shot.start_seconds)}`}
                 aria-label={`Jump to shot ${index + 1} in the storyboard editor`}
+                aria-pressed={selectedShotIndex === index}
                 onClick={() => {
                   videoRef.current?.pause()
                   audioRef.current?.pause()
                   setIsPlaying(false)
                   const timelineStart = shots.slice(0, index).reduce((sum, item) => sum + item.duration, 0)
                   pendingSeekRef.current = shot.start_seconds
-                  setPreviewShotIndex(index)
+                  onSelectShot(index)
                   setPlayheadSeconds(timelineStart)
-                  if (index === previewShotIndex && videoRef.current) {
+                  if (index === selectedShotIndex && videoRef.current) {
                     videoRef.current.currentTime = shot.start_seconds
                     pendingSeekRef.current = null
                   }
@@ -2456,9 +2462,9 @@ function CampaignTimeline({
                   const draggedIndex = event.dataTransfer.getData('text/plain')
                   if (!draggedIndex.trim()) return
                   const fromIndex = Number(draggedIndex)
-                  if (Number.isInteger(fromIndex)) { onMoveShot(fromIndex, index); setPreviewShotIndex(index) }
+                  if (Number.isInteger(fromIndex)) { onMoveShot(fromIndex, index); onSelectShot(index) }
                 }}
-                className="group relative min-w-[104px] flex-1 cursor-grab overflow-hidden rounded-md border border-line bg-paper text-left transition-colors hover:border-ink active:cursor-grabbing"
+                className={cn('group relative min-w-[104px] flex-1 cursor-grab overflow-hidden rounded-md border bg-paper text-left transition-colors hover:border-ink active:cursor-grabbing', selectedShotIndex === index ? 'border-ink ring-2 ring-ink/30' : 'border-line')}
                 style={{ flex: `${duration} 1 0%` }}
               >
                 {(['start', 'end'] as const).map((side) => {
