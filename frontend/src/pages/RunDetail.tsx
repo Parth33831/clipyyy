@@ -609,6 +609,7 @@ export function RunDetailPage() {
           aiProposalId={(data.campaign_concepts?.find((concept) => concept.id === (selectedConceptId ?? data.campaign_concepts?.[0]?.id)) ?? data.campaign_concepts?.[0])?.id ?? 'default'}
           aiProposalEdits={(data.campaign_concepts?.find((concept) => concept.id === (selectedConceptId ?? data.campaign_concepts?.[0]?.id)) ?? data.campaign_concepts?.[0])?.refined_edits ?? []}
           aiProposalNotes={(data.campaign_concepts?.find((concept) => concept.id === (selectedConceptId ?? data.campaign_concepts?.[0]?.id)) ?? data.campaign_concepts?.[0])?.refinement_notes ?? []}
+          aiDirection={(data.campaign_concepts?.find((concept) => concept.id === (selectedConceptId ?? data.campaign_concepts?.[0]?.id))?.summary ?? '')}
           sources={data.campaign_sources ?? []}
           musicAnalysis={data.campaign_quality_checks?.music_analysis ?? null}
           musicStartSeconds={musicStartSeconds}
@@ -1046,6 +1047,7 @@ function CampaignStoryboardEditor({
   aiProposalId,
   aiProposalEdits,
   aiProposalNotes,
+  aiDirection,
   sources,
   musicAnalysis,
   musicStartSeconds,
@@ -1105,6 +1107,7 @@ function CampaignStoryboardEditor({
   aiProposalId: string
   aiProposalEdits: CampaignEdit[]
   aiProposalNotes: string[]
+  aiDirection: string
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
   musicStartSeconds: number
@@ -1161,6 +1164,8 @@ function CampaignStoryboardEditor({
   const [selectedShotIndex, setSelectedShotIndex] = useState(0)
   const [activeTool, setActiveTool] = useState<'ai' | 'shots' | 'hook' | 'audio' | 'lyrics' | 'titles' | 'animations'>('ai')
   const [proposalDecisions, setProposalDecisions] = useState<Record<string, 'accepted' | 'rejected'>>({})
+  const [onDemandProposals, setOnDemandProposals] = useState<Record<number, { proposal: CampaignEdit; notes: string[]; id: string }>>({})
+  const [generatingProposalRank, setGeneratingProposalRank] = useState<number | null>(null)
   const [selectedPhraseIndex, setSelectedPhraseIndex] = useState(0)
   const selectedTextOverlays = textOverlays
     .map((overlay, index) => ({ overlay, index }))
@@ -1269,9 +1274,11 @@ function CampaignStoryboardEditor({
       </div>
       {edits.filter((edit) => edit.rank === selectedEditRank).map((edit) => {
         const editIndex = edits.findIndex((item) => item.rank === edit.rank)
-        const aiProposal = aiProposalEdits.find((item) => item.rank === edit.rank)
+        const generatedProposal = onDemandProposals[edit.rank]
+        const aiProposal = generatedProposal?.proposal ?? aiProposalEdits.find((item) => item.rank === edit.rank)
+        const proposalNotes = generatedProposal?.notes ?? aiProposalNotes
         const aiProposalChanged = Boolean(aiProposal && JSON.stringify(aiProposal.shots) !== JSON.stringify(edit.shots))
-        const proposalDecisionKey = `${aiProposalId}:${edit.rank}`
+        const proposalDecisionKey = `${generatedProposal?.id ?? aiProposalId}:${edit.rank}`
         const proposalDecision = proposalDecisions[proposalDecisionKey]
         return (
         <section key={edit.rank} className="flex flex-col gap-3 border-t border-line pt-4">
@@ -1328,9 +1335,35 @@ function CampaignStoryboardEditor({
                 <div>
                   <p className="font-semibold text-ink">AI final-cut proposal</p>
                   <p className="mt-1 leading-relaxed text-muted">
-                    CLIPYYY has already analyzed this campaign's footage and music. Review the proposed shot sequence before deciding whether to use it.
+                    Generate a fresh proposal from this clip's current timeline and campaign direction. CLIPYYY can reorder and tighten the existing moments; it will never replace your edit until you accept.
                   </p>
                 </div>
+                <button
+                  type="button"
+                  disabled={generatingProposalRank !== null || saving}
+                  onClick={async () => {
+                    setGeneratingProposalRank(edit.rank)
+                    try {
+                      const result = await api.generateCampaignAiEdit(runId, edit, aiDirection)
+                      setOnDemandProposals((current) => ({
+                        ...current,
+                        [edit.rank]: {
+                          proposal: result.proposal,
+                          notes: result.notes,
+                          id: `on-demand-${Date.now()}`,
+                        },
+                      }))
+                      toast.success(`New AI proposal ready for Clip ${edit.rank}. Your current edit is unchanged.`)
+                    } catch (error) {
+                      toast.error(error instanceof Error ? error.message : 'AI Edit could not generate a proposal.')
+                    } finally {
+                      setGeneratingProposalRank(null)
+                    }
+                  }}
+                  className="rounded-md bg-ink px-3 py-2 font-semibold text-panel disabled:opacity-40"
+                >
+                  {generatingProposalRank === edit.rank ? 'Generating AI proposal…' : 'Generate new AI proposal'}
+                </button>
                 {aiProposal ? (
                   <>
                     <div className="rounded-md border border-line bg-panel p-3">
@@ -1364,9 +1397,9 @@ function CampaignStoryboardEditor({
                     {aiProposalChanged ? (
                       <div className="rounded-md border border-line bg-surface p-3">
                         <p className="font-semibold text-ink">What the AI recommends</p>
-                        {aiProposalNotes.length > 0 ? (
+                        {proposalNotes.length > 0 ? (
                           <ul className="mt-2 list-disc space-y-1 pl-4 text-muted">
-                            {aiProposalNotes.map((note, index) => <li key={index}>{note}</li>)}
+                            {proposalNotes.map((note, index) => <li key={index}>{note}</li>)}
                           </ul>
                         ) : (
                           <p className="mt-2 text-muted">A revised shot order or cut timing is available for review.</p>
