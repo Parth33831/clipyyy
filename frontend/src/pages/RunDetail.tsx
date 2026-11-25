@@ -3080,7 +3080,7 @@ function CampaignTimeline({
       {(lyrics.length > 0 || lyricWords.length > 0) && (
         <div className="flex flex-col gap-2" aria-label="Campaign editing tracks">
           <div data-campaign-timeline-scroll data-campaign-timeline-offset="92" className="overflow-x-auto" onScroll={syncTimelineScroll}>
-            <div className="grid grid-cols-[76px_minmax(0,1fr)] items-center gap-2" style={{ minWidth: `${92 + Math.round(680 * timelineZoom)}px` }}
+            <div className="grid grid-cols-[76px_minmax(0,1fr)] items-center gap-2" style={{ minWidth: `${92 + Math.round(680 * timelineZoom)}px` }}>
               <span className="label text-muted" title="Drag a lyric block to move it; drag either edge to adjust its timing.">LYRICS</span>
               <div
                 data-campaign-lyrics-track
@@ -3274,8 +3274,10 @@ function CampaignTimeline({
             </span>
           </div>
           {waveformPeaks.length > 0 ? (
+            <div data-campaign-timeline-scroll className="overflow-x-auto" onScroll={syncTimelineScroll}>
             <div
-              className="relative flex h-14 min-w-[680px] touch-none cursor-crosshair items-center gap-px overflow-hidden rounded-md bg-surface px-2 outline-none focus-visible:ring-2 focus-visible:ring-ink"
+              className="relative flex h-14 touch-none cursor-crosshair items-center gap-px overflow-hidden rounded-md bg-surface px-2 outline-none focus-visible:ring-2 focus-visible:ring-ink"
+              style={{ minWidth: `${Math.round(680 * timelineZoom)}px` }}
               role="slider"
               tabIndex={0}
               aria-label="Soundtrack waveform timeline scrubber"
@@ -3327,6 +3329,7 @@ function CampaignTimeline({
                 className="pointer-events-none absolute inset-y-0 z-10 w-0.5 bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.9)]"
                 style={{ left: 'calc(' + Math.max(0, Math.min(100, (playheadSeconds / total) * 100)) + '%)' }}
               />
+            </div>
             </div>
           ) : (
             <p className="text-xs text-faint">
