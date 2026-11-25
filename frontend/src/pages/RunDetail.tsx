@@ -2404,6 +2404,7 @@ function CampaignTimeline({
     trackWidth: number
     initialTotal: number
   } | null>(null)
+  const [selectedOverlayIndex, setSelectedOverlayIndex] = useState<number | null>(null)
   const [activeOverlayTrim, setActiveOverlayTrim] = useState<{
     pointerId: number
     overlayIndex: number
@@ -3457,10 +3458,29 @@ function CampaignTimeline({
                 return (
                   <div
                     key={"text-overlay-" + edit.rank + "-" + overlayIndex}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={selectedOverlayIndex === overlayIndex}
+                    aria-label={"Select text layer " + overlay.text + ", " + formatDuration(overlay.start_seconds) + " to " + formatDuration(overlay.end_seconds)}
                     title={overlay.text + " · " + formatDuration(overlay.start_seconds) + "–" + formatDuration(overlay.end_seconds)}
-                    onClick={() => seekToTimelineRef.current(overlay.start_seconds)}
-                    onPointerDown={(event) => beginDrag(event, 'move')}
-                    className="group absolute inset-y-1 flex min-w-0 cursor-grab touch-none items-center overflow-hidden rounded border px-1.5 active:cursor-grabbing"
+                    onClick={() => {
+                      setSelectedOverlayIndex(overlayIndex)
+                      seekToTimelineRef.current(overlay.start_seconds)
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') return
+                      event.preventDefault()
+                      setSelectedOverlayIndex(overlayIndex)
+                      seekToTimelineRef.current(overlay.start_seconds)
+                    }}
+                    onPointerDown={(event) => {
+                      setSelectedOverlayIndex(overlayIndex)
+                      beginDrag(event, 'move')
+                    }}
+                    className={cn(
+                      "group absolute inset-y-1 z-[1] flex min-w-0 cursor-grab touch-none items-center overflow-hidden rounded border px-1.5 outline-none active:cursor-grabbing focus-visible:ring-2 focus-visible:ring-acid",
+                      selectedOverlayIndex === overlayIndex && "z-[2] ring-2 ring-acid ring-offset-1 ring-offset-panel",
+                    )}
                     style={{
                       left: String((left / total) * 100) + "%",
                       width: String(Math.max(1.2, ((right - left) / total) * 100)) + "%",
