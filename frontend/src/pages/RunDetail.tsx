@@ -2289,6 +2289,18 @@ function CampaignTimeline({
   const [isPlaying, setIsPlaying] = useState(false)
   const [playheadSeconds, setPlayheadSeconds] = useState(0)
   const [maskTimestamp, setMaskTimestamp] = useState(0)
+  const [timelineZoom, setTimelineZoom] = useState(1)
+  const timelineRootRef = useRef<HTMLDivElement | null>(null)
+  const syncingTimelineScrollRef = useRef(false)
+  const syncTimelineScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    if (syncingTimelineScrollRef.current) return
+    syncingTimelineScrollRef.current = true
+    const nextScrollLeft = event.currentTarget.scrollLeft
+    timelineRootRef.current?.querySelectorAll<HTMLElement>('[data-campaign-timeline-scroll]').forEach((track) => {
+      if (track !== event.currentTarget && track.scrollLeft !== nextScrollLeft) track.scrollLeft = nextScrollLeft
+    })
+    syncingTimelineScrollRef.current = false
+  }
   const updateLiveTextPosition = (event: ReactPointerEvent<HTMLDivElement>, target: 'lyric' | 'text') => {
     const stage = event.currentTarget.closest('[data-campaign-preview-stage]') as HTMLDivElement | null
     const bounds = stage?.getBoundingClientRect()
@@ -2445,10 +2457,21 @@ function CampaignTimeline({
     : []
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3">
-      <div className="flex items-center justify-between gap-3">
-        <span className="label text-muted">Video timeline · drag clips to reorder and trim</span>
-        <span className="font-mono text-[11px] text-faint">{formatDuration(total)} estimated</span>
+    <div ref={timelineRootRef} className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <span className="label text-muted">Video timeline · drag clips to reorder and trim</span>
+          <p className="mt-1 text-[10px] text-faint">Scroll any track horizontally; all tracks stay aligned.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setTimelineZoom((zoom) => Math.max(0.75, Math.round((zoom - 0.25) * 100) / 100))} disabled={timelineZoom <= 0.75} aria-label="Zoom timeline out" className="rounded border border-line px-2 py-1 text-xs disabled:opacity-40">−</button>
+          <label className="flex items-center gap-2 text-[11px] text-muted">
+            Zoom <input aria-label="Timeline zoom" type="range" min="0.75" max="3" step="0.25" value={timelineZoom} onChange={(event) => setTimelineZoom(Number(event.target.value))} className="w-24 accent-current" />
+          </label>
+          <span className="w-10 text-right font-mono text-[11px] text-faint">{Math.round(timelineZoom * 100)}%</span>
+          <button type="button" onClick={() => setTimelineZoom((zoom) => Math.min(3, Math.round((zoom + 0.25) * 100) / 100))} disabled={timelineZoom >= 3} aria-label="Zoom timeline in" className="rounded border border-line px-2 py-1 text-xs disabled:opacity-40">+</button>
+          <button type="button" onClick={() => { setTimelineZoom(1); timelineRootRef.current?.querySelectorAll<HTMLElement>('[data-campaign-timeline-scroll]').forEach((track) => { track.scrollLeft = 0 }) }} className="rounded border border-line px-2 py-1 text-[11px] text-muted">Fit</button>
+        </div>
       </div>
       {shots.length > 0 && (() => {
         const preview = shots[selectedShotIndex] ?? shots[0]
@@ -2912,8 +2935,8 @@ function CampaignTimeline({
           className="hidden"
         />
       )}
-      <div className="overflow-x-auto">
-        <div data-campaign-timeline-track className="relative flex min-w-[680px] gap-1 rounded-md bg-surface p-2">
+      <div data-campaign-timeline-scroll className="overflow-x-auto" onScroll={syncTimelineScroll}>
+        <div data-campaign-timeline-track className="relative flex min-w-[680px] gap-1 rounded-md bg-surface p-2" style={{ minWidth: `${Math.round(680 * timelineZoom)}px` }}>
           {shots.map(({ shot, index, duration }) => {
             const source = sourceByIndex.get(shot.source_index)
             return (
@@ -3053,8 +3076,8 @@ function CampaignTimeline({
       </div>
       {(lyrics.length > 0 || lyricWords.length > 0) && (
         <div className="flex flex-col gap-2" aria-label="Campaign editing tracks">
-          <div className="overflow-x-auto">
-            <div className="grid min-w-[780px] grid-cols-[76px_minmax(680px,1fr)] items-center gap-2">
+          <div data-campaign-timeline-scroll className="overflow-x-auto" onScroll={syncTimelineScroll}>
+            <div className="grid min-w-[780px] grid-cols-[76px_minmax(680px,1fr)] items-center gap-2" style={{ minWidth: `${Math.max(780, Math.round(780 * timelineZoom))}px` }}>
               <span className="label text-muted" title="Drag a lyric block to move it; drag either edge to adjust its timing.">LYRICS</span>
               <div
                 data-campaign-lyrics-track
@@ -3336,8 +3359,8 @@ function CampaignTimeline({
             </span>
           </div>
           {(musicAnalysis.energy_sections ?? []).length > 0 ? (
-            <div className="overflow-x-auto">
-              <div className="relative h-9 min-w-[680px] overflow-hidden rounded-md bg-surface">
+            <div data-campaign-timeline-scroll className="overflow-x-auto" onScroll={syncTimelineScroll}>
+              <div className="relative h-9 min-w-[680px] overflow-hidden rounded-md bg-surface" style={{ minWidth: `${Math.round(680 * timelineZoom)}px` }}>
                 {(musicAnalysis.energy_sections ?? []).map((section, index) => {
                   const left = Math.max(0, section.start_seconds - 0.25 - musicStart)
                   const right = Math.min(total, section.end_seconds + 0.25 - musicStart)
@@ -3372,10 +3395,11 @@ function CampaignTimeline({
           <span className="label text-muted">Independent text overlay track</span>
           <span className="text-[10px] text-faint">Drag a block to move it · drag either edge to trim</span>
         </div>
-        <div className="overflow-x-auto">
+        <div data-campaign-timeline-scroll className="overflow-x-auto" onScroll={syncTimelineScroll}>
           <div
             data-campaign-overlay-track
             className="relative h-10 min-w-[680px] touch-none overflow-hidden rounded-md border border-line bg-surface"
+            style={{ minWidth: `${Math.round(680 * timelineZoom)}px` }}
             onPointerMove={(event) => {
               if (!activeOverlayTrim || event.pointerId !== activeOverlayTrim.pointerId) return
               const delta = ((event.clientX - activeOverlayTrim.startX) / activeOverlayTrim.trackWidth) * activeOverlayTrim.initialTotal
