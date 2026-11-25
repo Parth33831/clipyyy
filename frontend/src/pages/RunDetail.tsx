@@ -3458,10 +3458,10 @@ function CampaignTimeline({
                 return (
                   <div
                     key={"text-overlay-" + edit.rank + "-" + overlayIndex}
-                    role="button"
+                    role="group"
                     tabIndex={0}
-                    aria-pressed={selectedOverlayIndex === overlayIndex}
-                    aria-label={"Select text layer " + overlay.text + ", " + formatDuration(overlay.start_seconds) + " to " + formatDuration(overlay.end_seconds)}
+                    aria-current={selectedOverlayIndex === overlayIndex ? "true" : undefined}
+                    aria-label={"Text layer " + overlay.text + ", " + formatDuration(overlay.start_seconds) + " to " + formatDuration(overlay.end_seconds)}
                     title={overlay.text + " · " + formatDuration(overlay.start_seconds) + "–" + formatDuration(overlay.end_seconds)}
                     onClick={() => {
                       setSelectedOverlayIndex(overlayIndex)
