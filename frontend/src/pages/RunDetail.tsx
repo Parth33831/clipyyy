@@ -3288,12 +3288,12 @@ function CampaignTimeline({
               onPointerDown={(event) => {
                 event.currentTarget.setPointerCapture(event.pointerId)
                 const bounds = event.currentTarget.getBoundingClientRect()
-                seekToTimelineRef.current(((event.clientX - bounds.left) / bounds.width) * total)
+                seekToTimelineRef.current(((event.clientX - bounds.left + (event.currentTarget.parentElement?.scrollLeft ?? 0)) / bounds.width) * total)
               }}
               onPointerMove={(event) => {
                 if (event.buttons !== 1) return
                 const bounds = event.currentTarget.getBoundingClientRect()
-                seekToTimelineRef.current(((event.clientX - bounds.left) / bounds.width) * total)
+                seekToTimelineRef.current(((event.clientX - bounds.left + (event.currentTarget.parentElement?.scrollLeft ?? 0)) / bounds.width) * total)
               }}
               onKeyDown={(event) => {
                 if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
