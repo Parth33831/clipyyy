@@ -3581,8 +3581,36 @@ function CampaignTimeline({
           <div
             className="relative h-10 touch-none select-none overflow-hidden rounded-md border border-line bg-surface"
             style={{ minWidth: `${Math.round(680 * timelineZoom)}px` }}
-            role="group"
-            aria-label="Drag the highlighted region to choose which part of the soundtrack plays"
+            role="slider"
+            tabIndex={0}
+            aria-label="Music source window position"
+            aria-valuemin={0}
+            aria-valuemax={Math.max(0, waveform.duration_seconds - total)}
+            aria-valuenow={Math.min(musicStart, Math.max(0, waveform.duration_seconds - total))}
+            aria-valuetext={`Starts at ${formatDuration(musicStart)}; selected duration ${formatDuration(total)}`}
+            title="Drag to move the soundtrack window. Use arrow keys for precise adjustment."
+            onKeyDown={(event) => {
+              const maxStart = Math.max(0, waveform.duration_seconds - total)
+              const step = event.shiftKey ? 0.5 : 0.05
+              let nextStart = musicStart
+              if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') nextStart -= step
+              else if (event.key === 'ArrowRight' || event.key === 'ArrowUp') nextStart += step
+              else if (event.key === 'PageDown') nextStart -= 1
+              else if (event.key === 'PageUp') nextStart += 1
+              else if (event.key === 'Home') nextStart = 0
+              else if (event.key === 'End') nextStart = maxStart
+              else return
+              event.preventDefault()
+              nextStart = Math.max(0, Math.min(maxStart, nextStart))
+              if (snapTimelineEnabled && event.key.startsWith('Arrow')) {
+                const nearestBeat = (musicAnalysis?.beat_markers ?? []).reduce((best, marker) =>
+                  Math.abs(marker.time_seconds - nextStart) < Math.abs(best - nextStart) ? marker.time_seconds : best, nextStart)
+                if (Math.abs(nearestBeat - nextStart) <= 0.18) nextStart = nearestBeat
+              }
+              nextStart = Math.round(nextStart * 100) / 100
+              onMusicStartChange(nextStart)
+              if (audioRef.current) audioRef.current.currentTime = nextStart + playheadSeconds
+            }}
             onPointerDown={(event) => {
               const bounds = event.currentTarget.getBoundingClientRect()
               if (bounds.width <= 0) return
