@@ -144,6 +144,10 @@ export interface CampaignLyricResyncProposal {
   words: { word: string; start: number; end: number }[]
   language: string | null
   word_count: number
+  matched_count?: number
+  match_percent?: number
+  unmatched_words?: string[]
+  mode?: 'transcription' | 'alignment'
   saved: false
   rendered: false
 }
@@ -352,6 +356,11 @@ export const api = {
     }),
   resyncCampaignLyrics: (id: string) =>
     request<CampaignLyricResyncProposal>(`/api/runs/${id}/campaign-lyrics-resync`, { method: 'POST' }),
+  alignCampaignLyrics: (id: string, lyrics: string) =>
+    request<CampaignLyricResyncProposal>(`/api/runs/${id}/campaign-lyrics-align`, {
+      method: 'POST',
+      body: JSON.stringify({ lyrics }),
+    }),
   saveCampaignTextOverlays: (id: string, overlays: CampaignTextOverlay[]) =>
     request<{ saved: boolean; rendered: boolean; overlays: number; outputs: number }>(`/api/runs/${id}/campaign-text-overlays`, {
       method: 'PUT',
