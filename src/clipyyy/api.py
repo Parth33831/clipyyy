@@ -436,6 +436,7 @@ def create_app(start_worker: bool = True) -> FastAPI:
                 body.current_edit.model_dump(),
                 sources,
                 body.creative_direction,
+                candidate_edits=selection.get("campaign_edits") or [],
             )
         except HTTPException:
             raise
