@@ -2301,7 +2301,14 @@ function CampaignTimeline({
     vertical: null,
     horizontal: null,
   })
-  const positionDragRef = useRef<{ pointerId: number; target: 'lyric' | 'text' } | null>(null)
+  const positionDragRef = useRef<{
+    pointerId: number
+    target: 'lyric' | 'text'
+    overlayIndex?: number
+    startX?: number
+    startY?: number
+    moved?: boolean
+  } | null>(null)
   const transformDragRef = useRef<{ pointerId: number; target: 'lyric' | 'text'; action: 'resize' | 'rotate'; startX: number; initialValue: number } | null>(null)
   useEffect(() => setPreviewTransitionStyle(transitionStyle), [transitionStyle])
   const transitionDurationMs = previewTransitionStyle === 'cut' || (previewTransitionStyle === 'auto' && (musicAnalysis?.detected_beats ?? 0) > 0) ? 0 : 240
@@ -2333,7 +2340,11 @@ function CampaignTimeline({
       track.scrollLeft = nextScrollLeft
     })
   }
-  const updateLiveTextPosition = (event: ReactPointerEvent<HTMLDivElement>, target: 'lyric' | 'text') => {
+  const updateLiveTextPosition = (
+    event: ReactPointerEvent<HTMLDivElement>,
+    target: 'lyric' | 'text',
+    selectedOverlayIndex?: number,
+  ) => {
     const stage = event.currentTarget.closest('[data-campaign-preview-stage]') as HTMLDivElement | null
     const bounds = stage?.getBoundingClientRect()
     if (!bounds || bounds.width <= 0 || bounds.height <= 0) return
@@ -2357,19 +2368,39 @@ function CampaignTimeline({
       const lyric = lyrics.find((item) => playheadSeconds >= item.start_seconds && playheadSeconds <= item.end_seconds)
       if (lyric) onUpdateLyric(lyric.phrase_index, { position_x: x, position_y: y })
     } else {
-      const overlayIndex = textOverlays.findIndex((item) =>
+      const overlayIndex = selectedOverlayIndex ?? textOverlays.findIndex((item) =>
         item.rank === edit.rank && playheadSeconds >= item.start_seconds && playheadSeconds <= item.end_seconds
       )
-      if (overlayIndex >= 0) onUpdateTextOverlay(overlayIndex, { position_x: x, position_y: y })
+      if (overlayIndex >= 0 && textOverlays[overlayIndex]?.rank === edit.rank) {
+        onUpdateTextOverlay(overlayIndex, { position_x: x, position_y: y })
+      }
     }
   }
   const beginLiveTextDrag = (event: ReactPointerEvent<HTMLDivElement>, target: 'lyric' | 'text') => {
     if (positioningTarget !== target) return
     event.preventDefault()
     event.stopPropagation()
-    positionDragRef.current = { pointerId: event.pointerId, target }
+    positionDragRef.current = { pointerId: event.pointerId, target, moved: true }
     event.currentTarget.setPointerCapture(event.pointerId)
     updateLiveTextPosition(event, target)
+  }
+  const beginPreviewTextDrag = (event: ReactPointerEvent<HTMLDivElement>, overlayIndex: number) => {
+    const overlay = textOverlays[overlayIndex]
+    if (!overlay || overlay.rank !== edit.rank) return
+    event.preventDefault()
+    event.stopPropagation()
+    setSelectedOverlayIndex(overlayIndex)
+    onSelectTextOverlay(overlayIndex)
+    setPositioningTarget('text')
+    positionDragRef.current = {
+      pointerId: event.pointerId,
+      target: 'text',
+      overlayIndex,
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
   }
   const beginTransformDrag = (
     event: ReactPointerEvent<HTMLButtonElement>,
@@ -2410,7 +2441,12 @@ function CampaignTimeline({
     }
     const drag = positionDragRef.current
     if (!drag || drag.pointerId !== event.pointerId) return
-    updateLiveTextPosition(event, drag.target)
+    if (drag.overlayIndex !== undefined && !drag.moved) {
+      const distance = Math.hypot(event.clientX - (drag.startX ?? event.clientX), event.clientY - (drag.startY ?? event.clientY))
+      if (distance < 3) return
+      drag.moved = true
+    }
+    updateLiveTextPosition(event, drag.target, drag.overlayIndex)
   }
   const endLiveTextDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (positionDragRef.current?.pointerId === event.pointerId) positionDragRef.current = null
@@ -2880,9 +2916,24 @@ function CampaignTimeline({
               )}
               {activeOverlay && (
                 <div
-                  className={cn('absolute flex items-center justify-center px-4',
-                    positioningTarget === 'text' ? 'pointer-events-auto cursor-move touch-none relative rounded-sm outline outline-1 outline-dashed outline-sky-300 outline-offset-4' : 'pointer-events-none')}
-                  onPointerDown={(event) => beginLiveTextDrag(event, 'text')}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={'Select title layer: ' + activeOverlay.text}
+                  aria-pressed={selectedOverlayIndex === activeOverlayIndex}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return
+                    event.preventDefault()
+                    setSelectedOverlayIndex(activeOverlayIndex)
+                    onSelectTextOverlay(activeOverlayIndex)
+                    setPositioningTarget('text')
+                  }}
+                  className={cn(
+                    'absolute flex items-center justify-center px-4 touch-none rounded-sm outline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300',
+                    selectedOverlayIndex === activeOverlayIndex
+                      ? 'pointer-events-auto cursor-move outline outline-1 outline-dashed outline-sky-300'
+                      : 'pointer-events-auto cursor-pointer hover:outline hover:outline-1 hover:outline-dashed hover:outline-white/60',
+                  )}
+                  onPointerDown={(event) => beginPreviewTextDrag(event, activeOverlayIndex)}
                   onPointerMove={moveLiveTextDrag}
                   onPointerUp={endLiveTextDrag}
                   onPointerCancel={endLiveTextDrag}
