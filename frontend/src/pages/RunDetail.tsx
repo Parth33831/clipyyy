@@ -2806,6 +2806,27 @@ function CampaignTimeline({
                 {' '}Positions update in the edit draft; use the existing Apply controls to save and render.
               </span>
             </div>
+            <div className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-panel px-3 py-2" role="group" aria-label="Select visible preview layer">
+              <span className="mr-1 text-xs font-semibold text-ink">Visible layers</span>
+              {activeLyric && (
+                <button type="button" aria-pressed={positioningTarget === 'lyric' && selectedPhraseIndex === activeLyric.phrase_index}
+                  onClick={() => { onSelectLyricPhrase(activeLyric.phrase_index); setPositioningTarget('lyric') }}
+                  className={cn('max-w-full truncate rounded-md border px-2.5 py-1.5 text-xs font-medium',
+                    positioningTarget === 'lyric' && selectedPhraseIndex === activeLyric.phrase_index ? 'border-sky-500 bg-sky-500/10 text-ink' : 'border-line bg-surface text-muted hover:border-ink')}>
+                  Lyrics · {activeLyric.text.slice(0, 28)}
+                </button>
+              )}
+              {activeOverlay && (
+                <button type="button" aria-pressed={positioningTarget === 'text' && selectedOverlayIndex === activeOverlayIndex}
+                  onClick={() => { setSelectedOverlayIndex(activeOverlayIndex); onSelectTextOverlay(activeOverlayIndex); setPositioningTarget('text') }}
+                  className={cn('max-w-full truncate rounded-md border px-2.5 py-1.5 text-xs font-medium',
+                    positioningTarget === 'text' && selectedOverlayIndex === activeOverlayIndex ? 'border-sky-500 bg-sky-500/10 text-ink' : 'border-line bg-surface text-muted hover:border-ink')}>
+                  Title · {activeOverlay.text.slice(0, 28)}
+                </button>
+              )}
+              {!activeLyric && !activeOverlay && <span className="text-xs text-muted">No timed text layers at this playhead position.</span>}
+              <span className="ml-auto text-[11px] text-muted">Select a layer to bring it forward · arrow keys nudge it</span>
+            </div>
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(180px,1fr)] sm:items-center">
             <div data-campaign-preview-stage className="relative overflow-hidden rounded-md bg-black">
               <video
@@ -2917,10 +2938,25 @@ function CampaignTimeline({
                         : 'pointer-events-auto cursor-pointer hover:outline hover:outline-1 hover:outline-dashed hover:outline-white/60',
                     )}
                     onKeyDown={(event) => {
-                      if (event.key !== 'Enter' && event.key !== ' ') return
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        onSelectLyricPhrase(activeLyric.phrase_index)
+                        setPositioningTarget('lyric')
+                        return
+                      }
+                      const deltas: Record<string, [number, number]> = {
+                        ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
+                      }
+                      const delta = deltas[event.key]
+                      if (!delta) return
                       event.preventDefault()
                       onSelectLyricPhrase(activeLyric.phrase_index)
                       setPositioningTarget('lyric')
+                      const step = event.shiftKey ? 5 : 1
+                      onUpdateLyric(activeLyric.phrase_index, {
+                        position_x: Math.max(5, Math.min(95, activeLyric.position_x + delta[0] * step)),
+                        position_y: Math.max(5, Math.min(95, activeLyric.position_y + delta[1] * step)),
+                      })
                     }}
                     onPointerDown={(event) => beginPreviewLyricDrag(event, activeLyric)}
                     onPointerMove={moveLiveTextDrag}
@@ -2929,6 +2965,7 @@ function CampaignTimeline({
                     style={{
                       left: activeLyric.position_x + '%',
                       top: activeLyric.position_y + '%',
+                      zIndex: positioningTarget === 'lyric' ? 30 : 10,
                       transform: 'translate(-50%, -50%) rotate(' + activeLyric.rotation_degrees + 'deg)',
                     }}
                   >
@@ -2973,11 +3010,27 @@ function CampaignTimeline({
                   aria-label={'Title layer: ' + activeOverlay.text}
                   aria-current={selectedOverlayIndex === activeOverlayIndex ? 'true' : undefined}
                   onKeyDown={(event) => {
-                    if (event.key !== 'Enter' && event.key !== ' ') return
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setSelectedOverlayIndex(activeOverlayIndex)
+                      onSelectTextOverlay(activeOverlayIndex)
+                      setPositioningTarget('text')
+                      return
+                    }
+                    const deltas: Record<string, [number, number]> = {
+                      ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
+                    }
+                    const delta = deltas[event.key]
+                    if (!delta) return
                     event.preventDefault()
                     setSelectedOverlayIndex(activeOverlayIndex)
                     onSelectTextOverlay(activeOverlayIndex)
                     setPositioningTarget('text')
+                    const step = event.shiftKey ? 5 : 1
+                    onUpdateTextOverlay(activeOverlayIndex, {
+                      position_x: Math.max(5, Math.min(95, activeOverlay.position_x + delta[0] * step)),
+                      position_y: Math.max(5, Math.min(95, activeOverlay.position_y + delta[1] * step)),
+                    })
                   }}
                   className={cn(
                     'absolute flex items-center justify-center px-4 touch-none rounded-sm outline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300',
@@ -2989,7 +3042,7 @@ function CampaignTimeline({
                   onPointerMove={moveLiveTextDrag}
                   onPointerUp={endLiveTextDrag}
                   onPointerCancel={endLiveTextDrag}
-                  style={{ left: activeOverlay.position_x + '%', top: activeOverlay.position_y + '%', transform: 'translate(-50%, -50%) rotate(' + (activeOverlay.rotation_degrees ?? 0) + 'deg)', width: '90%' }}>
+                  style={{ left: activeOverlay.position_x + '%', top: activeOverlay.position_y + '%', zIndex: positioningTarget === 'text' ? 30 : 10, transform: 'translate(-50%, -50%) rotate(' + (activeOverlay.rotation_degrees ?? 0) + 'deg)', width: '90%' }}>
                   <span key={activeOverlay.rank + '-' + activeOverlayIndex + '-' + previewTextAnimation}
                     className="inline-block text-center font-extrabold leading-tight"
                     style={{
