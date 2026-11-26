@@ -1214,7 +1214,7 @@ function CampaignStoryboardEditor({
             <span className="label text-muted">{edit.shots.length} shots</span>
           </div>
           <div className="grid min-w-0 gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
-          <div className="min-w-0 lg:col-start-2 lg:row-start-1">
+          <div className="order-2 min-w-0 lg:order-none lg:col-start-2 lg:row-start-1">
           <CampaignTimeline
             edit={edit}
             runId={runId}
@@ -1246,7 +1246,7 @@ function CampaignStoryboardEditor({
             onUpdateShot={(shotIndex, patch) => updateShot(editIndex, shotIndex, patch)}
           />
           </div>
-          <aside className="flex min-w-0 flex-col gap-3 rounded-lg border border-line bg-surface p-3 lg:col-start-1 lg:row-start-1">
+          <aside className="order-1 flex min-w-0 flex-col gap-3 rounded-lg border border-line bg-surface p-3 lg:order-none lg:col-start-1 lg:row-start-1">
             <div className="grid grid-cols-2 gap-1" role="group" aria-label="Clip editing tools">
               {([
                 ['ai', 'AI Edit'],
