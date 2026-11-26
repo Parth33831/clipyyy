@@ -1408,12 +1408,13 @@ def generate_ai_edit_proposal(
     sources: list[dict[str, Any]],
     creative_direction: str = "",
     candidate_edits: list[dict[str, Any]] | None = None,
+    source_analyses: list[dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], list[str]]:
     """Generate a review-only edit from moments already selected across campaign clips.
 
-    The selected clip is always represented by the live unsaved edit. Other generated clips
-    contribute additional known-safe moments, allowing AI Edit to discover a stronger sequence
-    without inventing footage or timestamps. Nothing is mutated or persisted.
+    The selected clip is represented by the live unsaved edit. Other generated clips contribute
+    verified moments, while visual source analyses contribute bounded windows around unselected
+    scene observations. Nothing is mutated or persisted.
     """
     source_edits = [edit]
     for item in candidate_edits or []:
@@ -1453,15 +1454,67 @@ def generate_ai_edit_proposal(
                     "duration_seconds": round(end - start, 3),
                 }
             )
+    for source_index, analysis in enumerate(source_analyses or []):
+        if source_index >= len(sources):
+            break
+        duration = float(sources[source_index].get("duration_seconds") or 0)
+        if duration < 1.5:
+            continue
+        black_intervals = analysis.get("black_intervals") or []
+        for frame in analysis.get("frames") or []:
+            try:
+                timestamp = float(frame["timestamp"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            description = str(frame.get("description") or "").strip()
+            if not description or "Visual content unavailable" in description:
+                continue
+            start = max(0.0, timestamp - 1.25)
+            end = min(duration, timestamp + 1.25)
+            if end - start < 1.5:
+                start = max(0.0, min(timestamp - 0.75, duration - 1.5))
+                end = min(duration, start + 1.5)
+            if end - start < 1.5 or _intersects_black_interval(start, end, black_intervals):
+                continue
+            overlap = any(
+                candidate["source_index"] == source_index
+                and max(0.0, min(end, candidate["end_seconds"]) - max(start, candidate["start_seconds"]))
+                / (end - start)
+                > 0.35
+                for candidate in candidates
+            )
+            if overlap:
+                continue
+            range_key = (source_index, round(start, 3), round(end, 3))
+            if range_key in seen_ranges:
+                continue
+            seen_ranges.add(range_key)
+            candidates.append(
+                {
+                    "candidate_index": len(candidates),
+                    "source_title": str(sources[source_index].get("title") or f"Source {source_index + 1}"),
+                    "source_index": source_index,
+                    "start_seconds": round(start, 3),
+                    "end_seconds": round(end, 3),
+                    "origin_clip_rank": None,
+                    "origin_clip_title": "Unselected source footage",
+                    "candidate_type": "visual_scene_discovery",
+                    "visual_evidence": description[:500],
+                    "reason": "New scene identified by campaign visual analysis",
+                    "duration_seconds": round(end - start, 3),
+                }
+            )
     if len(candidates) < 3:
         raise ValueError(
-            "AI Edit needs at least three existing shots. Add more shots before generating a proposal."
+            "AI Edit needs at least three verified footage moments. Add more shots or run campaign visual analysis."
         )
 
     system = (
         "You are CLIPYYY's AI video editor. Create a fresh, reviewable edit for the selected clip. "
-        "Use only the supplied candidate shots, which may come from other generated clips in this campaign. "
-        "You may change their order and trim within each candidate's existing source-time range, but must "
+        "Use only the supplied candidate shots, including moments from other generated clips and bounded "
+        "windows discovered from the campaign's original visual scene analysis. New scene candidates include "
+        "visual_evidence; use that observation as limited evidence, not proof of unseen events. You may change "
+        "their order and trim within each candidate's existing source-time range, but must "
         "never invent footage, source indexes, or timestamps outside those ranges. Keep at least three "
         "distinct shots, avoid duplicate candidates, "
         "preserve factual meaning, and make a coherent short-form sequence. Follow the campaign brief "
@@ -1476,7 +1529,8 @@ def generate_ai_edit_proposal(
         f"Current candidate shots (timestamps are source-video seconds):\n"
         f"{json.dumps(candidates, ensure_ascii=False)}\n\n"
         "Return a revised sequence. candidate_index must refer to one supplied candidate. "
-        "You may reuse strong moments from any listed campaign clip, omit weak shots, but return at least "
+        "You may reuse strong moments from any listed campaign clip or newly discovered source window, omit "
+        "weak shots, but return at least "
         "three. Keep the overall duration reasonably close to the current clip. Do not add new footage."
     )
     result = llm.complete_json(system, user, AI_EDIT_SCHEMA, "campaign_ai_edit_proposal")

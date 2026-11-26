@@ -483,6 +483,7 @@ def create_app(start_worker: bool = True) -> FastAPI:
                 sources,
                 body.creative_direction,
                 candidate_edits=selection.get("campaign_edits") or [],
+                source_analyses=selection.get("campaign_source_analyses") or [],
             )
         except HTTPException:
             raise

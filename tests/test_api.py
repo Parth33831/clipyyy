@@ -781,6 +781,9 @@ def test_campaign_ai_edit_returns_review_only_proposal_without_persisting(tmp_pa
         json.dumps(
             {
                 "campaign_sources": [{"title": "Demo", "duration_seconds": 30, "video_path": "demo.mp4"}],
+                "campaign_source_analyses": [
+                    {"frames": [{"timestamp": 12, "description": "A new scene."}], "black_intervals": []}
+                ],
                 "campaign_edits": [
                     {"rank": 1, "title": "Original", "shots": []},
                     {
@@ -815,13 +818,14 @@ def test_campaign_ai_edit_returns_review_only_proposal_without_persisting(tmp_pa
     monkeypatch.setattr(api.pipeline, "run_dir", lambda run_id: tmp_path)
     monkeypatch.setattr(api, "get_llm", lambda: object())
 
-    def fake_proposal(llm, brief, edit, sources, creative_direction, candidate_edits=None):
+    def fake_proposal(llm, brief, edit, sources, creative_direction, candidate_edits=None, source_analyses=None):
         captured.update(
             brief=brief,
             edit=edit,
             sources=sources,
             direction=creative_direction,
             candidate_edits=candidate_edits,
+            source_analyses=source_analyses,
         )
         return proposal, ["A clearer opening and payoff."]
 
@@ -852,6 +856,7 @@ def test_campaign_ai_edit_returns_review_only_proposal_without_persisting(tmp_pa
     assert captured["brief"] == "Show the product honestly."
     assert captured["direction"] == "Hook first"
     assert captured["candidate_edits"][1]["title"] == "Alternate"
+    assert captured["source_analyses"][0]["frames"][0]["description"] == "A new scene."
     assert selection_path.read_text(encoding="utf-8") == original_selection
     assert db.get_run(run["id"])["options"]["campaign_brief"] == "Show the product honestly."
 

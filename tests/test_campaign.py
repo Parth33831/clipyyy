@@ -1226,3 +1226,104 @@ def test_creator_lyrics_alignment_rejects_empty_or_oversized_input():
         align_lyric_text_to_words("   ", [{"word": "hello", "start": 0, "end": 1}])
     with pytest.raises(ValueError, match="up to 1"):
         align_lyric_text_to_words("one two", [{"word": "one", "start": 0, "end": 1}], max_lyrics_words=1)
+
+def test_ai_edit_can_discover_new_moments_from_source_visual_analysis():
+    from clipyyy.campaign import generate_ai_edit_proposal
+
+    class DiscoveryLLM:
+        user = ""
+
+        def complete_json(self, system, user, schema, name):
+            self.user = user
+            return {
+                "shots": [
+                    {"candidate_index": 0, "start_seconds": 0, "end_seconds": 2, "reason": "Opening"},
+                    {"candidate_index": 1, "start_seconds": 4, "end_seconds": 6, "reason": "Build"},
+                    {"candidate_index": 3, "start_seconds": 18.75, "end_seconds": 21.25, "reason": "New payoff"},
+                ],
+                "notes": ["Found a new scene outside the original clip selections."],
+            }
+
+    llm = DiscoveryLLM()
+    edit = {
+        "rank": 1,
+        "title": "Selected clip",
+        "shots": [
+            {"source_index": 0, "start_seconds": 0, "end_seconds": 3, "reason": "Opening"},
+            {"source_index": 0, "start_seconds": 4, "end_seconds": 7, "reason": "Build"},
+            {"source_index": 0, "start_seconds": 8, "end_seconds": 11, "reason": "Close-up"},
+        ],
+    }
+    analyses = [
+        {
+            "frames": [
+                {
+                    "timestamp": 20.0,
+                    "description": "A person reveals the finished product to camera.",
+                    "confidence": 0.94,
+                }
+            ],
+            "black_intervals": [],
+        }
+    ]
+
+    proposal, notes = generate_ai_edit_proposal(
+        llm,
+        "Show the finished product.",
+        edit,
+        [{"title": "Full source", "duration_seconds": 30}],
+        source_analyses=analyses,
+    )
+
+    assert len(proposal["shots"]) == 3
+    assert proposal["shots"][2]["start_seconds"] == 18.75
+    assert proposal["shots"][2]["end_seconds"] == 21.25
+    assert "visual_evidence" in llm.user
+    assert notes == ["Found a new scene outside the original clip selections."]
+
+
+def test_ai_edit_source_discovery_skips_black_frames_and_existing_moments():
+    from clipyyy.campaign import generate_ai_edit_proposal
+
+    class CaptureLLM:
+        user = ""
+
+        def complete_json(self, system, user, schema, name):
+            self.user = user
+            return {
+                "shots": [
+                    {"candidate_index": 0, "start_seconds": 0, "end_seconds": 2, "reason": "One"},
+                    {"candidate_index": 1, "start_seconds": 4, "end_seconds": 6, "reason": "Two"},
+                    {"candidate_index": 2, "start_seconds": 8, "end_seconds": 10, "reason": "Three"},
+                ],
+                "notes": [],
+            }
+
+    edit = {
+        "rank": 1,
+        "title": "Current",
+        "shots": [
+            {"source_index": 0, "start_seconds": 0, "end_seconds": 2, "reason": "One"},
+            {"source_index": 0, "start_seconds": 4, "end_seconds": 6, "reason": "Two"},
+            {"source_index": 0, "start_seconds": 8, "end_seconds": 10, "reason": "Three"},
+        ],
+    }
+    llm = CaptureLLM()
+    generate_ai_edit_proposal(
+        llm,
+        "Campaign",
+        edit,
+        [{"title": "Source", "duration_seconds": 30}],
+        source_analyses=[
+            {
+                "frames": [
+                    {"timestamp": 5.0, "description": "Already selected scene."},
+                    {"timestamp": 20.0, "description": "A dark frame."},
+                ],
+                "black_intervals": [{"start": 18.0, "end": 22.0}],
+            }
+        ],
+    )
+
+    assert "Already selected scene." not in llm.user
+    assert "A dark frame." not in llm.user
