@@ -1326,7 +1326,7 @@ def test_ai_edit_source_discovery_skips_black_frames_and_existing_moments():
                     {"timestamp": 5.0, "description": "Already selected scene."},
                     {"timestamp": 20.0, "description": "A dark frame."},
                 ],
-                "black_intervals": [{"start": 18.0, "end": 22.0}],
+                "black_intervals": [[18.0, 22.0]],
             }
         ],
     )
