@@ -1009,3 +1009,44 @@ def test_campaign_lyrics_accept_replaces_word_timings_and_renders(client, monkey
     assert captured["options"]["campaign_lyrics"] == "[00:00.20] Hello world"
     assert captured["options"]["campaign_lyric_words"][1]["word"] == "world"
     assert response.json()["rendered"] is True
+
+def test_campaign_lyrics_align_preserves_creator_text_and_is_review_only(tmp_path, client, monkeypatch):
+    music = tmp_path / "track.mp3"
+    music.write_bytes(b"audio")
+    original = "[00:01.00] We rise tonight\n[00:02.50] Forever"
+    run = db.create_run(
+        "campaign",
+        {
+            "campaign_mode": True,
+            "campaign_music_path": str(music),
+            "campaign_lyrics": original,
+        },
+        status="completed",
+    )
+    transcript = [
+        {"word": "We", "start": 1.0, "end": 1.2},
+        {"word": "rise", "start": 1.25, "end": 1.6},
+        {"word": "tonight", "start": 1.7, "end": 2.2},
+    ]
+    monkeypatch.setattr(api.pipeline, "run_dir", lambda run_id: tmp_path)
+    monkeypatch.setattr(api, "get_setting", lambda key: "tiny")
+    monkeypatch.setattr(
+        "clipyyy.transcribe.transcribe_music",
+        lambda path, work_dir, model_size, language: {"words": transcript, "language": "en"},
+    )
+
+    response = client.post(
+        f"/api/runs/{run['id']}/campaign-lyrics-align",
+        json={"lyrics": original},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["lyrics"] == original
+    assert payload["matched_count"] == 3
+    assert payload["mode"] == "alignment"
+    assert payload["saved"] is False
+    assert payload["rendered"] is False
+    assert db.get_run(run["id"])["options"]["campaign_lyrics"] == original
+    assert db.get_run(run["id"])["options"].get("campaign_lyric_words", []) == []
+
