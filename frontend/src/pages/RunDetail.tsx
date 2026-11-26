@@ -3725,22 +3725,38 @@ function CampaignTimeline({
                   >
                     <div
                       role="slider"
+                      tabIndex={0}
                       aria-label={"Trim start of " + overlay.text}
                       aria-valuemin={0}
                       aria-valuemax={overlay.end_seconds - 0.1}
                       aria-valuenow={overlay.start_seconds}
+                      aria-valuetext={formatDuration(overlay.start_seconds)}
                       onPointerDown={(event) => beginDrag(event, 'start')}
-                      className="absolute inset-y-0 left-0 z-10 w-2 cursor-ew-resize bg-white/40 opacity-0 transition-opacity group-hover:opacity-100"
+                      onKeyDown={(event) => {
+                        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+                        event.preventDefault()
+                        const next = snapTimelineValue(overlay.start_seconds + (event.key === 'ArrowRight' ? 0.05 : -0.05))
+                        onUpdateTextOverlay(overlayIndex, { start_seconds: Math.max(0, Math.min(overlay.end_seconds - 0.1, next)) })
+                      }}
+                      className="absolute inset-y-0 left-0 z-10 w-2 cursor-ew-resize bg-white/40 opacity-0 outline-none transition-opacity group-hover:opacity-100 focus-visible:bg-acid focus-visible:opacity-100"
                     />
                     <span className="pointer-events-none truncate text-[10px] font-semibold">{overlay.text}</span>
                     <div
                       role="slider"
+                      tabIndex={0}
                       aria-label={"Trim end of " + overlay.text}
                       aria-valuemin={overlay.start_seconds + 0.1}
                       aria-valuemax={total}
                       aria-valuenow={overlay.end_seconds}
+                      aria-valuetext={formatDuration(overlay.end_seconds)}
                       onPointerDown={(event) => beginDrag(event, 'end')}
-                      className="absolute inset-y-0 right-0 z-10 w-2 cursor-ew-resize bg-white/40 opacity-0 transition-opacity group-hover:opacity-100"
+                      onKeyDown={(event) => {
+                        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+                        event.preventDefault()
+                        const next = snapTimelineValue(overlay.end_seconds + (event.key === 'ArrowRight' ? 0.05 : -0.05))
+                        onUpdateTextOverlay(overlayIndex, { end_seconds: Math.max(overlay.start_seconds + 0.1, Math.min(total, next)) })
+                      }}
+                      className="absolute inset-y-0 right-0 z-10 w-2 cursor-ew-resize bg-white/40 opacity-0 outline-none transition-opacity group-hover:opacity-100 focus-visible:bg-acid focus-visible:opacity-100"
                     />
                   </div>
                 )
