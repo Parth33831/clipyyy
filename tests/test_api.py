@@ -818,7 +818,9 @@ def test_campaign_ai_edit_returns_review_only_proposal_without_persisting(tmp_pa
     monkeypatch.setattr(api.pipeline, "run_dir", lambda run_id: tmp_path)
     monkeypatch.setattr(api, "get_llm", lambda: object())
 
-    def fake_proposal(llm, brief, edit, sources, creative_direction, candidate_edits=None, source_analyses=None):
+    def fake_proposal(
+        llm, brief, edit, sources, creative_direction, candidate_edits=None, source_analyses=None
+    ):
         captured.update(
             brief=brief,
             edit=edit,

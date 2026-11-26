@@ -1506,14 +1506,18 @@ def generate_ai_edit_proposal(
             )
     if len(candidates) < 3:
         raise ValueError(
-            "AI Edit needs at least three verified footage moments. Add more shots or run campaign visual analysis."
+            (
+                "AI Edit needs at least three verified footage moments. Add more shots "
+                "or run campaign visual analysis."
+            )
         )
 
     system = (
         "You are CLIPYYY's AI video editor. Create a fresh, reviewable edit for the selected clip. "
         "Use only the supplied candidate shots, including moments from other generated clips and bounded "
         "windows discovered from the campaign's original visual scene analysis. New scene candidates include "
-        "visual_evidence; use that observation as limited evidence, not proof of unseen events. You may change "
+        "visual_evidence; use that observation as limited evidence, not proof of unseen events. "
+        "You may change "
         "their order and trim within each candidate's existing source-time range, but must "
         "never invent footage, source indexes, or timestamps outside those ranges. Keep at least three "
         "distinct shots, avoid duplicate candidates, "

@@ -1239,7 +1239,12 @@ def test_ai_edit_can_discover_new_moments_from_source_visual_analysis():
                 "shots": [
                     {"candidate_index": 0, "start_seconds": 0, "end_seconds": 2, "reason": "Opening"},
                     {"candidate_index": 1, "start_seconds": 4, "end_seconds": 6, "reason": "Build"},
-                    {"candidate_index": 3, "start_seconds": 18.75, "end_seconds": 21.25, "reason": "New payoff"},
+                    {
+                        "candidate_index": 3,
+                        "start_seconds": 18.75,
+                        "end_seconds": 21.25,
+                        "reason": "New payoff",
+                    },
                 ],
                 "notes": ["Found a new scene outside the original clip selections."],
             }
