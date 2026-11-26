@@ -20,7 +20,18 @@ type CampaignPreviewLyric = {
 }
 
 type CampaignPreviewWord = { word_index: number; word: string; start_seconds: number; end_seconds: number }
-type CampaignLyricResyncProposal = { lyrics: string; words: { word: string; start: number; end: number }[]; language: string | null; word_count: number; saved: false; rendered: false }
+type CampaignLyricResyncProposal = {
+  lyrics: string
+  words: { word: string; start: number; end: number }[]
+  language: string | null
+  word_count: number
+  matched_count?: number
+  match_percent?: number
+  unmatched_words?: string[]
+  mode?: 'transcription' | 'alignment'
+  saved: false
+  rendered: false
+}
 
 
 type CreativeConceptPlayerProps = {
@@ -349,6 +360,14 @@ export function RunDetailPage() {
     },
     onError: (e) => toast.error(e.message),
   })
+  const alignLyrics = useMutation({
+    mutationFn: () => api.alignCampaignLyrics(runId, lyricsText),
+    onSuccess: (proposal) => {
+      setLyricResyncProposal(proposal)
+      toast.success(`Matched ${proposal.matched_count ?? 0} of ${proposal.word_count} supplied lyric words. Review before applying.`)
+    },
+    onError: (e) => toast.error(e.message),
+  })
   const saveLyrics = useMutation({
     mutationFn: (replacement?: CampaignLyricResyncProposal) => api.saveCampaignLyrics(
       runId, replacement?.lyrics ?? lyricsText, lyricsStyle, hookText, includeHook, lyricsColor, lyricsHighlightColor,
@@ -653,7 +672,9 @@ export function RunDetailPage() {
           lyricWords={campaignTimelineWords}
           lyricResyncProposal={lyricResyncProposal}
           resyncingLyrics={resyncLyrics.isPending}
+          aligningLyrics={alignLyrics.isPending}
           onResyncLyrics={() => resyncLyrics.mutate()}
+          onAlignLyrics={() => alignLyrics.mutate()}
           onAcceptLyricResync={() => lyricResyncProposal && saveLyrics.mutate(lyricResyncProposal)}
           onRejectLyricResync={() => setLyricResyncProposal(null)}
           onUpdateLyricWord={updateLyricWord}
@@ -1031,7 +1052,9 @@ function CampaignStoryboardEditor({
   lyricWords: CampaignPreviewWord[]
   lyricResyncProposal: CampaignLyricResyncProposal | null
   resyncingLyrics: boolean
+  aligningLyrics: boolean
   onResyncLyrics: () => void
+  onAlignLyrics: () => void
   onAcceptLyricResync: () => void
   onRejectLyricResync: () => void
   onUpdateLyricWord: (wordIndex: number, patch: { word?: string; start_seconds?: number; end_seconds?: number }) => void
@@ -1578,21 +1601,35 @@ function CampaignStoryboardEditor({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <p className="font-semibold text-ink">AI lyric re-sync</p>
-                      <p className="mt-0.5 text-muted">Re-analyze the attached song with Whisper and review fresh word timings before replacing your current lyric draft.</p>
+                      <p className="mt-0.5 text-muted">Keep your own lyrics and align them to the actual vocal timestamps, or generate a fresh transcript from the song.</p>
                     </div>
-                    <button type="button" onClick={onResyncLyrics} disabled={!hasMusic || resyncingLyrics || savingLyrics}
-                      className="rounded-md border border-line bg-surface px-3 py-2 font-semibold text-ink disabled:opacity-40">
-                      {resyncingLyrics ? 'Analyzing song…' : 'Re-sync lyrics with AI'}
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={onAlignLyrics} disabled={!hasMusic || aligningLyrics || resyncingLyrics || savingLyrics || !lyricsText.trim()}
+                        className="rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">
+                        {aligningLyrics ? 'Matching your lyrics…' : 'Sync my lyrics to song'}
+                      </button>
+                      <button type="button" onClick={onResyncLyrics} disabled={!hasMusic || resyncingLyrics || aligningLyrics || savingLyrics}
+                        className="rounded-md border border-line bg-surface px-3 py-2 font-semibold text-ink disabled:opacity-40">
+                        {resyncingLyrics ? 'Analyzing song…' : 'Generate lyrics from song'}
+                      </button>
+                    </div>
                   </div>
                   {!hasMusic && <p className="text-muted">Attach a soundtrack first to enable re-sync.</p>}
                   {lyricResyncProposal && (
                     <div className="flex flex-col gap-2 border-t border-line pt-2">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="font-semibold text-ink">New proposal · {lyricResyncProposal.word_count} words · {lyricResyncProposal.language ?? 'language auto-detected'}</span>
+                        <span className="font-semibold text-ink">{lyricResyncProposal.mode === 'alignment' ? `Your lyrics · ${lyricResyncProposal.matched_count ?? lyricResyncProposal.words.length}/${lyricResyncProposal.word_count} matched` : `New transcript · ${lyricResyncProposal.word_count} words`} · {lyricResyncProposal.language ?? 'language auto-detected'}</span>
                         <span className="text-muted">Not saved yet</span>
                       </div>
                       <pre className="max-h-36 overflow-auto whitespace-pre-wrap rounded bg-surface p-2 font-sans text-ink">{lyricResyncProposal.lyrics || 'No timed lyric lines were detected.'}</pre>
+                      {lyricResyncProposal.mode === 'alignment' && (
+                        <div className="rounded bg-surface p-2 text-muted">
+                          <p className="font-semibold text-ink">Alignment coverage · {lyricResyncProposal.match_percent ?? 0}%</p>
+                          {lyricResyncProposal.unmatched_words?.length ? (
+                            <p className="mt-1">Not found in the vocal transcript: {lyricResyncProposal.unmatched_words.join(', ')}</p>
+                          ) : <p className="mt-1">Every supplied lyric word was matched to a timestamp.</p>}
+                        </div>
+                      )}
                       <div className="flex flex-wrap gap-1.5">
                         {lyricResyncProposal.words.slice(0, 24).map((word, index) => (
                           <span key={`resync-word-${index}`} className="rounded border border-line bg-surface px-1.5 py-1 font-mono text-[10px] text-ink">
@@ -1601,11 +1638,11 @@ function CampaignStoryboardEditor({
                         ))}
                         {lyricResyncProposal.words.length > 24 && <span className="self-center text-muted">+{lyricResyncProposal.words.length - 24} more words</span>}
                       </div>
-                      <p className="text-muted">Accepting replaces the current lyric text and word timings, then renders the updated captions. Reject keeps your existing lyrics untouched.</p>
+                      <p className="text-muted">{lyricResyncProposal.mode === 'alignment' ? 'Accept keeps your supplied lyric text and applies the matched audio timings. Unmatched words remain in the text without invented timestamps.' : 'Accepting replaces the current lyric text and word timings, then renders the updated captions.'} Reject keeps your saved lyrics untouched.</p>
                       <div className="flex gap-2">
                         <button type="button" onClick={onAcceptLyricResync} disabled={savingLyrics || !lyricResyncProposal.word_count}
                           className="flex-1 rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">
-                          {savingLyrics ? 'Applying re-sync…' : 'Accept & apply re-sync'}
+                          {savingLyrics ? 'Applying sync…' : lyricResyncProposal.mode === 'alignment' ? 'Apply timing to my lyrics' : 'Accept & apply re-sync'}
                         </button>
                         <button type="button" onClick={onRejectLyricResync} disabled={savingLyrics}
                           className="rounded-md border border-line px-3 py-2 font-semibold text-ink disabled:opacity-40">Reject</button>
