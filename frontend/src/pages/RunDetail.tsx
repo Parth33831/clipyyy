@@ -1313,7 +1313,7 @@ function CampaignStoryboardEditor({
                 <div>
                   <p className="font-semibold text-ink">AI final-cut proposal</p>
                   <p className="mt-1 leading-relaxed text-muted">
-                    Generate a fresh proposal using this clip's current timeline plus verified moments from the campaign's other generated clips. CLIPYYY can reorder and tighten those moments; it will never replace your edit until you accept.
+                    Generate a fresh proposal from this clip, other generated clips, and newly discovered moments in the original source footage. CLIPYYY can reorder and tighten verified scene windows; it will never replace your edit until you accept.
                   </p>
                 </div>
                 <button
