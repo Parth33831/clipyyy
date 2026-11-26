@@ -2291,18 +2291,25 @@ function CampaignTimeline({
   const [maskTimestamp, setMaskTimestamp] = useState(0)
   const [timelineZoom, setTimelineZoom] = useState(1)
   const timelineRootRef = useRef<HTMLDivElement | null>(null)
-  const syncingTimelineScrollRef = useRef(false)
+  const programmaticTimelineScrollsRef = useRef(new Map<HTMLElement, number>())
   const syncTimelineScroll = (event: React.UIEvent<HTMLDivElement>) => {
-    if (syncingTimelineScrollRef.current) return
-    syncingTimelineScrollRef.current = true
-    const sourceOffset = Number(event.currentTarget.dataset.campaignTimelineOffset ?? 0)
-    const timelineScrollPosition = event.currentTarget.scrollLeft - sourceOffset
+    const source = event.currentTarget
+    const expectedScrollLeft = programmaticTimelineScrollsRef.current.get(source)
+    if (expectedScrollLeft !== undefined) {
+      programmaticTimelineScrollsRef.current.delete(source)
+      if (Math.abs(source.scrollLeft - expectedScrollLeft) < 1) return
+    }
+
+    const sourceOffset = Number(source.dataset.campaignTimelineOffset ?? 0)
+    const timelineScrollPosition = source.scrollLeft - sourceOffset
     timelineRootRef.current?.querySelectorAll<HTMLElement>('[data-campaign-timeline-scroll]').forEach((track) => {
+      if (track === source) return
       const targetOffset = Number(track.dataset.campaignTimelineOffset ?? 0)
       const nextScrollLeft = Math.max(0, timelineScrollPosition + targetOffset)
-      if (track !== event.currentTarget && track.scrollLeft !== nextScrollLeft) track.scrollLeft = nextScrollLeft
+      if (Math.abs(track.scrollLeft - nextScrollLeft) < 1) return
+      programmaticTimelineScrollsRef.current.set(track, nextScrollLeft)
+      track.scrollLeft = nextScrollLeft
     })
-    syncingTimelineScrollRef.current = false
   }
   const updateLiveTextPosition = (event: ReactPointerEvent<HTMLDivElement>, target: 'lyric' | 'text') => {
     const stage = event.currentTarget.closest('[data-campaign-preview-stage]') as HTMLDivElement | null
