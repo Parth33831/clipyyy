@@ -2331,6 +2331,7 @@ function CampaignTimeline({
   const [playheadSeconds, setPlayheadSeconds] = useState(0)
   const [maskTimestamp, setMaskTimestamp] = useState(0)
   const [timelineZoom, setTimelineZoom] = useState(1)
+  const [snapTimelineEnabled, setSnapTimelineEnabled] = useState(true)
   const timelineRootRef = useRef<HTMLDivElement | null>(null)
   const programmaticTimelineScrollsRef = useRef(new Map<HTMLElement, number>())
   const syncTimelineScroll = (event: React.UIEvent<HTMLDivElement>) => {
@@ -2537,6 +2538,23 @@ function CampaignTimeline({
   }))
   const total = Math.max(0.1, shots.reduce((sum, item) => sum + item.duration, 0))
   const musicStart = Math.max(0, musicStartSeconds)
+  const snapTimelineValue = (value: number, offset = 0) => {
+    if (!snapTimelineEnabled) return value
+    const targets = [offset, total + offset, playheadSeconds + offset]
+    let elapsed = 0
+    shots.forEach((item, index) => {
+      if (index > 0) targets.push(elapsed + offset)
+      elapsed += item.duration
+    })
+    ;(musicAnalysis?.beat_markers ?? []).forEach((marker) => {
+      const timelineBeat = marker.time_seconds - musicStart + offset
+      if (timelineBeat >= offset && timelineBeat <= total + offset) targets.push(timelineBeat)
+    })
+    const nearest = targets.reduce((best, candidate) =>
+      Math.abs(candidate - value) < Math.abs(best - value) ? candidate : best
+    )
+    return Math.abs(nearest - value) <= 0.18 ? Math.round(nearest * 1000) / 1000 : value
+  }
   useEffect(() => {
     const selected = edit.shots[selectedShotIndex]
     if (!selected) return
@@ -2576,6 +2594,11 @@ function CampaignTimeline({
             Zoom <input aria-label="Timeline zoom" type="range" min="0.75" max="3" step="0.25" value={timelineZoom} onChange={(event) => setTimelineZoom(Number(event.target.value))} className="w-24 accent-current" />
           </label>
           <span className="w-10 text-right font-mono text-[11px] text-faint">{Math.round(timelineZoom * 100)}%</span>
+          <button type="button" aria-pressed={snapTimelineEnabled} onClick={() => setSnapTimelineEnabled((enabled) => !enabled)}
+            title="Snap clip, lyric and title timing to beats, shot boundaries and the playhead"
+            className={cn('rounded border px-2 py-1 text-[11px] font-medium', snapTimelineEnabled ? 'border-acid bg-acid/15 text-ink' : 'border-line text-muted hover:border-ink')}>
+            Snap {snapTimelineEnabled ? 'On' : 'Off'}
+          </button>
           <button type="button" onClick={() => setTimelineZoom((zoom) => Math.min(3, Math.round((zoom + 0.25) * 100) / 100))} disabled={timelineZoom >= 3} aria-label="Zoom timeline in" className="rounded border border-line px-2 py-1 text-xs disabled:opacity-40">+</button>
           <button type="button" onClick={() => { setTimelineZoom(1); timelineRootRef.current?.querySelectorAll<HTMLElement>('[data-campaign-timeline-scroll]').forEach((track) => { track.scrollLeft = 0 }) }} className="rounded border border-line px-2 py-1 text-[11px] text-muted">Fit</button>
         </div>
@@ -3289,12 +3312,13 @@ function CampaignTimeline({
                   let start = activeLyricTrim.initialStart
                   let end = activeLyricTrim.initialEnd
                   if (activeLyricTrim.side === 'move') {
-                    start = Math.max(0, Math.min(activeLyricTrim.initialTotal - length, start + delta))
+                    const proposed = Math.max(0, Math.min(activeLyricTrim.initialTotal - length, start + delta))
+                    start = Math.max(0, Math.min(activeLyricTrim.initialTotal - length, snapTimelineValue(proposed, musicStart)))
                     end = start + length
                   } else if (activeLyricTrim.side === 'start') {
-                    start = Math.max(0, Math.min(end - 0.1, start + delta))
+                    start = Math.max(0, Math.min(end - 0.1, snapTimelineValue(start + delta, musicStart)))
                   } else {
-                    end = Math.max(start + 0.1, Math.min(activeLyricTrim.initialTotal, end + delta))
+                    end = Math.max(start + 0.1, Math.min(activeLyricTrim.initialTotal, snapTimelineValue(end + delta, musicStart)))
                   }
                   onUpdateLyric(activeLyricTrim.phraseIndex, {
                     start_seconds: Math.round((start + musicStart) * 100) / 100,
@@ -3615,16 +3639,17 @@ function CampaignTimeline({
               const delta = ((event.clientX - activeOverlayTrim.startX) / activeOverlayTrim.trackWidth) * activeOverlayTrim.initialTotal
               const length = activeOverlayTrim.initialEnd - activeOverlayTrim.initialStart
               if (activeOverlayTrim.side === 'move') {
-                const start = Math.max(0, Math.min(activeOverlayTrim.initialTotal - length, activeOverlayTrim.initialStart + delta))
+                const proposed = Math.max(0, Math.min(activeOverlayTrim.initialTotal - length, activeOverlayTrim.initialStart + delta))
+                const start = Math.max(0, Math.min(activeOverlayTrim.initialTotal - length, snapTimelineValue(proposed)))
                 onUpdateTextOverlay(activeOverlayTrim.overlayIndex, {
                   start_seconds: Math.round(start * 100) / 100,
                   end_seconds: Math.round((start + length) * 100) / 100,
                 })
               } else if (activeOverlayTrim.side === 'start') {
-                const start = Math.max(0, Math.min(activeOverlayTrim.initialEnd - 0.1, activeOverlayTrim.initialStart + delta))
+                const start = Math.max(0, Math.min(activeOverlayTrim.initialEnd - 0.1, snapTimelineValue(activeOverlayTrim.initialStart + delta)))
                 onUpdateTextOverlay(activeOverlayTrim.overlayIndex, { start_seconds: Math.round(start * 100) / 100 })
               } else {
-                const end = Math.max(activeOverlayTrim.initialStart + 0.1, Math.min(activeOverlayTrim.initialTotal, activeOverlayTrim.initialEnd + delta))
+                const end = Math.max(activeOverlayTrim.initialStart + 0.1, Math.min(activeOverlayTrim.initialTotal, snapTimelineValue(activeOverlayTrim.initialEnd + delta)))
                 onUpdateTextOverlay(activeOverlayTrim.overlayIndex, { end_seconds: Math.round(end * 100) / 100 })
               }
             }}
