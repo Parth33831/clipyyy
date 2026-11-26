@@ -1227,6 +1227,7 @@ def test_creator_lyrics_alignment_rejects_empty_or_oversized_input():
     with pytest.raises(ValueError, match="up to 1"):
         align_lyric_text_to_words("one two", [{"word": "one", "start": 0, "end": 1}], max_lyrics_words=1)
 
+
 def test_ai_edit_can_discover_new_moments_from_source_visual_analysis():
     from clipyyy.campaign import generate_ai_edit_proposal
 
