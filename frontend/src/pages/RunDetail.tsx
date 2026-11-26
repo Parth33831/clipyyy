@@ -246,11 +246,6 @@ export function RunDetailPage() {
     setActiveConceptPreviewId(null)
   }, [runId])
   const [musicFile, setMusicFile] = useState<File | null>(null)
-  const [musicVolume, setMusicVolume] = useState(90)
-  const [sourceAudioVolume, setSourceAudioVolume] = useState(100)
-  const [musicDucking, setMusicDucking] = useState(false)
-  const [musicFadeIn, setMusicFadeIn] = useState(0.4)
-  const [musicFadeOut, setMusicFadeOut] = useState(0.8)
   const [lyricsText, setLyricsText] = useState('')
   const [lyricsStyle, setLyricsStyle] = useState<
     'dynamic' | 'cinematic' | 'minimal' | 'karaoke' | 'zoom' | 'bounce' | 'pulse' | 'glitch'
@@ -272,6 +267,11 @@ export function RunDetailPage() {
     phraseEdits: [] as CampaignLyricPhraseEdit[],
     wordEdits: [] as CampaignLyricWordEdit[],
     musicStartSeconds: 0,
+    musicVolume: 90,
+    sourceAudioVolume: 100,
+    musicDucking: false,
+    musicFadeIn: 0.4,
+    musicFadeOut: 0.8,
   })
   const {
     value: campaignHistoryValue,
@@ -287,6 +287,11 @@ export function RunDetailPage() {
   const phraseEdits = campaignHistoryValue.phraseEdits
   const wordEdits = campaignHistoryValue.wordEdits
   const musicStartSeconds = campaignHistoryValue.musicStartSeconds
+  const musicVolume = campaignHistoryValue.musicVolume
+  const sourceAudioVolume = campaignHistoryValue.sourceAudioVolume
+  const musicDucking = campaignHistoryValue.musicDucking
+  const musicFadeIn = campaignHistoryValue.musicFadeIn
+  const musicFadeOut = campaignHistoryValue.musicFadeOut
   const setCampaignEdits = useCallback((next: CampaignEdit[] | ((current: CampaignEdit[]) => CampaignEdit[])) => {
     setCampaignHistory((current) => ({
       ...current,
@@ -317,12 +322,22 @@ export function RunDetailPage() {
       musicStartSeconds: typeof next === 'function' ? next(current.musicStartSeconds) : next,
     }))
   }, [setCampaignHistory])
+  const setMusicVolume = useCallback((next: number | ((current: number) => number)) => {
+    setCampaignHistory((current) => ({ ...current, musicVolume: typeof next === 'function' ? next(current.musicVolume) : next }))
+  }, [setCampaignHistory])
+  const setSourceAudioVolume = useCallback((next: number | ((current: number) => number)) => {
+    setCampaignHistory((current) => ({ ...current, sourceAudioVolume: typeof next === 'function' ? next(current.sourceAudioVolume) : next }))
+  }, [setCampaignHistory])
+  const setMusicDucking = useCallback((next: boolean | ((current: boolean) => boolean)) => {
+    setCampaignHistory((current) => ({ ...current, musicDucking: typeof next === 'function' ? next(current.musicDucking) : next }))
+  }, [setCampaignHistory])
+  const setMusicFadeIn = useCallback((next: number | ((current: number) => number)) => {
+    setCampaignHistory((current) => ({ ...current, musicFadeIn: typeof next === 'function' ? next(current.musicFadeIn) : next }))
+  }, [setCampaignHistory])
+  const setMusicFadeOut = useCallback((next: number | ((current: number) => number)) => {
+    setCampaignHistory((current) => ({ ...current, musicFadeOut: typeof next === 'function' ? next(current.musicFadeOut) : next }))
+  }, [setCampaignHistory])
   useEffect(() => {
-    setMusicVolume(Math.round((run.data?.options.campaign_music_volume ?? 0.9) * 100))
-    setSourceAudioVolume(Math.round((run.data?.options.campaign_source_audio_volume ?? 1) * 100))
-    setMusicDucking(Boolean(run.data?.options.campaign_music_ducking))
-    setMusicFadeIn(run.data?.options.campaign_music_fade_in_seconds ?? 0.4)
-    setMusicFadeOut(run.data?.options.campaign_music_fade_out_seconds ?? 0.8)
     setLyricsText(run.data?.options.campaign_lyrics ?? '')
     setLyricsStyle(run.data?.options.campaign_lyrics_style ?? 'dynamic')
     setHookText(run.data?.options.campaign_hook_text ?? String(run.data?.campaign_plan?.generated_hook ?? ''))
@@ -341,6 +356,11 @@ export function RunDetailPage() {
       phraseEdits: run.data?.options.campaign_lyric_phrase_edits ?? [],
       wordEdits: [],
       musicStartSeconds: run.data?.options.campaign_music_start_seconds ?? run.data?.campaign_quality_checks?.music_analysis?.selected_start_seconds ?? 0,
+      musicVolume: Math.round((run.data?.options.campaign_music_volume ?? 0.9) * 100),
+      sourceAudioVolume: Math.round((run.data?.options.campaign_source_audio_volume ?? 1) * 100),
+      musicDucking: Boolean(run.data?.options.campaign_music_ducking),
+      musicFadeIn: run.data?.options.campaign_music_fade_in_seconds ?? 0.4,
+      musicFadeOut: run.data?.options.campaign_music_fade_out_seconds ?? 0.8,
     })
   }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_source_audio_volume, run.data?.options.campaign_music_ducking, run.data?.options.campaign_music_start_seconds, run.data?.campaign_quality_checks?.music_analysis?.selected_start_seconds, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.options.campaign_lyric_words, run.data?.options.campaign_text_overlays, run.data?.campaign_plan?.generated_hook, resetCampaignHistory])
 
