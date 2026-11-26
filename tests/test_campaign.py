@@ -1228,6 +1228,22 @@ def test_creator_lyrics_alignment_rejects_empty_or_oversized_input():
         align_lyric_text_to_words("one two", [{"word": "one", "start": 0, "end": 1}], max_lyrics_words=1)
 
 
+def test_creator_lyrics_alignment_ignores_invalid_whisper_timestamps():
+    from clipyyy.transcribe import align_lyric_text_to_words
+
+    transcript = [
+        {"word": "bad", "start": float("nan"), "end": 1.0},
+        {"word": "bad", "start": 1.0, "end": float("inf")},
+        {"word": None, "start": 1.0, "end": 1.2},
+        {"word": "hello", "start": 1.0, "end": 1.4},
+    ]
+
+    result = align_lyric_text_to_words("hello", transcript)
+
+    assert result["words"] == [{"word": "hello", "start": 1.0, "end": 1.4}]
+    assert result["unmatched_words"] == []
+
+
 def test_ai_edit_can_discover_new_moments_from_source_visual_analysis():
     from clipyyy.campaign import generate_ai_edit_proposal
 

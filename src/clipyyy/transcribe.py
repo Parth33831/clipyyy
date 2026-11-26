@@ -125,6 +125,7 @@ def _sentence(words: list[dict]) -> dict:
 
 def align_lyric_text_to_words(lyrics: str, transcript_words: list[dict], max_lyrics_words: int = 500) -> dict:
     """Align creator-supplied lyric words to Whisper timestamps without replacing their text."""
+    import math
     import re
     from difflib import SequenceMatcher
 
@@ -137,12 +138,15 @@ def align_lyric_text_to_words(lyrics: str, transcript_words: list[dict], max_lyr
     recognized = []
     for item in transcript_words[:2000]:
         try:
-            word = str(item["word"]).strip()
+            raw_word = item["word"]
+            if not isinstance(raw_word, str):
+                continue
+            word = raw_word.strip()
             start = float(item["start"])
             end = float(item["end"])
         except (KeyError, TypeError, ValueError):
             continue
-        if word and start >= 0 and end > start:
+        if word and math.isfinite(start) and math.isfinite(end) and start >= 0 and end > start:
             recognized.append({"word": word, "start": start, "end": end})
     if not recognized:
         raise ValueError("No usable word timestamps were detected in the soundtrack.")
