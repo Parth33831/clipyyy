@@ -1416,11 +1416,9 @@ def generate_ai_edit_proposal(
     without inventing footage or timestamps. Nothing is mutated or persisted.
     """
     source_edits = [edit]
-    source_edits.extend(
-        item
-        for item in (candidate_edits or [])
-        if int(item.get("rank") or 0) != int(edit.get("rank") or 0)
-    )
+    for item in candidate_edits or []:
+        if int(item.get("rank") or 0) != int(edit.get("rank") or 0):
+            source_edits.append(item)
     candidates = []
     seen_ranges = set()
     for source_edit in source_edits:
