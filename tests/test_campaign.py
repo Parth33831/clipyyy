@@ -1135,6 +1135,7 @@ def test_visual_continuity_is_honest_when_visual_evidence_is_unavailable():
 
     assert notes == []
 
+
 class FakeAiEditLLM:
     def __init__(self):
         self.user_prompt = ""
