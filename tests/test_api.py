@@ -1050,4 +1050,3 @@ def test_campaign_lyrics_align_preserves_creator_text_and_is_review_only(tmp_pat
     assert payload["rendered"] is False
     assert db.get_run(run["id"])["options"]["campaign_lyrics"] == original
     assert db.get_run(run["id"])["options"].get("campaign_lyric_words", []) == []
-

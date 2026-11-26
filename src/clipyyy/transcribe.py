@@ -214,4 +214,3 @@ def align_lyric_text_to_words(lyrics: str, transcript_words: list[dict], max_lyr
         "matched_count": len(aligned),
         "match_percent": round(100 * len(aligned) / len(lyric_tokens)),
     }
-

@@ -1226,4 +1226,3 @@ def test_creator_lyrics_alignment_rejects_empty_or_oversized_input():
         align_lyric_text_to_words("   ", [{"word": "hello", "start": 0, "end": 1}])
     with pytest.raises(ValueError, match="up to 1"):
         align_lyric_text_to_words("one two", [{"word": "one", "start": 0, "end": 1}], max_lyrics_words=1)
-
