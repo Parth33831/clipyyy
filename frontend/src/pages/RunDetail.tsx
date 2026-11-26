@@ -2928,10 +2928,10 @@ function CampaignTimeline({
               )}
               {activeOverlay && (
                 <div
-                  role="button"
+                  role="group"
                   tabIndex={0}
-                  aria-label={'Select title layer: ' + activeOverlay.text}
-                  aria-pressed={selectedOverlayIndex === activeOverlayIndex}
+                  aria-label={'Title layer: ' + activeOverlay.text}
+                  aria-current={selectedOverlayIndex === activeOverlayIndex ? 'true' : undefined}
                   onKeyDown={(event) => {
                     if (event.key !== 'Enter' && event.key !== ' ') return
                     event.preventDefault()
