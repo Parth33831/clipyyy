@@ -787,7 +787,12 @@ def test_campaign_ai_edit_returns_review_only_proposal_without_persisting(tmp_pa
                         "rank": 2,
                         "title": "Alternate",
                         "shots": [
-                            {"source_index": 0, "start_seconds": 3, "end_seconds": 6, "reason": "Alternate opening"}
+                            {
+                                "source_index": 0,
+                                "start_seconds": 3,
+                                "end_seconds": 6,
+                                "reason": "Alternate opening",
+                            }
                         ],
                     },
                 ],
@@ -811,7 +816,13 @@ def test_campaign_ai_edit_returns_review_only_proposal_without_persisting(tmp_pa
     monkeypatch.setattr(api, "get_llm", lambda: object())
 
     def fake_proposal(llm, brief, edit, sources, creative_direction, candidate_edits=None):
-        captured.update(brief=brief, edit=edit, sources=sources, direction=creative_direction, candidate_edits=candidate_edits)
+        captured.update(
+            brief=brief,
+            edit=edit,
+            sources=sources,
+            direction=creative_direction,
+            candidate_edits=candidate_edits,
+        )
         return proposal, ["A clearer opening and payoff."]
 
     monkeypatch.setattr(api.campaign, "generate_ai_edit_proposal", fake_proposal)
