@@ -3738,7 +3738,7 @@ function CampaignTimeline({
                         const next = snapTimelineValue(overlay.start_seconds + (event.key === 'ArrowRight' ? 0.05 : -0.05))
                         onUpdateTextOverlay(overlayIndex, { start_seconds: Math.max(0, Math.min(overlay.end_seconds - 0.1, next)) })
                       }}
-                      className="absolute inset-y-0 left-0 z-10 w-2 cursor-ew-resize bg-white/40 opacity-0 outline-none transition-opacity group-hover:opacity-100 focus-visible:bg-acid focus-visible:opacity-100"
+                      className="absolute inset-y-0 left-0 z-10 w-3 cursor-ew-resize touch-none bg-white/70 opacity-100 outline-none transition-opacity sm:w-2 sm:bg-white/40 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:bg-acid focus-visible:opacity-100"
                     />
                     <span className="pointer-events-none truncate text-[10px] font-semibold">{overlay.text}</span>
                     <div
@@ -3756,7 +3756,7 @@ function CampaignTimeline({
                         const next = snapTimelineValue(overlay.end_seconds + (event.key === 'ArrowRight' ? 0.05 : -0.05))
                         onUpdateTextOverlay(overlayIndex, { end_seconds: Math.max(overlay.start_seconds + 0.1, Math.min(total, next)) })
                       }}
-                      className="absolute inset-y-0 right-0 z-10 w-2 cursor-ew-resize bg-white/40 opacity-0 outline-none transition-opacity group-hover:opacity-100 focus-visible:bg-acid focus-visible:opacity-100"
+                      className="absolute inset-y-0 right-0 z-10 w-3 cursor-ew-resize touch-none bg-white/70 opacity-100 outline-none transition-opacity sm:w-2 sm:bg-white/40 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:bg-acid focus-visible:opacity-100"
                     />
                   </div>
                 )
