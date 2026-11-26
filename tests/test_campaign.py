@@ -1,3 +1,5 @@
+import pytest
+
 from clipyyy.campaign import (
     CampaignPlan,
     format_campaign_plan,
@@ -1195,3 +1197,32 @@ def test_ai_edit_can_reuse_verified_shots_from_other_campaign_clips():
     assert "Alternate clip" in llm.user_prompt
     assert "origin_clip_rank" in llm.user_prompt
     assert notes == ["A stronger sequence across the campaign footage."]
+
+def test_creator_lyrics_align_to_whisper_word_timestamps_and_reports_unmatched_words():
+    from clipyyy.transcribe import align_lyric_text_to_words
+
+    transcript = [
+        {"word": "Intro", "start": 0.0, "end": 0.4},
+        {"word": "We", "start": 1.0, "end": 1.2},
+        {"word": "rise", "start": 1.25, "end": 1.6},
+        {"word": "tonight", "start": 1.7, "end": 2.2},
+    ]
+
+    result = align_lyric_text_to_words("We rise forever tonight", transcript)
+
+    assert [item["word"] for item in result["words"]] == ["We", "rise", "tonight"]
+    assert [item["start"] for item in result["words"]] == [1.0, 1.25, 1.7]
+    assert result["unmatched_words"] == ["forever"]
+    assert result["word_count"] == 4
+    assert result["matched_count"] == 3
+    assert result["match_percent"] == 75
+
+
+def test_creator_lyrics_alignment_rejects_empty_or_oversized_input():
+    from clipyyy.transcribe import align_lyric_text_to_words
+
+    with pytest.raises(ValueError, match="Enter lyrics"):
+        align_lyric_text_to_words("   ", [{"word": "hello", "start": 0, "end": 1}])
+    with pytest.raises(ValueError, match="up to 1"):
+        align_lyric_text_to_words("one two", [{"word": "one", "start": 0, "end": 1}], max_lyrics_words=1)
+
