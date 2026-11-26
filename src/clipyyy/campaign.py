@@ -1516,5 +1516,7 @@ def generate_ai_edit_proposal(
     }
     notes = [str(note)[:300] for note in result.get("notes", [])[:8] if str(note).strip()]
     if not notes:
-        notes = ["Generated a new sequence using verified footage moments already selected across this campaign."]
+        notes = [
+            "Generated a new sequence using verified footage moments already selected across this campaign."
+        ]
     return proposal, notes
