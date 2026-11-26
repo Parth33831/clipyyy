@@ -249,7 +249,6 @@ export function RunDetailPage() {
   const [musicVolume, setMusicVolume] = useState(90)
   const [sourceAudioVolume, setSourceAudioVolume] = useState(100)
   const [musicDucking, setMusicDucking] = useState(false)
-  const [musicStartSeconds, setMusicStartSeconds] = useState(0)
   const [musicFadeIn, setMusicFadeIn] = useState(0.4)
   const [musicFadeOut, setMusicFadeOut] = useState(0.8)
   const [lyricsText, setLyricsText] = useState('')
@@ -272,6 +271,7 @@ export function RunDetailPage() {
     overlays: [] as CampaignTextOverlay[],
     phraseEdits: [] as CampaignLyricPhraseEdit[],
     wordEdits: [] as CampaignLyricWordEdit[],
+    musicStartSeconds: 0,
   })
   const {
     value: campaignHistoryValue,
@@ -286,6 +286,7 @@ export function RunDetailPage() {
   const campaignTextOverlays = campaignHistoryValue.overlays
   const phraseEdits = campaignHistoryValue.phraseEdits
   const wordEdits = campaignHistoryValue.wordEdits
+  const musicStartSeconds = campaignHistoryValue.musicStartSeconds
   const setCampaignEdits = useCallback((next: CampaignEdit[] | ((current: CampaignEdit[]) => CampaignEdit[])) => {
     setCampaignHistory((current) => ({
       ...current,
@@ -308,6 +309,12 @@ export function RunDetailPage() {
     setCampaignHistory((current) => ({
       ...current,
       wordEdits: typeof next === 'function' ? next(current.wordEdits) : next,
+    }))
+  }, [setCampaignHistory])
+  const setMusicStartSeconds = useCallback((next: number | ((current: number) => number)) => {
+    setCampaignHistory((current) => ({
+      ...current,
+      musicStartSeconds: typeof next === 'function' ? next(current.musicStartSeconds) : next,
     }))
   }, [setCampaignHistory])
   useEffect(() => {
@@ -334,6 +341,7 @@ export function RunDetailPage() {
       overlays: run.data?.options.campaign_text_overlays ?? [],
       phraseEdits: run.data?.options.campaign_lyric_phrase_edits ?? [],
       wordEdits: [],
+      musicStartSeconds: run.data?.options.campaign_music_start_seconds ?? run.data?.campaign_quality_checks?.music_analysis?.selected_start_seconds ?? 0,
     })
   }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_source_audio_volume, run.data?.options.campaign_music_ducking, run.data?.options.campaign_music_start_seconds, run.data?.campaign_quality_checks?.music_analysis?.selected_start_seconds, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.options.campaign_lyric_words, run.data?.options.campaign_text_overlays, run.data?.campaign_plan?.generated_hook, resetCampaignHistory])
 
@@ -857,7 +865,7 @@ export function RunDetailPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-panel px-4 py-3">
           <div>
             <span className="label text-muted">Campaign edit history</span>
-            <p className="mt-1 text-xs text-faint">Undo or redo shot edits, lyric timing/placement and independent text overlays together · Ctrl+Z to undo · Ctrl+Shift+Z or Ctrl+Y to redo.</p>
+            <p className="mt-1 text-xs text-faint">Undo or redo shot edits, soundtrack positioning, lyric timing/placement and independent text overlays together · Ctrl+Z to undo · Ctrl+Shift+Z or Ctrl+Y to redo.</p>
           </div>
           <div className="flex gap-2">
             <Button variant="line" disabled={!canUndoCampaignEdits} onClick={undoCampaignEdits}>Undo</Button>
