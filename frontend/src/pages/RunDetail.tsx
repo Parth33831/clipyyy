@@ -1088,6 +1088,7 @@ function CampaignStoryboardEditor({
   const [generatingProposalRank, setGeneratingProposalRank] = useState<number | null>(null)
   const [selectedPhraseIndex, setSelectedPhraseIndex] = useState(0)
   const [selectedLyricWordIndex, setSelectedLyricWordIndex] = useState(0)
+  const [selectedTextOverlayIndex, setSelectedTextOverlayIndex] = useState<number | null>(null)
   const selectedTextOverlays = textOverlays
     .map((overlay, index) => ({ overlay, index }))
     .filter(({ overlay }) => overlay.rank === selectedEditRank)
@@ -1103,6 +1104,11 @@ function CampaignStoryboardEditor({
       setSelectedShotIndex(Math.max(0, (selectedEdit?.shots.length ?? 1) - 1))
     }
   }, [edits, selectedEditRank, selectedShotIndex])
+  useEffect(() => {
+    if (selectedTextOverlayIndex !== null && !selectedTextOverlays.some(({ index }) => index === selectedTextOverlayIndex)) {
+      setSelectedTextOverlayIndex(null)
+    }
+  }, [selectedTextOverlayIndex, selectedTextOverlays])
   const sourceByIndex = new Map(sources.map((source) => [source.index, source]))
   const changed = JSON.stringify(edits) !== JSON.stringify(savedEdits)
   const resetAvailable = JSON.stringify(savedEdits) !== JSON.stringify(originalEdits) || changed
@@ -1229,6 +1235,10 @@ function CampaignStoryboardEditor({
             lyricsHighlightColor={lyricsHighlightColor}
             textOverlays={textOverlays}
             onUpdateTextOverlay={onUpdateTextOverlay}
+            onSelectTextOverlay={(overlayIndex) => {
+              setSelectedTextOverlayIndex(overlayIndex)
+              setActiveTool('titles')
+            }}
             transitionStyle={transitionStyle}
             selectedShotIndex={selectedShotIndex}
             onSelectShot={setSelectedShotIndex}
@@ -1802,9 +1812,19 @@ function CampaignStoryboardEditor({
                     className="rounded border border-line px-2.5 py-1.5 font-semibold text-ink hover:border-ink">+ Add text layer</button>
                 </div>
                 {selectedTextOverlays.length === 0 ? <p className="rounded-md border border-dashed border-line p-2 text-muted">No title layers yet. Add one to this clip to create a title, label or call to action.</p> : selectedTextOverlays.map(({ overlay, index }) => (
-                  <div key={index} className="flex flex-col gap-2 rounded-md border border-line bg-panel p-2">
+                  <div
+                    key={index}
+                    role="group"
+                    aria-current={selectedTextOverlayIndex === index ? 'true' : undefined}
+                    onFocusCapture={() => setSelectedTextOverlayIndex(index)}
+                    onClick={() => setSelectedTextOverlayIndex(index)}
+                    className={cn(
+                      "flex flex-col gap-2 rounded-md border bg-panel p-2 transition-colors",
+                      selectedTextOverlayIndex === index ? "border-acid ring-2 ring-acid/40" : "border-line",
+                    )}
+                  >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold text-ink">Text layer {index + 1}</span>
+                      <span className="font-semibold text-ink">Text layer {index + 1}{selectedTextOverlayIndex === index ? ' · Selected' : ''}</span>
                       <button type="button" onClick={() => onRemoveTextOverlay(index)} className="text-[11px] text-bad underline">Remove</button>
                     </div>
                     <label className="flex flex-col gap-1 text-muted">Title text
@@ -2221,6 +2241,7 @@ function CampaignTimeline({
   lyricsHighlightColor,
   textOverlays,
   onUpdateTextOverlay,
+  onSelectTextOverlay,
   transitionStyle,
   selectedShotIndex,
   onSelectShot,
@@ -2246,6 +2267,7 @@ function CampaignTimeline({
   lyricsHighlightColor: string
   textOverlays: CampaignTextOverlay[]
   onUpdateTextOverlay: (overlayIndex: number, patch: Partial<CampaignTextOverlay>) => void
+  onSelectTextOverlay: (overlayIndex: number) => void
   transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
   selectedShotIndex: number
   onSelectShot: (index: number) => void
@@ -3472,16 +3494,19 @@ function CampaignTimeline({
                     title={overlay.text + " · " + formatDuration(overlay.start_seconds) + "–" + formatDuration(overlay.end_seconds)}
                     onClick={() => {
                       setSelectedOverlayIndex(overlayIndex)
+                      onSelectTextOverlay(overlayIndex)
                       seekToTimelineRef.current(overlay.start_seconds)
                     }}
                     onKeyDown={(event) => {
                       if (event.key !== 'Enter' && event.key !== ' ') return
                       event.preventDefault()
                       setSelectedOverlayIndex(overlayIndex)
+                      onSelectTextOverlay(overlayIndex)
                       seekToTimelineRef.current(overlay.start_seconds)
                     }}
                     onPointerDown={(event) => {
                       setSelectedOverlayIndex(overlayIndex)
+                      onSelectTextOverlay(overlayIndex)
                       beginDrag(event, 'move')
                     }}
                     className={cn(
