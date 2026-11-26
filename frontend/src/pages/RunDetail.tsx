@@ -1226,6 +1226,11 @@ function CampaignStoryboardEditor({
             lyricsBehindSubject={lyricsBehindSubject}
             lyrics={lyrics}
             onUpdateLyric={onUpdateLyric}
+            selectedPhraseIndex={selectedPhraseIndex}
+            onSelectLyricPhrase={(phraseIndex) => {
+              setSelectedPhraseIndex(phraseIndex)
+              setActiveTool('lyrics')
+            }}
             lyricWords={lyricWords}
             selectedLyricWordIndex={selectedLyricWordIndex}
             onSelectLyricWord={setSelectedLyricWordIndex}
@@ -2232,6 +2237,8 @@ function CampaignTimeline({
   lyricsBehindSubject,
   lyrics,
   onUpdateLyric,
+  selectedPhraseIndex,
+  onSelectLyricPhrase,
   lyricWords,
   selectedLyricWordIndex,
   onSelectLyricWord,
@@ -2258,6 +2265,8 @@ function CampaignTimeline({
   lyricsBehindSubject: boolean
   lyrics: CampaignPreviewLyric[]
   onUpdateLyric: (phraseIndex: number, patch: Partial<CampaignLyricPhraseEdit>) => void
+  selectedPhraseIndex: number
+  onSelectLyricPhrase: (phraseIndex: number) => void
   lyricWords: CampaignPreviewWord[]
   selectedLyricWordIndex: number
   onSelectLyricWord: (wordIndex: number) => void
@@ -2305,6 +2314,7 @@ function CampaignTimeline({
     pointerId: number
     target: 'lyric' | 'text'
     overlayIndex?: number
+    lyricIndex?: number
     startX?: number
     startY?: number
     moved?: boolean
@@ -2347,6 +2357,7 @@ function CampaignTimeline({
     target: 'lyric' | 'text',
     selectedOverlayIndex?: number,
     dragOffset?: { x: number; y: number },
+    selectedLyricPhraseIndex?: number,
   ) => {
     const stage = event.currentTarget.closest('[data-campaign-preview-stage]') as HTMLDivElement | null
     const bounds = stage?.getBoundingClientRect()
@@ -2368,7 +2379,9 @@ function CampaignTimeline({
     const y = snappedY.value
     setAlignmentGuides({ vertical: snappedX.guide, horizontal: snappedY.guide })
     if (target === 'lyric') {
-      const lyric = lyrics.find((item) => playheadSeconds >= item.start_seconds && playheadSeconds <= item.end_seconds)
+      const lyric = selectedLyricPhraseIndex === undefined
+        ? lyrics.find((item) => playheadSeconds >= item.start_seconds && playheadSeconds <= item.end_seconds)
+        : lyrics.find((item) => item.phrase_index === selectedLyricPhraseIndex)
       if (lyric) onUpdateLyric(lyric.phrase_index, { position_x: x, position_y: y })
     } else {
       const overlayIndex = selectedOverlayIndex ?? textOverlays.findIndex((item) =>
@@ -2386,6 +2399,27 @@ function CampaignTimeline({
     positionDragRef.current = { pointerId: event.pointerId, target, moved: true }
     event.currentTarget.setPointerCapture(event.pointerId)
     updateLiveTextPosition(event, target)
+  }
+  const beginPreviewLyricDrag = (event: ReactPointerEvent<HTMLDivElement>, phrase: CampaignPreviewLyric) => {
+    event.preventDefault()
+    event.stopPropagation()
+    onSelectLyricPhrase(phrase.phrase_index)
+    setPositioningTarget('lyric')
+    const stage = event.currentTarget.closest('[data-campaign-preview-stage]') as HTMLDivElement | null
+    const bounds = stage?.getBoundingClientRect()
+    const pointerX = bounds && bounds.width > 0 ? ((event.clientX - bounds.left) / bounds.width) * 100 : phrase.position_x
+    const pointerY = bounds && bounds.height > 0 ? ((event.clientY - bounds.top) / bounds.height) * 100 : phrase.position_y
+    positionDragRef.current = {
+      pointerId: event.pointerId,
+      target: 'lyric',
+      lyricIndex: phrase.phrase_index,
+      startX: event.clientX,
+      startY: event.clientY,
+      offsetX: pointerX - phrase.position_x,
+      offsetY: pointerY - phrase.position_y,
+      moved: false,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
   }
   const beginPreviewTextDrag = (event: ReactPointerEvent<HTMLDivElement>, overlayIndex: number) => {
     const overlay = textOverlays[overlayIndex]
@@ -2458,7 +2492,7 @@ function CampaignTimeline({
     updateLiveTextPosition(event, drag.target, drag.overlayIndex, {
       x: drag.offsetX ?? 0,
       y: drag.offsetY ?? 0,
-    })
+    }, drag.lyricIndex)
   }
   const endLiveTextDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (positionDragRef.current?.pointerId === event.pointerId) positionDragRef.current = null
@@ -2880,9 +2914,23 @@ function CampaignTimeline({
                   } : undefined}
                 >
                   <div
-                    className={cn('absolute flex w-[90%] justify-center px-3',
-                      positioningTarget === 'lyric' ? 'pointer-events-auto cursor-move touch-none relative rounded-sm outline outline-1 outline-dashed outline-sky-300 outline-offset-4' : 'pointer-events-none')}
-                    onPointerDown={(event) => beginLiveTextDrag(event, 'lyric')}
+                    role="group"
+                    tabIndex={0}
+                    aria-label={'Lyric phrase: ' + activeLyric.text}
+                    aria-current={selectedPhraseIndex === activeLyric.phrase_index ? 'true' : undefined}
+                    className={cn(
+                      'absolute flex w-[90%] justify-center px-3 touch-none rounded-sm outline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300',
+                      selectedPhraseIndex === activeLyric.phrase_index
+                        ? 'pointer-events-auto cursor-move outline outline-1 outline-dashed outline-sky-300'
+                        : 'pointer-events-auto cursor-pointer hover:outline hover:outline-1 hover:outline-dashed hover:outline-white/60',
+                    )}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') return
+                      event.preventDefault()
+                      onSelectLyricPhrase(activeLyric.phrase_index)
+                      setPositioningTarget('lyric')
+                    }}
+                    onPointerDown={(event) => beginPreviewLyricDrag(event, activeLyric)}
                     onPointerMove={moveLiveTextDrag}
                     onPointerUp={endLiveTextDrag}
                     onPointerCancel={endLiveTextDrag}
