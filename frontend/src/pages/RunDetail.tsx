@@ -3165,10 +3165,18 @@ function CampaignTimeline({
           <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 z-20 w-0.5 bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.9)]" style={{ left: 'calc(' + Math.max(0, Math.min(100, (playheadSeconds / total) * 100)) + '%)' }} />
         </div>
       </div>
-      <div className="label flex justify-between px-1 text-faint">
-        <span>0:00</span>
-        <span>{formatDuration(total / 2)}</span>
-        <span>{formatDuration(total)}</span>
+      <div data-campaign-timeline-scroll className="overflow-x-auto" onScroll={syncTimelineScroll} aria-label="Timeline time ruler">
+        <div className="relative h-6 text-[10px] font-mono text-faint" style={{ minWidth: String(Math.round(680 * timelineZoom)) + 'px' }}>
+          {[0, 0.25, 0.5, 0.75, 1].map((fraction) => (
+            <span
+              key={fraction}
+              className="absolute top-0 -translate-x-1/2 whitespace-nowrap"
+              style={{ left: String(fraction * 100) + '%' }}
+            >
+              {formatDuration(total * fraction)}
+            </span>
+          ))}
+        </div>
       </div>
       {(lyrics.length > 0 || lyricWords.length > 0) && (
         <div className="flex flex-col gap-2" aria-label="Campaign editing tracks">
