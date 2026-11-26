@@ -3322,7 +3322,14 @@ function CampaignTimeline({
                         if (lyricWordDragRef.current?.pointerId === event.pointerId) {
                           if (lyricWordDragRef.current.moved) {
                             suppressLyricWordClickRef.current = true
-                            seekToTimelineRef.current(word.start_seconds)
+                            const drag = lyricWordDragRef.current
+                            const delta = ((event.clientX - drag.startX) / drag.timelineWidth) * total
+                            const nextStart = drag.mode === 'move'
+                              ? Math.max(0, Math.min(total - (drag.initialEnd - drag.initialStart), drag.initialStart + delta))
+                              : drag.mode === 'start'
+                                ? Math.max(0, Math.min(drag.initialEnd - 0.05, drag.initialStart + delta))
+                                : drag.initialStart
+                            seekToTimelineRef.current(nextStart)
                           }
                           lyricWordDragRef.current = null
                         }
