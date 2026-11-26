@@ -1195,4 +1195,3 @@ def test_ai_edit_can_reuse_verified_shots_from_other_campaign_clips():
     assert "Alternate clip" in llm.user_prompt
     assert "origin_clip_rank" in llm.user_prompt
     assert notes == ["A stronger sequence across the campaign footage."]
-
