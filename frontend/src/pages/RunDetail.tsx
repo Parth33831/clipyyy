@@ -3236,6 +3236,20 @@ function CampaignTimeline({
                 title={`Shot ${index + 1}: ${source?.title ?? `Source ${shot.source_index + 1}`} · ${formatDuration(shot.end_seconds - shot.start_seconds)}`}
                 aria-label={`Jump to shot ${index + 1} in the storyboard editor`}
                 aria-pressed={selectedShotIndex === index}
+                aria-keyshortcuts="ArrowLeft ArrowRight Home End"
+                data-campaign-shot-index={index}
+                onKeyDown={(event) => {
+                  let targetIndex: number | null = null
+                  if (event.key === 'ArrowLeft') targetIndex = Math.max(0, index - 1)
+                  else if (event.key === 'ArrowRight') targetIndex = Math.min(shots.length - 1, index + 1)
+                  else if (event.key === 'Home') targetIndex = 0
+                  else if (event.key === 'End') targetIndex = shots.length - 1
+                  if (targetIndex === null) return
+                  event.preventDefault()
+                  const nextButton = event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`[data-campaign-shot-index="${targetIndex}"]`)
+                  nextButton?.focus()
+                  selectShot(targetIndex)
+                }}
                 onClick={() => {
                   videoRef.current?.pause()
                   audioRef.current?.pause()
