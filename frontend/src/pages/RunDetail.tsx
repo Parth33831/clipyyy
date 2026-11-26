@@ -2392,14 +2392,6 @@ function CampaignTimeline({
       }
     }
   }
-  const beginLiveTextDrag = (event: ReactPointerEvent<HTMLDivElement>, target: 'lyric' | 'text') => {
-    if (positioningTarget !== target) return
-    event.preventDefault()
-    event.stopPropagation()
-    positionDragRef.current = { pointerId: event.pointerId, target, moved: true }
-    event.currentTarget.setPointerCapture(event.pointerId)
-    updateLiveTextPosition(event, target)
-  }
   const beginPreviewLyricDrag = (event: ReactPointerEvent<HTMLDivElement>, phrase: CampaignPreviewLyric) => {
     event.preventDefault()
     event.stopPropagation()
