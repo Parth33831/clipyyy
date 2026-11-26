@@ -1419,7 +1419,7 @@ function CampaignStoryboardEditor({
                   </div>
                   </button>
                   <p className="text-[10px] leading-relaxed text-muted">
-                    Drag the clip edges on the timeline to trim. Drag the clip itself to change its order.
+                    Trim with the timeline edges. Reorder with the Move up/down controls here, or drag clips in the timeline on desktop.
                   </p>
                   <details className="rounded-md border border-line bg-surface/60 px-2 py-1.5">
                     <summary className="cursor-pointer select-none text-[11px] font-semibold text-muted hover:text-ink">
@@ -1455,20 +1455,20 @@ function CampaignStoryboardEditor({
                   </details>
                   <div className="flex items-center justify-end gap-1">
                     <button type="button" title="Move shot up" aria-label="Move shot up" disabled={saving || shotIndex === 0}
-                      onClick={() => moveShot(editIndex, shotIndex, -1)} className="rounded-md border border-line p-2 text-muted hover:text-ink disabled:opacity-30">
-                      <ArrowUp className="h-4 w-4" />
+                      onClick={() => moveShot(editIndex, shotIndex, -1)} className="flex min-h-10 min-w-10 items-center justify-center gap-1 rounded-md border border-line px-2 py-2 text-muted hover:text-ink disabled:opacity-30">
+                      <ArrowUp className="h-4 w-4" /><span className="text-[10px] sm:hidden">Up</span>
                     </button>
                     <button type="button" title="Move shot down" aria-label="Move shot down" disabled={saving || shotIndex === edit.shots.length - 1}
-                      onClick={() => moveShot(editIndex, shotIndex, 1)} className="rounded-md border border-line p-2 text-muted hover:text-ink disabled:opacity-30">
-                      <ArrowDown className="h-4 w-4" />
+                      onClick={() => moveShot(editIndex, shotIndex, 1)} className="flex min-h-10 min-w-10 items-center justify-center gap-1 rounded-md border border-line px-2 py-2 text-muted hover:text-ink disabled:opacity-30">
+                      <ArrowDown className="h-4 w-4" /><span className="text-[10px] sm:hidden">Down</span>
                     </button>
                     <button type="button" title="Split shot in half" aria-label="Split shot in half"
                       disabled={saving || edit.shots.length >= 40 || shot.end_seconds - shot.start_seconds < 3}
-                      onClick={() => splitShot(editIndex, shotIndex)} className="rounded-md border border-line p-2 text-muted hover:text-ink disabled:opacity-30">
-                      <Scissors className="h-4 w-4" />
+                      onClick={() => splitShot(editIndex, shotIndex)} className="flex min-h-10 min-w-10 items-center justify-center gap-1 rounded-md border border-line px-2 py-2 text-muted hover:text-ink disabled:opacity-30">
+                      <Scissors className="h-4 w-4" /><span className="text-[10px] sm:hidden">Split</span>
                     </button>
                     <button type="button" title="Remove shot" aria-label="Remove shot" disabled={saving}
-                      onClick={() => removeShot(editIndex, shotIndex)} className="rounded-md border border-line p-2 text-muted hover:text-bad">
+                      onClick={() => removeShot(editIndex, shotIndex)} className="flex min-h-10 min-w-10 items-center justify-center gap-1 rounded-md border border-line px-2 py-2 text-muted hover:text-bad"><span className="text-[10px] sm:hidden">Delete</span>
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
