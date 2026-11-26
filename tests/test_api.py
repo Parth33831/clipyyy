@@ -781,7 +781,16 @@ def test_campaign_ai_edit_returns_review_only_proposal_without_persisting(tmp_pa
         json.dumps(
             {
                 "campaign_sources": [{"title": "Demo", "duration_seconds": 30, "video_path": "demo.mp4"}],
-                "campaign_edits": [{"rank": 1, "title": "Original", "shots": []}],
+                "campaign_edits": [
+                    {"rank": 1, "title": "Original", "shots": []},
+                    {
+                        "rank": 2,
+                        "title": "Alternate",
+                        "shots": [
+                            {"source_index": 0, "start_seconds": 3, "end_seconds": 6, "reason": "Alternate opening"}
+                        ],
+                    },
+                ],
             }
         ),
         encoding="utf-8",
@@ -801,8 +810,8 @@ def test_campaign_ai_edit_returns_review_only_proposal_without_persisting(tmp_pa
     monkeypatch.setattr(api.pipeline, "run_dir", lambda run_id: tmp_path)
     monkeypatch.setattr(api, "get_llm", lambda: object())
 
-    def fake_proposal(llm, brief, edit, sources, creative_direction):
-        captured.update(brief=brief, edit=edit, sources=sources, direction=creative_direction)
+    def fake_proposal(llm, brief, edit, sources, creative_direction, candidate_edits=None):
+        captured.update(brief=brief, edit=edit, sources=sources, direction=creative_direction, candidate_edits=candidate_edits)
         return proposal, ["A clearer opening and payoff."]
 
     monkeypatch.setattr(api.campaign, "generate_ai_edit_proposal", fake_proposal)
@@ -831,6 +840,7 @@ def test_campaign_ai_edit_returns_review_only_proposal_without_persisting(tmp_pa
     }
     assert captured["brief"] == "Show the product honestly."
     assert captured["direction"] == "Hook first"
+    assert captured["candidate_edits"][1]["title"] == "Alternate"
     assert selection_path.read_text(encoding="utf-8") == original_selection
     assert db.get_run(run["id"])["options"]["campaign_brief"] == "Show the product honestly."
 
