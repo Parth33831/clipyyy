@@ -2308,6 +2308,8 @@ function CampaignTimeline({
     startX?: number
     startY?: number
     moved?: boolean
+    offsetX?: number
+    offsetY?: number
   } | null>(null)
   const transformDragRef = useRef<{ pointerId: number; target: 'lyric' | 'text'; action: 'resize' | 'rotate'; startX: number; initialValue: number } | null>(null)
   useEffect(() => setPreviewTransitionStyle(transitionStyle), [transitionStyle])
@@ -2344,12 +2346,13 @@ function CampaignTimeline({
     event: ReactPointerEvent<HTMLDivElement>,
     target: 'lyric' | 'text',
     selectedOverlayIndex?: number,
+    dragOffset?: { x: number; y: number },
   ) => {
     const stage = event.currentTarget.closest('[data-campaign-preview-stage]') as HTMLDivElement | null
     const bounds = stage?.getBoundingClientRect()
     if (!bounds || bounds.width <= 0 || bounds.height <= 0) return
-    const rawX = Math.max(5, Math.min(95, ((event.clientX - bounds.left) / bounds.width) * 100))
-    const rawY = Math.max(5, Math.min(95, ((event.clientY - bounds.top) / bounds.height) * 100))
+    const rawX = Math.max(5, Math.min(95, ((event.clientX - bounds.left) / bounds.width) * 100 - (dragOffset?.x ?? 0)))
+    const rawY = Math.max(5, Math.min(95, ((event.clientY - bounds.top) / bounds.height) * 100 - (dragOffset?.y ?? 0)))
     const snapAxis = (value: number) => {
       if (!snapTextToGuides) return { value: Math.round(value), guide: null as number | null }
       const nearest = [25, 50, 75].reduce((best, candidate) =>
@@ -2392,12 +2395,18 @@ function CampaignTimeline({
     setSelectedOverlayIndex(overlayIndex)
     onSelectTextOverlay(overlayIndex)
     setPositioningTarget('text')
+    const stage = event.currentTarget.closest('[data-campaign-preview-stage]') as HTMLDivElement | null
+    const bounds = stage?.getBoundingClientRect()
+    const pointerX = bounds && bounds.width > 0 ? ((event.clientX - bounds.left) / bounds.width) * 100 : overlay.position_x
+    const pointerY = bounds && bounds.height > 0 ? ((event.clientY - bounds.top) / bounds.height) * 100 : overlay.position_y
     positionDragRef.current = {
       pointerId: event.pointerId,
       target: 'text',
       overlayIndex,
       startX: event.clientX,
       startY: event.clientY,
+      offsetX: pointerX - overlay.position_x,
+      offsetY: pointerY - overlay.position_y,
       moved: false,
     }
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -2446,7 +2455,10 @@ function CampaignTimeline({
       if (distance < 3) return
       drag.moved = true
     }
-    updateLiveTextPosition(event, drag.target, drag.overlayIndex)
+    updateLiveTextPosition(event, drag.target, drag.overlayIndex, {
+      x: drag.offsetX ?? 0,
+      y: drag.offsetY ?? 0,
+    })
   }
   const endLiveTextDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (positionDragRef.current?.pointerId === event.pointerId) positionDragRef.current = null
