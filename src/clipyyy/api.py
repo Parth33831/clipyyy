@@ -159,6 +159,10 @@ class CampaignAiEditRequest(BaseModel):
     creative_direction: str = Field("", max_length=1000)
 
 
+class CampaignLyricsAlignRequest(BaseModel):
+    lyrics: str = Field(..., min_length=1, max_length=12000)
+
+
 class UpdateSettings(BaseModel):
     values: dict[str, str | None]
 
@@ -344,6 +348,45 @@ def create_app(start_worker: bool = True) -> FastAPI:
             "words": words,
             "language": result.get("language"),
             "word_count": len(words),
+            "saved": False,
+            "rendered": False,
+        }
+
+    @app.post("/api/runs/{run_id}/campaign-lyrics-align")
+    def align_campaign_lyrics(run_id: str, body: CampaignLyricsAlignRequest) -> dict:
+        """Align creator-supplied words to attached soundtrack timestamps without replacing text."""
+        run = _run_or_404(run_id)
+        if not run["options"].get("campaign_mode"):
+            raise HTTPException(400, "Lyric alignment is only available for campaign runs.")
+        if run["status"] in {"queued", "running"}:
+            raise HTTPException(409, "Wait for the campaign run to finish before aligning lyrics.")
+        music_path = run["options"].get("campaign_music_path")
+        if not music_path or not Path(str(music_path)).is_file():
+            raise HTTPException(404, "Attach an available music track before aligning lyrics.")
+        try:
+            from clipyyy.transcribe import align_lyric_text_to_words, transcribe_music
+
+            work_dir = pipeline.run_dir(run_id) / "work" / "campaign-lyrics-align"
+            result = transcribe_music(
+                Path(str(music_path)), work_dir, get_setting("whisper_model") or "tiny", "auto"
+            )
+            alignment = align_lyric_text_to_words(body.lyrics, result.get("words") or [])
+            if not alignment["matched_count"]:
+                raise HTTPException(
+                    422,
+                    "None of those lyric words could be matched to the soundtrack. Check the lyrics or try a clearer vocal track.",
+                )
+        except HTTPException:
+            raise
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(503, f"Could not align your lyrics to the soundtrack: {exc}") from exc
+        return {
+            "lyrics": body.lyrics,
+            **alignment,
+            "language": result.get("language"),
+            "mode": "alignment",
             "saved": False,
             "rendered": False,
         }
