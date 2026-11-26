@@ -1,4 +1,9 @@
-from clipyyy.campaign import CampaignPlan, format_campaign_plan, generate_ai_edit_proposal, local_fallback_plan
+from clipyyy.campaign import (
+    CampaignPlan,
+    format_campaign_plan,
+    generate_ai_edit_proposal,
+    local_fallback_plan,
+)
 
 
 def test_campaign_plan_keeps_unknowns_unknown():
