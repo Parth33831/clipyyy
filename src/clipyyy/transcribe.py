@@ -122,9 +122,8 @@ def _sentence(words: list[dict]) -> dict:
         "end": words[-1]["end"],
     }
 
-def align_lyric_text_to_words(
-    lyrics: str, transcript_words: list[dict], max_lyrics_words: int = 500
-) -> dict:
+
+def align_lyric_text_to_words(lyrics: str, transcript_words: list[dict], max_lyrics_words: int = 500) -> dict:
     """Align creator-supplied lyric words to Whisper timestamps without replacing their text."""
     import re
     from difflib import SequenceMatcher

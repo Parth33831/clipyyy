@@ -1198,6 +1198,7 @@ def test_ai_edit_can_reuse_verified_shots_from_other_campaign_clips():
     assert "origin_clip_rank" in llm.user_prompt
     assert notes == ["A stronger sequence across the campaign footage."]
 
+
 def test_creator_lyrics_align_to_whisper_word_timestamps_and_reports_unmatched_words():
     from clipyyy.transcribe import align_lyric_text_to_words
 

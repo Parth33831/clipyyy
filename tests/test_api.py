@@ -1010,6 +1010,7 @@ def test_campaign_lyrics_accept_replaces_word_timings_and_renders(client, monkey
     assert captured["options"]["campaign_lyric_words"][1]["word"] == "world"
     assert response.json()["rendered"] is True
 
+
 def test_campaign_lyrics_align_preserves_creator_text_and_is_review_only(tmp_path, client, monkeypatch):
     music = tmp_path / "track.mp3"
     music.write_bytes(b"audio")
