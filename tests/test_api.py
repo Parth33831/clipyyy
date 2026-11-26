@@ -766,3 +766,246 @@ def test_campaign_run_detail_exposes_creative_director_concepts(client, monkeypa
     detail = client.get(f"/api/runs/{run['id']}").json()
 
     assert detail["campaign_concepts"] == [concept]
+
+
+def test_campaign_ai_edit_returns_review_only_proposal_without_persisting(tmp_path, client, monkeypatch):
+    run = db.create_run(
+        "campaign",
+        {"campaign_mode": True, "campaign_brief": "Show the product honestly."},
+        status="completed",
+    )
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+    selection_path = work_dir / "select.json"
+    selection_path.write_text(
+        json.dumps(
+            {
+                "campaign_sources": [{"title": "Demo", "duration_seconds": 30, "video_path": "demo.mp4"}],
+                "campaign_edits": [
+                    {"rank": 1, "title": "Original", "shots": []},
+                    {
+                        "rank": 2,
+                        "title": "Alternate",
+                        "shots": [
+                            {
+                                "source_index": 0,
+                                "start_seconds": 3,
+                                "end_seconds": 6,
+                                "reason": "Alternate opening",
+                            }
+                        ],
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    original_selection = selection_path.read_text(encoding="utf-8")
+    captured = {}
+    proposal = {
+        "rank": 1,
+        "title": "Original",
+        "shots": [
+            {"source_index": 0, "start_seconds": 0, "end_seconds": 3, "reason": "Opening"},
+            {"source_index": 0, "start_seconds": 5, "end_seconds": 8, "reason": "Detail"},
+            {"source_index": 0, "start_seconds": 12, "end_seconds": 15, "reason": "Payoff"},
+        ],
+    }
+
+    monkeypatch.setattr(api.pipeline, "run_dir", lambda run_id: tmp_path)
+    monkeypatch.setattr(api, "get_llm", lambda: object())
+
+    def fake_proposal(llm, brief, edit, sources, creative_direction, candidate_edits=None):
+        captured.update(
+            brief=brief,
+            edit=edit,
+            sources=sources,
+            direction=creative_direction,
+            candidate_edits=candidate_edits,
+        )
+        return proposal, ["A clearer opening and payoff."]
+
+    monkeypatch.setattr(api.campaign, "generate_ai_edit_proposal", fake_proposal)
+    response = client.post(
+        f"/api/runs/{run['id']}/campaign-ai-edit",
+        json={
+            "current_edit": {
+                "rank": 1,
+                "title": "Original",
+                "shots": [
+                    {"source_index": 0, "start_seconds": 0, "end_seconds": 3, "reason": "Opening"},
+                    {"source_index": 0, "start_seconds": 5, "end_seconds": 8, "reason": "Detail"},
+                    {"source_index": 0, "start_seconds": 12, "end_seconds": 15, "reason": "Payoff"},
+                ],
+            },
+            "creative_direction": "Hook first",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "proposal": proposal,
+        "notes": ["A clearer opening and payoff."],
+        "saved": False,
+        "rendered": False,
+    }
+    assert captured["brief"] == "Show the product honestly."
+    assert captured["direction"] == "Hook first"
+    assert captured["candidate_edits"][1]["title"] == "Alternate"
+    assert selection_path.read_text(encoding="utf-8") == original_selection
+    assert db.get_run(run["id"])["options"]["campaign_brief"] == "Show the product honestly."
+
+
+def test_campaign_ai_edit_rejects_non_campaign_run(client):
+    run = db.create_run("ordinary-video.mp4", {}, status="completed")
+    response = client.post(
+        f"/api/runs/{run['id']}/campaign-ai-edit",
+        json={
+            "current_edit": {
+                "rank": 1,
+                "title": "Clip",
+                "shots": [
+                    {"source_index": 0, "start_seconds": 0, "end_seconds": 2, "reason": ""},
+                    {"source_index": 0, "start_seconds": 3, "end_seconds": 5, "reason": ""},
+                    {"source_index": 0, "start_seconds": 6, "end_seconds": 8, "reason": ""},
+                ],
+            },
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "AI Edit is only available for campaign runs."
+
+
+def test_campaign_lyrics_update_persists_word_level_text_and_timing(client, monkeypatch):
+    run = client.post(
+        "/api/runs",
+        json={
+            "sources": ["https://example.com/campaign.mp4"],
+            "options": {
+                "campaign_mode": True,
+                "campaign_brief": "Music campaign",
+                "campaign_lyrics": "Hello world",
+                "campaign_lyric_words": [
+                    {"word": "Helo", "start": 1.0, "end": 1.35},
+                    {"word": "world", "start": 1.4, "end": 1.9},
+                ],
+                "campaign_lyrics_source": "Local Whisper draft",
+            },
+        },
+    ).json()[0]
+    db.update_run(run["id"], status="completed")
+    monkeypatch.setattr(
+        pipeline,
+        "rerender_campaign",
+        lambda run_id: {"renders": [{"status": "ready"}]},
+    )
+
+    response = client.put(
+        f"/api/runs/{run['id']}/campaign-lyrics",
+        json={
+            "lyrics": "Hello world",
+            "word_edits": [
+                {"word_index": 0, "word": "Hello", "start": 0.95, "end": 1.4},
+                {"word_index": 1, "start": 1.42, "end": 1.95},
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    saved = db.get_run(run["id"])["options"]
+    assert saved["campaign_lyric_words"] == [
+        {"word": "Hello", "start": 0.95, "end": 1.4},
+        {"word": "world", "start": 1.42, "end": 1.95},
+    ]
+    assert saved["campaign_lyrics_source"] == "Local Whisper draft"
+
+
+def test_campaign_lyrics_update_rejects_word_timing_without_positive_duration(client, monkeypatch):
+    run = db.create_run(
+        "campaign",
+        {
+            "campaign_mode": True,
+            "campaign_lyrics": "Hello",
+            "campaign_lyric_words": [{"word": "Hello", "start": 1.0, "end": 1.4}],
+        },
+        status="completed",
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "rerender_campaign",
+        lambda run_id: {"renders": [{"status": "ready"}]},
+    )
+
+    response = client.put(
+        f"/api/runs/{run['id']}/campaign-lyrics",
+        json={"lyrics": "Hello", "word_edits": [{"word_index": 0, "start": 1.5, "end": 1.2}]},
+    )
+
+    assert response.status_code == 422
+    assert db.get_run(run["id"])["options"]["campaign_lyric_words"] == [
+        {"word": "Hello", "start": 1.0, "end": 1.4}
+    ]
+
+
+def test_campaign_lyrics_resync_returns_review_only_proposal(tmp_path, client, monkeypatch):
+    music = tmp_path / "track.mp3"
+    music.write_bytes(b"audio")
+    run = db.create_run(
+        "campaign",
+        {"campaign_mode": True, "campaign_music_path": str(music), "campaign_lyrics": "Original words"},
+        status="completed",
+    )
+    words = [{"word": "Hello", "start": 0.2, "end": 0.6}, {"word": "world", "start": 0.7, "end": 1.1}]
+    monkeypatch.setattr(api.pipeline, "run_dir", lambda run_id: tmp_path)
+    monkeypatch.setattr(api, "get_setting", lambda key: "tiny")
+    monkeypatch.setattr(
+        "clipyyy.transcribe.transcribe_music",
+        lambda path, work_dir, model_size, language: {"words": words, "language": "en"},
+    )
+
+    response = client.post(f"/api/runs/{run['id']}/campaign-lyrics-resync")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["words"] == words
+    assert payload["word_count"] == 2
+    assert payload["saved"] is False
+    assert payload["rendered"] is False
+    assert db.get_run(run["id"])["options"]["campaign_lyrics"] == "Original words"
+    assert db.get_run(run["id"])["options"].get("campaign_lyric_words", []) == []
+
+
+def test_campaign_lyrics_resync_requires_attached_music(client):
+    run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
+    response = client.post(f"/api/runs/{run['id']}/campaign-lyrics-resync")
+    assert response.status_code == 404
+
+
+def test_campaign_lyrics_accept_replaces_word_timings_and_renders(client, monkeypatch):
+    run = db.create_run(
+        "campaign",
+        {"campaign_mode": True, "campaign_lyrics": "Old lyrics", "campaign_lyric_words": []},
+        status="completed",
+    )
+    captured = {}
+
+    def fake_rerender(run_id):
+        captured["options"] = db.get_run(run_id)["options"]
+        return {"renders": [{"rank": 1, "status": "ready"}]}
+
+    monkeypatch.setattr(api.pipeline, "rerender_campaign", fake_rerender)
+    response = client.put(
+        f"/api/runs/{run['id']}/campaign-lyrics",
+        json={
+            "lyrics": "[00:00.20] Hello world",
+            "replace_words": [
+                {"word": "Hello", "start": 0.2, "end": 0.6},
+                {"word": "world", "start": 0.7, "end": 1.1},
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["options"]["campaign_lyrics"] == "[00:00.20] Hello world"
+    assert captured["options"]["campaign_lyric_words"][1]["word"] == "world"
+    assert response.json()["rendered"] is True

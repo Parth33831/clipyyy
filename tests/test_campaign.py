@@ -1,4 +1,9 @@
-from clipyyy.campaign import CampaignPlan, format_campaign_plan, local_fallback_plan
+from clipyyy.campaign import (
+    CampaignPlan,
+    format_campaign_plan,
+    generate_ai_edit_proposal,
+    local_fallback_plan,
+)
 
 
 def test_campaign_plan_keeps_unknowns_unknown():
@@ -1134,3 +1139,59 @@ def test_visual_continuity_is_honest_when_visual_evidence_is_unavailable():
     notes = _visual_continuity_notes(edit, sources, analyses)
 
     assert notes == []
+
+
+class FakeAiEditLLM:
+    def __init__(self):
+        self.user_prompt = ""
+
+    def complete_json(self, system, user, schema, name):
+        self.user_prompt = user
+        return {
+            "shots": [
+                {"candidate_index": 0, "start_seconds": 1, "end_seconds": 3, "reason": "Current opening"},
+                {"candidate_index": 1, "start_seconds": 8, "end_seconds": 10, "reason": "New angle"},
+                {"candidate_index": 2, "start_seconds": 14, "end_seconds": 16, "reason": "Payoff"},
+            ],
+            "notes": ["A stronger sequence across the campaign footage."],
+        }
+
+
+def test_ai_edit_can_reuse_verified_shots_from_other_campaign_clips():
+    llm = FakeAiEditLLM()
+    current_edit = {
+        "rank": 1,
+        "title": "Selected clip",
+        "shots": [
+            {"source_index": 0, "start_seconds": 1, "end_seconds": 4, "reason": "Current opening"},
+        ],
+    }
+    other_edits = [
+        {
+            "rank": 2,
+            "title": "Alternate clip",
+            "shots": [
+                {"source_index": 1, "start_seconds": 8, "end_seconds": 11, "reason": "New angle"},
+                {"source_index": 0, "start_seconds": 14, "end_seconds": 17, "reason": "Payoff"},
+            ],
+        }
+    ]
+    sources = [
+        {"title": "Main footage", "duration_seconds": 30},
+        {"title": "Second footage", "duration_seconds": 30},
+    ]
+
+    proposal, notes = generate_ai_edit_proposal(
+        llm,
+        "Show the product clearly",
+        current_edit,
+        sources,
+        "More energetic",
+        candidate_edits=other_edits,
+    )
+
+    assert proposal["rank"] == 1
+    assert [shot["source_index"] for shot in proposal["shots"]] == [0, 1, 0]
+    assert "Alternate clip" in llm.user_prompt
+    assert "origin_clip_rank" in llm.user_prompt
+    assert notes == ["A stronger sequence across the campaign footage."]
