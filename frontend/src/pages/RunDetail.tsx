@@ -321,7 +321,6 @@ export function RunDetailPage() {
     setMusicVolume(Math.round((run.data?.options.campaign_music_volume ?? 0.9) * 100))
     setSourceAudioVolume(Math.round((run.data?.options.campaign_source_audio_volume ?? 1) * 100))
     setMusicDucking(Boolean(run.data?.options.campaign_music_ducking))
-    setMusicStartSeconds(run.data?.options.campaign_music_start_seconds ?? run.data?.campaign_quality_checks?.music_analysis?.selected_start_seconds ?? 0)
     setMusicFadeIn(run.data?.options.campaign_music_fade_in_seconds ?? 0.4)
     setMusicFadeOut(run.data?.options.campaign_music_fade_out_seconds ?? 0.8)
     setLyricsText(run.data?.options.campaign_lyrics ?? '')
