@@ -2498,6 +2498,7 @@ function CampaignTimeline({
     enabled: hasMusic,
     staleTime: Infinity,
   })
+  const musicWindowDragRef = useRef<{ pointerId: number; startX: number; initialStart: number; trackWidth: number } | null>(null)
   const [activeLyricTrim, setActiveLyricTrim] = useState<{
     pointerId: number
     phraseIndex: number
@@ -3567,6 +3568,69 @@ function CampaignTimeline({
               {waveformQuery.isError ? 'Could not analyze this soundtrack. Playback is still available.' : 'Waveform will appear after the soundtrack is analyzed.'}
             </p>
           )}
+        </div>
+      )}
+      {waveform && waveform.duration_seconds > total && (
+        <div className="flex flex-col gap-2 border-t border-line pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="label text-muted">Music source window</span>
+            <span className="font-mono text-[11px] text-faint">
+              {formatDuration(musicStart)} – {formatDuration(musicStart + total)} / {formatDuration(waveform.duration_seconds)}
+            </span>
+          </div>
+          <div
+            className="relative h-10 touch-none select-none overflow-hidden rounded-md border border-line bg-surface"
+            style={{ minWidth: `${Math.round(680 * timelineZoom)}px` }}
+            role="group"
+            aria-label="Drag the highlighted region to choose which part of the soundtrack plays"
+            onPointerDown={(event) => {
+              const bounds = event.currentTarget.getBoundingClientRect()
+              if (bounds.width <= 0) return
+              event.currentTarget.setPointerCapture(event.pointerId)
+              const maxStart = Math.max(0, waveform.duration_seconds - total)
+              const pointerRatio = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width))
+              const windowRatio = total / waveform.duration_seconds
+              const currentLeft = musicStart / waveform.duration_seconds
+              const currentRight = currentLeft + windowRatio
+              const insideWindow = pointerRatio >= currentLeft && pointerRatio <= currentRight
+              const nextStart = insideWindow ? musicStart : Math.max(0, Math.min(maxStart, pointerRatio * waveform.duration_seconds - total / 2))
+              musicWindowDragRef.current = { pointerId: event.pointerId, startX: event.clientX, initialStart: nextStart, trackWidth: bounds.width }
+              if (!insideWindow) {
+                onMusicStartChange(nextStart)
+                if (audioRef.current) audioRef.current.currentTime = nextStart + playheadSeconds
+              }
+            }}
+            onPointerMove={(event) => {
+              const drag = musicWindowDragRef.current
+              if (!drag || drag.pointerId !== event.pointerId || !event.currentTarget.hasPointerCapture(event.pointerId)) return
+              const maxStart = Math.max(0, waveform.duration_seconds - total)
+              const delta = ((event.clientX - drag.startX) / drag.trackWidth) * waveform.duration_seconds
+              let nextStart = Math.max(0, Math.min(maxStart, drag.initialStart + delta))
+              if (snapTimelineEnabled) {
+                const nearestBeat = (musicAnalysis?.beat_markers ?? []).reduce((best, marker) =>
+                  Math.abs(marker.time_seconds - nextStart) < Math.abs(best - nextStart) ? marker.time_seconds : best, nextStart)
+                if (Math.abs(nearestBeat - nextStart) <= 0.18) nextStart = nearestBeat
+              }
+              nextStart = Math.round(nextStart * 100) / 100
+              onMusicStartChange(nextStart)
+              if (audioRef.current) audioRef.current.currentTime = nextStart + playheadSeconds
+            }}
+            onPointerUp={(event) => {
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+              if (musicWindowDragRef.current?.pointerId === event.pointerId) musicWindowDragRef.current = null
+            }}
+            onPointerCancel={() => { musicWindowDragRef.current = null }}
+          >
+            {(musicAnalysis?.beat_markers ?? []).map((marker, index) => (
+              <span key={`source-beat-${index}`} aria-hidden="true" className="pointer-events-none absolute inset-y-0 w-px bg-white/20"
+                style={{ left: `${(marker.time_seconds / waveform.duration_seconds) * 100}%` }} />
+            ))}
+            <div className="absolute inset-y-1 rounded border-2 border-acid bg-acid/25 shadow-[0_0_0_1px_rgba(0,0,0,0.35)]"
+              style={{ left: `${(musicStart / waveform.duration_seconds) * 100}%`, width: `${Math.min(100, (total / waveform.duration_seconds) * 100)}%` }}>
+              <span className="flex h-full items-center justify-center truncate px-1 text-[9px] font-semibold text-ink">SELECTED {formatDuration(total)}</span>
+            </div>
+          </div>
+          <p className="text-xs text-muted">Drag the highlighted window to move the soundtrack section used in this edit. Beat snapping follows the source track; the precise start slider remains available below.</p>
         </div>
       )}
       {waveform && (
