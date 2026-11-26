@@ -2895,6 +2895,44 @@ function CampaignTimeline({
                 key={String(preview.index) + "-" + String(preview.shot.source_index) + "-" + String(preview.shot.start_seconds)}
                 playsInline
                 preload="metadata"
+                tabIndex={0}
+                aria-label="Campaign video preview. Press Space to play or pause, Left or Right Arrow to seek one second, Shift plus Arrow to seek five seconds."
+                aria-keyshortcuts="Space ArrowLeft ArrowRight Home End"
+                onKeyDown={(event) => {
+                  if (event.key === ' ' || event.code === 'Space') {
+                    event.preventDefault()
+                    const video = videoRef.current
+                    const audio = audioRef.current
+                    if (isPlaying) {
+                      video?.pause()
+                      audio?.pause()
+                      setIsPlaying(false)
+                    } else if (video) {
+                      void video.play().then(() => {
+                        if (audio) {
+                          audio.currentTime = musicStart + playheadSeconds
+                          void audio.play().catch(() => undefined)
+                        }
+                        setIsPlaying(true)
+                      }).catch(() => setIsPlaying(false))
+                    }
+                    return
+                  }
+                  const seekStep = event.shiftKey ? 5 : 1
+                  if (event.key === 'ArrowLeft') {
+                    event.preventDefault()
+                    seekToTimelineRef.current(playheadSeconds - seekStep)
+                  } else if (event.key === 'ArrowRight') {
+                    event.preventDefault()
+                    seekToTimelineRef.current(playheadSeconds + seekStep)
+                  } else if (event.key === 'Home') {
+                    event.preventDefault()
+                    seekToTimelineRef.current(0)
+                  } else if (event.key === 'End') {
+                    event.preventDefault()
+                    seekToTimelineRef.current(total)
+                  }
+                }}
                 src={"/api/runs/" + runId + "/campaign-source?source_index=" + preview.shot.source_index}
                 onLoadedMetadata={(event) => {
                   advancingShotRef.current = false
