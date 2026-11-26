@@ -3170,7 +3170,10 @@ function CampaignTimeline({
           {[0, 0.25, 0.5, 0.75, 1].map((fraction) => (
             <span
               key={fraction}
-              className="absolute top-0 -translate-x-1/2 whitespace-nowrap"
+              className={cn(
+                "absolute top-0 whitespace-nowrap",
+                fraction === 0 ? "translate-x-0" : fraction === 1 ? "-translate-x-full" : "-translate-x-1/2",
+              )}
               style={{ left: String(fraction * 100) + '%' }}
             >
               {formatDuration(total * fraction)}
