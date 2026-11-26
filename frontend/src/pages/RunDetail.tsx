@@ -3254,7 +3254,7 @@ function CampaignTimeline({
                           const nextStart = Math.max(0, Math.min(lyric.end_seconds - 0.1, lyric.start_seconds + delta))
                           onUpdateLyric(lyric.phrase_index, { start_seconds: Math.round((nextStart + musicStart) * 100) / 100 })
                         }}
-                        className="absolute inset-y-0 left-0 z-10 w-2 cursor-ew-resize bg-white/40 opacity-0 transition-opacity group-hover:opacity-100" />
+                        className="absolute inset-y-0 left-0 z-10 w-3 cursor-ew-resize bg-white/70 opacity-100 transition-opacity sm:w-2 sm:bg-white/40 sm:opacity-0 sm:group-hover:opacity-100" />
                       <span role="slider" tabIndex={0} aria-label={`Trim end of lyric: ${lyric.text}`}
                         aria-valuemin={lyric.start_seconds + 0.1} aria-valuemax={total} aria-valuenow={lyric.end_seconds}
                         onPointerDown={(event) => beginDrag(event, 'end')}
@@ -3265,7 +3265,7 @@ function CampaignTimeline({
                           const nextEnd = Math.max(lyric.start_seconds + 0.1, Math.min(total, lyric.end_seconds + delta))
                           onUpdateLyric(lyric.phrase_index, { end_seconds: Math.round((nextEnd + musicStart) * 100) / 100 })
                         }}
-                        className="absolute inset-y-0 right-0 z-10 w-2 cursor-ew-resize bg-white/40 opacity-0 transition-opacity group-hover:opacity-100" />
+                        className="absolute inset-y-0 right-0 z-10 w-3 cursor-ew-resize bg-white/70 opacity-100 transition-opacity sm:w-2 sm:bg-white/40 sm:opacity-0 sm:group-hover:opacity-100" />
                     </div>
                   )
                 }) : null}
@@ -3359,11 +3359,11 @@ function CampaignTimeline({
                           <button type="button" aria-label={`Trim start of ${word.word}`} title="Drag to change word start"
                             onPointerDown={(event) => beginWordDrag(event, 'start')} onPointerMove={moveWordDrag}
                             onPointerUp={finishWordDrag} onPointerCancel={finishWordDrag}
-                            className="absolute inset-y-0 left-0 z-10 w-2 cursor-ew-resize touch-none bg-white/70 opacity-0 group-hover/word:opacity-100" />
+                            className="absolute inset-y-0 left-0 z-10 w-3 cursor-ew-resize touch-none bg-white/80 opacity-100 sm:w-2 sm:opacity-0 sm:group-hover/word:opacity-100" />
                           <button type="button" aria-label={`Trim end of ${word.word}`} title="Drag to change word end"
                             onPointerDown={(event) => beginWordDrag(event, 'end')} onPointerMove={moveWordDrag}
                             onPointerUp={finishWordDrag} onPointerCancel={finishWordDrag}
-                            className="absolute inset-y-0 right-0 z-10 w-2 cursor-ew-resize touch-none bg-white/70 opacity-0 group-hover/word:opacity-100" />
+                            className="absolute inset-y-0 right-0 z-10 w-3 cursor-ew-resize touch-none bg-white/80 opacity-100 sm:w-2 sm:opacity-0 sm:group-hover/word:opacity-100" />
                         </div>
                       )
                     })}
