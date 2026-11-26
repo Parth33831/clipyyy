@@ -1506,10 +1506,8 @@ def generate_ai_edit_proposal(
             )
     if len(candidates) < 3:
         raise ValueError(
-            (
-                "AI Edit needs at least three verified footage moments. Add more shots "
-                "or run campaign visual analysis."
-            )
+            "AI Edit needs at least three verified footage moments. Add more shots "
+            "or run campaign visual analysis."
         )
 
     system = (
