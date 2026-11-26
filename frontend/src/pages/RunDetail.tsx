@@ -3426,12 +3426,15 @@ function CampaignTimeline({
                         const minDuration = 0.05
                         if (drag.mode === 'move') {
                           const duration = drag.initialEnd - drag.initialStart
-                          const nextStart = Math.max(0, Math.min(total - duration, drag.initialStart + delta))
+                          const proposed = Math.max(0, Math.min(total - duration, drag.initialStart + delta))
+                          const nextStart = Math.max(0, Math.min(total - duration, snapTimelineValue(proposed)))
                           onUpdateLyricWord(drag.wordIndex, { start_seconds: nextStart, end_seconds: nextStart + duration })
                         } else if (drag.mode === 'start') {
-                          onUpdateLyricWord(drag.wordIndex, { start_seconds: Math.max(0, Math.min(drag.initialEnd - minDuration, drag.initialStart + delta)) })
+                          const nextStart = snapTimelineValue(drag.initialStart + delta)
+                          onUpdateLyricWord(drag.wordIndex, { start_seconds: Math.max(0, Math.min(drag.initialEnd - minDuration, nextStart)) })
                         } else {
-                          onUpdateLyricWord(drag.wordIndex, { end_seconds: Math.max(drag.initialStart + minDuration, Math.min(total, drag.initialEnd + delta)) })
+                          const nextEnd = snapTimelineValue(drag.initialEnd + delta)
+                          onUpdateLyricWord(drag.wordIndex, { end_seconds: Math.max(drag.initialStart + minDuration, Math.min(total, nextEnd)) })
                         }
                       }
                       const finishWordDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
