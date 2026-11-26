@@ -374,7 +374,10 @@ def create_app(start_worker: bool = True) -> FastAPI:
             if not alignment["matched_count"]:
                 raise HTTPException(
                     422,
-                    "None of those lyric words could be matched to the soundtrack. Check the lyrics or try a clearer vocal track.",
+                    (
+                        "None of those lyric words could be matched to the soundtrack. "
+                        "Check the lyrics or try a clearer vocal track."
+                    ),
                 )
         except HTTPException:
             raise
