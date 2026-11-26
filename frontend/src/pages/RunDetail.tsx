@@ -266,12 +266,12 @@ export function RunDetailPage() {
   const [lyricsPositionY, setLyricsPositionY] = useState(84)
   const [lyricsScale, setLyricsScale] = useState(100)
   const [lyricsRotation, setLyricsRotation] = useState(0)
-  const [phraseEdits, setPhraseEdits] = useState<CampaignLyricPhraseEdit[]>([])
-  const [wordEdits, setWordEdits] = useState<CampaignLyricWordEdit[]>([])
   const [lyricResyncProposal, setLyricResyncProposal] = useState<CampaignLyricResyncProposal | null>(null)
   const campaignHistory = useUndoRedo({
     edits: [] as CampaignEdit[],
     overlays: [] as CampaignTextOverlay[],
+    phraseEdits: [] as CampaignLyricPhraseEdit[],
+    wordEdits: [] as CampaignLyricWordEdit[],
   })
   const {
     value: campaignHistoryValue,
@@ -284,6 +284,8 @@ export function RunDetailPage() {
   } = campaignHistory
   const campaignEdits = campaignHistoryValue.edits
   const campaignTextOverlays = campaignHistoryValue.overlays
+  const phraseEdits = campaignHistoryValue.phraseEdits
+  const wordEdits = campaignHistoryValue.wordEdits
   const setCampaignEdits = useCallback((next: CampaignEdit[] | ((current: CampaignEdit[]) => CampaignEdit[])) => {
     setCampaignHistory((current) => ({
       ...current,
@@ -294,6 +296,18 @@ export function RunDetailPage() {
     setCampaignHistory((current) => ({
       ...current,
       overlays: typeof next === 'function' ? next(current.overlays) : next,
+    }))
+  }, [setCampaignHistory])
+  const setPhraseEdits = useCallback((next: CampaignLyricPhraseEdit[] | ((current: CampaignLyricPhraseEdit[]) => CampaignLyricPhraseEdit[])) => {
+    setCampaignHistory((current) => ({
+      ...current,
+      phraseEdits: typeof next === 'function' ? next(current.phraseEdits) : next,
+    }))
+  }, [setCampaignHistory])
+  const setWordEdits = useCallback((next: CampaignLyricWordEdit[] | ((current: CampaignLyricWordEdit[]) => CampaignLyricWordEdit[])) => {
+    setCampaignHistory((current) => ({
+      ...current,
+      wordEdits: typeof next === 'function' ? next(current.wordEdits) : next,
     }))
   }, [setCampaignHistory])
   useEffect(() => {
@@ -315,11 +329,11 @@ export function RunDetailPage() {
     setLyricsPositionY(run.data?.options.campaign_lyrics_position_y ?? 84)
     setLyricsScale(run.data?.options.campaign_lyrics_scale_percent ?? 100)
     setLyricsRotation(run.data?.options.campaign_lyrics_rotation_degrees ?? 0)
-    setPhraseEdits(run.data?.options.campaign_lyric_phrase_edits ?? [])
-    setWordEdits([])
     resetCampaignHistory({
       edits: run.data?.campaign_edits ?? [],
       overlays: run.data?.options.campaign_text_overlays ?? [],
+      phraseEdits: run.data?.options.campaign_lyric_phrase_edits ?? [],
+      wordEdits: [],
     })
   }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_source_audio_volume, run.data?.options.campaign_music_ducking, run.data?.options.campaign_music_start_seconds, run.data?.campaign_quality_checks?.music_analysis?.selected_start_seconds, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.options.campaign_lyric_words, run.data?.options.campaign_text_overlays, run.data?.campaign_plan?.generated_hook, resetCampaignHistory])
 
@@ -843,7 +857,7 @@ export function RunDetailPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-panel px-4 py-3">
           <div>
             <span className="label text-muted">Campaign edit history</span>
-            <p className="mt-1 text-xs text-faint">Undo or redo shot edits and independent text overlays together · Ctrl+Z to undo · Ctrl+Shift+Z or Ctrl+Y to redo.</p>
+            <p className="mt-1 text-xs text-faint">Undo or redo shot edits, lyric timing/placement and independent text overlays together · Ctrl+Z to undo · Ctrl+Shift+Z or Ctrl+Y to redo.</p>
           </div>
           <div className="flex gap-2">
             <Button variant="line" disabled={!canUndoCampaignEdits} onClick={undoCampaignEdits}>Undo</Button>
