@@ -3248,7 +3248,7 @@ function CampaignTimeline({
                   event.preventDefault()
                   const nextButton = event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`[data-campaign-shot-index="${targetIndex}"]`)
                   nextButton?.focus()
-                  selectShot(targetIndex)
+                  onSelectShot(targetIndex)
                 }}
                 onClick={() => {
                   videoRef.current?.pause()
