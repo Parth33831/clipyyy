@@ -258,7 +258,15 @@ export function RunDetailPage() {
     musicDucking: false,
     musicFadeIn: 0.4,
     musicFadeOut: 0.8,
-    lyricsStyle: 'dynamic' as const,
+    lyricsStyle: 'dynamic' as
+      | 'dynamic'
+      | 'cinematic'
+      | 'minimal'
+      | 'karaoke'
+      | 'zoom'
+      | 'bounce'
+      | 'pulse'
+      | 'glitch',
     lyricsColor: '#FFFFFF',
     lyricsHighlightColor: '#00D7FF',
     lyricsWordsOnScreen: 3 as 1 | 2 | 3,
