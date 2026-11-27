@@ -3705,9 +3705,23 @@ function CampaignTimeline({
                           style={{ left: `${left}%`, width: `${width}%`, minWidth: '8px' }}>
                           <button type="button"
                             title={`${word.word} · Drag to move · Drag edges to trim · ${formatDuration(word.start_seconds)}–${formatDuration(word.end_seconds)}`}
-                            aria-label={`Move lyric word: ${word.word}; ${formatDuration(word.start_seconds)} to ${formatDuration(word.end_seconds)}. Use left and right arrows to move; hold Shift for larger steps.`}
-                            aria-keyshortcuts="ArrowLeft ArrowRight Shift+ArrowLeft Shift+ArrowRight"
+                            data-lyric-word-index={word.word_index}
+                            aria-label={`Move lyric word: ${word.word}; ${formatDuration(word.start_seconds)} to ${formatDuration(word.end_seconds)}. Use up and down arrows to navigate words; left and right arrows to move; hold Shift for larger steps.`}
+                            aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowLeft Shift+ArrowRight"
                             onKeyDown={(event) => {
+                              if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+                                event.preventDefault()
+                                event.stopPropagation()
+                                const currentIndex = lyricWords.findIndex((item) => item.word_index === word.word_index)
+                                const nextWord = lyricWords[currentIndex + (event.key === 'ArrowDown' ? 1 : -1)]
+                                if (!nextWord) return
+                                onSelectLyricWord(nextWord.word_index)
+                                seekToTimelineRef.current(nextWord.start_seconds)
+                                const timeline = event.currentTarget.closest('[data-lyric-word-timeline]')
+                                const nextButton = timeline?.querySelector<HTMLButtonElement>(`[data-lyric-word-index="${nextWord.word_index}"]`)
+                                nextButton?.focus()
+                                return
+                              }
                               if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
                               event.preventDefault()
                               event.stopPropagation()
