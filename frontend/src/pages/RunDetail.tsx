@@ -246,9 +246,6 @@ export function RunDetailPage() {
     setActiveConceptPreviewId(null)
   }, [runId])
   const [musicFile, setMusicFile] = useState<File | null>(null)
-  const [lyricsText, setLyricsText] = useState('')
-  const [hookText, setHookText] = useState('')
-  const [includeHook, setIncludeHook] = useState(false)
   const [lyricResyncProposal, setLyricResyncProposal] = useState<CampaignLyricResyncProposal | null>(null)
   const campaignHistory = useUndoRedo({
     edits: [] as CampaignEdit[],
@@ -270,6 +267,9 @@ export function RunDetailPage() {
     lyricsPositionY: 84,
     lyricsScale: 100,
     lyricsRotation: 0,
+    lyricsText: '',
+    hookText: '',
+    includeHook: false,
   })
   const {
     value: campaignHistoryValue,
@@ -299,6 +299,9 @@ export function RunDetailPage() {
   const lyricsPositionY = campaignHistoryValue.lyricsPositionY
   const lyricsScale = campaignHistoryValue.lyricsScale
   const lyricsRotation = campaignHistoryValue.lyricsRotation
+  const lyricsText = campaignHistoryValue.lyricsText
+  const hookText = campaignHistoryValue.hookText
+  const includeHook = campaignHistoryValue.includeHook
   const setCampaignEdits = useCallback((next: CampaignEdit[] | ((current: CampaignEdit[]) => CampaignEdit[])) => {
     setCampaignHistory((current) => ({
       ...current,
@@ -371,10 +374,16 @@ export function RunDetailPage() {
   const setLyricsRotation = useCallback((next: number) => {
     setCampaignHistory((current) => ({ ...current, lyricsRotation: next }))
   }, [setCampaignHistory])
+  const setLyricsText = useCallback((next: string) => {
+    setCampaignHistory((current) => ({ ...current, lyricsText: next }))
+  }, [setCampaignHistory])
+  const setHookText = useCallback((next: string) => {
+    setCampaignHistory((current) => ({ ...current, hookText: next }))
+  }, [setCampaignHistory])
+  const setIncludeHook = useCallback((next: boolean) => {
+    setCampaignHistory((current) => ({ ...current, includeHook: next }))
+  }, [setCampaignHistory])
   useEffect(() => {
-    setLyricsText(run.data?.options.campaign_lyrics ?? '')
-    setHookText(run.data?.options.campaign_hook_text ?? String(run.data?.campaign_plan?.generated_hook ?? ''))
-    setIncludeHook(Boolean(run.data?.options.include_campaign_hook))
     resetCampaignHistory({
       edits: run.data?.campaign_edits ?? [],
       overlays: run.data?.options.campaign_text_overlays ?? [],
@@ -395,6 +404,9 @@ export function RunDetailPage() {
       lyricsPositionY: run.data?.options.campaign_lyrics_position_y ?? 84,
       lyricsScale: run.data?.options.campaign_lyrics_scale_percent ?? 100,
       lyricsRotation: run.data?.options.campaign_lyrics_rotation_degrees ?? 0,
+      lyricsText: run.data?.options.campaign_lyrics ?? '',
+      hookText: run.data?.options.campaign_hook_text ?? String(run.data?.campaign_plan?.generated_hook ?? ''),
+      includeHook: Boolean(run.data?.options.include_campaign_hook),
     })
   }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_source_audio_volume, run.data?.options.campaign_music_ducking, run.data?.options.campaign_music_start_seconds, run.data?.campaign_quality_checks?.music_analysis?.selected_start_seconds, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.options.campaign_lyric_words, run.data?.options.campaign_text_overlays, run.data?.campaign_plan?.generated_hook, resetCampaignHistory])
 
