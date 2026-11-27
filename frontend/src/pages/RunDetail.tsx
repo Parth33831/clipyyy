@@ -2564,6 +2564,7 @@ function CampaignTimeline({
   const [playheadSeconds, setPlayheadSeconds] = useState(0)
   const [maskTimestamp, setMaskTimestamp] = useState(0)
   const [timelineZoom, setTimelineZoom] = useState(1)
+  const [followPlayhead, setFollowPlayhead] = useState(false)
   const [snapTimelineEnabled, setSnapTimelineEnabled] = useState(true)
   const timelineRootRef = useRef<HTMLDivElement | null>(null)
   const programmaticTimelineScrollsRef = useRef(new Map<HTMLElement, number>())
@@ -2771,6 +2772,26 @@ function CampaignTimeline({
     duration: Math.max(0.1, shot.end_seconds - shot.start_seconds),
   }))
   const total = Math.max(0.1, shots.reduce((sum, item) => sum + item.duration, 0))
+  useEffect(() => {
+    if (!isPlaying || !followPlayhead || total <= 0) return
+    const tracks = timelineRootRef.current?.querySelectorAll<HTMLElement>('[data-campaign-timeline-scroll]')
+    if (!tracks?.length) return
+    const timelineFraction = Math.max(0, Math.min(1, playheadSeconds / total))
+    tracks.forEach((track) => {
+      const offset = Number(track.dataset.campaignTimelineOffset ?? 0)
+      const contentWidth = Math.max(0, track.scrollWidth - offset)
+      const playheadPosition = timelineFraction * contentWidth
+      const visibleLeft = Math.max(0, track.scrollLeft - offset)
+      const visibleRight = visibleLeft + track.clientWidth
+      const margin = Math.min(48, track.clientWidth * 0.12)
+      if (playheadPosition >= visibleLeft + margin && playheadPosition <= visibleRight - margin) return
+      const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth)
+      const nextScrollLeft = Math.max(0, Math.min(maxScroll, playheadPosition - track.clientWidth / 2 + offset))
+      if (Math.abs(track.scrollLeft - nextScrollLeft) < 1) return
+      programmaticTimelineScrollsRef.current.set(track, nextScrollLeft)
+      track.scrollLeft = nextScrollLeft
+    })
+  }, [followPlayhead, isPlaying, playheadSeconds, total])
   const musicStart = Math.max(0, musicStartSeconds)
   const snapTimelineValue = (value: number, offset = 0) => {
     if (!snapTimelineEnabled) return value
@@ -2834,6 +2855,11 @@ function CampaignTimeline({
             Snap {snapTimelineEnabled ? 'On' : 'Off'}
           </button>
           <button type="button" onClick={() => setTimelineZoom((zoom) => Math.min(3, Math.round((zoom + 0.25) * 100) / 100))} disabled={timelineZoom >= 3} aria-label="Zoom timeline in" className="rounded border border-line px-2 py-1 text-xs disabled:opacity-40">+</button>
+          <button type="button" aria-pressed={followPlayhead} onClick={() => setFollowPlayhead((enabled) => !enabled)}
+            title="Keep the playing position visible across all timeline tracks"
+            className={cn('rounded border px-2 py-1 text-[11px] font-medium', followPlayhead ? 'border-acid bg-acid/15 text-ink' : 'border-line text-muted hover:border-ink')}>
+            Follow {followPlayhead ? 'On' : 'Off'}
+          </button>
           <button type="button" onClick={() => {
             timelineRootRef.current?.querySelectorAll<HTMLElement>('[data-campaign-timeline-scroll]').forEach((track) => {
               const offset = Number(track.dataset.campaignTimelineOffset ?? 0)
