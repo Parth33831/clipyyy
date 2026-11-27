@@ -2825,6 +2825,17 @@ function CampaignTimeline({
             Snap {snapTimelineEnabled ? 'On' : 'Off'}
           </button>
           <button type="button" onClick={() => setTimelineZoom((zoom) => Math.min(3, Math.round((zoom + 0.25) * 100) / 100))} disabled={timelineZoom >= 3} aria-label="Zoom timeline in" className="rounded border border-line px-2 py-1 text-xs disabled:opacity-40">+</button>
+          <button type="button" onClick={() => {
+            timelineRootRef.current?.querySelectorAll<HTMLElement>('[data-campaign-timeline-scroll]').forEach((track) => {
+              const offset = Number(track.dataset.campaignTimelineOffset ?? 0)
+              const contentWidth = Math.max(0, track.scrollWidth - offset)
+              const playheadPosition = total > 0 ? (Math.max(0, Math.min(total, playheadSeconds)) / total) * contentWidth : 0
+              const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth)
+              const nextScrollLeft = Math.max(0, Math.min(maxScroll, playheadPosition - track.clientWidth / 2 + offset))
+              programmaticTimelineScrollsRef.current.set(track, nextScrollLeft)
+              track.scrollLeft = nextScrollLeft
+            })
+          }} aria-label="Center timeline on playhead" title="Scroll all timeline tracks to the current playhead" className="rounded border border-line px-2 py-1 text-[11px] text-muted">Center playhead</button>
           <button type="button" onClick={() => { setTimelineZoom(1); timelineRootRef.current?.querySelectorAll<HTMLElement>('[data-campaign-timeline-scroll]').forEach((track) => { track.scrollLeft = 0 }) }} className="rounded border border-line px-2 py-1 text-[11px] text-muted">Fit</button>
         </div>
       </div>
