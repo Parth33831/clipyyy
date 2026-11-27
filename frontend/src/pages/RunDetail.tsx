@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, Download, RotateCcw, Scissors, Send, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, Download, Redo2, RotateCcw, Scissors, Send, Trash2, Undo2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useUndoRedo } from '../hooks/useUndoRedo'
@@ -310,6 +310,39 @@ export function RunDetailPage() {
   const lyricsText = campaignHistoryValue.lyricsText
   const hookText = campaignHistoryValue.hookText
   const includeHook = campaignHistoryValue.includeHook
+  const hydratedCampaignRunRef = useRef<string | null>(null)
+  useEffect(() => {
+    const currentRun = run.data
+    if (!currentRun || currentRun.id !== runId || hydratedCampaignRunRef.current === runId) return
+    const options = currentRun.options
+    resetCampaignHistory({
+      edits: currentRun.campaign_edits ?? [],
+      overlays: options.campaign_text_overlays ?? [],
+      phraseEdits: options.campaign_lyric_phrase_edits ?? [],
+      wordEdits: [],
+      musicStartSeconds: options.campaign_music_start_seconds
+        ?? currentRun.campaign_quality_checks?.music_analysis?.selected_start_seconds
+        ?? 0,
+      musicVolume: Math.round((options.campaign_music_volume ?? 0.9) * 100),
+      sourceAudioVolume: Math.round((options.campaign_source_audio_volume ?? 1) * 100),
+      musicDucking: Boolean(options.campaign_music_ducking),
+      musicFadeIn: options.campaign_music_fade_in_seconds ?? 0.4,
+      musicFadeOut: options.campaign_music_fade_out_seconds ?? 0.8,
+      lyricsStyle: options.campaign_lyrics_style ?? 'dynamic',
+      lyricsColor: options.campaign_lyrics_color ?? '#FFFFFF',
+      lyricsHighlightColor: options.campaign_lyrics_highlight_color ?? '#00D7FF',
+      lyricsWordsOnScreen: options.campaign_lyrics_words_on_screen ?? 3,
+      lyricsBehindSubject: Boolean(options.campaign_lyrics_behind_subject),
+      lyricsPositionX: options.campaign_lyrics_position_x ?? 50,
+      lyricsPositionY: options.campaign_lyrics_position_y ?? 84,
+      lyricsScale: options.campaign_lyrics_scale_percent ?? 100,
+      lyricsRotation: options.campaign_lyrics_rotation_degrees ?? 0,
+      lyricsText: options.campaign_lyrics ?? '',
+      hookText: options.campaign_hook_text ?? '',
+      includeHook: Boolean(options.include_campaign_hook),
+    })
+    hydratedCampaignRunRef.current = runId
+  }, [run.data, runId, resetCampaignHistory])
   const setCampaignEdits = useCallback((next: CampaignEdit[] | ((current: CampaignEdit[]) => CampaignEdit[])) => {
     setCampaignHistory((current) => ({
       ...current,
@@ -730,6 +763,26 @@ export function RunDetailPage() {
           </nav>
           <div className="flex min-w-0 flex-col gap-6">
             <div id="campaign-preview" className="scroll-mt-5">
+      {data.options.campaign_mode && !busy && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-panel px-3 py-2">
+          <div>
+            <p className="text-xs font-semibold text-ink">Editing history</p>
+            <p className="text-[10px] text-muted">Undo and redo your campaign changes · Ctrl/⌘ Z · Shift Ctrl/⌘ Z</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button type="button" disabled={!canUndoCampaignEdits} onClick={undoCampaignEdits}
+              className="inline-flex items-center gap-1.5 rounded-md border border-line px-3 py-2 text-xs font-semibold text-ink hover:border-ink disabled:cursor-not-allowed disabled:opacity-35"
+              aria-label="Undo last campaign edit">
+              <Undo2 className="h-3.5 w-3.5" /> Undo
+            </button>
+            <button type="button" disabled={!canRedoCampaignEdits} onClick={redoCampaignEdits}
+              className="inline-flex items-center gap-1.5 rounded-md border border-line px-3 py-2 text-xs font-semibold text-ink hover:border-ink disabled:cursor-not-allowed disabled:opacity-35"
+              aria-label="Redo campaign edit">
+              <Redo2 className="h-3.5 w-3.5" /> Redo
+            </button>
+          </div>
+        </div>
+      )}
       {data.options.campaign_mode && !busy && campaignEdits.length > 0 && (
         <CampaignStoryboardEditor
           runId={runId}
