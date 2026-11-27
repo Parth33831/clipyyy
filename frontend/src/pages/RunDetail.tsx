@@ -1486,31 +1486,62 @@ function CampaignStoryboardEditor({
                   <>
                     <div className="rounded-md border border-line bg-panel p-3">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-semibold text-ink">Clip {edit.rank} · proposed sequence</span>
-                        <span className="font-mono text-[10px] text-muted">{aiProposal.shots.length} shots</span>
+                        <span className="font-semibold text-ink">Before &amp; after · Clip {edit.rank}</span>
+                        <span className="text-[10px] text-muted">Review before accepting</span>
                       </div>
-                      <div className="mt-2 flex flex-col gap-2">
-                        {aiProposal.shots.slice(0, 6).map((shot, index) => {
-                          const source = sourceByIndex.get(shot.source_index)
-                          return (
-                            <div key={`ai-proposal-${edit.rank}-${index}`} className="flex min-w-0 items-center gap-2">
-                              <img
-                                src={`/api/runs/${runId}/campaign-frame?source_index=${shot.source_index}&timestamp=${shot.start_seconds.toFixed(1)}`}
-                                alt=""
-                                loading="lazy"
-                                className="h-9 w-12 shrink-0 rounded border border-line bg-surface object-cover"
-                              />
-                              <div className="min-w-0">
-                                <p className="truncate font-medium text-ink">Shot {index + 1} · {source?.title ?? `Source ${shot.source_index + 1}`}</p>
-                                <p className="font-mono text-[10px] text-muted">{formatDuration(shot.start_seconds)}–{formatDuration(shot.end_seconds)}</p>
-                              </div>
-                            </div>
-                          )
-                        })}
-                        {aiProposal.shots.length > 6 && (
-                          <p className="text-[10px] text-faint">Plus {aiProposal.shots.length - 6} more shots in the proposed timeline.</p>
-                        )}
+                      <div className="mt-3 grid gap-3 md:grid-cols-2">
+                        <section className="min-w-0 rounded-md border border-line bg-surface p-2">
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold text-ink">Your current cut</span>
+                            <span className="font-mono text-[10px] text-muted">{edit.shots.length} shots</span>
+                          </div>
+                          <div className="flex max-h-56 flex-col gap-2 overflow-y-auto pr-1">
+                            {edit.shots.map((shot, index) => {
+                              const source = sourceByIndex.get(shot.source_index)
+                              return (
+                                <div key={`ai-current-${edit.rank}-${index}`} className="flex min-w-0 items-center gap-2">
+                                  <img
+                                    src={`/api/runs/${runId}/campaign-frame?source_index=${shot.source_index}&timestamp=${shot.start_seconds.toFixed(1)}`}
+                                    alt=""
+                                    loading="lazy"
+                                    className="h-9 w-12 shrink-0 rounded border border-line bg-panel object-cover"
+                                  />
+                                  <div className="min-w-0">
+                                    <p className="truncate text-xs font-medium text-ink">Shot {index + 1} · {source?.title ?? `Source ${shot.source_index + 1}`}</p>
+                                    <p className="font-mono text-[10px] text-muted">{formatDuration(shot.start_seconds)}–{formatDuration(shot.end_seconds)}</p>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </section>
+                        <section className="min-w-0 rounded-md border border-line bg-surface p-2">
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold text-ink">AI proposed cut</span>
+                            <span className="font-mono text-[10px] text-muted">{aiProposal.shots.length} shots</span>
+                          </div>
+                          <div className="flex max-h-56 flex-col gap-2 overflow-y-auto pr-1">
+                            {aiProposal.shots.map((shot, index) => {
+                              const source = sourceByIndex.get(shot.source_index)
+                              return (
+                                <div key={`ai-proposal-${edit.rank}-${index}`} className="flex min-w-0 items-center gap-2">
+                                  <img
+                                    src={`/api/runs/${runId}/campaign-frame?source_index=${shot.source_index}&timestamp=${shot.start_seconds.toFixed(1)}`}
+                                    alt=""
+                                    loading="lazy"
+                                    className="h-9 w-12 shrink-0 rounded border border-line bg-panel object-cover"
+                                  />
+                                  <div className="min-w-0">
+                                    <p className="truncate text-xs font-medium text-ink">Shot {index + 1} · {source?.title ?? `Source ${shot.source_index + 1}`}</p>
+                                    <p className="font-mono text-[10px] text-muted">{formatDuration(shot.start_seconds)}–{formatDuration(shot.end_seconds)}</p>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </section>
                       </div>
+                      <p className="mt-2 text-[10px] text-faint">Compare source footage and timing in both sequences. Your current cut stays untouched unless you choose Accept AI Edit.</p>
                     </div>
                     {aiProposalChanged ? (
                       <div className="rounded-md border border-line bg-surface p-3">
