@@ -598,9 +598,15 @@ export function RunDetailPage() {
   useEffect(() => {
     if (!run.data?.options.campaign_mode || ['queued', 'running'].includes(run.data.status)) return
     const handleEditorShortcut = (event: KeyboardEvent) => {
-      if (!event.ctrlKey && !event.metaKey) return
-      const target = event.target as HTMLElement | null
-      if (target?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName ?? '')) return
+      if (event.defaultPrevented || event.altKey || (!event.ctrlKey && !event.metaKey)) return
+      const target = event.target
+      const editableTarget =
+        target instanceof Element
+          ? target.closest(
+              'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="searchbox"], [role="combobox"], [role="spinbutton"], [data-editor-shortcut-ignore]',
+            )
+          : null
+      if (editableTarget) return
       const key = event.key.toLowerCase()
       if (key === 'z' && event.shiftKey) {
         if (!canRedoCampaignEdits) return
