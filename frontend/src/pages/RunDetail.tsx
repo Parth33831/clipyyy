@@ -3705,7 +3705,22 @@ function CampaignTimeline({
                           style={{ left: `${left}%`, width: `${width}%`, minWidth: '8px' }}>
                           <button type="button"
                             title={`${word.word} · Drag to move · Drag edges to trim · ${formatDuration(word.start_seconds)}–${formatDuration(word.end_seconds)}`}
-                            aria-label={`Drag to move lyric word: ${word.word}; use edges to adjust timing`}
+                            aria-label={`Move lyric word: ${word.word}; ${formatDuration(word.start_seconds)} to ${formatDuration(word.end_seconds)}. Use left and right arrows to move; hold Shift for larger steps.`}
+                            aria-keyshortcuts="ArrowLeft ArrowRight Shift+ArrowLeft Shift+ArrowRight"
+                            onKeyDown={(event) => {
+                              if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+                              event.preventDefault()
+                              event.stopPropagation()
+                              const delta = (event.key === 'ArrowRight' ? 1 : -1) * (event.shiftKey ? 0.5 : 0.05)
+                              const duration = word.end_seconds - word.start_seconds
+                              const proposed = Math.max(0, Math.min(total - duration, word.start_seconds + delta))
+                              const nextStart = Math.max(0, Math.min(total - duration, snapTimelineValue(proposed)))
+                              onSelectLyricWord(word.word_index)
+                              onUpdateLyricWord(word.word_index, {
+                                start_seconds: Math.round(nextStart * 100) / 100,
+                                end_seconds: Math.round((nextStart + duration) * 100) / 100,
+                              })
+                            }}
                             onPointerDown={(event) => beginWordDrag(event, 'move')}
                             onPointerMove={moveWordDrag}
                             onPointerUp={finishWordDrag}
@@ -3722,11 +3737,33 @@ function CampaignTimeline({
                               selectedLyricWordIndex === word.word_index ? "border-ink bg-acid/50" : "border-acid/50 bg-acid/20")}>
                             <span className="sr-only">{word.word}</span>
                           </button>
-                          <button type="button" aria-label={`Trim start of ${word.word}`} title="Drag to change word start"
+                          <button type="button" aria-label={`Trim start of ${word.word} · ${formatDuration(word.start_seconds)}`} aria-keyshortcuts="ArrowLeft ArrowRight Shift+ArrowLeft Shift+ArrowRight" title="Drag or use arrow keys to change word start"
+                            onKeyDown={(event) => {
+                              if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+                              event.preventDefault()
+                              event.stopPropagation()
+                              const delta = (event.key === 'ArrowRight' ? 1 : -1) * (event.shiftKey ? 0.5 : 0.05)
+                              const proposed = snapTimelineValue(word.start_seconds + delta)
+                              onSelectLyricWord(word.word_index)
+                              onUpdateLyricWord(word.word_index, {
+                                start_seconds: Math.round(Math.max(0, Math.min(word.end_seconds - 0.05, proposed)) * 100) / 100,
+                              })
+                            }}
                             onPointerDown={(event) => beginWordDrag(event, 'start')} onPointerMove={moveWordDrag}
                             onPointerUp={finishWordDrag} onPointerCancel={finishWordDrag}
                             className="absolute inset-y-0 left-0 z-10 w-3 cursor-ew-resize touch-none bg-white/80 opacity-100 sm:w-2 sm:opacity-0 sm:group-hover/word:opacity-100" />
-                          <button type="button" aria-label={`Trim end of ${word.word}`} title="Drag to change word end"
+                          <button type="button" aria-label={`Trim end of ${word.word} · ${formatDuration(word.end_seconds)}`} aria-keyshortcuts="ArrowLeft ArrowRight Shift+ArrowLeft Shift+ArrowRight" title="Drag or use arrow keys to change word end"
+                            onKeyDown={(event) => {
+                              if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+                              event.preventDefault()
+                              event.stopPropagation()
+                              const delta = (event.key === 'ArrowRight' ? 1 : -1) * (event.shiftKey ? 0.5 : 0.05)
+                              const proposed = snapTimelineValue(word.end_seconds + delta)
+                              onSelectLyricWord(word.word_index)
+                              onUpdateLyricWord(word.word_index, {
+                                end_seconds: Math.round(Math.max(word.start_seconds + 0.05, Math.min(total, proposed)) * 100) / 100,
+                              })
+                            }}
                             onPointerDown={(event) => beginWordDrag(event, 'end')} onPointerMove={moveWordDrag}
                             onPointerUp={finishWordDrag} onPointerCancel={finishWordDrag}
                             className="absolute inset-y-0 right-0 z-10 w-3 cursor-ew-resize touch-none bg-white/80 opacity-100 sm:w-2 sm:opacity-0 sm:group-hover/word:opacity-100" />
