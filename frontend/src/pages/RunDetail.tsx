@@ -1265,6 +1265,7 @@ function CampaignStoryboardEditor({
   const [proposalDecisions, setProposalDecisions] = useState<Record<string, 'accepted' | 'rejected'>>({})
   const [onDemandProposals, setOnDemandProposals] = useState<Record<number, { proposal: CampaignEdit; notes: string[]; id: string }>>({})
   const [generatingProposalRank, setGeneratingProposalRank] = useState<number | null>(null)
+  const [previewingAiProposalRank, setPreviewingAiProposalRank] = useState<number | null>(null)
   const [selectedPhraseIndex, setSelectedPhraseIndex] = useState(0)
   const [selectedLyricWordIndex, setSelectedLyricWordIndex] = useState(0)
   const [selectedTextOverlayIndex, setSelectedTextOverlayIndex] = useState<number | null>(null)
@@ -1395,39 +1396,39 @@ function CampaignStoryboardEditor({
           <div className="grid min-w-0 gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
           <div className="order-2 min-w-0 lg:order-none lg:col-start-2 lg:row-start-1">
           <CampaignTimeline
-            edit={edit}
+            edit={previewingAiProposalRank === edit.rank && aiProposal && aiProposalChanged ? aiProposal : edit}
             runId={runId}
             sources={sources}
             musicAnalysis={musicAnalysis}
             musicStartSeconds={musicStartSeconds}
-            onMusicStartChange={onMusicStartChange}
+            onMusicStartChange={previewingAiProposalRank === edit.rank ? () => undefined : onMusicStartChange}
             hasMusic={hasMusic}
             lyricsBehindSubject={lyricsBehindSubject}
             lyrics={lyrics}
-            onUpdateLyric={onUpdateLyric}
+            onUpdateLyric={previewingAiProposalRank === edit.rank ? () => undefined : onUpdateLyric}
             selectedPhraseIndex={selectedPhraseIndex}
-            onSelectLyricPhrase={(phraseIndex) => {
+            onSelectLyricPhrase={previewingAiProposalRank === edit.rank ? () => undefined : (phraseIndex) => {
               setSelectedPhraseIndex(phraseIndex)
               setActiveTool('lyrics')
             }}
             lyricWords={lyricWords}
             selectedLyricWordIndex={selectedLyricWordIndex}
-            onSelectLyricWord={setSelectedLyricWordIndex}
-            onUpdateLyricWord={onUpdateLyricWord}
+            onSelectLyricWord={previewingAiProposalRank === edit.rank ? () => undefined : setSelectedLyricWordIndex}
+            onUpdateLyricWord={previewingAiProposalRank === edit.rank ? () => undefined : onUpdateLyricWord}
             wordsOnScreen={wordsOnScreen}
             lyricsColor={lyricsColor}
             lyricsHighlightColor={lyricsHighlightColor}
             textOverlays={textOverlays}
-            onUpdateTextOverlay={onUpdateTextOverlay}
-            onSelectTextOverlay={(overlayIndex) => {
+            onUpdateTextOverlay={previewingAiProposalRank === edit.rank ? () => undefined : onUpdateTextOverlay}
+            onSelectTextOverlay={previewingAiProposalRank === edit.rank ? () => undefined : (overlayIndex) => {
               setSelectedTextOverlayIndex(overlayIndex)
               setActiveTool('titles')
             }}
             transitionStyle={transitionStyle}
-            selectedShotIndex={selectedShotIndex}
-            onSelectShot={setSelectedShotIndex}
-            onMoveShot={(fromIndex, toIndex) => moveShotTo(editIndex, fromIndex, toIndex)}
-            onUpdateShot={(shotIndex, patch) => updateShot(editIndex, shotIndex, patch)}
+            selectedShotIndex={previewingAiProposalRank === edit.rank ? Math.min(selectedShotIndex, Math.max(0, aiProposal?.shots.length ?? 1) - 1) : selectedShotIndex}
+            onSelectShot={previewingAiProposalRank === edit.rank ? () => undefined : setSelectedShotIndex}
+            onMoveShot={previewingAiProposalRank === edit.rank ? () => undefined : (fromIndex, toIndex) => moveShotTo(editIndex, fromIndex, toIndex)}
+            onUpdateShot={previewingAiProposalRank === edit.rank ? () => undefined : (shotIndex, patch) => updateShot(editIndex, shotIndex, patch)}
           />
           </div>
           <aside className="order-1 flex min-w-0 flex-col gap-3 rounded-lg border border-line bg-surface p-3 lg:order-none lg:col-start-1 lg:row-start-1">
@@ -1471,6 +1472,7 @@ function CampaignStoryboardEditor({
                           id: `on-demand-${Date.now()}`,
                         },
                       }))
+                      setPreviewingAiProposalRank(null)
                       toast.success(`New AI proposal ready for Clip ${edit.rank}. Your current edit is unchanged.`)
                     } catch (error) {
                       toast.error(error instanceof Error ? error.message : 'AI Edit could not generate a proposal.')
@@ -1541,7 +1543,13 @@ function CampaignStoryboardEditor({
                           </div>
                         </section>
                       </div>
-                      <p className="mt-2 text-[10px] text-faint">Compare source footage and timing in both sequences. Your current cut stays untouched unless you choose Accept AI Edit.</p>
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-[10px] text-faint">Compare source footage and timing. Previewing the AI cut does not change your saved edit.</p>
+                        <button type="button" onClick={() => setPreviewingAiProposalRank((current) => current === edit.rank ? null : edit.rank)}
+                          className="rounded-md border border-line px-3 py-2 text-xs font-semibold text-ink hover:border-ink">
+                          {previewingAiProposalRank === edit.rank ? 'Back to current cut' : 'Preview AI cut'}
+                        </button>
+                      </div>
                     </div>
                     {aiProposalChanged ? (
                       <div className="rounded-md border border-line bg-surface p-3">
@@ -1566,11 +1574,12 @@ function CampaignStoryboardEditor({
                       <div className="grid grid-cols-2 gap-2">
                         <button type="button" disabled={saving} onClick={() => {
                           onChange(edits.map((item) => item.rank === edit.rank ? { ...aiProposal, rank: item.rank } : item))
+                          setPreviewingAiProposalRank(null)
                           setProposalDecisions((current) => ({ ...current, [proposalDecisionKey]: 'accepted' }))
                         }} className="rounded-md bg-ink px-3 py-2 font-semibold text-panel hover:opacity-90 disabled:opacity-40">
                           Accept AI Edit
                         </button>
-                        <button type="button" onClick={() => setProposalDecisions((current) => ({ ...current, [proposalDecisionKey]: 'rejected' }))}
+                        <button type="button" onClick={() => { setPreviewingAiProposalRank(null); setProposalDecisions((current) => ({ ...current, [proposalDecisionKey]: 'rejected' })) }}
                           className="rounded-md border border-line px-3 py-2 font-semibold text-muted hover:border-ink hover:text-ink">
                           Reject proposal
                         </button>
