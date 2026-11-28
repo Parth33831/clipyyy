@@ -329,6 +329,7 @@ def test_individual_clip_download_uses_attachment_disposition(client, tmp_path):
     assert response.content == b"clip-content"
     assert response.headers["content-disposition"].startswith("attachment;")
 
+
 def test_run_download_rejects_ready_clips_with_missing_files(client, tmp_path):
     run = db.create_run("local-video.mp4", {}, status="completed")
     missing_file = tmp_path / "missing-rendered-clip.mp4"
