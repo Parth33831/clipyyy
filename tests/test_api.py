@@ -110,7 +110,6 @@ def test_campaign_run_accepts_public_campaign_url_without_manual_brief(client):
 
 
 def test_campaign_music_can_be_attached_to_an_existing_run(client):
-    from pathlib import Path
 
     run = db.create_run(
         "local-video.mp4",
@@ -307,7 +306,6 @@ def test_run_detail_exposes_filler_removal_count(client):
 
 
 def test_campaign_frame_endpoint_returns_and_caches_source_thumbnail(client, tmp_path, monkeypatch):
-    from pathlib import Path
 
     run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
     source = tmp_path / "campaign-source.mp4"
@@ -703,7 +701,6 @@ def test_campaign_source_preview_rejects_invalid_sources(client, tmp_path, monke
 
 
 def test_campaign_subject_mask_endpoint_caches_alpha_preview(client, tmp_path, monkeypatch):
-    from pathlib import Path
 
     run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
     source = tmp_path / "campaign-source.mp4"
