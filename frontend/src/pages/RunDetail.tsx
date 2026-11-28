@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, Download, Redo2, RotateCcw, Scissors, Send, Trash2, Undo2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useBlocker, useNavigate, useParams } from 'react-router'
 import { useUndoRedo } from '../hooks/useUndoRedo'
 import { toast } from 'sonner'
 import { api, type CampaignEdit, type CampaignConcept, type CampaignTextOverlay, type CampaignMusicAnalysis, type CampaignLyricPhraseEdit, type CampaignLyricWordEdit, type CampaignShot, type CampaignSource, type Clip, type Post, type RunDetail } from '../api'
@@ -616,6 +616,12 @@ export function RunDetailPage() {
   }
   const hasUnsavedCampaignChanges = Boolean(savedOptions?.campaign_mode)
     && JSON.stringify(campaignHistoryValue) !== JSON.stringify(savedCampaignState)
+  const navigationBlocker = useBlocker(({ currentLocation, nextLocation }) =>
+    hasUnsavedCampaignChanges
+      && (currentLocation.pathname !== nextLocation.pathname
+        || currentLocation.search !== nextLocation.search
+        || currentLocation.hash !== nextLocation.hash),
+  )
 
   useEffect(() => {
     if (!hasUnsavedCampaignChanges) return
@@ -748,6 +754,41 @@ export function RunDetailPage() {
 
   return (
     <div className="flex flex-col gap-8">
+      {navigationBlocker.state === 'blocked' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4" onClick={(event) => {
+          if (event.target === event.currentTarget) navigationBlocker.reset()
+        }}>
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="unsaved-navigation-title"
+            aria-describedby="unsaved-navigation-description"
+            className="w-full max-w-md border border-line bg-surface p-6 shadow-2xl"
+          >
+            <p className="label text-acid">UNSAVED EDITOR CHANGES</p>
+            <h2 id="unsaved-navigation-title" className="display mt-2 text-2xl">Leave this editor?</h2>
+            <p id="unsaved-navigation-description" className="mt-3 text-sm leading-6 text-muted">
+              You have changes that haven't been applied yet. If you leave now, those edits will be lost. Stay here and apply them, or leave without saving.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => navigationBlocker.reset()}
+              >
+                Keep editing
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={() => navigationBlocker.proceed()}
+              >
+                Leave without saving
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
       <header className="flex flex-wrap items-end gap-6">
         <div className="flex min-w-0 flex-1 flex-col gap-3">
           <Eyebrow>
