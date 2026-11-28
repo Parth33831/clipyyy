@@ -785,6 +785,14 @@ def create_app(start_worker: bool = True) -> FastAPI:
         clips = [c for c in db.list_clips(run_id) if c["status"] == "ready" and c["file_path"]]
         if not clips:
             raise HTTPException(404, "No clips to download yet")
+        missing_files = [Path(c["file_path"]).name for c in clips if not Path(c["file_path"]).is_file()]
+        if missing_files:
+            preview = ", ".join(missing_files[:3])
+            extra = f" and {len(missing_files) - 3} more" if len(missing_files) > 3 else ""
+            raise HTTPException(
+                409,
+                f"Export unavailable: {len(missing_files)} clip file(s) are missing ({preview}{extra}). Re-render the run before downloading.",
+            )
         export_dir = home() / "exports"
         export_dir.mkdir(parents=True, exist_ok=True)
         name = f"clipyyy-{_safe(run['title'] or run_id)}-{run_id[:8]}.zip"

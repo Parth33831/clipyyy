@@ -237,6 +237,37 @@ def test_run_download_archive_is_persisted_under_clipyyy_home(client, tmp_path):
         assert "rendered-clip.mp4" in posting_copy
 
 
+
+def test_run_download_rejects_ready_clips_with_missing_files(client):
+    run = db.create_run("local-video.mp4", {}, status="completed")
+    missing_file = Path("missing-rendered-clip.mp4")
+    db.replace_clips(
+        run["id"],
+        [
+            {
+                "rank": 1,
+                "start_seconds": 0,
+                "end_seconds": 10,
+                "duration_seconds": 10,
+                "title": "Missing clip",
+                "post_title": "Missing clip",
+                "caption": "",
+                "hashtags": [],
+                "rationale": "",
+                "transcript": "",
+                "file_path": str(missing_file),
+                "status": "ready",
+            }
+        ],
+    )
+
+    response = client.get(f"/api/runs/{run['id']}/download")
+
+    assert response.status_code == 409
+    assert "clip file(s) are missing" in response.json()["detail"]
+    assert "Re-render the run" in response.json()["detail"]
+
+
 def test_run_detail_exposes_filler_removal_count(client):
     run = db.create_run("local.mp4", {})
     db.replace_clips(
