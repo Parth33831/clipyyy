@@ -813,9 +813,7 @@ def create_app(start_worker: bool = True) -> FastAPI:
                 used_names.add(archive_name)
                 zf.write(clip["file_path"], archive_name)
                 export_metadata.append({**_clip_public(clip), "archive_filename": archive_name})
-            zf.writestr(
-                "clips.json", json.dumps(export_metadata, indent=2, ensure_ascii=False)
-            )
+            zf.writestr("clips.json", json.dumps(export_metadata, indent=2, ensure_ascii=False))
             zf.writestr("POSTING-COPY.txt", _posting_copy(clips))
         return FileResponse(archive_path, filename=name, media_type="application/zip")
 
