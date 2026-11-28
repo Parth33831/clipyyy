@@ -587,6 +587,46 @@ export function RunDetailPage() {
     },
     onError: (e) => toast.error(e.message),
   })
+  const savedOptions = run.data?.options
+  const savedCampaignState = {
+    edits: run.data?.campaign_edits ?? [],
+    overlays: savedOptions?.campaign_text_overlays ?? [],
+    phraseEdits: savedOptions?.campaign_lyric_phrase_edits ?? [],
+    wordEdits: [],
+    musicStartSeconds: savedOptions?.campaign_music_start_seconds
+      ?? run.data?.campaign_quality_checks?.music_analysis?.selected_start_seconds
+      ?? 0,
+    musicVolume: Math.round((savedOptions?.campaign_music_volume ?? 0.9) * 100),
+    sourceAudioVolume: Math.round((savedOptions?.campaign_source_audio_volume ?? 1) * 100),
+    musicDucking: Boolean(savedOptions?.campaign_music_ducking),
+    musicFadeIn: savedOptions?.campaign_music_fade_in_seconds ?? 0.4,
+    musicFadeOut: savedOptions?.campaign_music_fade_out_seconds ?? 0.8,
+    lyricsStyle: savedOptions?.campaign_lyrics_style ?? 'dynamic',
+    lyricsColor: savedOptions?.campaign_lyrics_color ?? '#FFFFFF',
+    lyricsHighlightColor: savedOptions?.campaign_lyrics_highlight_color ?? '#00D7FF',
+    lyricsWordsOnScreen: savedOptions?.campaign_lyrics_words_on_screen ?? 3,
+    lyricsBehindSubject: Boolean(savedOptions?.campaign_lyrics_behind_subject),
+    lyricsPositionX: savedOptions?.campaign_lyrics_position_x ?? 50,
+    lyricsPositionY: savedOptions?.campaign_lyrics_position_y ?? 84,
+    lyricsScale: savedOptions?.campaign_lyrics_scale_percent ?? 100,
+    lyricsRotation: savedOptions?.campaign_lyrics_rotation_degrees ?? 0,
+    lyricsText: savedOptions?.campaign_lyrics ?? '',
+    hookText: savedOptions?.campaign_hook_text ?? String(run.data?.campaign_plan?.generated_hook ?? ''),
+    includeHook: Boolean(savedOptions?.include_campaign_hook),
+  }
+  const hasUnsavedCampaignChanges = Boolean(savedOptions?.campaign_mode)
+    && JSON.stringify(campaignHistoryValue) !== JSON.stringify(savedCampaignState)
+
+  useEffect(() => {
+    if (!hasUnsavedCampaignChanges) return
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warnBeforeLeaving)
+    return () => window.removeEventListener('beforeunload', warnBeforeLeaving)
+  }, [hasUnsavedCampaignChanges])
+
   const remove = useMutation({
     mutationFn: () => api.deleteRun(runId),
     onSuccess: () => {
@@ -798,6 +838,15 @@ export function RunDetailPage() {
           </nav>
           <div className="flex min-w-0 flex-col gap-6">
             <div id="campaign-preview" className="scroll-mt-5">
+      {data.options.campaign_mode && !busy && hasUnsavedCampaignChanges && (
+        <div role="status" aria-live="polite" className="mb-3 flex items-start gap-2 rounded-lg border border-acid/50 bg-acid/10 px-3 py-2.5 text-xs text-ink">
+          <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-acid" aria-hidden="true" />
+          <div>
+            <p className="font-semibold">You have unapplied editor changes</p>
+            <p className="mt-0.5 text-muted">Save the storyboard, audio mix, lyrics and text layers with their respective Apply buttons before leaving. Closing or refreshing this page will discard these changes.</p>
+          </div>
+        </div>
+      )}
       {data.options.campaign_mode && !busy && (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-panel px-3 py-2">
           <div>
