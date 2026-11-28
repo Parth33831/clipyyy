@@ -459,7 +459,7 @@ def campaign_shot_filter(
         f"crop={zoom_width}:{zoom_height},"
         f"crop={width}:{height}:"
         f"x='(iw-ow)*(0.5+0.24*sin(t*0.32+{phase:.4f}))':"
-        f"y='(ih-oh)*(0.5+0.18*cos(t*0.26+{phase:.4f}))':eval=frame,"
+        f"y='(ih-oh)*(0.5+0.18*cos(t*0.26+{phase:.4f}))':"
         f"setsar=1,fps={FPS},format=yuv420p{base_grade}"
     )
 
@@ -490,6 +490,11 @@ def _campaign_subject_crop(source_path: Path, start: float, end: float, aspect: 
         return None, None, None
 
 
+def _format_filter_seconds(value: float) -> str:
+    """Format zero cleanly for FFmpeg filter expressions."""
+    return "0" if abs(value) < 0.0005 else f"{value:.3f}"
+
+
 def _campaign_audio_filter(
     duration: float,
     normalize_audio: bool,
@@ -505,7 +510,7 @@ def _campaign_audio_filter(
     filters = [f"volume={volume:.3f}"]
     fade_start = min(max(0.0, float(fade_in_start_seconds)), duration)
     if fade_in > 0:
-        filters.append(f"afade=t=in:st={fade_start:.3f}:d={fade_in:.3f}")
+        filters.append(f"afade=t=in:st={_format_filter_seconds(fade_start)}:d={fade_in:.3f}")
     if fade_out > 0:
         filters.append(f"afade=t=out:st={max(0.0, duration - fade_out):.3f}:d={fade_out:.3f}")
     if normalize_audio:
@@ -1677,23 +1682,23 @@ def write_campaign_text_overlays(
             f"\\fn{font_family}\\b{bold}\\c{_ass_color(text_color)}}}"
         )
         if text_effect == "outline":
-            tags = tags[:-1] + r"\\bord2\\shad0}"
+            tags = tags[:-1] + r"\bord2\shad0}"
         elif text_effect == "none":
-            tags = tags[:-1] + r"\\bord0\\shad0}"
+            tags = tags[:-1] + r"\bord0\shad0}"
         else:
-            tags = tags[:-1] + r"\\bord0\\shad2}"
+            tags = tags[:-1] + r"\bord0\shad2}"
         if animation == "fade":
-            tags = tags[:-1] + r"\\fad(160,160)}"
+            tags = tags[:-1] + r"\fad(160,160)}"
         elif animation == "pop":
-            tags = tags[:-1] + r"\\fscx70\\fscy70\\t(0,180,\\fscx100\\fscy100)\\fad(100,120)}"
+            tags = tags[:-1] + r"\fscx70\fscy70\t(0,180,\fscx100\fscy100)\fad(100,120)}"
         elif animation == "slide":
             offset_y = min(height - 1, y + round(height * 0.045))
             tags = tags.replace(f"\\pos({x},{y})", f"\\move({x},{offset_y},{x},{y},0,220)")
-            tags = tags[:-1] + r"\\fad(100,120)" + "}"
+            tags = tags[:-1] + r"\fad(100,120)" + "}"
         style = "OverlayBox" if overlay.get("background", True) else "Overlay"
         escaped = r"\N".join(_escape(part) for part in text.splitlines())
         script.append(f"Dialogue: {layer},{_ts(start)},{_ts(end)},{style},,0,0,0,,{tags}{escaped}")
-    path.write_text("\\n".join(script) + "\\n", encoding="utf-8")
+    path.write_text("\n".join(script) + "\n", encoding="utf-8")
     return path
 
 
