@@ -238,6 +238,97 @@ def test_run_download_archive_is_persisted_under_clipyyy_home(client, tmp_path):
 
 
 
+
+def test_run_download_keeps_duplicate_clip_filenames_in_archive(client, tmp_path):
+    from clipyyy.config import home
+
+    run = db.create_run("local-video.mp4", {}, status="completed")
+    first_dir = tmp_path / "first"
+    second_dir = tmp_path / "second"
+    first_dir.mkdir()
+    second_dir.mkdir()
+    first_file = first_dir / "clip.mp4"
+    second_file = second_dir / "clip.mp4"
+    first_file.write_bytes(b"first-video")
+    second_file.write_bytes(b"second-video")
+    db.replace_clips(
+        run["id"],
+        [
+            {
+                "rank": 1,
+                "start_seconds": 0,
+                "end_seconds": 10,
+                "duration_seconds": 10,
+                "title": "First clip",
+                "post_title": "First clip",
+                "caption": "",
+                "hashtags": [],
+                "rationale": "",
+                "transcript": "",
+                "file_path": str(first_file),
+                "status": "ready",
+            },
+            {
+                "rank": 2,
+                "start_seconds": 10,
+                "end_seconds": 20,
+                "duration_seconds": 10,
+                "title": "Second clip",
+                "post_title": "Second clip",
+                "caption": "",
+                "hashtags": [],
+                "rationale": "",
+                "transcript": "",
+                "file_path": str(second_file),
+                "status": "ready",
+            },
+        ],
+    )
+
+    response = client.get(f"/api/runs/{run['id']}/download")
+
+    assert response.status_code == 200
+    archives = list((home() / "exports").glob(f"clipyyy-*-{run['id'][:8]}.zip"))
+    assert len(archives) == 1
+    with zipfile.ZipFile(archives[0]) as archive:
+        names = [name for name in archive.namelist() if name.endswith(".mp4")]
+        assert len(names) == 2
+        assert len(set(names)) == 2
+        assert archive.read(names[0]) in {b"first-video", b"second-video"}
+        assert archive.read(names[1]) in {b"first-video", b"second-video"}
+
+
+def test_individual_clip_download_uses_attachment_disposition(client, tmp_path):
+    run = db.create_run("local-video.mp4", {}, status="completed")
+    clip_file = tmp_path / "individual-clip.mp4"
+    clip_file.write_bytes(b"clip-content")
+    db.replace_clips(
+        run["id"],
+        [
+            {
+                "rank": 1,
+                "start_seconds": 0,
+                "end_seconds": 5,
+                "duration_seconds": 5,
+                "title": "Individual clip",
+                "post_title": "Individual clip",
+                "caption": "",
+                "hashtags": [],
+                "rationale": "",
+                "transcript": "",
+                "file_path": str(clip_file),
+                "status": "ready",
+            }
+        ],
+    )
+    clip = db.list_clips(run["id"])[0]
+
+    response = client.get(f"/api/clips/{clip['id']}/video?download=true")
+
+    assert response.status_code == 200
+    assert response.content == b"clip-content"
+    assert response.headers["content-disposition"].startswith("attachment;")
+
 def test_run_download_rejects_ready_clips_with_missing_files(client, tmp_path):
     run = db.create_run("local-video.mp4", {}, status="completed")
     missing_file = tmp_path / "missing-rendered-clip.mp4"

@@ -799,8 +799,18 @@ def create_app(start_worker: bool = True) -> FastAPI:
         name = f"clipyyy-{_safe(run['title'] or run_id)}-{run_id[:8]}.zip"
         archive_path = export_dir / name
         with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_STORED) as zf:
+            used_names: set[str] = set()
             for clip in clips:
-                zf.write(clip["file_path"], Path(clip["file_path"]).name)
+                original_name = Path(clip["file_path"]).name
+                archive_name = original_name
+                if archive_name in used_names:
+                    archive_name = f"clip-{int(clip.get('rank') or 0):02d}-{original_name}"
+                    suffix = 2
+                    while archive_name in used_names:
+                        archive_name = f"clip-{int(clip.get('rank') or 0):02d}-{suffix}-{original_name}"
+                        suffix += 1
+                used_names.add(archive_name)
+                zf.write(clip["file_path"], archive_name)
             zf.writestr(
                 "clips.json", json.dumps([_clip_public(c) for c in clips], indent=2, ensure_ascii=False)
             )
