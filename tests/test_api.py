@@ -238,8 +238,6 @@ def test_run_download_archive_is_persisted_under_clipyyy_home(client, tmp_path):
         assert "rendered-clip.mp4" in posting_copy
 
 
-
-
 def test_run_download_keeps_duplicate_clip_filenames_in_archive(client, tmp_path):
     from clipyyy.config import home
 
