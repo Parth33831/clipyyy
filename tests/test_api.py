@@ -288,7 +288,7 @@ def test_campaign_music_sanitizes_client_filename(client, tmp_path, monkeypatch)
     )
 
     assert response.status_code == 200
-    saved = Path(response.json()["path"])
+    saved = Path(db.get_run(run["id"])["options"]["campaign_music_path"])
     assert saved.parent == upload_dir
     assert saved.name.endswith("-theme.mp3")
     assert saved.read_bytes() == b"audio-data"
