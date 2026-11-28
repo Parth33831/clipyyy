@@ -791,7 +791,8 @@ def create_app(start_worker: bool = True) -> FastAPI:
             extra = f" and {len(missing_files) - 3} more" if len(missing_files) > 3 else ""
             raise HTTPException(
                 409,
-                f"Export unavailable: {len(missing_files)} clip file(s) are missing ({preview}{extra}). Re-render the run before downloading.",
+                f"Export unavailable: {len(missing_files)} clip file(s) are missing ({preview}{extra}). "
+                "Re-render the run before downloading.",
             )
         export_dir = home() / "exports"
         export_dir.mkdir(parents=True, exist_ok=True)
