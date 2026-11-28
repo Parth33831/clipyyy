@@ -77,6 +77,106 @@ def test_upload_and_health(client, tmp_path, monkeypatch):
     assert checks["llm"]["ok"] is False
 
 
+def test_uploaded_source_runs_through_pipeline_and_exports_clips(client, tmp_path, monkeypatch):
+    import zipfile
+    from io import BytesIO
+
+    from clipyyy.config import home
+
+    upload_dir = tmp_path / "uploads"
+    monkeypatch.setattr(api, "uploads_dir", lambda: upload_dir)
+    uploaded = client.post(
+        "/api/uploads",
+        files={"file": ("demo.mp4", b"source-video-bytes", "video/mp4")},
+    )
+    assert uploaded.status_code == 200
+    source_path = Path(uploaded.json()["source"])
+    assert source_path.is_file()
+    assert source_path.read_bytes() == b"source-video-bytes"
+
+    created = client.post("/api/runs", json={"sources": [uploaded.json()["source"]]})
+    assert created.status_code == 200
+    run_id = created.json()[0]["id"]
+    assert created.json()[0]["status"] == "queued"
+    claimed = db.claim_next_run()
+    assert claimed["id"] == run_id
+
+    def download(ctx):
+        assert Path(ctx.source).is_file()
+        return {"video_path": ctx.source, "title": "Uploaded demo"}
+
+    def transcribe(ctx):
+        assert ctx.state["download"]["video_path"] == ctx.source
+        return {"language": "en", "words": [], "sentences": []}
+
+    def select(ctx):
+        assert ctx.state["transcribe"]["language"] == "en"
+        return {"clips": [{"rank": 1, "start_seconds": 0, "end_seconds": 5, "title": "Demo highlight"}]}
+
+    def plan(ctx):
+        return {"clips": ctx.state["select"]["clips"]}
+
+    def broll(ctx):
+        return {}
+
+    def reframe(ctx):
+        return {"clips": ctx.state["select"]["clips"]}
+
+    def render(ctx):
+        ctx.out_dir.mkdir(parents=True, exist_ok=True)
+        output = ctx.out_dir / "clip-01-demo-highlight.mp4"
+        output.write_bytes(b"rendered-video-bytes")
+        db.replace_clips(
+            ctx.run_id,
+            [
+                {
+                    "rank": 1,
+                    "start_seconds": 0,
+                    "end_seconds": 5,
+                    "duration_seconds": 5,
+                    "title": "Demo highlight",
+                    "post_title": "Demo highlight",
+                    "caption": "A useful moment.",
+                    "hashtags": ["#demo"],
+                    "rationale": "Clear standalone point",
+                    "transcript": "A useful moment.",
+                    "file_path": str(output),
+                    "status": "ready",
+                }
+            ],
+        )
+        return {"renders": [{"rank": 1, "status": "ready", "file_path": str(output)}]}
+
+    stages = [
+        ("download", "Download", download),
+        ("transcribe", "Transcribe", transcribe),
+        ("select", "Find clips", select),
+        ("plan", "Plan edits", plan),
+        ("broll", "B-roll", broll),
+        ("reframe", "Reframe", reframe),
+        ("render", "Render", render),
+    ]
+    monkeypatch.setattr(pipeline, "STAGES", stages)
+    monkeypatch.setattr(pipeline, "STAGE_NAMES", [name for name, _, _ in stages])
+    pipeline.execute(claimed)
+
+    detail = client.get(f"/api/runs/{run_id}")
+    assert detail.status_code == 200
+    assert detail.json()["status"] == "completed"
+    assert all(stage["status"] == "done" for stage in detail.json()["stages"])
+    assert detail.json()["clips"][0]["status"] == "ready"
+
+    exported = client.get(f"/api/runs/{run_id}/download")
+    assert exported.status_code == 200
+    with zipfile.ZipFile(BytesIO(exported.content)) as archive:
+        assert "clip-01-demo-highlight.mp4" in archive.namelist()
+        assert archive.read("clip-01-demo-highlight.mp4") == b"rendered-video-bytes"
+        manifest = json.loads(archive.read("clips.json"))
+        assert manifest[0]["title"] == "Demo highlight"
+        assert "#demo" in archive.read("POSTING-COPY.txt").decode("utf-8")
+    assert list((home() / "exports").glob(f"clipyyy-*-{run_id[:8]}.zip"))
+    
+
 def test_buffer_without_key(client):
     assert client.get("/api/buffer/channels").status_code == 400
 
