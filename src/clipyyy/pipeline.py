@@ -458,6 +458,13 @@ def stage_select(ctx: Context) -> dict:
             "campaign_lyric_transcription_attempted": lyric_options["campaign_lyric_transcription_attempted"],
             "campaign_lyric_cues": lyric_cues,
             "campaign_sources": sources,
+            "campaign_source_analyses": [
+                {
+                    "frames": analysis.get("frames", []),
+                    "black_intervals": analysis.get("black_intervals", []),
+                }
+                for analysis in analyses
+            ],
             "clips": clips,
         }
     return select_clips(llm, source, ctx.state["transcribe"], options)

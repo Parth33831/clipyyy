@@ -165,6 +165,8 @@ Choose an installed local Ollama model in **Settings**. `llm_provider` is locked
 
 Data is stored in `CLIPYYY_HOME` (default `~/.clipyyy`).
 
+Upload limits are configurable in bytes with `CLIPYYY_MAX_VIDEO_UPLOAD_BYTES` (default 50 GiB) and `CLIPYYY_MAX_CAMPAIGN_MUSIC_UPLOAD_BYTES` (default 2 GiB). The API streams uploads in chunks and removes incomplete files when a limit is exceeded. Docker Compose passes these variables through; set them in your environment or `.env` file to change the defaults.
+
 ### Auto-posting with Buffer
 
 Buffer accepts media only by public URL, so clipyyy first uploads the clip to your own S3-compatible bucket (Cloudflare R2, Backblaze B2, AWS S3 or MinIO), then creates the post as queued, scheduled, immediate or draft. Add your [Buffer API key](https://publish.buffer.com/settings/api) and bucket details under Settings.

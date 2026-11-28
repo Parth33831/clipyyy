@@ -121,3 +121,100 @@ def _sentence(words: list[dict]) -> dict:
         "start": words[0]["start"],
         "end": words[-1]["end"],
     }
+
+
+def align_lyric_text_to_words(lyrics: str, transcript_words: list[dict], max_lyrics_words: int = 500) -> dict:
+    """Align creator-supplied lyric words to Whisper timestamps without replacing their text."""
+    import math
+    import re
+    from difflib import SequenceMatcher
+
+    lyric_tokens = re.findall(r"\w+(?:['’]\w+)*", lyrics, flags=re.UNICODE)
+    if not lyric_tokens:
+        raise ValueError("Enter lyrics before asking CLIPYYY to align them.")
+    if len(lyric_tokens) > max_lyrics_words:
+        raise ValueError(f"Align up to {max_lyrics_words} lyric words at a time.")
+
+    recognized = []
+    for item in transcript_words[:2000]:
+        try:
+            raw_word = item["word"]
+            if not isinstance(raw_word, str):
+                continue
+            word = raw_word.strip()
+            start = float(item["start"])
+            end = float(item["end"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if word and math.isfinite(start) and math.isfinite(end) and start >= 0 and end > start:
+            recognized.append({"word": word, "start": start, "end": end})
+    if not recognized:
+        raise ValueError("No usable word timestamps were detected in the soundtrack.")
+
+    def normalize(value: str) -> str:
+        return re.sub(r"[^\w]", "", value.casefold(), flags=re.UNICODE)
+
+    wanted = [normalize(token) for token in lyric_tokens]
+    heard = [normalize(item["word"]) for item in recognized]
+    rows, cols = len(wanted), len(heard)
+    trace = [bytearray(cols + 1) for _ in range(rows + 1)]
+    previous = [0.0] * (cols + 1)
+    skip_transcript, skip_lyric = -0.22, -1.65
+
+    for i in range(1, rows + 1):
+        current = [previous[0] + skip_lyric] + [0.0] * cols
+        trace[i][0] = 3
+        for j in range(1, cols + 1):
+            left, right = wanted[i - 1], heard[j - 1]
+            similarity = 0.0
+            if left and right:
+                if left == right:
+                    similarity = 1.0
+                elif left[0] == right[0] and abs(len(left) - len(right)) <= 2:
+                    similarity = SequenceMatcher(None, left, right).ratio()
+            match_score = 3.0 if similarity >= 0.92 else 1.25 if similarity >= 0.76 else -2.4
+            choices = (
+                previous[j - 1] + match_score,
+                current[j - 1] + skip_transcript,
+                previous[j] + skip_lyric,
+            )
+            best = max(range(3), key=choices.__getitem__)
+            current[j] = choices[best]
+            trace[i][j] = best + 1
+        previous = current
+
+    j = max(range(cols + 1), key=previous.__getitem__)
+    i = rows
+    matched = {}
+    while i > 0 and j >= 0:
+        direction = trace[i][j]
+        if direction == 1:
+            left, right = wanted[i - 1], heard[j - 1]
+            similarity = 1.0 if left == right else SequenceMatcher(None, left, right).ratio()
+            if similarity >= 0.76:
+                matched[i - 1] = recognized[j - 1]
+            i -= 1
+            j -= 1
+        elif direction == 2:
+            j -= 1
+        elif direction == 3:
+            i -= 1
+        else:
+            break
+
+    aligned = [
+        {
+            "word": lyric_tokens[index],
+            "start": round(float(item["start"]), 3),
+            "end": round(float(item["end"]), 3),
+        }
+        for index, item in sorted(matched.items())
+    ]
+    unmatched = [token for index, token in enumerate(lyric_tokens) if index not in matched]
+    return {
+        "words": aligned,
+        "unmatched_words": unmatched,
+        "word_count": len(lyric_tokens),
+        "matched_count": len(aligned),
+        "match_percent": round(100 * len(aligned) / len(lyric_tokens)),
+    }

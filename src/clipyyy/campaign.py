@@ -1375,3 +1375,202 @@ def format_campaign_plan(plan: dict[str, Any]) -> str:
     if lines:
         return "\n".join(lines)
     return "- No structured requirements extracted; follow the original brief exactly."
+
+
+AI_EDIT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "shots": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "candidate_index": {"type": "integer"},
+                    "start_seconds": {"type": "number"},
+                    "end_seconds": {"type": "number"},
+                    "reason": {"type": "string"},
+                },
+                "required": ["candidate_index", "start_seconds", "end_seconds", "reason"],
+                "additionalProperties": False,
+            },
+        },
+        "notes": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["shots", "notes"],
+    "additionalProperties": False,
+}
+
+
+def generate_ai_edit_proposal(
+    llm,
+    brief: str,
+    edit: dict[str, Any],
+    sources: list[dict[str, Any]],
+    creative_direction: str = "",
+    candidate_edits: list[dict[str, Any]] | None = None,
+    source_analyses: list[dict[str, Any]] | None = None,
+) -> tuple[dict[str, Any], list[str]]:
+    """Generate a review-only edit from moments already selected across campaign clips.
+
+    The selected clip is represented by the live unsaved edit. Other generated clips contribute
+    verified moments, while visual source analyses contribute bounded windows around unselected
+    scene observations. Nothing is mutated or persisted.
+    """
+    source_edits = [edit]
+    for item in candidate_edits or []:
+        if int(item.get("rank") or 0) != int(edit.get("rank") or 0):
+            source_edits.append(item)
+    candidates = []
+    seen_ranges = set()
+    for source_edit in source_edits:
+        clip_rank = int(source_edit.get("rank") or 0)
+        clip_title = str(source_edit.get("title") or f"Clip {clip_rank or '?'}")[:100]
+        for shot in source_edit.get("shots") or []:
+            try:
+                source_index = int(shot["source_index"])
+                start = float(shot["start_seconds"])
+                end = float(shot["end_seconds"])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError("A campaign candidate contains an invalid shot.") from exc
+            if not 0 <= source_index < len(sources):
+                raise ValueError("A campaign candidate refers to a missing source video.")
+            duration = float(sources[source_index].get("duration_seconds") or 0)
+            if start < 0 or end <= start or end > duration:
+                raise ValueError("A campaign candidate contains a shot outside its source video.")
+            range_key = (source_index, round(start, 3), round(end, 3))
+            if range_key in seen_ranges:
+                continue
+            seen_ranges.add(range_key)
+            candidates.append(
+                {
+                    "candidate_index": len(candidates),
+                    "source_title": str(sources[source_index].get("title") or f"Source {source_index + 1}"),
+                    "source_index": source_index,
+                    "start_seconds": start,
+                    "end_seconds": end,
+                    "origin_clip_rank": clip_rank,
+                    "origin_clip_title": clip_title,
+                    "reason": str(shot.get("reason") or "")[:300],
+                    "duration_seconds": round(end - start, 3),
+                }
+            )
+    for source_index, analysis in enumerate(source_analyses or []):
+        if source_index >= len(sources):
+            break
+        duration = float(sources[source_index].get("duration_seconds") or 0)
+        if duration < 1.5:
+            continue
+        black_intervals = analysis.get("black_intervals") or []
+        for frame in analysis.get("frames") or []:
+            try:
+                timestamp = float(frame["timestamp"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            description = str(frame.get("description") or "").strip()
+            if not description or "Visual content unavailable" in description:
+                continue
+            start = max(0.0, timestamp - 1.25)
+            end = min(duration, timestamp + 1.25)
+            if end - start < 1.5:
+                start = max(0.0, min(timestamp - 0.75, duration - 1.5))
+                end = min(duration, start + 1.5)
+            if end - start < 1.5 or _intersects_black_interval(start, end, black_intervals):
+                continue
+            overlap = any(
+                candidate["source_index"] == source_index
+                and max(0.0, min(end, candidate["end_seconds"]) - max(start, candidate["start_seconds"]))
+                / (end - start)
+                > 0.35
+                for candidate in candidates
+            )
+            if overlap:
+                continue
+            range_key = (source_index, round(start, 3), round(end, 3))
+            if range_key in seen_ranges:
+                continue
+            seen_ranges.add(range_key)
+            candidates.append(
+                {
+                    "candidate_index": len(candidates),
+                    "source_title": str(sources[source_index].get("title") or f"Source {source_index + 1}"),
+                    "source_index": source_index,
+                    "start_seconds": round(start, 3),
+                    "end_seconds": round(end, 3),
+                    "origin_clip_rank": None,
+                    "origin_clip_title": "Unselected source footage",
+                    "candidate_type": "visual_scene_discovery",
+                    "visual_evidence": description[:500],
+                    "reason": "New scene identified by campaign visual analysis",
+                    "duration_seconds": round(end - start, 3),
+                }
+            )
+    if len(candidates) < 3:
+        raise ValueError(
+            "AI Edit needs at least three verified footage moments. Add more shots "
+            "or run campaign visual analysis."
+        )
+
+    system = (
+        "You are CLIPYYY's AI video editor. Create a fresh, reviewable edit for the selected clip. "
+        "Use only the supplied candidate shots, including moments from other generated clips and bounded "
+        "windows discovered from the campaign's original visual scene analysis. New scene candidates include "
+        "visual_evidence; use that observation as limited evidence, not proof of unseen events. "
+        "You may change "
+        "their order and trim within each candidate's existing source-time range, but must "
+        "never invent footage, source indexes, or timestamps outside those ranges. Keep at least three "
+        "distinct shots, avoid duplicate candidates, "
+        "preserve factual meaning, and make a coherent short-form sequence. Follow the campaign brief "
+        "and the creator's selected creative direction. Prefer a strong, immediately understandable "
+        "opening and a satisfying truthful progression. Each output shot must be at least 1.5 seconds "
+        "and no longer than its candidate's original range. Explain each choice briefly. Return JSON only."
+    )
+    user = (
+        f"Campaign brief:\n{brief[:6000] or 'No written brief was supplied.'}\n\n"
+        f"Selected creative direction:\n{creative_direction[:1000] or 'Use the campaign brief.'}\n\n"
+        f"Selected clip title: {str(edit.get('title') or 'Untitled')[:100]}\n"
+        f"Current candidate shots (timestamps are source-video seconds):\n"
+        f"{json.dumps(candidates, ensure_ascii=False)}\n\n"
+        "Return a revised sequence. candidate_index must refer to one supplied candidate. "
+        "You may reuse strong moments from any listed campaign clip or newly discovered source window, omit "
+        "weak shots, but return at least "
+        "three. Keep the overall duration reasonably close to the current clip. Do not add new footage."
+    )
+    result = llm.complete_json(system, user, AI_EDIT_SCHEMA, "campaign_ai_edit_proposal")
+    proposed = []
+    used = set()
+    for item in result.get("shots", [])[:40]:
+        try:
+            index = int(item["candidate_index"])
+            if index in used or not 0 <= index < len(candidates):
+                continue
+            candidate = candidates[index]
+            start = float(item["start_seconds"])
+            end = float(item["end_seconds"])
+            if start < candidate["start_seconds"] or end > candidate["end_seconds"] or end - start < 1.5:
+                continue
+            used.add(index)
+            proposed.append(
+                {
+                    "source_index": candidate["source_index"],
+                    "start_seconds": round(start, 3),
+                    "end_seconds": round(end, 3),
+                    "reason": str(item.get("reason") or candidate["reason"])[:300],
+                }
+            )
+        except (KeyError, TypeError, ValueError):
+            continue
+    if len(proposed) < 3:
+        raise ValueError(
+            "The AI could not produce a safe edit from these shots. Your current edit is unchanged."
+        )
+    proposal = {
+        "rank": int(edit["rank"]),
+        "title": str(edit.get("title") or "Campaign edit")[:100],
+        "shots": proposed,
+    }
+    notes = [str(note)[:300] for note in result.get("notes", [])[:8] if str(note).strip()]
+    if not notes:
+        notes = [
+            "Generated a new sequence using verified footage moments already selected across this campaign."
+        ]
+    return proposal, notes

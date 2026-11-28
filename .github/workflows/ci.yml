@@ -24,6 +24,13 @@ jobs:
       # Keep campaign footage discovery regressions in the fast backend suite.
       - run: uv run pytest -q tests/test_selection.py tests/test_render.py tests/test_audio_normalization.py tests/test_transcribe.py tests/test_vision.py tests/test_llm.py tests/test_campaign.py tests/test_campaign_assets.py tests/test_campaign_link.py tests/test_api.py tests/test_pipeline.py tests/test_campaign_source_audio.py tests/test_filler_words.py tests/test_doctor.py tests/test_foreground.py
 
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the production container image
+        run: docker build --tag clipyyy:ci .
+
   frontend:
     runs-on: ubuntu-latest
     defaults:
@@ -39,9 +46,9 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-  # Full validation is available on demand before releases or larger changes.
+  # Run the complete backend suite for every PR and on demand before releases.
   full-backend:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

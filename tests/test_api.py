@@ -1,6 +1,7 @@
 import json
 import struct
 import subprocess
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -63,11 +64,153 @@ def test_invalid_options_rejected(client):
     assert r.status_code == 422
 
 
-def test_upload_and_health(client):
-    r = client.post("/api/uploads", files={"file": ("talk.mp4", b"data", "video/mp4")})
+def test_upload_and_health(client, tmp_path, monkeypatch):
+    upload_dir = tmp_path / "uploads"
+    monkeypatch.setattr(api, "uploads_dir", lambda: upload_dir)
+    r = client.post("/api/uploads", files={"file": ("talk.mp4", b"video-test-data", "video/mp4")})
     assert r.status_code == 200 and r.json()["name"] == "talk.mp4"
+    assert r.json()["size_bytes"] == len(b"video-test-data")
+    saved_upload = Path(r.json()["source"])
+    assert saved_upload.parent == upload_dir
+    assert saved_upload.name.endswith("-talk.mp4")
+    assert saved_upload.read_bytes() == b"video-test-data"
     checks = {c["name"]: c for c in client.get("/api/health").json()["checks"]}
     assert checks["llm"]["ok"] is False
+
+
+@pytest.mark.parametrize("filename", ["..\\\\..\\\\outside.mp4", "../../outside.mp4"])
+def test_video_upload_sanitizes_client_filename_and_accepts_exact_limit(
+    client, tmp_path, monkeypatch, filename
+):
+    upload_dir = tmp_path / "uploads"
+    monkeypatch.setattr(api, "uploads_dir", lambda: upload_dir)
+    monkeypatch.setattr(api, "MAX_VIDEO_UPLOAD_BYTES", 4)
+
+    response = client.post(
+        "/api/uploads",
+        files={"file": (filename, b"1234", "video/mp4")},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "outside.mp4"
+    assert response.json()["size_bytes"] == 4
+    saved = Path(response.json()["source"])
+    assert saved.parent == upload_dir
+    assert saved.read_bytes() == b"1234"
+
+
+def test_video_upload_limit_rejects_oversized_file_and_cleans_partial_file(client, tmp_path, monkeypatch):
+    upload_dir = tmp_path / "uploads"
+    monkeypatch.setattr(api, "uploads_dir", lambda: upload_dir)
+    monkeypatch.setattr(api, "MAX_VIDEO_UPLOAD_BYTES", 4)
+
+    response = client.post(
+        "/api/uploads",
+        files={"file": ("too-large.mp4", b"12345", "video/mp4")},
+    )
+
+    assert response.status_code == 413
+    assert list(upload_dir.iterdir()) == []
+
+
+def test_uploaded_source_runs_through_pipeline_and_exports_clips(client, tmp_path, monkeypatch):
+    import zipfile
+    from io import BytesIO
+
+    from clipyyy.config import home
+
+    upload_dir = tmp_path / "uploads"
+    monkeypatch.setattr(api, "uploads_dir", lambda: upload_dir)
+    uploaded = client.post(
+        "/api/uploads",
+        files={"file": ("demo.mp4", b"source-video-bytes", "video/mp4")},
+    )
+    assert uploaded.status_code == 200
+    source_path = Path(uploaded.json()["source"])
+    assert source_path.is_file()
+    assert source_path.read_bytes() == b"source-video-bytes"
+
+    created = client.post("/api/runs", json={"sources": [uploaded.json()["source"]]})
+    assert created.status_code == 200
+    run_id = created.json()[0]["id"]
+    assert created.json()[0]["status"] == "queued"
+    claimed = db.claim_next_run()
+    assert claimed["id"] == run_id
+
+    def download(ctx):
+        assert Path(ctx.source).is_file()
+        return {"video_path": ctx.source, "title": "Uploaded demo"}
+
+    def transcribe(ctx):
+        assert ctx.state["download"]["video_path"] == ctx.source
+        return {"language": "en", "words": [], "sentences": []}
+
+    def select(ctx):
+        assert ctx.state["transcribe"]["language"] == "en"
+        return {"clips": [{"rank": 1, "start_seconds": 0, "end_seconds": 5, "title": "Demo highlight"}]}
+
+    def plan(ctx):
+        return {"clips": ctx.state["select"]["clips"]}
+
+    def broll(ctx):
+        return {}
+
+    def reframe(ctx):
+        return {"clips": ctx.state["select"]["clips"]}
+
+    def render(ctx):
+        ctx.out_dir.mkdir(parents=True, exist_ok=True)
+        output = ctx.out_dir / "clip-01-demo-highlight.mp4"
+        output.write_bytes(b"rendered-video-bytes")
+        db.replace_clips(
+            ctx.run_id,
+            [
+                {
+                    "rank": 1,
+                    "start_seconds": 0,
+                    "end_seconds": 5,
+                    "duration_seconds": 5,
+                    "title": "Demo highlight",
+                    "post_title": "Demo highlight",
+                    "caption": "A useful moment.",
+                    "hashtags": ["#demo"],
+                    "rationale": "Clear standalone point",
+                    "transcript": "A useful moment.",
+                    "file_path": str(output),
+                    "status": "ready",
+                }
+            ],
+        )
+        return {"renders": [{"rank": 1, "status": "ready", "file_path": str(output)}]}
+
+    stages = [
+        ("download", "Download", download),
+        ("transcribe", "Transcribe", transcribe),
+        ("select", "Find clips", select),
+        ("plan", "Plan edits", plan),
+        ("broll", "B-roll", broll),
+        ("reframe", "Reframe", reframe),
+        ("render", "Render", render),
+    ]
+    monkeypatch.setattr(pipeline, "STAGES", stages)
+    monkeypatch.setattr(pipeline, "STAGE_NAMES", [name for name, _, _ in stages])
+    pipeline.execute(claimed)
+
+    detail = client.get(f"/api/runs/{run_id}")
+    assert detail.status_code == 200
+    assert detail.json()["status"] == "completed"
+    assert all(stage["status"] == "done" for stage in detail.json()["stages"])
+    assert detail.json()["clips"][0]["status"] == "ready"
+
+    exported = client.get(f"/api/runs/{run_id}/download")
+    assert exported.status_code == 200
+    with zipfile.ZipFile(BytesIO(exported.content)) as archive:
+        assert "clip-01-demo-highlight.mp4" in archive.namelist()
+        assert archive.read("clip-01-demo-highlight.mp4") == b"rendered-video-bytes"
+        manifest = json.loads(archive.read("clips.json"))
+        assert manifest[0]["title"] == "Demo highlight"
+        assert "#demo" in archive.read("POSTING-COPY.txt").decode("utf-8")
+    assert list((home() / "exports").glob(f"clipyyy-*-{run_id[:8]}.zip"))
 
 
 def test_buffer_without_key(client):
@@ -108,8 +251,50 @@ def test_campaign_run_accepts_public_campaign_url_without_manual_brief(client):
     assert response.json()[0]["options"]["campaign_url"] == "https://campaign.example/details"
 
 
+def test_campaign_music_upload_limit_rejects_oversized_file_and_keeps_run_unchanged(
+    client, tmp_path, monkeypatch
+):
+    upload_dir = tmp_path / "uploads"
+    monkeypatch.setattr(api, "uploads_dir", lambda: upload_dir)
+    monkeypatch.setattr(api, "MAX_CAMPAIGN_MUSIC_UPLOAD_BYTES", 4)
+    run = db.create_run(
+        "local-video.mp4",
+        {"campaign_mode": True, "campaign_music_path": None},
+        status="failed",
+    )
+
+    response = client.post(
+        f"/api/runs/{run['id']}/campaign-music",
+        files={"file": ("too-large.mp3", b"12345", "audio/mpeg")},
+    )
+
+    assert response.status_code == 413
+    assert db.get_run(run["id"])["options"]["campaign_music_path"] is None
+    assert list(upload_dir.iterdir()) == []
+
+
+def test_campaign_music_sanitizes_client_filename(client, tmp_path, monkeypatch):
+    upload_dir = tmp_path / "uploads"
+    monkeypatch.setattr(api, "uploads_dir", lambda: upload_dir)
+    run = db.create_run(
+        "local-video.mp4",
+        {"campaign_mode": True, "campaign_music_path": None},
+        status="failed",
+    )
+
+    response = client.post(
+        f"/api/runs/{run['id']}/campaign-music",
+        files={"file": ("..\\\\..\\\\theme.mp3", b"audio-data", "audio/mpeg")},
+    )
+
+    assert response.status_code == 200
+    saved = Path(db.get_run(run["id"])["options"]["campaign_music_path"])
+    assert saved.parent == upload_dir
+    assert saved.name.endswith("-theme.mp3")
+    assert saved.read_bytes() == b"audio-data"
+
+
 def test_campaign_music_can_be_attached_to_an_existing_run(client):
-    from pathlib import Path
 
     run = db.create_run(
         "local-video.mp4",
@@ -195,6 +380,8 @@ def test_campaign_audio_settings_reject_out_of_range_values(client):
 
 
 def test_run_download_archive_is_persisted_under_clipyyy_home(client, tmp_path):
+    import zipfile
+
     from clipyyy.config import home
 
     run = db.create_run("local-video.mp4", {}, status="completed")
@@ -225,7 +412,6 @@ def test_run_download_archive_is_persisted_under_clipyyy_home(client, tmp_path):
     archives = list((home() / "exports").glob(f"clipyyy-*-{run['id'][:8]}.zip"))
     assert len(archives) == 1
     archive = archives[0]
-    import zipfile
 
     with zipfile.ZipFile(archive) as zf:
         assert "rendered-clip.mp4" in zf.namelist()
@@ -235,6 +421,131 @@ def test_run_download_archive_is_persisted_under_clipyyy_home(client, tmp_path):
         assert "A launch worth watching." in posting_copy
         assert "#launch #brand" in posting_copy
         assert "rendered-clip.mp4" in posting_copy
+
+
+def test_run_download_keeps_duplicate_clip_filenames_in_archive(client, tmp_path):
+    import zipfile
+
+    from clipyyy.config import home
+
+    run = db.create_run("local-video.mp4", {}, status="completed")
+    first_dir = tmp_path / "first"
+    second_dir = tmp_path / "second"
+    first_dir.mkdir()
+    second_dir.mkdir()
+    first_file = first_dir / "clip.mp4"
+    second_file = second_dir / "clip.mp4"
+    first_file.write_bytes(b"first-video")
+    second_file.write_bytes(b"second-video")
+    db.replace_clips(
+        run["id"],
+        [
+            {
+                "rank": 1,
+                "start_seconds": 0,
+                "end_seconds": 10,
+                "duration_seconds": 10,
+                "title": "First clip",
+                "post_title": "First clip",
+                "caption": "",
+                "hashtags": [],
+                "rationale": "",
+                "transcript": "",
+                "file_path": str(first_file),
+                "status": "ready",
+            },
+            {
+                "rank": 2,
+                "start_seconds": 10,
+                "end_seconds": 20,
+                "duration_seconds": 10,
+                "title": "Second clip",
+                "post_title": "Second clip",
+                "caption": "",
+                "hashtags": [],
+                "rationale": "",
+                "transcript": "",
+                "file_path": str(second_file),
+                "status": "ready",
+            },
+        ],
+    )
+
+    response = client.get(f"/api/runs/{run['id']}/download")
+
+    assert response.status_code == 200
+    archives = list((home() / "exports").glob(f"clipyyy-*-{run['id'][:8]}.zip"))
+    assert len(archives) == 1
+    with zipfile.ZipFile(archives[0]) as archive:
+        names = [name for name in archive.namelist() if name.endswith(".mp4")]
+        assert len(names) == 2
+        assert len(set(names)) == 2
+        manifest = json.loads(archive.read("clips.json"))
+        assert {item["archive_filename"] for item in manifest} == set(names)
+        assert archive.read(names[0]) in {b"first-video", b"second-video"}
+        assert archive.read(names[1]) in {b"first-video", b"second-video"}
+
+
+def test_individual_clip_download_uses_attachment_disposition(client, tmp_path):
+    run = db.create_run("local-video.mp4", {}, status="completed")
+    clip_file = tmp_path / "individual-clip.mp4"
+    clip_file.write_bytes(b"clip-content")
+    db.replace_clips(
+        run["id"],
+        [
+            {
+                "rank": 1,
+                "start_seconds": 0,
+                "end_seconds": 5,
+                "duration_seconds": 5,
+                "title": "Individual clip",
+                "post_title": "Individual clip",
+                "caption": "",
+                "hashtags": [],
+                "rationale": "",
+                "transcript": "",
+                "file_path": str(clip_file),
+                "status": "ready",
+            }
+        ],
+    )
+    clip = db.list_clips(run["id"])[0]
+
+    response = client.get(f"/api/clips/{clip['id']}/video?download=true")
+
+    assert response.status_code == 200
+    assert response.content == b"clip-content"
+    assert response.headers["content-disposition"].startswith("attachment;")
+
+
+def test_run_download_rejects_ready_clips_with_missing_files(client, tmp_path):
+    run = db.create_run("local-video.mp4", {}, status="completed")
+    missing_file = tmp_path / "missing-rendered-clip.mp4"
+    db.replace_clips(
+        run["id"],
+        [
+            {
+                "rank": 1,
+                "start_seconds": 0,
+                "end_seconds": 10,
+                "duration_seconds": 10,
+                "title": "Missing clip",
+                "post_title": "Missing clip",
+                "caption": "",
+                "hashtags": [],
+                "rationale": "",
+                "transcript": "",
+                "file_path": str(missing_file),
+                "status": "ready",
+            }
+        ],
+    )
+
+    response = client.get(f"/api/runs/{run['id']}/download")
+
+    assert response.status_code == 409
+    assert "clip file(s) are missing" in response.json()["detail"]
+    assert "Re-render the run" in response.json()["detail"]
 
 
 def test_run_detail_exposes_filler_removal_count(client):
@@ -275,7 +586,6 @@ def test_run_detail_exposes_filler_removal_count(client):
 
 
 def test_campaign_frame_endpoint_returns_and_caches_source_thumbnail(client, tmp_path, monkeypatch):
-    from pathlib import Path
 
     run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
     source = tmp_path / "campaign-source.mp4"
@@ -671,7 +981,6 @@ def test_campaign_source_preview_rejects_invalid_sources(client, tmp_path, monke
 
 
 def test_campaign_subject_mask_endpoint_caches_alpha_preview(client, tmp_path, monkeypatch):
-    from pathlib import Path
 
     run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
     source = tmp_path / "campaign-source.mp4"
@@ -766,3 +1075,294 @@ def test_campaign_run_detail_exposes_creative_director_concepts(client, monkeypa
     detail = client.get(f"/api/runs/{run['id']}").json()
 
     assert detail["campaign_concepts"] == [concept]
+
+
+def test_campaign_ai_edit_returns_review_only_proposal_without_persisting(tmp_path, client, monkeypatch):
+    run = db.create_run(
+        "campaign",
+        {"campaign_mode": True, "campaign_brief": "Show the product honestly."},
+        status="completed",
+    )
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+    selection_path = work_dir / "select.json"
+    selection_path.write_text(
+        json.dumps(
+            {
+                "campaign_sources": [{"title": "Demo", "duration_seconds": 30, "video_path": "demo.mp4"}],
+                "campaign_source_analyses": [
+                    {"frames": [{"timestamp": 12, "description": "A new scene."}], "black_intervals": []}
+                ],
+                "campaign_edits": [
+                    {"rank": 1, "title": "Original", "shots": []},
+                    {
+                        "rank": 2,
+                        "title": "Alternate",
+                        "shots": [
+                            {
+                                "source_index": 0,
+                                "start_seconds": 3,
+                                "end_seconds": 6,
+                                "reason": "Alternate opening",
+                            }
+                        ],
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    original_selection = selection_path.read_text(encoding="utf-8")
+    captured = {}
+    proposal = {
+        "rank": 1,
+        "title": "Original",
+        "shots": [
+            {"source_index": 0, "start_seconds": 0, "end_seconds": 3, "reason": "Opening"},
+            {"source_index": 0, "start_seconds": 5, "end_seconds": 8, "reason": "Detail"},
+            {"source_index": 0, "start_seconds": 12, "end_seconds": 15, "reason": "Payoff"},
+        ],
+    }
+
+    monkeypatch.setattr(api.pipeline, "run_dir", lambda run_id: tmp_path)
+    monkeypatch.setattr(api, "get_llm", lambda: object())
+
+    def fake_proposal(
+        llm, brief, edit, sources, creative_direction, candidate_edits=None, source_analyses=None
+    ):
+        captured.update(
+            brief=brief,
+            edit=edit,
+            sources=sources,
+            direction=creative_direction,
+            candidate_edits=candidate_edits,
+            source_analyses=source_analyses,
+        )
+        return proposal, ["A clearer opening and payoff."]
+
+    monkeypatch.setattr(api.campaign, "generate_ai_edit_proposal", fake_proposal)
+    response = client.post(
+        f"/api/runs/{run['id']}/campaign-ai-edit",
+        json={
+            "current_edit": {
+                "rank": 1,
+                "title": "Original",
+                "shots": [
+                    {"source_index": 0, "start_seconds": 0, "end_seconds": 3, "reason": "Opening"},
+                    {"source_index": 0, "start_seconds": 5, "end_seconds": 8, "reason": "Detail"},
+                    {"source_index": 0, "start_seconds": 12, "end_seconds": 15, "reason": "Payoff"},
+                ],
+            },
+            "creative_direction": "Hook first",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "proposal": proposal,
+        "notes": ["A clearer opening and payoff."],
+        "saved": False,
+        "rendered": False,
+    }
+    assert captured["brief"] == "Show the product honestly."
+    assert captured["direction"] == "Hook first"
+    assert captured["candidate_edits"][1]["title"] == "Alternate"
+    assert captured["source_analyses"][0]["frames"][0]["description"] == "A new scene."
+    assert selection_path.read_text(encoding="utf-8") == original_selection
+    assert db.get_run(run["id"])["options"]["campaign_brief"] == "Show the product honestly."
+
+
+def test_campaign_ai_edit_rejects_non_campaign_run(client):
+    run = db.create_run("ordinary-video.mp4", {}, status="completed")
+    response = client.post(
+        f"/api/runs/{run['id']}/campaign-ai-edit",
+        json={
+            "current_edit": {
+                "rank": 1,
+                "title": "Clip",
+                "shots": [
+                    {"source_index": 0, "start_seconds": 0, "end_seconds": 2, "reason": ""},
+                    {"source_index": 0, "start_seconds": 3, "end_seconds": 5, "reason": ""},
+                    {"source_index": 0, "start_seconds": 6, "end_seconds": 8, "reason": ""},
+                ],
+            },
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "AI Edit is only available for campaign runs."
+
+
+def test_campaign_lyrics_update_persists_word_level_text_and_timing(client, monkeypatch):
+    run = client.post(
+        "/api/runs",
+        json={
+            "sources": ["https://example.com/campaign.mp4"],
+            "options": {
+                "campaign_mode": True,
+                "campaign_brief": "Music campaign",
+                "campaign_lyrics": "Hello world",
+                "campaign_lyric_words": [
+                    {"word": "Helo", "start": 1.0, "end": 1.35},
+                    {"word": "world", "start": 1.4, "end": 1.9},
+                ],
+                "campaign_lyrics_source": "Local Whisper draft",
+            },
+        },
+    ).json()[0]
+    db.update_run(run["id"], status="completed")
+    monkeypatch.setattr(
+        pipeline,
+        "rerender_campaign",
+        lambda run_id: {"renders": [{"status": "ready"}]},
+    )
+
+    response = client.put(
+        f"/api/runs/{run['id']}/campaign-lyrics",
+        json={
+            "lyrics": "Hello world",
+            "word_edits": [
+                {"word_index": 0, "word": "Hello", "start": 0.95, "end": 1.4},
+                {"word_index": 1, "start": 1.42, "end": 1.95},
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    saved = db.get_run(run["id"])["options"]
+    assert saved["campaign_lyric_words"] == [
+        {"word": "Hello", "start": 0.95, "end": 1.4},
+        {"word": "world", "start": 1.42, "end": 1.95},
+    ]
+    assert saved["campaign_lyrics_source"] == "Local Whisper draft"
+
+
+def test_campaign_lyrics_update_rejects_word_timing_without_positive_duration(client, monkeypatch):
+    run = db.create_run(
+        "campaign",
+        {
+            "campaign_mode": True,
+            "campaign_lyrics": "Hello",
+            "campaign_lyric_words": [{"word": "Hello", "start": 1.0, "end": 1.4}],
+        },
+        status="completed",
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "rerender_campaign",
+        lambda run_id: {"renders": [{"status": "ready"}]},
+    )
+
+    response = client.put(
+        f"/api/runs/{run['id']}/campaign-lyrics",
+        json={"lyrics": "Hello", "word_edits": [{"word_index": 0, "start": 1.5, "end": 1.2}]},
+    )
+
+    assert response.status_code == 422
+    assert db.get_run(run["id"])["options"]["campaign_lyric_words"] == [
+        {"word": "Hello", "start": 1.0, "end": 1.4}
+    ]
+
+
+def test_campaign_lyrics_resync_returns_review_only_proposal(tmp_path, client, monkeypatch):
+    music = tmp_path / "track.mp3"
+    music.write_bytes(b"audio")
+    run = db.create_run(
+        "campaign",
+        {"campaign_mode": True, "campaign_music_path": str(music), "campaign_lyrics": "Original words"},
+        status="completed",
+    )
+    words = [{"word": "Hello", "start": 0.2, "end": 0.6}, {"word": "world", "start": 0.7, "end": 1.1}]
+    monkeypatch.setattr(api.pipeline, "run_dir", lambda run_id: tmp_path)
+    monkeypatch.setattr(api, "get_setting", lambda key: "tiny")
+    monkeypatch.setattr(
+        "clipyyy.transcribe.transcribe_music",
+        lambda path, work_dir, model_size, language: {"words": words, "language": "en"},
+    )
+
+    response = client.post(f"/api/runs/{run['id']}/campaign-lyrics-resync")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["words"] == words
+    assert payload["word_count"] == 2
+    assert payload["saved"] is False
+    assert payload["rendered"] is False
+    assert db.get_run(run["id"])["options"]["campaign_lyrics"] == "Original words"
+    assert db.get_run(run["id"])["options"].get("campaign_lyric_words", []) == []
+
+
+def test_campaign_lyrics_resync_requires_attached_music(client):
+    run = db.create_run("campaign", {"campaign_mode": True}, status="completed")
+    response = client.post(f"/api/runs/{run['id']}/campaign-lyrics-resync")
+    assert response.status_code == 404
+
+
+def test_campaign_lyrics_accept_replaces_word_timings_and_renders(client, monkeypatch):
+    run = db.create_run(
+        "campaign",
+        {"campaign_mode": True, "campaign_lyrics": "Old lyrics", "campaign_lyric_words": []},
+        status="completed",
+    )
+    captured = {}
+
+    def fake_rerender(run_id):
+        captured["options"] = db.get_run(run_id)["options"]
+        return {"renders": [{"rank": 1, "status": "ready"}]}
+
+    monkeypatch.setattr(api.pipeline, "rerender_campaign", fake_rerender)
+    response = client.put(
+        f"/api/runs/{run['id']}/campaign-lyrics",
+        json={
+            "lyrics": "[00:00.20] Hello world",
+            "replace_words": [
+                {"word": "Hello", "start": 0.2, "end": 0.6},
+                {"word": "world", "start": 0.7, "end": 1.1},
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["options"]["campaign_lyrics"] == "[00:00.20] Hello world"
+    assert captured["options"]["campaign_lyric_words"][1]["word"] == "world"
+    assert response.json()["rendered"] is True
+
+
+def test_campaign_lyrics_align_preserves_creator_text_and_is_review_only(tmp_path, client, monkeypatch):
+    music = tmp_path / "track.mp3"
+    music.write_bytes(b"audio")
+    original = "[00:01.00] We rise tonight\n[00:02.50] Forever"
+    run = db.create_run(
+        "campaign",
+        {
+            "campaign_mode": True,
+            "campaign_music_path": str(music),
+            "campaign_lyrics": original,
+        },
+        status="completed",
+    )
+    transcript = [
+        {"word": "We", "start": 1.0, "end": 1.2},
+        {"word": "rise", "start": 1.25, "end": 1.6},
+        {"word": "tonight", "start": 1.7, "end": 2.2},
+    ]
+    monkeypatch.setattr(api.pipeline, "run_dir", lambda run_id: tmp_path)
+    monkeypatch.setattr(api, "get_setting", lambda key: "tiny")
+    monkeypatch.setattr(
+        "clipyyy.transcribe.transcribe_music",
+        lambda path, work_dir, model_size, language: {"words": transcript, "language": "en"},
+    )
+
+    response = client.post(
+        f"/api/runs/{run['id']}/campaign-lyrics-align",
+        json={"lyrics": original},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["lyrics"] == original
+    assert payload["matched_count"] == 3
+    assert payload["mode"] == "alignment"
+    assert payload["saved"] is False
+    assert payload["rendered"] is False
+    assert db.get_run(run["id"])["options"]["campaign_lyrics"] == original
+    assert db.get_run(run["id"])["options"].get("campaign_lyric_words", []) == []

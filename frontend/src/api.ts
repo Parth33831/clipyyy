@@ -139,6 +139,26 @@ export interface CampaignShot {
   reason: string
 }
 
+export interface CampaignLyricResyncProposal {
+  lyrics: string
+  words: { word: string; start: number; end: number }[]
+  language: string | null
+  word_count: number
+  matched_count?: number
+  match_percent?: number
+  unmatched_words?: string[]
+  mode?: 'transcription' | 'alignment'
+  saved: false
+  rendered: false
+}
+
+export interface CampaignLyricWordEdit {
+  word_index: number
+  word?: string
+  start?: number
+  end?: number
+}
+
 export interface CampaignLyricPhraseEdit {
   phrase_index: number
   start_seconds?: number
@@ -154,6 +174,13 @@ export interface CampaignEdit {
   rank: number
   title: string
   shots: CampaignShot[]
+}
+
+export interface CampaignAiEditProposal {
+  proposal: CampaignEdit
+  notes: string[]
+  saved: false
+  rendered: false
 }
 
 export interface CampaignConcept {
@@ -320,10 +347,19 @@ export const api = {
     scalePercent: number,
     rotationDegrees: number,
     phraseEdits: CampaignLyricPhraseEdit[] = [],
+    wordEdits: CampaignLyricWordEdit[] = [],
+    replaceWords?: { word: string; start: number; end: number }[],
   ) =>
     request<{ saved: boolean; rendered: boolean; characters: number; outputs: number }>(`/api/runs/${id}/campaign-lyrics`, {
       method: 'PUT',
-      body: JSON.stringify({ lyrics, lyrics_style: lyricsStyle, hook_text: hookText, include_hook: includeHook, lyrics_color: lyricsColor, highlight_color: highlightColor, words_on_screen: wordsOnScreen, lyrics_behind_subject: lyricsBehindSubject, position_x: positionX, position_y: positionY, scale_percent: scalePercent, rotation_degrees: rotationDegrees, phrase_edits: phraseEdits }),
+      body: JSON.stringify({ lyrics, lyrics_style: lyricsStyle, hook_text: hookText, include_hook: includeHook, lyrics_color: lyricsColor, highlight_color: highlightColor, words_on_screen: wordsOnScreen, lyrics_behind_subject: lyricsBehindSubject, position_x: positionX, position_y: positionY, scale_percent: scalePercent, rotation_degrees: rotationDegrees, phrase_edits: phraseEdits, word_edits: wordEdits, ...(replaceWords ? { replace_words: replaceWords } : {}) }),
+    }),
+  resyncCampaignLyrics: (id: string) =>
+    request<CampaignLyricResyncProposal>(`/api/runs/${id}/campaign-lyrics-resync`, { method: 'POST' }),
+  alignCampaignLyrics: (id: string, lyrics: string) =>
+    request<CampaignLyricResyncProposal>(`/api/runs/${id}/campaign-lyrics-align`, {
+      method: 'POST',
+      body: JSON.stringify({ lyrics }),
     }),
   saveCampaignTextOverlays: (id: string, overlays: CampaignTextOverlay[]) =>
     request<{ saved: boolean; rendered: boolean; overlays: number; outputs: number }>(`/api/runs/${id}/campaign-text-overlays`, {
@@ -334,6 +370,11 @@ export const api = {
     request<{ saved: boolean; rendered: boolean; outputs: number }>(`/api/runs/${id}/campaign-montage`, {
       method: 'PUT',
       body: JSON.stringify({ edits }),
+    }),
+  generateCampaignAiEdit: (id: string, currentEdit: CampaignEdit, creativeDirection: string) =>
+    request<CampaignAiEditProposal>(`/api/runs/${id}/campaign-ai-edit`, {
+      method: 'POST',
+      body: JSON.stringify({ current_edit: currentEdit, creative_direction: creativeDirection }),
     }),
   retry: (id: string, fromStage?: string) =>
     request<RunDetail>(`/api/runs/${id}/retry`, {

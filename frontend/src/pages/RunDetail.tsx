@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, Download, RotateCcw, Scissors, Send, Trash2 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, Download, Redo2, RotateCcw, Scissors, Send, Trash2, Undo2 } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useUndoRedo } from '../hooks/useUndoRedo'
 import { toast } from 'sonner'
-import { api, type CampaignEdit, type CampaignConcept, type CampaignTextOverlay, type CampaignMusicAnalysis, type CampaignLyricPhraseEdit, type CampaignShot, type CampaignSource, type Clip, type Post, type RunDetail } from '../api'
+import { api, type CampaignEdit, type CampaignConcept, type CampaignTextOverlay, type CampaignMusicAnalysis, type CampaignLyricPhraseEdit, type CampaignLyricWordEdit, type CampaignShot, type CampaignSource, type Clip, type Post, type RunDetail } from '../api'
 import { PublishDialog } from '../components/PublishDialog'
 import { Button, Eyebrow, Panel, Squares, StatusChip, cn, formatDuration, sourceHost, sourceLabel, timeAgo } from '../components/ui'
 type CampaignPreviewLyric = {
@@ -16,9 +16,22 @@ type CampaignPreviewLyric = {
   position_y: number
   scale_percent: number
   rotation_degrees: number
+  animation_style?: CampaignLyricPhraseEdit['animation_style']
 }
 
-type CampaignPreviewWord = { word: string; start_seconds: number; end_seconds: number }
+type CampaignPreviewWord = { word_index: number; word: string; start_seconds: number; end_seconds: number }
+type CampaignLyricResyncProposal = {
+  lyrics: string
+  words: { word: string; start: number; end: number }[]
+  language: string | null
+  word_count: number
+  matched_count?: number
+  match_percent?: number
+  unmatched_words?: string[]
+  mode?: 'transcription' | 'alignment'
+  saved: false
+  rendered: false
+}
 
 
 type CreativeConceptPlayerProps = {
@@ -222,6 +235,7 @@ export function RunDetailPage() {
   const health = useQuery({ queryKey: ['health'], queryFn: api.health })
   const canPublish = ['buffer', 'storage'].every((name) => health.data?.checks.find((c) => c.name === name)?.ok)
   const [publishing, setPublishing] = useState<Clip | null>(null)
+  const [downloadingAll, setDownloadingAll] = useState(false)
   const [focused, setFocused] = useState<number | null>(null)
   const [selectedConceptId, setSelectedConceptId] = useState<string | null>(null)
   const [conceptCutVariants, setConceptCutVariants] = useState<Record<string, 'original' | 'refined'>>({})
@@ -233,31 +247,38 @@ export function RunDetailPage() {
     setActiveConceptPreviewId(null)
   }, [runId])
   const [musicFile, setMusicFile] = useState<File | null>(null)
-  const [musicVolume, setMusicVolume] = useState(90)
-  const [sourceAudioVolume, setSourceAudioVolume] = useState(100)
-  const [musicDucking, setMusicDucking] = useState(false)
-  const [musicStartSeconds, setMusicStartSeconds] = useState(0)
-  const [musicFadeIn, setMusicFadeIn] = useState(0.4)
-  const [musicFadeOut, setMusicFadeOut] = useState(0.8)
-  const [lyricsText, setLyricsText] = useState('')
-  const [lyricsStyle, setLyricsStyle] = useState<
-    'dynamic' | 'cinematic' | 'minimal' | 'karaoke' | 'zoom' | 'bounce' | 'pulse' | 'glitch'
-  >('dynamic')
-  const [hookText, setHookText] = useState('')
-  const [includeHook, setIncludeHook] = useState(false)
-  const [lyricsColor, setLyricsColor] = useState('#FFFFFF')
-  const [lyricsHighlightColor, setLyricsHighlightColor] = useState('#00D7FF')
-  const [lyricsWordsOnScreen, setLyricsWordsOnScreen] = useState<1 | 2 | 3>(3)
-  const [lyricsBehindSubject, setLyricsBehindSubject] = useState(false)
-  const [lyricsPositionX, setLyricsPositionX] = useState(50)
-  const [lyricsPositionY, setLyricsPositionY] = useState(84)
-  const [lyricsScale, setLyricsScale] = useState(100)
-  const [lyricsRotation, setLyricsRotation] = useState(0)
-  const [phraseEdits, setPhraseEdits] = useState<CampaignLyricPhraseEdit[]>([])
-  const [selectedLyricPhrase, setSelectedLyricPhrase] = useState(0)
+  const [lyricResyncProposal, setLyricResyncProposal] = useState<CampaignLyricResyncProposal | null>(null)
   const campaignHistory = useUndoRedo({
     edits: [] as CampaignEdit[],
     overlays: [] as CampaignTextOverlay[],
+    phraseEdits: [] as CampaignLyricPhraseEdit[],
+    wordEdits: [] as CampaignLyricWordEdit[],
+    musicStartSeconds: 0,
+    musicVolume: 90,
+    sourceAudioVolume: 100,
+    musicDucking: false,
+    musicFadeIn: 0.4,
+    musicFadeOut: 0.8,
+    lyricsStyle: 'dynamic' as
+      | 'dynamic'
+      | 'cinematic'
+      | 'minimal'
+      | 'karaoke'
+      | 'zoom'
+      | 'bounce'
+      | 'pulse'
+      | 'glitch',
+    lyricsColor: '#FFFFFF',
+    lyricsHighlightColor: '#00D7FF',
+    lyricsWordsOnScreen: 3 as 1 | 2 | 3,
+    lyricsBehindSubject: false,
+    lyricsPositionX: 50,
+    lyricsPositionY: 84,
+    lyricsScale: 100,
+    lyricsRotation: 0,
+    lyricsText: '',
+    hookText: '',
+    includeHook: false,
   })
   const {
     value: campaignHistoryValue,
@@ -270,6 +291,59 @@ export function RunDetailPage() {
   } = campaignHistory
   const campaignEdits = campaignHistoryValue.edits
   const campaignTextOverlays = campaignHistoryValue.overlays
+  const phraseEdits = campaignHistoryValue.phraseEdits
+  const wordEdits = campaignHistoryValue.wordEdits
+  const musicStartSeconds = campaignHistoryValue.musicStartSeconds
+  const musicVolume = campaignHistoryValue.musicVolume
+  const sourceAudioVolume = campaignHistoryValue.sourceAudioVolume
+  const musicDucking = campaignHistoryValue.musicDucking
+  const musicFadeIn = campaignHistoryValue.musicFadeIn
+  const musicFadeOut = campaignHistoryValue.musicFadeOut
+  const lyricsStyle = campaignHistoryValue.lyricsStyle
+  const lyricsColor = campaignHistoryValue.lyricsColor
+  const lyricsHighlightColor = campaignHistoryValue.lyricsHighlightColor
+  const lyricsWordsOnScreen = campaignHistoryValue.lyricsWordsOnScreen
+  const lyricsBehindSubject = campaignHistoryValue.lyricsBehindSubject
+  const lyricsPositionX = campaignHistoryValue.lyricsPositionX
+  const lyricsPositionY = campaignHistoryValue.lyricsPositionY
+  const lyricsScale = campaignHistoryValue.lyricsScale
+  const lyricsRotation = campaignHistoryValue.lyricsRotation
+  const lyricsText = campaignHistoryValue.lyricsText
+  const hookText = campaignHistoryValue.hookText
+  const includeHook = campaignHistoryValue.includeHook
+  const hydratedCampaignRunRef = useRef<string | null>(null)
+  useEffect(() => {
+    const currentRun = run.data
+    if (!currentRun || currentRun.id !== runId || hydratedCampaignRunRef.current === runId) return
+    const options = currentRun.options
+    resetCampaignHistory({
+      edits: currentRun.campaign_edits ?? [],
+      overlays: options.campaign_text_overlays ?? [],
+      phraseEdits: options.campaign_lyric_phrase_edits ?? [],
+      wordEdits: [],
+      musicStartSeconds: options.campaign_music_start_seconds
+        ?? currentRun.campaign_quality_checks?.music_analysis?.selected_start_seconds
+        ?? 0,
+      musicVolume: Math.round((options.campaign_music_volume ?? 0.9) * 100),
+      sourceAudioVolume: Math.round((options.campaign_source_audio_volume ?? 1) * 100),
+      musicDucking: Boolean(options.campaign_music_ducking),
+      musicFadeIn: options.campaign_music_fade_in_seconds ?? 0.4,
+      musicFadeOut: options.campaign_music_fade_out_seconds ?? 0.8,
+      lyricsStyle: options.campaign_lyrics_style ?? 'dynamic',
+      lyricsColor: options.campaign_lyrics_color ?? '#FFFFFF',
+      lyricsHighlightColor: options.campaign_lyrics_highlight_color ?? '#00D7FF',
+      lyricsWordsOnScreen: options.campaign_lyrics_words_on_screen ?? 3,
+      lyricsBehindSubject: Boolean(options.campaign_lyrics_behind_subject),
+      lyricsPositionX: options.campaign_lyrics_position_x ?? 50,
+      lyricsPositionY: options.campaign_lyrics_position_y ?? 84,
+      lyricsScale: options.campaign_lyrics_scale_percent ?? 100,
+      lyricsRotation: options.campaign_lyrics_rotation_degrees ?? 0,
+      lyricsText: options.campaign_lyrics ?? '',
+      hookText: options.campaign_hook_text ?? '',
+      includeHook: Boolean(options.include_campaign_hook),
+    })
+    hydratedCampaignRunRef.current = runId
+  }, [run.data, runId, resetCampaignHistory])
   const setCampaignEdits = useCallback((next: CampaignEdit[] | ((current: CampaignEdit[]) => CampaignEdit[])) => {
     setCampaignHistory((current) => ({
       ...current,
@@ -282,32 +356,101 @@ export function RunDetailPage() {
       overlays: typeof next === 'function' ? next(current.overlays) : next,
     }))
   }, [setCampaignHistory])
+  const setPhraseEdits = useCallback((next: CampaignLyricPhraseEdit[] | ((current: CampaignLyricPhraseEdit[]) => CampaignLyricPhraseEdit[])) => {
+    setCampaignHistory((current) => ({
+      ...current,
+      phraseEdits: typeof next === 'function' ? next(current.phraseEdits) : next,
+    }))
+  }, [setCampaignHistory])
+  const setWordEdits = useCallback((next: CampaignLyricWordEdit[] | ((current: CampaignLyricWordEdit[]) => CampaignLyricWordEdit[])) => {
+    setCampaignHistory((current) => ({
+      ...current,
+      wordEdits: typeof next === 'function' ? next(current.wordEdits) : next,
+    }))
+  }, [setCampaignHistory])
+  const setMusicStartSeconds = useCallback((next: number | ((current: number) => number)) => {
+    setCampaignHistory((current) => ({
+      ...current,
+      musicStartSeconds: typeof next === 'function' ? next(current.musicStartSeconds) : next,
+    }))
+  }, [setCampaignHistory])
+  const setMusicVolume = useCallback((next: number | ((current: number) => number)) => {
+    setCampaignHistory((current) => ({ ...current, musicVolume: typeof next === 'function' ? next(current.musicVolume) : next }))
+  }, [setCampaignHistory])
+  const setSourceAudioVolume = useCallback((next: number | ((current: number) => number)) => {
+    setCampaignHistory((current) => ({ ...current, sourceAudioVolume: typeof next === 'function' ? next(current.sourceAudioVolume) : next }))
+  }, [setCampaignHistory])
+  const setMusicDucking = useCallback((next: boolean | ((current: boolean) => boolean)) => {
+    setCampaignHistory((current) => ({ ...current, musicDucking: typeof next === 'function' ? next(current.musicDucking) : next }))
+  }, [setCampaignHistory])
+  const setMusicFadeIn = useCallback((next: number | ((current: number) => number)) => {
+    setCampaignHistory((current) => ({ ...current, musicFadeIn: typeof next === 'function' ? next(current.musicFadeIn) : next }))
+  }, [setCampaignHistory])
+  const setMusicFadeOut = useCallback((next: number | ((current: number) => number)) => {
+    setCampaignHistory((current) => ({ ...current, musicFadeOut: typeof next === 'function' ? next(current.musicFadeOut) : next }))
+  }, [setCampaignHistory])
+  const setLyricsStyle = useCallback((next: typeof campaignHistoryValue.lyricsStyle) => {
+    setCampaignHistory((current) => ({ ...current, lyricsStyle: next }))
+  }, [setCampaignHistory])
+  const setLyricsColor = useCallback((next: string) => {
+    setCampaignHistory((current) => ({ ...current, lyricsColor: next }))
+  }, [setCampaignHistory])
+  const setLyricsHighlightColor = useCallback((next: string) => {
+    setCampaignHistory((current) => ({ ...current, lyricsHighlightColor: next }))
+  }, [setCampaignHistory])
+  const setLyricsWordsOnScreen = useCallback((next: 1 | 2 | 3) => {
+    setCampaignHistory((current) => ({ ...current, lyricsWordsOnScreen: next }))
+  }, [setCampaignHistory])
+  const setLyricsBehindSubject = useCallback((next: boolean) => {
+    setCampaignHistory((current) => ({ ...current, lyricsBehindSubject: next }))
+  }, [setCampaignHistory])
+  const setLyricsPositionX = useCallback((next: number) => {
+    setCampaignHistory((current) => ({ ...current, lyricsPositionX: next }))
+  }, [setCampaignHistory])
+  const setLyricsPositionY = useCallback((next: number) => {
+    setCampaignHistory((current) => ({ ...current, lyricsPositionY: next }))
+  }, [setCampaignHistory])
+  const setLyricsScale = useCallback((next: number) => {
+    setCampaignHistory((current) => ({ ...current, lyricsScale: next }))
+  }, [setCampaignHistory])
+  const setLyricsRotation = useCallback((next: number) => {
+    setCampaignHistory((current) => ({ ...current, lyricsRotation: next }))
+  }, [setCampaignHistory])
+  const setLyricsText = useCallback((next: string) => {
+    setCampaignHistory((current) => ({ ...current, lyricsText: next }))
+  }, [setCampaignHistory])
+  const setHookText = useCallback((next: string) => {
+    setCampaignHistory((current) => ({ ...current, hookText: next }))
+  }, [setCampaignHistory])
+  const setIncludeHook = useCallback((next: boolean) => {
+    setCampaignHistory((current) => ({ ...current, includeHook: next }))
+  }, [setCampaignHistory])
   useEffect(() => {
-    setMusicVolume(Math.round((run.data?.options.campaign_music_volume ?? 0.9) * 100))
-    setSourceAudioVolume(Math.round((run.data?.options.campaign_source_audio_volume ?? 1) * 100))
-    setMusicDucking(Boolean(run.data?.options.campaign_music_ducking))
-    setMusicStartSeconds(run.data?.options.campaign_music_start_seconds ?? run.data?.campaign_quality_checks?.music_analysis?.selected_start_seconds ?? 0)
-    setMusicFadeIn(run.data?.options.campaign_music_fade_in_seconds ?? 0.4)
-    setMusicFadeOut(run.data?.options.campaign_music_fade_out_seconds ?? 0.8)
-    setLyricsText(run.data?.options.campaign_lyrics ?? '')
-    setLyricsStyle(run.data?.options.campaign_lyrics_style ?? 'dynamic')
-    setHookText(run.data?.options.campaign_hook_text ?? String(run.data?.campaign_plan?.generated_hook ?? ''))
-    setIncludeHook(Boolean(run.data?.options.include_campaign_hook))
-    setLyricsColor(run.data?.options.campaign_lyrics_color ?? '#FFFFFF')
-    setLyricsHighlightColor(run.data?.options.campaign_lyrics_highlight_color ?? '#00D7FF')
-    setLyricsWordsOnScreen(run.data?.options.campaign_lyrics_words_on_screen ?? 3)
-    setLyricsBehindSubject(Boolean(run.data?.options.campaign_lyrics_behind_subject))
-    setLyricsPositionX(run.data?.options.campaign_lyrics_position_x ?? 50)
-    setLyricsPositionY(run.data?.options.campaign_lyrics_position_y ?? 84)
-    setLyricsScale(run.data?.options.campaign_lyrics_scale_percent ?? 100)
-    setLyricsRotation(run.data?.options.campaign_lyrics_rotation_degrees ?? 0)
-    setPhraseEdits(run.data?.options.campaign_lyric_phrase_edits ?? [])
-    setSelectedLyricPhrase(0)
     resetCampaignHistory({
       edits: run.data?.campaign_edits ?? [],
       overlays: run.data?.options.campaign_text_overlays ?? [],
+      phraseEdits: run.data?.options.campaign_lyric_phrase_edits ?? [],
+      wordEdits: [],
+      musicStartSeconds: run.data?.options.campaign_music_start_seconds ?? run.data?.campaign_quality_checks?.music_analysis?.selected_start_seconds ?? 0,
+      musicVolume: Math.round((run.data?.options.campaign_music_volume ?? 0.9) * 100),
+      sourceAudioVolume: Math.round((run.data?.options.campaign_source_audio_volume ?? 1) * 100),
+      musicDucking: Boolean(run.data?.options.campaign_music_ducking),
+      musicFadeIn: run.data?.options.campaign_music_fade_in_seconds ?? 0.4,
+      musicFadeOut: run.data?.options.campaign_music_fade_out_seconds ?? 0.8,
+      lyricsStyle: run.data?.options.campaign_lyrics_style ?? 'dynamic',
+      lyricsColor: run.data?.options.campaign_lyrics_color ?? '#FFFFFF',
+      lyricsHighlightColor: run.data?.options.campaign_lyrics_highlight_color ?? '#00D7FF',
+      lyricsWordsOnScreen: run.data?.options.campaign_lyrics_words_on_screen ?? 3,
+      lyricsBehindSubject: Boolean(run.data?.options.campaign_lyrics_behind_subject),
+      lyricsPositionX: run.data?.options.campaign_lyrics_position_x ?? 50,
+      lyricsPositionY: run.data?.options.campaign_lyrics_position_y ?? 84,
+      lyricsScale: run.data?.options.campaign_lyrics_scale_percent ?? 100,
+      lyricsRotation: run.data?.options.campaign_lyrics_rotation_degrees ?? 0,
+      lyricsText: run.data?.options.campaign_lyrics ?? '',
+      hookText: run.data?.options.campaign_hook_text ?? String(run.data?.campaign_plan?.generated_hook ?? ''),
+      includeHook: Boolean(run.data?.options.include_campaign_hook),
     })
-  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_source_audio_volume, run.data?.options.campaign_music_ducking, run.data?.options.campaign_music_start_seconds, run.data?.campaign_quality_checks?.music_analysis?.selected_start_seconds, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.options.campaign_text_overlays, run.data?.campaign_plan?.generated_hook, resetCampaignHistory])
+  }, [runId, run.data?.campaign_edits, run.data?.options.campaign_music_volume, run.data?.options.campaign_source_audio_volume, run.data?.options.campaign_music_ducking, run.data?.options.campaign_music_start_seconds, run.data?.campaign_quality_checks?.music_analysis?.selected_start_seconds, run.data?.options.campaign_music_fade_in_seconds, run.data?.options.campaign_music_fade_out_seconds, run.data?.options.campaign_lyrics, run.data?.options.campaign_lyrics_style, run.data?.options.campaign_hook_text, run.data?.options.include_campaign_hook, run.data?.options.campaign_lyrics_color, run.data?.options.campaign_lyrics_highlight_color, run.data?.options.campaign_lyrics_words_on_screen, run.data?.options.campaign_lyrics_behind_subject, run.data?.options.campaign_lyrics_position_x, run.data?.options.campaign_lyrics_position_y, run.data?.options.campaign_lyrics_scale_percent, run.data?.options.campaign_lyrics_rotation_degrees, run.data?.options.campaign_lyric_phrase_edits, run.data?.options.campaign_lyric_words, run.data?.options.campaign_text_overlays, run.data?.campaign_plan?.generated_hook, resetCampaignHistory])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['run', runId] })
@@ -338,10 +481,32 @@ export function RunDetailPage() {
     },
     onError: (e) => toast.error(e.message),
   })
+  const resyncLyrics = useMutation({
+    mutationFn: () => api.resyncCampaignLyrics(runId),
+    onSuccess: (proposal) => {
+      setLyricResyncProposal(proposal)
+      toast.success(`Found ${proposal.word_count} words. Review the re-sync before applying it.`)
+    },
+    onError: (e) => toast.error(e.message),
+  })
+  const alignLyrics = useMutation({
+    mutationFn: () => api.alignCampaignLyrics(runId, lyricsText),
+    onSuccess: (proposal) => {
+      setLyricResyncProposal(proposal)
+      toast.success(`Matched ${proposal.matched_count ?? 0} of ${proposal.word_count} supplied lyric words. Review before applying.`)
+    },
+    onError: (e) => toast.error(e.message),
+  })
   const saveLyrics = useMutation({
-    mutationFn: () => api.saveCampaignLyrics(runId, lyricsText, lyricsStyle, hookText, includeHook, lyricsColor, lyricsHighlightColor, lyricsWordsOnScreen, lyricsBehindSubject, lyricsPositionX, lyricsPositionY, lyricsScale, lyricsRotation, phraseEdits),
+    mutationFn: (replacement?: CampaignLyricResyncProposal) => api.saveCampaignLyrics(
+      runId, replacement?.lyrics ?? lyricsText, lyricsStyle, hookText, includeHook, lyricsColor, lyricsHighlightColor,
+      lyricsWordsOnScreen, lyricsBehindSubject, lyricsPositionX, lyricsPositionY, lyricsScale, lyricsRotation,
+      replacement ? [] : phraseEdits, replacement ? [] : wordEdits, replacement?.words,
+    ),
     onSuccess: (result) => {
-      toast.success(`Applied to ${result.outputs} existing edit(s) — no re-picking or lyric transcription.`)
+      toast.success(`Applied word-level lyric sync to ${result.outputs} existing edit(s).`)
+      setWordEdits([])
+      setLyricResyncProposal(null)
       refresh()
     },
     onError: (e) => toast.error(e.message),
@@ -354,8 +519,6 @@ export function RunDetailPage() {
       : null
     return { text, start }
   }).filter((phrase) => phrase.text)
-  const lyricPhrases = lyricRows.map((phrase) => phrase.text)
-  const lyricPhraseTimes = lyricRows.map((phrase) => phrase.start)
   const lyricOffset = musicStartSeconds
   const campaignTimelineLyrics: CampaignPreviewLyric[] = lyricRows.flatMap((phrase, index) => {
     if (phrase.start == null) return []
@@ -375,29 +538,30 @@ export function RunDetailPage() {
       position_y: phraseEdit?.position_y ?? lyricsPositionY,
       scale_percent: phraseEdit?.scale_percent ?? lyricsScale,
       rotation_degrees: phraseEdit?.rotation_degrees ?? lyricsRotation,
+      animation_style: phraseEdit?.animation_style,
     }]
   })
-  const campaignTimelineWords: CampaignPreviewWord[] = (run.data?.options.campaign_lyric_words ?? []).flatMap((item) => {
-    const start = Number(item.start) - lyricOffset
-    const end = Number(item.end) - lyricOffset
-    const word = String(item.word ?? '').trim()
+  const campaignTimelineWords: CampaignPreviewWord[] = (run.data?.options.campaign_lyric_words ?? []).flatMap((item, wordIndex) => {
+    const edit = wordEdits.find((candidate) => candidate.word_index === wordIndex)
+    const start = Number(edit?.start ?? item.start) - lyricOffset
+    const end = Number(edit?.end ?? item.end) - lyricOffset
+    const word = String(edit?.word ?? item.word ?? '').trim()
     if (!word || end <= 0 || end <= start) return []
-    return [{ word, start_seconds: Math.max(0, start), end_seconds: end }]
+    return [{ word_index: wordIndex, word, start_seconds: Math.max(0, start), end_seconds: end }]
   })
-  const selectedPhraseEdit = phraseEdits.find((edit) => edit.phrase_index === selectedLyricPhrase)
-  const selectedPhraseStart = selectedPhraseEdit?.start_seconds ?? lyricPhraseTimes[selectedLyricPhrase]
-  const selectedPhraseEnd = selectedPhraseEdit?.end_seconds ?? (
-    lyricPhraseTimes[selectedLyricPhrase + 1] ?? (selectedPhraseStart == null ? null : selectedPhraseStart + 3)
-  )
-  const previewPositionX = selectedPhraseEdit?.position_x ?? lyricsPositionX
-  const previewPositionY = selectedPhraseEdit?.position_y ?? lyricsPositionY
-  const previewScale = selectedPhraseEdit?.scale_percent ?? lyricsScale
-  const previewRotation = selectedPhraseEdit?.rotation_degrees ?? lyricsRotation
-  const updateSelectedPhrase = (patch: Partial<CampaignLyricPhraseEdit>) => {
-    setPhraseEdits((current) => {
-      const existing = current.find((edit) => edit.phrase_index === selectedLyricPhrase)
-      const next = { phrase_index: selectedLyricPhrase, ...existing, ...patch }
-      return [...current.filter((edit) => edit.phrase_index !== selectedLyricPhrase), next].sort((left, right) => left.phrase_index - right.phrase_index)
+  const updateLyricWord = (wordIndex: number, patch: { word?: string; start_seconds?: number; end_seconds?: number }) => {
+    const original = run.data?.options.campaign_lyric_words?.[wordIndex]
+    if (!original) return
+    setWordEdits((current) => {
+      const existing = current.find((edit) => edit.word_index === wordIndex)
+      const next: CampaignLyricWordEdit = {
+        word_index: wordIndex,
+        ...existing,
+        ...(patch.word !== undefined ? { word: patch.word } : {}),
+        ...(patch.start_seconds !== undefined ? { start: Math.max(0, patch.start_seconds + musicStartSeconds) } : {}),
+        ...(patch.end_seconds !== undefined ? { end: Math.max(0.05, patch.end_seconds + musicStartSeconds) } : {}),
+      }
+      return [...current.filter((edit) => edit.word_index !== wordIndex), next].sort((a, b) => a.word_index - b.word_index)
     })
   }
   const updateLyricPhrase = (phraseIndex: number, patch: Partial<CampaignLyricPhraseEdit>) => {
@@ -435,9 +599,15 @@ export function RunDetailPage() {
   useEffect(() => {
     if (!run.data?.options.campaign_mode || ['queued', 'running'].includes(run.data.status)) return
     const handleEditorShortcut = (event: KeyboardEvent) => {
-      if (!event.ctrlKey && !event.metaKey) return
-      const target = event.target as HTMLElement | null
-      if (target?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName ?? '')) return
+      if (event.defaultPrevented || event.altKey || (!event.ctrlKey && !event.metaKey)) return
+      const target = event.target
+      const editableTarget =
+        target instanceof Element
+          ? target.closest(
+              'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="searchbox"], [role="combobox"], [role="spinbutton"], [data-editor-shortcut-ignore]',
+            )
+          : null
+      if (editableTarget) return
       const key = event.key.toLowerCase()
       if (key === 'z' && event.shiftKey) {
         if (!canRedoCampaignEdits) return
@@ -507,6 +677,34 @@ export function RunDetailPage() {
   const musicSettingsChanged = musicVolume !== savedMusicVolume || musicDucking !== savedMusicDucking || Math.abs(musicStartSeconds - savedMusicStartSeconds) > 0.01 || musicFadeIn !== savedMusicFadeIn || musicFadeOut !== savedMusicFadeOut
   const sourceAudioSettingsChanged = sourceAudioVolume !== savedSourceAudioVolume
   const readyClips = data.clips.filter((c) => c.status === 'ready')
+  const downloadAll = async (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault()
+    if (downloadingAll) return
+    setDownloadingAll(true)
+    try {
+      const response = await fetch(`/api/runs/${runId}/download`)
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(typeof payload?.detail === 'string' ? payload.detail : `Download failed (${response.status}).`)
+      }
+      const archive = await response.blob()
+      const disposition = response.headers.get('content-disposition') ?? ''
+      const filename = disposition.match(/filename="?([^";]+)"?/i)?.[1] ?? `clipyyy-${runId.slice(0, 8)}.zip`
+      const objectUrl = URL.createObjectURL(archive)
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+      toast.success('Your clip archive is downloading.')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to download clips.')
+    } finally {
+      setDownloadingAll(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -543,8 +741,8 @@ export function RunDetailPage() {
         </div>
         <div className="flex gap-2">
           {readyClips.length > 0 && (
-            <a href={`/api/runs/${data.id}/download`}>
-              <Button variant="ink">
+            <a href={`/api/runs/${data.id}/download`} onClick={downloadAll}>
+              <Button variant="ink" loading={downloadingAll}>
                 <Download className="h-4 w-4" /> Download all
               </Button>
             </a>
@@ -571,16 +769,10 @@ export function RunDetailPage() {
           <nav aria-label="Campaign editor tools" className="z-10 flex gap-2 overflow-x-auto rounded-xl border border-line bg-surface p-2 lg:sticky lg:top-5 lg:flex-col lg:gap-1 lg:overflow-visible">
             <div className="hidden px-3 py-2 lg:block">
               <p className="label text-faint">YOUR EDITING WORKFLOW</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted">Work from top to bottom. You can revisit any step whenever you like.</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted">The preview, timeline and editing tools stay together while you work.</p>
             </div>
             {[
-              ['campaign-preview', 'Video & Timeline', '1'],
-              ['campaign-hook', 'Opening Hook', '2'],
-              ['campaign-audio', 'Music & Audio', '3'],
-              ['campaign-animations', 'Animations', '4'],
-              ['campaign-lyrics', 'Lyrics Sync', '5'],
-              ['campaign-text', 'Text & Titles', '6'],
-              ['campaign-storyboard', 'Shot Editing', '7'],
+              ['campaign-preview', 'Clip editing workspace', '1'],
             ].map(([target, label, step]) => {
               const active = activeEditorSection === target
               return (
@@ -606,348 +798,124 @@ export function RunDetailPage() {
           </nav>
           <div className="flex min-w-0 flex-col gap-6">
             <div id="campaign-preview" className="scroll-mt-5">
+      {data.options.campaign_mode && !busy && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-panel px-3 py-2">
+          <div>
+            <p className="text-xs font-semibold text-ink">Editing history</p>
+            <p className="text-[10px] text-muted">Undo and redo your campaign changes · Ctrl/⌘ Z · Shift Ctrl/⌘ Z</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button type="button" disabled={!canUndoCampaignEdits} onClick={undoCampaignEdits}
+              className="inline-flex items-center gap-1.5 rounded-md border border-line px-3 py-2 text-xs font-semibold text-ink hover:border-ink disabled:cursor-not-allowed disabled:opacity-35"
+              aria-label="Undo last campaign edit">
+              <Undo2 className="h-3.5 w-3.5" /> Undo
+            </button>
+            <button type="button" disabled={!canRedoCampaignEdits} onClick={redoCampaignEdits}
+              className="inline-flex items-center gap-1.5 rounded-md border border-line px-3 py-2 text-xs font-semibold text-ink hover:border-ink disabled:cursor-not-allowed disabled:opacity-35"
+              aria-label="Redo campaign edit">
+              <Redo2 className="h-3.5 w-3.5" /> Redo
+            </button>
+          </div>
+        </div>
+      )}
       {data.options.campaign_mode && !busy && campaignEdits.length > 0 && (
         <CampaignStoryboardEditor
           runId={runId}
           edits={campaignEdits}
           savedEdits={data.campaign_edits}
           originalEdits={data.campaign_original_edits ?? data.campaign_edits}
+          aiProposalId={(data.campaign_concepts?.find((concept) => concept.id === (selectedConceptId ?? data.campaign_concepts?.[0]?.id)) ?? data.campaign_concepts?.[0])?.id ?? 'default'}
+          aiProposalEdits={(data.campaign_concepts?.find((concept) => concept.id === (selectedConceptId ?? data.campaign_concepts?.[0]?.id)) ?? data.campaign_concepts?.[0])?.refined_edits ?? []}
+          aiProposalNotes={(data.campaign_concepts?.find((concept) => concept.id === (selectedConceptId ?? data.campaign_concepts?.[0]?.id)) ?? data.campaign_concepts?.[0])?.refinement_notes ?? []}
+          aiDirection={(data.campaign_concepts?.find((concept) => concept.id === (selectedConceptId ?? data.campaign_concepts?.[0]?.id))?.summary ?? '')}
           sources={data.campaign_sources ?? []}
           musicAnalysis={data.campaign_quality_checks?.music_analysis ?? null}
           musicStartSeconds={musicStartSeconds}
           onMusicStartChange={setMusicStartSeconds}
           hasMusic={Boolean(data.options.campaign_music_path)}
           lyricsBehindSubject={lyricsBehindSubject}
+          lyricsText={lyricsText}
+          onLyricsTextChange={setLyricsText}
+          lyricsSourceLabel={data.options.campaign_lyrics_source ?? null}
+          lyricsAspectRatio={data.options.aspect_ratio}
+          lyricsPositionX={lyricsPositionX}
+          onLyricsPositionXChange={setLyricsPositionX}
+          lyricsPositionY={lyricsPositionY}
+          onLyricsPositionYChange={setLyricsPositionY}
+          lyricsScale={lyricsScale}
+          onLyricsScaleChange={setLyricsScale}
+          lyricsRotation={lyricsRotation}
+          onLyricsRotationChange={setLyricsRotation}
+          onLyricsBehindSubjectChange={setLyricsBehindSubject}
+          onLyricsColorChange={setLyricsColor}
+          onLyricsHighlightColorChange={setLyricsHighlightColor}
+          onResetLyricPhrase={(phraseIndex) => setPhraseEdits((current) => current.filter((edit) => edit.phrase_index !== phraseIndex))}
           lyrics={campaignTimelineLyrics}
           onUpdateLyric={updateLyricPhrase}
           lyricWords={campaignTimelineWords}
-          wordsOnScreen={data.options.campaign_lyrics_words_on_screen ?? 3}
+          lyricResyncProposal={lyricResyncProposal}
+          resyncingLyrics={resyncLyrics.isPending}
+          aligningLyrics={alignLyrics.isPending}
+          onResyncLyrics={() => resyncLyrics.mutate()}
+          onAlignLyrics={() => alignLyrics.mutate()}
+          onAcceptLyricResync={() => lyricResyncProposal && saveLyrics.mutate(lyricResyncProposal)}
+          onRejectLyricResync={() => setLyricResyncProposal(null)}
+          onUpdateLyricWord={updateLyricWord}
+          wordsOnScreen={lyricsWordsOnScreen}
+          lyricsStyle={lyricsStyle}
+          onLyricsStyleChange={setLyricsStyle}
+          lyricsWordsOnScreen={lyricsWordsOnScreen}
+          onLyricsWordsOnScreenChange={setLyricsWordsOnScreen}
           lyricsColor={lyricsColor}
           lyricsHighlightColor={lyricsHighlightColor}
           textOverlays={campaignTextOverlays}
           onUpdateTextOverlay={(overlayIndex, patch) => setCampaignTextOverlays((current) => current.map((overlay, index) => index === overlayIndex ? { ...overlay, ...patch } : overlay))}
+          onAddTextOverlay={(rank, durationSeconds) => setCampaignTextOverlays((current) => current.length >= 30 ? current : [...current, {
+            rank, text: 'YOUR MESSAGE', start_seconds: 0, end_seconds: Math.min(2.5, durationSeconds),
+            position_x: 50, position_y: 50, font_size_percent: 100, font_family: 'Arial',
+            font_weight: 'bold', text_effect: 'shadow', color: '#FFFFFF', animation: 'fade', background: true,
+          }])}
+          onRemoveTextOverlay={(overlayIndex) => setCampaignTextOverlays((current) => current.filter((_, index) => index !== overlayIndex))}
           transitionStyle={data.options.campaign_transition_style ?? 'auto'}
           saving={saveMontage.isPending}
           onChange={setCampaignEdits}
           onSave={() => saveMontage.mutate()}
           onReset={() => setCampaignEdits(data.campaign_original_edits ?? data.campaign_edits)}
+          hookText={hookText}
+          includeHook={includeHook}
+          generatedHook={typeof data.campaign_plan?.generated_hook === 'string' ? data.campaign_plan.generated_hook : null}
+          onHookTextChange={setHookText}
+          onIncludeHookChange={setIncludeHook}
+          musicFile={musicFile}
+          onMusicFileChange={setMusicFile}
+          onAttachMusic={() => musicFile && attachMusic.mutate(musicFile)}
+          attachingMusic={attachMusic.isPending}
+          musicTrackDescription={data.options.campaign_music_path
+            ? data.campaign_plan?.official_platform_sound_required
+              ? 'A track is attached. TikTok’s official sound must still be selected separately when publishing.'
+              : 'A soundtrack is attached. Choose another file to replace it.'
+            : 'No soundtrack attached yet. Add a local audio file to use it in the export.'}
+          musicVolume={musicVolume}
+          onMusicVolumeChange={setMusicVolume}
+          musicFadeIn={musicFadeIn}
+          onMusicFadeInChange={setMusicFadeIn}
+          musicFadeOut={musicFadeOut}
+          onMusicFadeOutChange={setMusicFadeOut}
+          musicDucking={musicDucking}
+          onMusicDuckingChange={setMusicDucking}
+          sourceAudioVolume={sourceAudioVolume}
+          onSourceAudioVolumeChange={setSourceAudioVolume}
+          musicSettingsChanged={musicSettingsChanged}
+          sourceAudioSettingsChanged={sourceAudioSettingsChanged}
+          savingAudio={saveCampaignAudio.isPending}
+          savingLyrics={saveLyrics.isPending}
+          savingText={saveCampaignTextOverlays.isPending}
+          onSaveAudio={() => saveCampaignAudio.mutate()}
+          onSaveLyrics={() => saveLyrics.mutate()}
+          onSaveText={() => saveCampaignTextOverlays.mutate()}
         />
       )}
             </div>
-      {data.options.campaign_mode && !busy && (
-        <div id="campaign-hook" className="scroll-mt-5 flex flex-col gap-4 rounded-xl border border-line bg-surface p-4">
-          <div className="flex flex-col gap-2 border-b border-line pb-4">
-            <div className="flex items-center justify-between gap-3">
-              <span className="font-medium">Opening text hook</span>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={includeHook} onChange={(event) => setIncludeHook(event.target.checked)} />
-                Include in video
-              </label>
-            </div>
-            {typeof data.campaign_plan?.generated_hook === 'string' && data.campaign_plan.generated_hook && (
-              <p className="text-xs text-muted">AI suggestion: {data.campaign_plan.generated_hook}</p>
-            )}
-            <textarea value={hookText} onChange={(event) => setHookText(event.target.value)} rows={2} maxLength={160}
-              placeholder="Write your own opening text, or leave blank for no text hook."
-              className="w-full rounded-lg border border-line bg-panel p-3 text-sm text-ink placeholder:text-muted" />
-            <span className="text-xs text-muted">Off by default. Your edit does not need campaign branding or AI-generated text.</span>
-          </div>
-          <div id="campaign-audio" className="scroll-mt-5 flex flex-wrap items-end gap-3">
-          <label className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
-            <span className="font-medium">Campaign music</span>
-            <input
-              type="file"
-              accept="audio/*"
-              onChange={(event) => setMusicFile(event.target.files?.[0] ?? null)}
-              className="block w-full text-sm text-muted file:mr-3 file:border file:border-line file:bg-panel file:px-3 file:py-2 file:text-ink"
-            />
-            <span className="text-xs text-muted">
-              {data.options.campaign_music_path
-                ? data.campaign_plan?.official_platform_sound_required
-                  ? 'A track is attached and will be included in the export. TikTok’s official sound must still be selected separately when publishing.'
-                  : 'A track is attached and will be included in the export. Upload another to replace it.'
-                : 'No track attached. Add your downloaded campaign track here.'}
-            </span>
-          </label>
-          <Button
-            variant="line"
-            disabled={!musicFile}
-            loading={attachMusic.isPending}
-            onClick={() => musicFile && attachMusic.mutate(musicFile)}
-          >
-            Attach music
-          </Button>
-          </div>
-          {data.options.campaign_music_path && (
-            <div className="flex flex-col gap-4 rounded-lg border border-line bg-panel p-3 text-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-medium">Music mix</span>
-                <span className="text-xs text-muted">Adjust the attached track, then re-render</span>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <label className="flex flex-col gap-2">
-                  <span className="flex justify-between gap-2"><span className="font-medium">Music volume</span><span className="font-mono text-muted">{musicVolume}%</span></span>
-                  <input type="range" min={0} max={200} step={5} value={musicVolume} onChange={(event) => setMusicVolume(Number(event.target.value))} className="w-full accent-current" />
-                  <span className="text-xs text-muted">0% mute · 100% original level · 200% boost</span>
-                </label>
-                <label className="flex flex-col gap-2">
-                  <span className="flex justify-between gap-2"><span className="font-medium">Fade in</span><span className="font-mono text-muted">{musicFadeIn.toFixed(1)}s</span></span>
-                  <input type="range" min={0} max={5} step={0.1} value={musicFadeIn} onChange={(event) => setMusicFadeIn(Number(event.target.value))} className="w-full accent-current" />
-                  <span className="text-xs text-muted">How quickly music reaches its set level</span>
-                </label>
-                <label className="flex flex-col gap-2">
-                  <span className="flex justify-between gap-2"><span className="font-medium">Fade out</span><span className="font-mono text-muted">{musicFadeOut.toFixed(1)}s</span></span>
-                  <input type="range" min={0} max={5} step={0.1} value={musicFadeOut} onChange={(event) => setMusicFadeOut(Number(event.target.value))} className="w-full accent-current" />
-                  <span className="text-xs text-muted">How quickly music fades at the end</span>
-                </label>
-              </div>
-              <label className="flex items-start gap-3 rounded-md border border-line bg-surface p-3">
-                <input
-                  type="checkbox"
-                  checked={musicDucking}
-                  onChange={(event) => setMusicDucking(event.target.checked)}
-                  className="mt-0.5 accent-current"
-                />
-                <span className="flex flex-col gap-1">
-                  <span className="font-medium">Auto-duck music under original audio</span>
-                  <span className="text-xs text-muted">Automatically lower the campaign track when source footage gets loud, helping speech stay clear.</span>
-                </span>
-              </label>
-              <div className="flex justify-end">
-                <Button variant="ink" disabled={!musicSettingsChanged || saveCampaignAudio.isPending} loading={saveCampaignAudio.isPending} onClick={() => saveCampaignAudio.mutate()}>
-                  Apply music mix &amp; re-render
-                </Button>
-              </div>
-            </div>
-          )}
-          <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-medium">Original video audio</span>
-              <span className="font-mono text-muted">{sourceAudioVolume}%</span>
-            </div>
-            <input type="range" min={0} max={200} step={5} value={sourceAudioVolume} onChange={(event) => setSourceAudioVolume(Number(event.target.value))} className="w-full accent-current" aria-label="Original video audio volume" />
-            <span className="text-xs text-muted">0% mutes the source footage · 100% keeps its original level · 200% boosts it. Mixes with campaign music when attached.</span>
-            <div className="flex justify-end">
-              <Button variant="ink" disabled={!sourceAudioSettingsChanged || saveCampaignAudio.isPending} loading={saveCampaignAudio.isPending} onClick={() => saveCampaignAudio.mutate()}>
-                Apply original audio mix
-              </Button>
-            </div>
-          </div>
-          <div id="campaign-animations" className="scroll-mt-5 flex flex-col gap-3 text-sm">
-            <span className="font-medium">Lyrics animation preset</span>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {([
-                ['dynamic', '01 · Pop Punch', 'Quick zoom + colour hit', 'lyric-preview-pop'],
-                ['karaoke', '02 · Karaoke Sweep', 'Word-by-word highlight', 'lyric-preview-karaoke'],
-                ['cinematic', '03 · Cinematic Fade', 'Smooth, clean entrance', 'lyric-preview-fade'],
-                ['minimal', '04 · Minimal', 'Simple readable lyrics', 'lyric-preview-minimal'],
-                ['zoom', '05 · Zoom Burst', 'Big pop-in, settle back', 'lyric-preview-zoom'],
-                ['bounce', '06 · Elastic Bounce', 'Springy movement', 'lyric-preview-bounce'],
-                ['pulse', '07 · Beat Pulse', 'Scale pulse on each phrase', 'lyric-preview-pulse'],
-                ['glitch', '08 · Tilt Pop', 'Tilted punch and settle', 'lyric-preview-tilt'],
-              ] as const).map(([value, title, description, animationClass]) => (
-                <button key={value} type="button" onClick={() => setLyricsStyle(value)}
-                  aria-pressed={lyricsStyle === value}
-                  className={cn('flex items-center gap-3 rounded-lg border p-3 text-left transition-colors',
-                    lyricsStyle === value ? 'border-ink bg-sunk' : 'border-line bg-panel hover:border-line-strong')}>
-                  <span className="flex h-12 w-24 shrink-0 items-center justify-center overflow-hidden rounded-md bg-ink">
-                    <span className={cn('text-sm font-black tracking-tight', animationClass)}
-                      style={{ color: lyricsColor, textShadow: '0 1px 3px #000' }}>Lyric!</span>
-                  </span>
-                  <span className="flex min-w-0 flex-col gap-1">
-                    <span className="font-medium">{title}</span>
-                    <span className="text-xs text-muted">{description}</span>
-                    {lyricsStyle === value && <span className="text-[10px] font-semibold uppercase tracking-wider text-ok">Selected</span>}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <span className="text-xs text-muted">Each tile previews the motion. Change the preset or lyrics, then apply it to the existing montage; saved shots and Whisper word timings are reused.</span>
-          </div>
-          <div className="flex flex-col gap-2 rounded-lg border border-line bg-panel p-3 text-sm">
-            <span className="font-medium">Words on screen at once</span>
-            <div className="flex gap-2">
-              {([1, 2, 3] as const).map((count) => (
-                <button key={count} type="button" onClick={() => setLyricsWordsOnScreen(count)}
-                  aria-pressed={lyricsWordsOnScreen === count}
-                  className={cn('flex-1 rounded-lg border px-3 py-2 font-semibold transition-colors',
-                    lyricsWordsOnScreen === count ? 'border-ink bg-sunk text-ink' : 'border-line bg-panel text-muted hover:border-line-strong')}>
-                  {count} {count === 1 ? 'word' : 'words'}
-                </button>
-              ))}
-            </div>
-            <span className="text-xs text-muted">Shows a rolling group of 1, 2, or 3 words as the song progresses. Default: 3.</span>
-          </div>
-          <LyricsPositionPreview
-            frameUrl={campaignEdits[0]?.shots[0] ? `/api/runs/${runId}/campaign-frame?source_index=${campaignEdits[0].shots[0].source_index}&timestamp=${campaignEdits[0].shots[0].start_seconds.toFixed(1)}` : null}
-            text={lyricPhrases[selectedLyricPhrase] ?? 'Your lyrics appear here'}
-            x={previewPositionX}
-            y={previewPositionY}
-            scale={previewScale}
-            rotation={previewRotation}
-            aspectRatio={data.options.aspect_ratio}
-            onPositionChange={(x, y) => lyricPhrases.length ? updateSelectedPhrase({ position_x: x, position_y: y }) : (setLyricsPositionX(x), setLyricsPositionY(y))}
-          />
-          {lyricPhrases.length > 0 && (
-            <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-medium">Individual lyric phrase</span>
-                <span className="text-xs text-muted">Overrides only the selected phrase</span>
-              </div>
-              <label className="flex flex-col gap-2">
-                <span className="text-xs text-muted">Select phrase</span>
-                <select value={selectedLyricPhrase} onChange={(event) => setSelectedLyricPhrase(Number(event.target.value))}
-                  className="rounded-lg border border-line bg-panel p-2 text-ink">
-                  {lyricPhrases.map((phrase, index) => <option key={index} value={index}>{index + 1}. {phrase.slice(0, 70)}</option>)}
-                </select>
-              </label>
-              {selectedPhraseStart != null && selectedPhraseEnd != null && (
-                <div className="grid gap-3 border-t border-line pt-3 sm:grid-cols-2">
-                  <label className="flex flex-col gap-1">
-                    <span className="font-medium">Phrase start (song seconds)</span>
-                    <input type="number" min={0} step={0.05} value={selectedPhraseStart}
-                      onChange={(event) => {
-                        const start = Math.max(0, Number(event.target.value))
-                        updateSelectedPhrase({ start_seconds: start, ...(selectedPhraseEnd <= start ? { end_seconds: start + 0.2 } : {}) })
-                      }}
-                      className="rounded-lg border border-line bg-panel p-2 text-ink" />
-                  </label>
-                  <label className="flex flex-col gap-1">
-                    <span className="font-medium">Phrase end (song seconds)</span>
-                    <input type="number" min={selectedPhraseStart + 0.05} step={0.05} value={selectedPhraseEnd}
-                      onChange={(event) => updateSelectedPhrase({ end_seconds: Math.max(selectedPhraseStart + 0.05, Number(event.target.value)) })}
-                      className="rounded-lg border border-line bg-panel p-2 text-ink" />
-                  </label>
-                  <p className="text-xs text-muted sm:col-span-2">Times are measured against the original song, so changing this phrase does not move the following phrases.</p>
-                </div>
-              )}
-              <div className="grid gap-3 sm:grid-cols-2">
-                {([
-                  ['position_x', 'Horizontal position', 5, 95, lyricsPositionX, '%'],
-                  ['position_y', 'Vertical position', 5, 95, lyricsPositionY, '%'],
-                  ['scale_percent', 'Text size', 50, 200, lyricsScale, '%'],
-                  ['rotation_degrees', 'Rotation', -30, 30, lyricsRotation, '°'],
-                ] as const).map(([key, label, min, max, fallback, suffix]) => {
-                  const value = selectedPhraseEdit?.[key] ?? fallback
-                  return (
-                    <label key={key} className="flex flex-col gap-2">
-                      <span className="flex justify-between"><span>{label}</span><span className="font-mono text-muted">{value}{suffix}</span></span>
-                      <input type="range" min={min} max={max} step={key === 'scale_percent' ? 5 : 1} value={value}
-                        onChange={(event) => updateSelectedPhrase({ [key]: Number(event.target.value) })}
-                        className="w-full accent-current" />
-                    </label>
-                  )
-                })}
-              </div>
-              <label className="flex flex-col gap-2">
-                <span className="text-xs text-muted">Animation style</span>
-                <select
-                  value={selectedPhraseEdit?.animation_style ?? 'global'}
-                  onChange={(event) => updateSelectedPhrase({ animation_style: event.target.value === 'global' ? undefined : event.target.value as CampaignLyricPhraseEdit['animation_style'] })}
-                  className="rounded-lg border border-line bg-panel p-2 text-ink"
-                >
-                  <option value="global">Use global style</option>
-                  <option value="dynamic">Dynamic pop</option>
-                  <option value="cinematic">Cinematic fade</option>
-                  <option value="minimal">Minimal fade</option>
-                  <option value="karaoke">Karaoke highlight</option>
-                </select>
-              </label>
-              <div className="flex justify-end">
-                <button type="button" className="text-xs underline text-muted"
-                  onClick={() => setPhraseEdits((current) => current.filter((edit) => edit.phrase_index !== selectedLyricPhrase))}>
-                  Reset this phrase to global settings
-                </button>
-              </div>
-              <p className="text-xs text-muted">Phrase-level transforms currently apply to line-timed lyrics (LRC or manually entered lines). Word-by-word Whisper timing continues to use the global lyric transform.</p>
-            </div>
-          )}
-          <div className="grid gap-4 rounded-lg border border-line bg-panel p-3 text-sm sm:grid-cols-2">
-            <label className="flex flex-col gap-2">
-              <span className="flex justify-between"><span className="font-medium">Horizontal position</span><span className="font-mono text-muted">{lyricsPositionX}%</span></span>
-              <input type="range" min={5} max={95} value={lyricsPositionX} onChange={(event) => setLyricsPositionX(Number(event.target.value))} className="w-full accent-current" />
-            </label>
-            <label className="flex flex-col gap-2">
-              <span className="flex justify-between"><span className="font-medium">Vertical position</span><span className="font-mono text-muted">{lyricsPositionY}%</span></span>
-              <input type="range" min={5} max={95} value={lyricsPositionY} onChange={(event) => setLyricsPositionY(Number(event.target.value))} className="w-full accent-current" />
-            </label>
-            <label className="flex flex-col gap-2">
-              <span className="flex justify-between"><span className="font-medium">Text size</span><span className="font-mono text-muted">{lyricsScale}%</span></span>
-              <input type="range" min={50} max={200} step={5} value={lyricsScale} onChange={(event) => setLyricsScale(Number(event.target.value))} className="w-full accent-current" />
-            </label>
-            <label className="flex flex-col gap-2">
-              <span className="flex justify-between"><span className="font-medium">Rotation</span><span className="font-mono text-muted">{lyricsRotation}°</span></span>
-              <input type="range" min={-30} max={30} value={lyricsRotation} onChange={(event) => setLyricsRotation(Number(event.target.value))} className="w-full accent-current" />
-            </label>
-            <p className="text-xs text-muted sm:col-span-2">These controls position, resize and rotate the complete timed lyric layer. Defaults preserve the existing lower-center layout. Changes are applied when you re-render.</p>
-          </div>
-          <label className="flex items-start gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
-            <input
-              type="checkbox"
-              checked={lyricsBehindSubject}
-              onChange={(event) => setLyricsBehindSubject(event.target.checked)}
-              className="mt-1 h-4 w-4 accent-current"
-            />
-            <span className="flex flex-col gap-1">
-              <span className="font-medium">Place lyrics behind the person (AI depth effect)</span>
-              <span className="text-xs text-muted">
-                Uses AI person segmentation to keep the foreground subject in front of the words.
-                This takes extra processing time. If segmentation is unavailable, CLIPYYY safely uses normal lyrics.
-              </span>
-            </span>
-          </label>
-          <div className="grid gap-4 rounded-lg border border-line bg-panel p-3 sm:grid-cols-2">
-            <label className="flex items-center justify-between gap-3 text-sm">
-              <span className="flex flex-col gap-1"><span className="font-medium">Lyrics color</span><span className="text-xs text-muted">Main caption text</span></span>
-              <input type="color" aria-label="Lyrics text color" value={lyricsColor} onChange={(event) => setLyricsColor(event.target.value.toUpperCase())} className="h-10 w-14 cursor-pointer rounded border border-line bg-transparent p-1" />
-            </label>
-            <label className="flex items-center justify-between gap-3 text-sm">
-              <span className="flex flex-col gap-1"><span className="font-medium">Highlight color</span><span className="text-xs text-muted">Second color / alternating words</span></span>
-              <input type="color" aria-label="Lyrics highlight color" value={lyricsHighlightColor} onChange={(event) => setLyricsHighlightColor(event.target.value.toUpperCase())} className="h-10 w-14 cursor-pointer rounded border border-line bg-transparent p-1" />
-            </label>
-            <div className="flex flex-wrap gap-2 sm:col-span-2">
-              {[
-                ['White', '#FFFFFF'], ['Red', '#FF3B4F'], ['Blue', '#3488FF'], ['Yellow', '#FFE14A'],
-                ['Pink', '#FF62B8'], ['Purple', '#A978FF'], ['Green', '#45D483'], ['Orange', '#FF963D'],
-              ].map(([name, value]) => (
-                <button key={value} type="button" onClick={() => setLyricsColor(value)} aria-label={name + ' lyrics color'} aria-pressed={lyricsColor === value}
-                  className={cn('h-7 w-7 rounded-full border-2 transition-transform', lyricsColor === value ? 'scale-110 border-ink' : 'border-line')}
-                  style={{ backgroundColor: value }} />
-              ))}
-            </div>
-            <div className="flex items-center justify-center rounded-lg bg-ink px-4 py-5 sm:col-span-2">
-              <p className="text-center text-xl font-extrabold tracking-wide" style={{ textShadow: '0 2px 4px #000, 0 0 10px #000' }}>
-                <span style={{ color: lyricsColor }}>Pop </span><span style={{ color: lyricsHighlightColor }}>it, </span>
-                <span style={{ color: lyricsColor }}>feel </span><span style={{ color: lyricsHighlightColor }}>the </span>
-                <span style={{ color: lyricsColor }}>beat</span>
-              </p>
-            </div>
-            <p className="text-xs text-muted sm:col-span-2">Colors are independent of animation style. Apply updates the existing edit without re-picking footage or re-transcribing the song.</p>
-          </div>
-          <div id="campaign-lyrics" className="scroll-mt-5 flex flex-col gap-3">
-          <label className="flex flex-col gap-2 text-sm">
-            <span className="font-medium">Lyrics / timed captions</span>
-            <textarea
-              value={lyricsText}
-              onChange={(event) => setLyricsText(event.target.value)}
-              rows={5}
-              maxLength={12000}
-              placeholder={'Local Whisper will draft lyrics from the attached song. You can correct them here.\nFor precise timing, use LRC lines such as [00:12.40] lyric text.'}
-              className="w-full rounded-lg border border-line bg-panel p-3 text-sm text-ink placeholder:text-muted"
-            />
-            <span className="text-xs text-muted">
-              {data.options.campaign_lyrics_source || 'No lyric draft yet. Attach music and choose Pick again to create a local draft.'}
-              {' '}Singing recognition can be inaccurate; review the words before publishing.
-            </span>
-          </label>
-          <div className="flex justify-end">
-            <Button variant="ink" loading={saveLyrics.isPending} onClick={() => saveLyrics.mutate()}>
-              Apply to existing edit
-            </Button>
-          </div>
-          </div>
-        </div>
-      )}
 
       {(busy || data.status === 'failed') && <Progress run={data} />}
 
@@ -1058,7 +1026,7 @@ export function RunDetailPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-panel px-4 py-3">
           <div>
             <span className="label text-muted">Campaign edit history</span>
-            <p className="mt-1 text-xs text-faint">Undo or redo shot edits and independent text overlays together · Ctrl+Z to undo · Ctrl+Shift+Z or Ctrl+Y to redo.</p>
+            <p className="mt-1 text-xs text-faint">Undo or redo shot edits, soundtrack positioning, lyric timing/placement and independent text overlays together · Ctrl+Z to undo · Ctrl+Shift+Z or Ctrl+Y to redo.</p>
           </div>
           <div className="flex gap-2">
             <Button variant="line" disabled={!canUndoCampaignEdits} onClick={undoCampaignEdits}>Undo</Button>
@@ -1152,56 +1120,204 @@ function CampaignStoryboardEditor({
   edits,
   savedEdits,
   originalEdits,
+  aiProposalId,
+  aiProposalEdits,
+  aiProposalNotes,
+  aiDirection,
   sources,
   musicAnalysis,
   musicStartSeconds,
   onMusicStartChange,
   hasMusic,
   lyricsBehindSubject,
+  lyricsText,
+  onLyricsTextChange,
+  lyricsSourceLabel,
+  lyricsAspectRatio,
+  lyricsPositionX,
+  onLyricsPositionXChange,
+  lyricsPositionY,
+  onLyricsPositionYChange,
+  lyricsScale,
+  onLyricsScaleChange,
+  lyricsRotation,
+  onLyricsRotationChange,
+  onLyricsBehindSubjectChange,
+  onLyricsColorChange,
+  onLyricsHighlightColorChange,
+  onResetLyricPhrase,
   lyrics,
   onUpdateLyric,
   lyricWords,
+  lyricResyncProposal,
+  resyncingLyrics,
+  aligningLyrics,
+  onResyncLyrics,
+  onAlignLyrics,
+  onAcceptLyricResync,
+  onRejectLyricResync,
+  onUpdateLyricWord,
   wordsOnScreen,
+  lyricsStyle,
+  onLyricsStyleChange,
+  lyricsWordsOnScreen,
+  onLyricsWordsOnScreenChange,
   lyricsColor,
   lyricsHighlightColor,
   textOverlays,
   onUpdateTextOverlay,
+  onAddTextOverlay,
+  onRemoveTextOverlay,
   transitionStyle,
   saving,
   onChange,
   onSave,
   onReset,
+  hookText,
+  includeHook,
+  generatedHook,
+  onHookTextChange,
+  onIncludeHookChange,
+  musicFile,
+  onMusicFileChange,
+  onAttachMusic,
+  attachingMusic,
+  musicTrackDescription,
+  musicVolume,
+  onMusicVolumeChange,
+  musicFadeIn,
+  onMusicFadeInChange,
+  musicFadeOut,
+  onMusicFadeOutChange,
+  musicDucking,
+  onMusicDuckingChange,
+  sourceAudioVolume,
+  onSourceAudioVolumeChange,
+  musicSettingsChanged,
+  sourceAudioSettingsChanged,
+  savingAudio,
+  savingLyrics,
+  savingText,
+  onSaveAudio,
+  onSaveLyrics,
+  onSaveText,
 }: {
   runId: string
   edits: CampaignEdit[]
   savedEdits: CampaignEdit[]
   originalEdits: CampaignEdit[]
+  aiProposalId: string
+  aiProposalEdits: CampaignEdit[]
+  aiProposalNotes: string[]
+  aiDirection: string
   sources: CampaignSource[]
   musicAnalysis: CampaignMusicAnalysis | null
   musicStartSeconds: number
   onMusicStartChange: (seconds: number) => void
   hasMusic: boolean
   lyricsBehindSubject: boolean
+  lyricsText: string
+  onLyricsTextChange: (value: string) => void
+  lyricsSourceLabel: string | null
+  lyricsAspectRatio: string
+  lyricsPositionX: number
+  onLyricsPositionXChange: (value: number) => void
+  lyricsPositionY: number
+  onLyricsPositionYChange: (value: number) => void
+  lyricsScale: number
+  onLyricsScaleChange: (value: number) => void
+  lyricsRotation: number
+  onLyricsRotationChange: (value: number) => void
+  onLyricsBehindSubjectChange: (value: boolean) => void
+  onLyricsColorChange: (value: string) => void
+  onLyricsHighlightColorChange: (value: string) => void
+  onResetLyricPhrase: (phraseIndex: number) => void
   lyrics: CampaignPreviewLyric[]
   onUpdateLyric: (phraseIndex: number, patch: Partial<CampaignLyricPhraseEdit>) => void
   lyricWords: CampaignPreviewWord[]
+  lyricResyncProposal: CampaignLyricResyncProposal | null
+  resyncingLyrics: boolean
+  aligningLyrics: boolean
+  onResyncLyrics: () => void
+  onAlignLyrics: () => void
+  onAcceptLyricResync: () => void
+  onRejectLyricResync: () => void
+  onUpdateLyricWord: (wordIndex: number, patch: { word?: string; start_seconds?: number; end_seconds?: number }) => void
   wordsOnScreen: 1 | 2 | 3
+  lyricsStyle: 'dynamic' | 'cinematic' | 'minimal' | 'karaoke' | 'zoom' | 'bounce' | 'pulse' | 'glitch'
+  onLyricsStyleChange: (value: 'dynamic' | 'cinematic' | 'minimal' | 'karaoke' | 'zoom' | 'bounce' | 'pulse' | 'glitch') => void
+  lyricsWordsOnScreen: 1 | 2 | 3
+  onLyricsWordsOnScreenChange: (value: 1 | 2 | 3) => void
   lyricsColor: string
   lyricsHighlightColor: string
   textOverlays: CampaignTextOverlay[]
   onUpdateTextOverlay: (overlayIndex: number, patch: Partial<CampaignTextOverlay>) => void
+  onAddTextOverlay: (rank: number, durationSeconds: number) => void
+  onRemoveTextOverlay: (overlayIndex: number) => void
   transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
   saving: boolean
   onChange: (edits: CampaignEdit[]) => void
   onSave: () => void
   onReset: () => void
+  hookText: string
+  includeHook: boolean
+  generatedHook: string | null
+  onHookTextChange: (value: string) => void
+  onIncludeHookChange: (value: boolean) => void
+  musicFile: File | null
+  onMusicFileChange: (file: File | null) => void
+  onAttachMusic: () => void
+  attachingMusic: boolean
+  musicTrackDescription: string
+  musicVolume: number
+  onMusicVolumeChange: (value: number) => void
+  musicFadeIn: number
+  onMusicFadeInChange: (value: number) => void
+  musicFadeOut: number
+  onMusicFadeOutChange: (value: number) => void
+  musicDucking: boolean
+  onMusicDuckingChange: (value: boolean) => void
+  sourceAudioVolume: number
+  onSourceAudioVolumeChange: (value: number) => void
+  musicSettingsChanged: boolean
+  sourceAudioSettingsChanged: boolean
+  savingAudio: boolean
+  savingLyrics: boolean
+  savingText: boolean
+  onSaveAudio: () => void
+  onSaveLyrics: () => void
+  onSaveText: () => void
 }) {
   const [selectedEditRank, setSelectedEditRank] = useState(edits[0]?.rank ?? 1)
+  const [selectedShotIndex, setSelectedShotIndex] = useState(0)
+  const [activeTool, setActiveTool] = useState<'ai' | 'shots' | 'hook' | 'audio' | 'lyrics' | 'titles' | 'animations'>('ai')
+  const [proposalDecisions, setProposalDecisions] = useState<Record<string, 'accepted' | 'rejected'>>({})
+  const [onDemandProposals, setOnDemandProposals] = useState<Record<number, { proposal: CampaignEdit; notes: string[]; id: string }>>({})
+  const [generatingProposalRank, setGeneratingProposalRank] = useState<number | null>(null)
+  const [previewingAiProposalRank, setPreviewingAiProposalRank] = useState<number | null>(null)
+  const [selectedPhraseIndex, setSelectedPhraseIndex] = useState(0)
+  const [selectedLyricWordIndex, setSelectedLyricWordIndex] = useState(0)
+  const [selectedTextOverlayIndex, setSelectedTextOverlayIndex] = useState<number | null>(null)
+  const selectedTextOverlays = textOverlays
+    .map((overlay, index) => ({ overlay, index }))
+    .filter(({ overlay }) => overlay.rank === selectedEditRank)
   useEffect(() => {
     if (!edits.some((edit) => edit.rank === selectedEditRank) && edits[0]) {
       setSelectedEditRank(edits[0].rank)
+      setSelectedShotIndex(0)
     }
   }, [edits, selectedEditRank])
+  useEffect(() => {
+    const selectedEdit = edits.find((edit) => edit.rank === selectedEditRank)
+    if (!selectedEdit || selectedShotIndex >= selectedEdit.shots.length) {
+      setSelectedShotIndex(Math.max(0, (selectedEdit?.shots.length ?? 1) - 1))
+    }
+  }, [edits, selectedEditRank, selectedShotIndex])
+  useEffect(() => {
+    if (selectedTextOverlayIndex !== null && !selectedTextOverlays.some(({ index }) => index === selectedTextOverlayIndex)) {
+      setSelectedTextOverlayIndex(null)
+    }
+  }, [selectedTextOverlayIndex, selectedTextOverlays])
   const sourceByIndex = new Map(sources.map((source) => [source.index, source]))
   const changed = JSON.stringify(edits) !== JSON.stringify(savedEdits)
   const resetAvailable = JSON.stringify(savedEdits) !== JSON.stringify(originalEdits) || changed
@@ -1224,7 +1340,9 @@ function CampaignStoryboardEditor({
     }))
   }
   const moveShot = (editIndex: number, shotIndex: number, direction: -1 | 1) => {
-    moveShotTo(editIndex, shotIndex, shotIndex + direction)
+    const targetIndex = shotIndex + direction
+    moveShotTo(editIndex, shotIndex, targetIndex)
+    if (targetIndex >= 0 && targetIndex < edits[editIndex]?.shots.length) setSelectedShotIndex(targetIndex)
   }
   const removeShot = (editIndex: number, shotIndex: number) => {
     onChange(edits.map((edit, index) => index !== editIndex ? edit : {
@@ -1252,9 +1370,9 @@ function CampaignStoryboardEditor({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <Eyebrow>Campaign editor</Eyebrow>
-          <h2 id="campaign-storyboard" className="display mt-1 scroll-mt-5 text-2xl">Edit your storyboard</h2>
+          <h2 id="campaign-storyboard" className="display mt-1 scroll-mt-5 text-2xl">Clip editing workspace</h2>
           <p className="mt-1 text-[13px] text-muted">
-            Reorder, trim, split or remove shots. Splitting keeps the original source range and creates two consecutive shots.
+            Select a shot on the left to edit its source range. The preview and timeline stay in place while you work.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -1277,7 +1395,7 @@ function CampaignStoryboardEditor({
               key={edit.rank}
               type="button"
               aria-pressed={selectedEditRank === edit.rank}
-              onClick={() => setSelectedEditRank(edit.rank)}
+              onClick={() => { setSelectedEditRank(edit.rank); setSelectedShotIndex(0) }}
               className={cn(
                 'flex min-w-[120px] flex-col items-start rounded-md border px-3 py-2 text-left transition-colors',
                 selectedEditRank === edit.rank ? 'border-ink bg-sunk text-ink' : 'border-line bg-surface text-muted hover:border-line-strong hover:text-ink',
@@ -1292,45 +1410,251 @@ function CampaignStoryboardEditor({
       </div>
       {edits.filter((edit) => edit.rank === selectedEditRank).map((edit) => {
         const editIndex = edits.findIndex((item) => item.rank === edit.rank)
+        const generatedProposal = onDemandProposals[edit.rank]
+        const aiProposal = generatedProposal?.proposal ?? aiProposalEdits.find((item) => item.rank === edit.rank)
+        const proposalNotes = generatedProposal?.notes ?? aiProposalNotes
+        const aiProposalChanged = Boolean(aiProposal && JSON.stringify(aiProposal.shots) !== JSON.stringify(edit.shots))
+        const proposalDecisionKey = `${generatedProposal?.id ?? aiProposalId}:${edit.rank}`
+        const proposalDecision = proposalDecisions[proposalDecisionKey]
         return (
         <section key={edit.rank} className="flex flex-col gap-3 border-t border-line pt-4">
           <div className="flex items-center justify-between gap-3">
             <h3 className="font-semibold">#{edit.rank} · {edit.title}</h3>
             <span className="label text-muted">{edit.shots.length} shots</span>
           </div>
+          <div className="grid min-w-0 gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+          <div className="order-2 min-w-0 lg:order-none lg:col-start-2 lg:row-start-1">
           <CampaignTimeline
-            edit={edit}
+            edit={previewingAiProposalRank === edit.rank && aiProposal && aiProposalChanged ? aiProposal : edit}
             runId={runId}
             sources={sources}
             musicAnalysis={musicAnalysis}
             musicStartSeconds={musicStartSeconds}
-            onMusicStartChange={onMusicStartChange}
+            onMusicStartChange={previewingAiProposalRank === edit.rank ? () => undefined : onMusicStartChange}
             hasMusic={hasMusic}
             lyricsBehindSubject={lyricsBehindSubject}
             lyrics={lyrics}
-            onUpdateLyric={onUpdateLyric}
+            onUpdateLyric={previewingAiProposalRank === edit.rank ? () => undefined : onUpdateLyric}
+            selectedPhraseIndex={selectedPhraseIndex}
+            onSelectLyricPhrase={previewingAiProposalRank === edit.rank ? () => undefined : (phraseIndex) => {
+              setSelectedPhraseIndex(phraseIndex)
+              setActiveTool('lyrics')
+            }}
             lyricWords={lyricWords}
+            selectedLyricWordIndex={selectedLyricWordIndex}
+            onSelectLyricWord={previewingAiProposalRank === edit.rank ? () => undefined : setSelectedLyricWordIndex}
+            onUpdateLyricWord={previewingAiProposalRank === edit.rank ? () => undefined : onUpdateLyricWord}
             wordsOnScreen={wordsOnScreen}
             lyricsColor={lyricsColor}
             lyricsHighlightColor={lyricsHighlightColor}
             textOverlays={textOverlays}
-            onUpdateTextOverlay={onUpdateTextOverlay}
+            onUpdateTextOverlay={previewingAiProposalRank === edit.rank ? () => undefined : onUpdateTextOverlay}
+            onSelectTextOverlay={previewingAiProposalRank === edit.rank ? () => undefined : (overlayIndex) => {
+              setSelectedTextOverlayIndex(overlayIndex)
+              setActiveTool('titles')
+            }}
             transitionStyle={transitionStyle}
-            onMoveShot={(fromIndex, toIndex) => moveShotTo(editIndex, fromIndex, toIndex)}
-            onUpdateShot={(shotIndex, patch) => updateShot(editIndex, shotIndex, patch)}
+            selectedShotIndex={previewingAiProposalRank === edit.rank ? Math.min(selectedShotIndex, Math.max(0, aiProposal?.shots.length ?? 1) - 1) : selectedShotIndex}
+            onSelectShot={previewingAiProposalRank === edit.rank ? () => undefined : setSelectedShotIndex}
+            onMoveShot={previewingAiProposalRank === edit.rank ? () => undefined : (fromIndex, toIndex) => moveShotTo(editIndex, fromIndex, toIndex)}
+            onUpdateShot={previewingAiProposalRank === edit.rank ? () => undefined : (shotIndex, patch) => updateShot(editIndex, shotIndex, patch)}
           />
-          <ol className="flex flex-col gap-2">
+          </div>
+          <aside className="order-1 flex min-w-0 flex-col gap-3 rounded-lg border border-line bg-surface p-3 lg:order-none lg:col-start-1 lg:row-start-1">
+            <div className="grid grid-cols-2 gap-1" role="group" aria-label="Clip editing tools">
+              {([
+                ['ai', 'AI Edit'],
+                ['shots', 'Shot editing'],
+                ['hook', 'Opening Hook'],
+                ['audio', 'Music & audio'],
+                ['lyrics', 'Lyrics sync'],
+                ['titles', 'Text & titles'],
+                ['animations', 'Animations'],
+              ] as const).map(([tool, label]) => (
+                <button key={tool} type="button" onClick={() => setActiveTool(tool)} aria-pressed={activeTool === tool}
+                  className={cn('rounded-md border px-2 py-2 text-left text-[11px] font-semibold transition-colors',
+                    activeTool === tool ? 'border-ink bg-sunk text-ink' : 'border-line text-muted hover:border-line-strong hover:text-ink')}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {activeTool === 'ai' && (
+              <div className="flex flex-col gap-3 text-xs">
+                <div>
+                  <p className="font-semibold text-ink">AI final-cut proposal</p>
+                  <p className="mt-1 leading-relaxed text-muted">
+                    Generate a fresh proposal from this clip, other generated clips, and newly discovered moments in the original source footage. CLIPYYY can reorder and tighten verified scene windows; it will never replace your edit until you accept.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={generatingProposalRank !== null || saving}
+                  onClick={async () => {
+                    setGeneratingProposalRank(edit.rank)
+                    try {
+                      const result = await api.generateCampaignAiEdit(runId, edit, aiDirection)
+                      setOnDemandProposals((current) => ({
+                        ...current,
+                        [edit.rank]: {
+                          proposal: result.proposal,
+                          notes: result.notes,
+                          id: `on-demand-${Date.now()}`,
+                        },
+                      }))
+                      setPreviewingAiProposalRank(null)
+                      toast.success(`New AI proposal ready for Clip ${edit.rank}. Your current edit is unchanged.`)
+                    } catch (error) {
+                      toast.error(error instanceof Error ? error.message : 'AI Edit could not generate a proposal.')
+                    } finally {
+                      setGeneratingProposalRank(null)
+                    }
+                  }}
+                  className="rounded-md bg-ink px-3 py-2 font-semibold text-panel disabled:opacity-40"
+                >
+                  {generatingProposalRank === edit.rank ? 'Generating AI proposal…' : 'Generate new AI proposal'}
+                </button>
+                {aiProposal ? (
+                  <>
+                    <div className="rounded-md border border-line bg-panel p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-ink">Before &amp; after · Clip {edit.rank}</span>
+                        <span className="text-[10px] text-muted">Review before accepting</span>
+                      </div>
+                      <div className="mt-3 grid gap-3 md:grid-cols-2">
+                        <section className="min-w-0 rounded-md border border-line bg-surface p-2">
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold text-ink">Your current cut</span>
+                            <span className="font-mono text-[10px] text-muted">{edit.shots.length} shots</span>
+                          </div>
+                          <div className="flex max-h-56 flex-col gap-2 overflow-y-auto pr-1">
+                            {edit.shots.map((shot, index) => {
+                              const source = sourceByIndex.get(shot.source_index)
+                              return (
+                                <div key={`ai-current-${edit.rank}-${index}`} className="flex min-w-0 items-center gap-2">
+                                  <img
+                                    src={`/api/runs/${runId}/campaign-frame?source_index=${shot.source_index}&timestamp=${shot.start_seconds.toFixed(1)}`}
+                                    alt=""
+                                    loading="lazy"
+                                    className="h-9 w-12 shrink-0 rounded border border-line bg-panel object-cover"
+                                  />
+                                  <div className="min-w-0">
+                                    <p className="truncate text-xs font-medium text-ink">Shot {index + 1} · {source?.title ?? `Source ${shot.source_index + 1}`}</p>
+                                    <p className="font-mono text-[10px] text-muted">{formatDuration(shot.start_seconds)}–{formatDuration(shot.end_seconds)}</p>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </section>
+                        <section className="min-w-0 rounded-md border border-line bg-surface p-2">
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold text-ink">AI proposed cut</span>
+                            <span className="font-mono text-[10px] text-muted">{aiProposal.shots.length} shots</span>
+                          </div>
+                          <div className="flex max-h-56 flex-col gap-2 overflow-y-auto pr-1">
+                            {aiProposal.shots.map((shot, index) => {
+                              const source = sourceByIndex.get(shot.source_index)
+                              return (
+                                <div key={`ai-proposal-${edit.rank}-${index}`} className="flex min-w-0 items-center gap-2">
+                                  <img
+                                    src={`/api/runs/${runId}/campaign-frame?source_index=${shot.source_index}&timestamp=${shot.start_seconds.toFixed(1)}`}
+                                    alt=""
+                                    loading="lazy"
+                                    className="h-9 w-12 shrink-0 rounded border border-line bg-panel object-cover"
+                                  />
+                                  <div className="min-w-0">
+                                    <p className="truncate text-xs font-medium text-ink">Shot {index + 1} · {source?.title ?? `Source ${shot.source_index + 1}`}</p>
+                                    <p className="font-mono text-[10px] text-muted">{formatDuration(shot.start_seconds)}–{formatDuration(shot.end_seconds)}</p>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </section>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-[10px] text-faint">Compare source footage and timing. Previewing the AI cut does not change your saved edit.</p>
+                        <button type="button" onClick={() => setPreviewingAiProposalRank((current) => current === edit.rank ? null : edit.rank)}
+                          className="rounded-md border border-line px-3 py-2 text-xs font-semibold text-ink hover:border-ink">
+                          {previewingAiProposalRank === edit.rank ? 'Back to current cut' : 'Preview AI cut'}
+                        </button>
+                      </div>
+                    </div>
+                    {aiProposalChanged ? (
+                      <div className="rounded-md border border-line bg-surface p-3">
+                        <p className="font-semibold text-ink">What the AI recommends</p>
+                        {proposalNotes.length > 0 ? (
+                          <ul className="mt-2 list-disc space-y-1 pl-4 text-muted">
+                            {proposalNotes.map((note, index) => <li key={index}>{note}</li>)}
+                          </ul>
+                        ) : (
+                          <p className="mt-2 text-muted">A revised shot order or cut timing is available for review.</p>
+                        )}
+                        <p className="mt-2 text-[10px] text-faint">This is only a proposal. Your current edit remains unchanged until you accept it.</p>
+                      </div>
+                    ) : (
+                      <div className="rounded-md border border-line bg-surface p-3 text-muted">
+                        {proposalDecision === 'accepted'
+                          ? 'AI proposal is applied to this clip in your current editing session. Save & re-render when you are ready.'
+                          : 'The AI found no additional safe changes for this clip. Your current edit is already the recommended cut.'}
+                      </div>
+                    )}
+                    {aiProposalChanged && proposalDecision !== 'accepted' && proposalDecision !== 'rejected' && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <button type="button" disabled={saving} onClick={() => {
+                          onChange(edits.map((item) => item.rank === edit.rank ? { ...aiProposal, rank: item.rank } : item))
+                          setPreviewingAiProposalRank(null)
+                          setProposalDecisions((current) => ({ ...current, [proposalDecisionKey]: 'accepted' }))
+                        }} className="rounded-md bg-ink px-3 py-2 font-semibold text-panel hover:opacity-90 disabled:opacity-40">
+                          Accept AI Edit
+                        </button>
+                        <button type="button" onClick={() => { setPreviewingAiProposalRank(null); setProposalDecisions((current) => ({ ...current, [proposalDecisionKey]: 'rejected' })) }}
+                          className="rounded-md border border-line px-3 py-2 font-semibold text-muted hover:border-ink hover:text-ink">
+                          Reject proposal
+                        </button>
+                      </div>
+                    )}
+                    {proposalDecision === 'rejected' && (
+                      <div className="rounded-md border border-line bg-surface p-3">
+                        <p className="text-muted">Proposal rejected. Your current manual edit has not been changed.</p>
+                        <button type="button" onClick={() => setProposalDecisions((current) => {
+                          const next = { ...current }
+                          delete next[proposalDecisionKey]
+                          return next
+                        })} className="mt-2 font-semibold text-ink underline">Review proposal again</button>
+                      </div>
+                    )}
+                    {proposalDecision === 'accepted' && (
+                      <p className="text-muted">Your accepted proposal is now in the editable timeline. You can still change any shot, undo, or reset before rendering.</p>
+                    )}
+                  </>
+                ) : (
+                  <div className="rounded-md border border-line bg-surface p-3 text-muted">
+                    No AI final-cut proposal is available for this clip. The original campaign edit is safe and can still be edited manually.
+                  </div>
+                )}
+              </div>
+            )}
+            {activeTool === 'shots' && (
+              <>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="label text-muted">SHOT EDITING</span>
+                  <span className="text-[10px] text-faint">{edit.shots.length} clips</span>
+                </div>
+                <ol className="flex max-h-[min(70vh,760px)] flex-col gap-2 overflow-y-auto pr-1">
             {edit.shots.map((shot, shotIndex) => {
               const source = sourceByIndex.get(shot.source_index)
               return (
-                <li id={`campaign-shot-${edit.rank}-${shotIndex}`} key={`${edit.rank}-${shotIndex}-${shot.source_index}`} className="grid gap-3 rounded-lg border border-line bg-panel p-3 md:grid-cols-[112px_minmax(0,1fr)_150px_150px_auto] md:items-center">
+                <li id={`campaign-shot-${edit.rank}-${shotIndex}`} key={`${edit.rank}-${shotIndex}-${shot.source_index}`} className={cn('flex flex-col gap-2 rounded-lg border bg-panel p-2 transition-colors', selectedShotIndex === shotIndex ? 'border-ink ring-1 ring-ink/20' : 'border-line')}>
+                  <button type="button" onClick={() => setSelectedShotIndex(shotIndex)} aria-pressed={selectedShotIndex === shotIndex} className="flex items-start gap-2 text-left">
                   <img
                     src={`/api/runs/${runId}/campaign-frame?source_index=${shot.source_index}&timestamp=${shot.start_seconds.toFixed(1)}`}
                     alt={`Preview of shot ${shotIndex + 1}`}
                     loading="lazy"
-                    className="h-20 w-28 rounded-md border border-line bg-surface object-cover"
+                    className="h-16 w-20 shrink-0 rounded-md border border-line bg-surface object-cover"
                   />
                   <div className="min-w-0">
+
                     <div className="flex items-center gap-2">
                       <span className="label shrink-0 text-faint">SHOT {String(shotIndex + 1).padStart(2, '0')}</span>
                       <span className="truncate text-sm font-medium">{source?.title ?? `Source ${shot.source_index + 1}`}</span>
@@ -1341,47 +1665,58 @@ function CampaignStoryboardEditor({
                       {source ? ` / ${formatDuration(source.duration_seconds)} source` : ''}
                     </p>
                   </div>
-                  <label className="flex flex-col gap-1 text-xs text-muted">
-                    Start (seconds)
-                    <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.start_seconds}
-                      onChange={(event) => updateShot(editIndex, shotIndex, { start_seconds: Number(event.target.value) })} disabled={saving}
-                      className="w-full rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
-                  </label>
-                  <label className="flex flex-col gap-1 text-xs text-muted">
-                    <span className="flex items-center justify-between gap-1">
-                      End (seconds)
-                      {(() => {
-                        const snappedEnd = getBeatSnappedShotEnd(edit, shotIndex, musicAnalysis, source?.duration_seconds)
-                        return (
-                          <button type="button" disabled={saving || snappedEnd === null}
-                            onClick={() => snappedEnd !== null && updateShot(editIndex, shotIndex, { end_seconds: snappedEnd })}
-                            className="rounded border border-line px-1.5 py-0.5 text-[10px] text-ink hover:bg-surface disabled:opacity-30"
-                            title="Align this shot's end with the nearest suitable music beat">
-                            Snap to beat
-                          </button>
-                        )
-                      })()}
-                    </span>
-                    <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.end_seconds}
-                      onChange={(event) => updateShot(editIndex, shotIndex, { end_seconds: Number(event.target.value) })} disabled={saving}
-                      className="w-full rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
-                  </label>
+                  </button>
+                  <p className="text-[10px] leading-relaxed text-muted">
+                    Trim with the timeline edges. Reorder with the Move up/down controls here, or drag clips in the timeline on desktop.
+                  </p>
+                  <details className="rounded-md border border-line bg-surface/60 px-2 py-1.5">
+                    <summary className="cursor-pointer select-none text-[11px] font-semibold text-muted hover:text-ink">
+                      Precise timing · Advanced
+                    </summary>
+                    <div className="mt-2 grid grid-cols-2 gap-2 border-t border-line pt-2">
+                      <label className="flex flex-col gap-1 text-xs text-muted">
+                        Start
+                        <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.start_seconds}
+                          onChange={(event) => updateShot(editIndex, shotIndex, { start_seconds: Number(event.target.value) })} disabled={saving}
+                          className="w-full rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
+                      </label>
+                      <label className="flex flex-col gap-1 text-xs text-muted">
+                        <span className="flex items-center justify-between gap-1">
+                          End
+                          {(() => {
+                            const snappedEnd = getBeatSnappedShotEnd(edit, shotIndex, musicAnalysis, source?.duration_seconds)
+                            return (
+                              <button type="button" disabled={saving || snappedEnd === null}
+                                onClick={() => snappedEnd !== null && updateShot(editIndex, shotIndex, { end_seconds: snappedEnd })}
+                                className="rounded border border-line px-1.5 py-0.5 text-[10px] text-ink hover:bg-surface disabled:opacity-30"
+                                title="Align this shot's end with the nearest suitable music beat">
+                                Snap to beat
+                              </button>
+                            )
+                          })()}
+                        </span>
+                        <input type="number" min={0} max={source?.duration_seconds} step={0.1} value={shot.end_seconds}
+                          onChange={(event) => updateShot(editIndex, shotIndex, { end_seconds: Number(event.target.value) })} disabled={saving}
+                          className="w-full rounded-md border border-line bg-surface px-2 py-2 font-mono text-sm text-ink" />
+                      </label>
+                    </div>
+                  </details>
                   <div className="flex items-center justify-end gap-1">
                     <button type="button" title="Move shot up" aria-label="Move shot up" disabled={saving || shotIndex === 0}
-                      onClick={() => moveShot(editIndex, shotIndex, -1)} className="rounded-md border border-line p-2 text-muted hover:text-ink disabled:opacity-30">
-                      <ArrowUp className="h-4 w-4" />
+                      onClick={() => moveShot(editIndex, shotIndex, -1)} className="flex min-h-10 min-w-10 items-center justify-center gap-1 rounded-md border border-line px-2 py-2 text-muted hover:text-ink disabled:opacity-30">
+                      <ArrowUp className="h-4 w-4" /><span className="text-[10px] sm:hidden">Up</span>
                     </button>
                     <button type="button" title="Move shot down" aria-label="Move shot down" disabled={saving || shotIndex === edit.shots.length - 1}
-                      onClick={() => moveShot(editIndex, shotIndex, 1)} className="rounded-md border border-line p-2 text-muted hover:text-ink disabled:opacity-30">
-                      <ArrowDown className="h-4 w-4" />
+                      onClick={() => moveShot(editIndex, shotIndex, 1)} className="flex min-h-10 min-w-10 items-center justify-center gap-1 rounded-md border border-line px-2 py-2 text-muted hover:text-ink disabled:opacity-30">
+                      <ArrowDown className="h-4 w-4" /><span className="text-[10px] sm:hidden">Down</span>
                     </button>
                     <button type="button" title="Split shot in half" aria-label="Split shot in half"
                       disabled={saving || edit.shots.length >= 40 || shot.end_seconds - shot.start_seconds < 3}
-                      onClick={() => splitShot(editIndex, shotIndex)} className="rounded-md border border-line p-2 text-muted hover:text-ink disabled:opacity-30">
-                      <Scissors className="h-4 w-4" />
+                      onClick={() => splitShot(editIndex, shotIndex)} className="flex min-h-10 min-w-10 items-center justify-center gap-1 rounded-md border border-line px-2 py-2 text-muted hover:text-ink disabled:opacity-30">
+                      <Scissors className="h-4 w-4" /><span className="text-[10px] sm:hidden">Split</span>
                     </button>
                     <button type="button" title="Remove shot" aria-label="Remove shot" disabled={saving}
-                      onClick={() => removeShot(editIndex, shotIndex)} className="rounded-md border border-line p-2 text-muted hover:text-bad">
+                      onClick={() => removeShot(editIndex, shotIndex)} className="flex min-h-10 min-w-10 items-center justify-center gap-1 rounded-md border border-line px-2 py-2 text-muted hover:text-bad"><span className="text-[10px] sm:hidden">Delete</span>
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -1389,6 +1724,440 @@ function CampaignStoryboardEditor({
               )
             })}
           </ol>
+              </>
+            )}
+            {activeTool === 'hook' && (
+              <div className="flex flex-col gap-3 text-xs">
+                <div>
+                  <p className="font-semibold text-ink">Opening text hook</p>
+                  <p className="mt-1 text-muted">Add a short opening line to catch attention at the start of this campaign video.</p>
+                </div>
+                <label className="flex items-center justify-between gap-3 rounded-md border border-line bg-panel p-2 text-ink">
+                  <span className="font-medium">Include hook in video</span>
+                  <input type="checkbox" checked={includeHook} onChange={(event) => onIncludeHookChange(event.target.checked)} />
+                </label>
+                {generatedHook && (
+                  <div className="rounded-md border border-line bg-panel p-2">
+                    <p className="font-semibold text-ink">AI suggestion</p>
+                    <p className="mt-1 text-muted">{generatedHook}</p>
+                    <button type="button" onClick={() => onHookTextChange(generatedHook)}
+                      className="mt-2 rounded border border-line px-2 py-1.5 font-semibold text-ink">Use suggestion</button>
+                  </div>
+                )}
+                <label className="flex flex-col gap-1 text-muted">Opening text · {hookText.length}/160
+                  <textarea value={hookText} onChange={(event) => onHookTextChange(event.target.value)} rows={3} maxLength={160}
+                    placeholder="Write your opening hook…" className="resize-y rounded-md border border-line bg-panel p-2 text-ink" />
+                </label>
+                <p className="text-muted">Leave it disabled if you want the video to open directly on the footage.</p>
+                <button type="button" onClick={onSaveLyrics} disabled={savingLyrics}
+                  className="rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">{savingLyrics ? 'Applying…' : 'Apply opening hook'}</button>
+              </div>
+            )}
+            {activeTool === 'audio' && (
+              <div className="flex flex-col gap-3 text-xs">
+                <div>
+                  <p className="font-semibold text-ink">Music alignment</p>
+                  <p className="mt-1 text-muted">Move the attached soundtrack start. The preview and timeline follow this offset.</p>
+                </div>
+                <label className="flex flex-col gap-2">
+                  <span className="flex justify-between gap-2 text-muted"><span>Track start</span><span className="font-mono">{formatDuration(musicStartSeconds)}</span></span>
+                  <input type="range" min={0} max={Math.max(1, musicAnalysis?.duration_seconds ?? musicStartSeconds + 30)} step={0.1}
+                    value={musicStartSeconds} onChange={(event) => onMusicStartChange(Number(event.target.value))} disabled={!hasMusic}
+                    className="w-full accent-current" />
+                </label>
+                {musicAnalysis && (
+                  <div className="rounded-md border border-line bg-panel p-2 text-muted">
+                    <p>Track length: {formatDuration(musicAnalysis.duration_seconds)}</p>
+                    <p>Detected beats: {musicAnalysis.detected_beats}{musicAnalysis.estimated_bpm ? ` · ${Math.round(musicAnalysis.estimated_bpm)} BPM` : ''}</p>
+                    <p className="mt-1">Suggested start: {formatDuration(musicAnalysis.selected_start_seconds)}</p>
+                    <button type="button" onClick={() => onMusicStartChange(musicAnalysis.selected_start_seconds)} disabled={!hasMusic}
+                      className="mt-2 rounded border border-line px-2 py-1.5 font-semibold text-ink disabled:opacity-40">Use suggested start</button>
+                  </div>
+                )}
+                {!hasMusic && <p className="rounded-md border border-dashed border-line p-2 text-muted">Attach a music track in the Music & Audio section below to enable soundtrack alignment.</p>}
+                <div className="mt-2 flex flex-col gap-3 rounded-md border border-line bg-panel p-3">
+                  <div><p className="font-semibold text-ink">Soundtrack</p><p className="mt-1 text-muted">{musicTrackDescription}</p></div>
+                  <label className="flex flex-col gap-1 text-muted">Choose audio file
+                    <input type="file" accept="audio/*" onChange={(event) => onMusicFileChange(event.target.files?.[0] ?? null)}
+                      className="block w-full text-xs text-muted file:mr-2 file:rounded file:border file:border-line file:bg-surface file:px-2 file:py-2 file:text-ink" />
+                  </label>
+                  <button type="button" onClick={onAttachMusic} disabled={!musicFile || attachingMusic}
+                    className="rounded-md border border-line px-3 py-2 font-semibold text-ink disabled:opacity-40">
+                    {attachingMusic ? 'Attaching track…' : hasMusic ? 'Replace soundtrack' : 'Attach soundtrack'}
+                  </button>
+                  {hasMusic && <>
+                    <label className="flex flex-col gap-1 text-muted">Music volume · {musicVolume}%
+                      <input type="range" min={0} max={200} step={5} value={musicVolume} onChange={(event) => onMusicVolumeChange(Number(event.target.value))} />
+                    </label>
+                    <label className="flex flex-col gap-1 text-muted">Fade in · {musicFadeIn.toFixed(1)}s
+                      <input type="range" min={0} max={5} step={0.1} value={musicFadeIn} onChange={(event) => onMusicFadeInChange(Number(event.target.value))} />
+                    </label>
+                    <label className="flex flex-col gap-1 text-muted">Fade out · {musicFadeOut.toFixed(1)}s
+                      <input type="range" min={0} max={5} step={0.1} value={musicFadeOut} onChange={(event) => onMusicFadeOutChange(Number(event.target.value))} />
+                    </label>
+                    <label className="flex items-start gap-2 rounded border border-line bg-surface p-2 text-muted">
+                      <input type="checkbox" checked={musicDucking} onChange={(event) => onMusicDuckingChange(event.target.checked)} />
+                      <span>Auto-duck music under original speech and source audio</span>
+                    </label>
+                  </>}
+                  <label className="flex flex-col gap-1 text-muted">Original video audio · {sourceAudioVolume}%
+                    <input type="range" min={0} max={200} step={5} value={sourceAudioVolume} onChange={(event) => onSourceAudioVolumeChange(Number(event.target.value))} />
+                  </label>
+                  <button type="button" onClick={onSaveAudio} disabled={savingAudio || (!musicSettingsChanged && !sourceAudioSettingsChanged)}
+                    className="rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">
+                    {savingAudio ? 'Applying audio mix…' : 'Apply audio mix & re-render'}
+                  </button>
+                </div>
+              </div>
+            )}
+            {activeTool === 'lyrics' && (
+              <div className="flex max-h-[min(76vh,900px)] flex-col gap-3 overflow-y-auto pr-1 text-xs">
+                <div>
+                  <p className="font-semibold text-ink">Lyrics & timed captions</p>
+                  <p className="mt-1 text-muted">Edit the words, timing, placement and depth treatment without leaving the clip workspace.</p>
+                </div>
+                <label className="flex flex-col gap-1 text-muted">Lyrics / timed captions
+                  <textarea value={lyricsText} onChange={(event) => onLyricsTextChange(event.target.value)} rows={5} maxLength={12000}
+                    placeholder={'Correct the detected lyrics here. For precise timing, use LRC lines such as [00:12.40] lyric text.'}
+                    className="resize-y rounded-md border border-line bg-panel p-2 text-ink" />
+                </label>
+                <p className="text-muted">{lyricsSourceLabel ?? 'No lyric draft yet. Attach music and choose Pick again to create a local draft.'} Singing recognition can be inaccurate; review the words before publishing.</p>
+                <div className="flex flex-col gap-2 rounded-md border border-line bg-panel p-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-ink">AI lyric re-sync</p>
+                      <p className="mt-0.5 text-muted">Keep your own lyrics and align them to the actual vocal timestamps, or generate a fresh transcript from the song.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={onAlignLyrics} disabled={!hasMusic || aligningLyrics || resyncingLyrics || savingLyrics || !lyricsText.trim()}
+                        className="rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">
+                        {aligningLyrics ? 'Matching your lyrics…' : 'Sync my lyrics to song'}
+                      </button>
+                      <button type="button" onClick={onResyncLyrics} disabled={!hasMusic || resyncingLyrics || aligningLyrics || savingLyrics}
+                        className="rounded-md border border-line bg-surface px-3 py-2 font-semibold text-ink disabled:opacity-40">
+                        {resyncingLyrics ? 'Analyzing song…' : 'Generate lyrics from song'}
+                      </button>
+                    </div>
+                  </div>
+                  {!hasMusic && <p className="text-muted">Attach a soundtrack first to enable re-sync.</p>}
+                  {lyricResyncProposal && (
+                    <div className="flex flex-col gap-2 border-t border-line pt-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-semibold text-ink">{lyricResyncProposal.mode === 'alignment' ? `Your lyrics · ${lyricResyncProposal.matched_count ?? lyricResyncProposal.words.length}/${lyricResyncProposal.word_count} matched` : `New transcript · ${lyricResyncProposal.word_count} words`} · {lyricResyncProposal.language ?? 'language auto-detected'}</span>
+                        <span className="text-muted">Not saved yet</span>
+                      </div>
+                      <pre className="max-h-36 overflow-auto whitespace-pre-wrap rounded bg-surface p-2 font-sans text-ink">{lyricResyncProposal.lyrics || 'No timed lyric lines were detected.'}</pre>
+                      {lyricResyncProposal.mode === 'alignment' && (
+                        <div className="rounded bg-surface p-2 text-muted">
+                          <p className="font-semibold text-ink">Alignment coverage · {lyricResyncProposal.match_percent ?? 0}%</p>
+                          {lyricResyncProposal.unmatched_words?.length ? (
+                            <p className="mt-1">Not found in the vocal transcript: {lyricResyncProposal.unmatched_words.join(', ')}</p>
+                          ) : <p className="mt-1">Every supplied lyric word was matched to a timestamp.</p>}
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-1.5">
+                        {lyricResyncProposal.words.slice(0, 24).map((word, index) => (
+                          <span key={`resync-word-${index}`} className="rounded border border-line bg-surface px-1.5 py-1 font-mono text-[10px] text-ink">
+                            {word.word} · {formatDuration(word.start)}–{formatDuration(word.end)}
+                          </span>
+                        ))}
+                        {lyricResyncProposal.words.length > 24 && <span className="self-center text-muted">+{lyricResyncProposal.words.length - 24} more words</span>}
+                      </div>
+                      <p className="text-muted">{lyricResyncProposal.mode === 'alignment' ? 'Accept keeps your supplied lyric text and applies the matched audio timings. Unmatched words remain in the text without invented timestamps.' : 'Accepting replaces the current lyric text and word timings, then renders the updated captions.'} Reject keeps your saved lyrics untouched.</p>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={onAcceptLyricResync} disabled={savingLyrics || !lyricResyncProposal.word_count}
+                          className="flex-1 rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">
+                          {savingLyrics ? 'Applying sync…' : lyricResyncProposal.mode === 'alignment' ? 'Apply timing to my lyrics' : 'Accept & apply re-sync'}
+                        </button>
+                        <button type="button" onClick={onRejectLyricResync} disabled={savingLyrics}
+                          className="rounded-md border border-line px-3 py-2 font-semibold text-ink disabled:opacity-40">Reject</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {lyricWords.length > 0 && (
+                  <div className="rounded-md border border-line bg-panel p-2">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="font-semibold text-ink">Word-by-word sync</span>
+                      <span className="text-muted">{lyricWords.length} detected words</span>
+                    </div>
+                    <p className="mb-2 text-muted">Select a word on the timeline or below, correct recognition, then fine-tune its exact start and end. Changes stay local until you apply lyrics.</p>
+                    <label className="flex flex-col gap-1 text-muted">Select word
+                      <select value={lyricWords.some((word) => word.word_index === selectedLyricWordIndex) ? selectedLyricWordIndex : lyricWords[0].word_index}
+                        onChange={(event) => setSelectedLyricWordIndex(Number(event.target.value))}
+                        className="rounded border border-line bg-surface px-2 py-2 text-ink">
+                        {lyricWords.map((word) => <option key={word.word_index} value={word.word_index}>{word.word_index + 1}. {word.word}</option>)}
+                      </select>
+                    </label>
+                    {(() => {
+                      const word = lyricWords.find((item) => item.word_index === selectedLyricWordIndex) ?? lyricWords[0]
+                      return (
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          <label className="col-span-2 flex flex-col gap-1 text-muted">Recognized word
+                            <input value={word.word} maxLength={80}
+                              onChange={(event) => onUpdateLyricWord(word.word_index, { word: event.target.value })}
+                              className="rounded border border-line bg-surface px-2 py-1.5 text-ink" />
+                          </label>
+                          <label className="flex flex-col gap-1 text-muted">Start · {formatDuration(word.start_seconds)}
+                            <input type="number" min={0} max={word.end_seconds - 0.05} step={0.01} value={word.start_seconds.toFixed(2)}
+                              onChange={(event) => onUpdateLyricWord(word.word_index, { start_seconds: Math.max(0, Math.min(word.end_seconds - 0.05, Number(event.target.value))) })}
+                              className="rounded border border-line bg-surface px-2 py-1.5 font-mono text-ink" />
+                          </label>
+                          <label className="flex flex-col gap-1 text-muted">End · {formatDuration(word.end_seconds)}
+                            <input type="number" min={word.start_seconds + 0.05} step={0.01} value={word.end_seconds.toFixed(2)}
+                              onChange={(event) => onUpdateLyricWord(word.word_index, { end_seconds: Math.max(word.start_seconds + 0.05, Number(event.target.value)) })}
+                              className="rounded border border-line bg-surface px-2 py-1.5 font-mono text-ink" />
+                          </label>
+                          <button type="button" onClick={() => {
+                            onUpdateLyricWord(word.word_index, { start_seconds: Math.max(0, word.start_seconds - 0.05), end_seconds: word.end_seconds + 0.05 })
+                          }} className="col-span-2 rounded border border-line px-2 py-1.5 text-left font-semibold text-ink hover:border-ink">
+                            Widen timing by 0.05s on both sides
+                          </button>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
+                <div className="rounded-md border border-line bg-panel p-2">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="font-semibold text-ink">Phrase timing & placement</span>
+                    <span className="text-muted">{lyrics.length} timed phrases</span>
+                  </div>
+                  {lyrics.length === 0 ? <p className="text-muted">Add LRC timestamps to edit individual phrase timing and placement.</p> : (
+                    <>
+                      <label className="flex flex-col gap-1 text-muted">Select phrase
+                        <select value={selectedPhraseIndex} onChange={(event) => setSelectedPhraseIndex(Number(event.target.value))}
+                          className="rounded border border-line bg-surface px-2 py-2 text-ink">
+                          {lyrics.map((phrase) => <option key={phrase.phrase_index} value={phrase.phrase_index}>{phrase.phrase_index + 1}. {phrase.text.slice(0, 48)}</option>)}
+                        </select>
+                      </label>
+                      {(() => {
+                        const phrase = lyrics.find((item) => item.phrase_index === selectedPhraseIndex) ?? lyrics[0]
+                        const start = phrase.start_seconds + musicStartSeconds
+                        const end = phrase.end_seconds + musicStartSeconds
+                        return (
+                          <div className="mt-2 flex flex-col gap-2">
+                            <p className="rounded bg-surface p-2 text-muted">{phrase.text}</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              <label className="flex flex-col gap-1 text-muted">Start · {start.toFixed(2)}s
+                                <input type="number" min={0} step={0.05} value={start}
+                                  onChange={(event) => onUpdateLyric(phrase.phrase_index, { start_seconds: Math.max(0, Number(event.target.value)) })}
+                                  className="rounded border border-line bg-surface px-2 py-1.5 text-ink" />
+                              </label>
+                              <label className="flex flex-col gap-1 text-muted">End · {end.toFixed(2)}s
+                                <input type="number" min={start + 0.05} step={0.05} value={end}
+                                  onChange={(event) => onUpdateLyric(phrase.phrase_index, { end_seconds: Math.max(start + 0.05, Number(event.target.value)) })}
+                                  className="rounded border border-line bg-surface px-2 py-1.5 text-ink" />
+                              </label>
+                            </div>
+                            <label className="flex flex-col gap-1 text-muted">Phrase animation
+                              <select value={phrase.animation_style ?? 'global'}
+                                onChange={(event) => onUpdateLyric(phrase.phrase_index, { animation_style: event.target.value === 'global' ? undefined : event.target.value as CampaignLyricPhraseEdit['animation_style'] })}
+                                className="rounded border border-line bg-surface px-2 py-1.5 text-ink">
+                                <option value="global">Use global style</option>
+                                <option value="dynamic">Dynamic pop</option>
+                                <option value="cinematic">Cinematic fade</option>
+                                <option value="minimal">Minimal fade</option>
+                                <option value="karaoke">Karaoke highlight</option>
+                              </select>
+                            </label>
+                            <button type="button" onClick={() => onResetLyricPhrase(phrase.phrase_index)}
+                              className="self-start text-[11px] underline text-muted">Reset phrase overrides</button>
+                          </div>
+                        )
+                      })()}
+                    </>
+                  )}
+                </div>
+                <LyricsPositionPreview
+                  frameUrl={edit.shots[selectedShotIndex] ? `/api/runs/${runId}/campaign-frame?source_index=${edit.shots[selectedShotIndex].source_index}&timestamp=${edit.shots[selectedShotIndex].start_seconds.toFixed(1)}` : null}
+                  text={lyrics.find((phrase) => phrase.phrase_index === selectedPhraseIndex)?.text ?? 'Your lyrics appear here'}
+                  x={lyrics.find((phrase) => phrase.phrase_index === selectedPhraseIndex)?.position_x ?? lyricsPositionX}
+                  y={lyrics.find((phrase) => phrase.phrase_index === selectedPhraseIndex)?.position_y ?? lyricsPositionY}
+                  scale={lyrics.find((phrase) => phrase.phrase_index === selectedPhraseIndex)?.scale_percent ?? lyricsScale}
+                  rotation={lyrics.find((phrase) => phrase.phrase_index === selectedPhraseIndex)?.rotation_degrees ?? lyricsRotation}
+                  aspectRatio={lyricsAspectRatio}
+                  onPositionChange={(x, y) => {
+                    const phrase = lyrics.find((item) => item.phrase_index === selectedPhraseIndex)
+                    if (phrase) onUpdateLyric(phrase.phrase_index, { position_x: x, position_y: y })
+                    else { onLyricsPositionXChange(x); onLyricsPositionYChange(y) }
+                  }}
+                />
+                <div className="rounded-md border border-line bg-panel p-2">
+                  <p className="mb-2 font-semibold text-ink">Default lyric placement</p>
+                  {([
+                    ['Horizontal', lyricsPositionX, onLyricsPositionXChange, 5, 95, '%'],
+                    ['Vertical', lyricsPositionY, onLyricsPositionYChange, 5, 95, '%'],
+                    ['Text size', lyricsScale, onLyricsScaleChange, 50, 200, '%'],
+                    ['Rotation', lyricsRotation, onLyricsRotationChange, -30, 30, '°'],
+                  ] as const).map(([label, value, onChange, min, max, suffix]) => (
+                    <label key={label} className="mb-2 flex flex-col gap-1 text-muted">{label} · {value}{suffix}
+                      <input type="range" min={min} max={max} step={label === 'Text size' ? 5 : 1} value={value} onChange={(event) => onChange(Number(event.target.value))} />
+                    </label>
+                  ))}
+                </div>
+                <label className="flex items-start gap-2 rounded-md border border-line bg-panel p-2 text-muted">
+                  <input type="checkbox" checked={lyricsBehindSubject} onChange={(event) => onLyricsBehindSubjectChange(event.target.checked)} />
+                  <span><span className="font-semibold text-ink">AI depth effect</span><span className="mt-0.5 block">Place lyrics behind the person using AI segmentation. This takes extra processing; normal lyrics are used if segmentation is unavailable.</span></span>
+                </label>
+                <div className="rounded-md border border-line bg-panel p-2">
+                  <p className="mb-2 font-semibold text-ink">Lyric colors</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex items-center justify-between gap-2 text-muted">Main color
+                      <input type="color" value={lyricsColor} onChange={(event) => onLyricsColorChange(event.target.value.toUpperCase())} className="h-8 w-10 rounded border border-line bg-transparent" />
+                    </label>
+                    <label className="flex items-center justify-between gap-2 text-muted">Highlight
+                      <input type="color" value={lyricsHighlightColor} onChange={(event) => onLyricsHighlightColorChange(event.target.value.toUpperCase())} className="h-8 w-10 rounded border border-line bg-transparent" />
+                    </label>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {[
+                      ['White', '#FFFFFF'], ['Red', '#FF3B4F'], ['Blue', '#3488FF'], ['Yellow', '#FFE14A'],
+                      ['Pink', '#FF62B8'], ['Purple', '#A978FF'], ['Green', '#45D483'], ['Orange', '#FF963D'],
+                    ].map(([name, value]) => (
+                      <button key={value} type="button" onClick={() => onLyricsColorChange(value)} aria-label={name + ' lyrics color'} aria-pressed={lyricsColor === value}
+                        className={cn('h-6 w-6 rounded-full border-2', lyricsColor === value ? 'border-ink' : 'border-line')} style={{ backgroundColor: value }} />
+                    ))}
+                  </div>
+                </div>
+                <button type="button" onClick={onSaveLyrics} disabled={savingLyrics}
+                  className="rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">
+                  {savingLyrics ? 'Applying lyrics…' : 'Apply lyrics & sync'}
+                </button>
+              </div>
+            )}
+            {(activeTool === 'titles' || activeTool === 'animations') && (
+              <div className="flex flex-col gap-3 text-xs">
+                {activeTool === 'animations' && (
+                  <div className="flex flex-col gap-3 rounded-md border border-line bg-panel p-3">
+                    <div>
+                      <p className="font-semibold text-ink">Global lyric animation</p>
+                      <p className="mt-1 text-muted">Choose how timed lyrics enter the video. Individual phrases can still override this style in Lyrics Sync.</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {([
+                        ['dynamic', 'Pop punch'], ['cinematic', 'Cinematic fade'], ['minimal', 'Minimal'], ['karaoke', 'Karaoke sweep'],
+                        ['zoom', 'Zoom burst'], ['bounce', 'Elastic bounce'], ['pulse', 'Beat pulse'], ['glitch', 'Tilt pop'],
+                      ] as const).map(([value, label]) => (
+                        <button key={value} type="button" aria-pressed={lyricsStyle === value}
+                          onClick={() => onLyricsStyleChange(value)}
+                          className={cn('rounded-md border px-2 py-2 text-left font-semibold transition-colors',
+                            lyricsStyle === value ? 'border-ink bg-ink text-white' : 'border-line bg-surface text-muted hover:border-ink')}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <div>
+                      <p className="mb-1.5 font-semibold text-ink">Words on screen at once</p>
+                      <div className="flex gap-1.5">
+                        {([1, 2, 3] as const).map((count) => (
+                          <button key={count} type="button" aria-pressed={lyricsWordsOnScreen === count}
+                            onClick={() => onLyricsWordsOnScreenChange(count)}
+                            className={cn('flex-1 rounded-md border px-2 py-2 font-semibold transition-colors',
+                              lyricsWordsOnScreen === count ? 'border-ink bg-ink text-white' : 'border-line bg-surface text-muted hover:border-ink')}>
+                            {count} {count === 1 ? 'word' : 'words'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button type="button" onClick={onSaveLyrics} disabled={savingLyrics}
+                      className="rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">
+                      {savingLyrics ? 'Applying lyric style…' : 'Apply lyric animation'}
+                    </button>
+                  </div>
+                )}
+                <div>
+                  <p className="font-semibold text-ink">{activeTool === 'titles' ? 'Text layers' : 'Title entrance animations'}</p>
+                  <p className="mt-1 text-muted">{activeTool === 'titles' ? 'Edit the title layers attached to this clip.' : 'Choose an entrance animation for each title layer.'}</p>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-muted">{selectedTextOverlays.length}/30 layers on this clip</span>
+                  <button type="button" onClick={() => {
+                    const selected = edits.find((item) => item.rank === selectedEditRank)
+                    if (selected && selectedTextOverlays.length < 30) onAddTextOverlay(selected.rank, selected.shots.reduce((total, shot) => total + shot.end_seconds - shot.start_seconds, 0))
+                  }} disabled={selectedTextOverlays.length >= 30 || !edits.find((item) => item.rank === selectedEditRank)}
+                    className="rounded border border-line px-2.5 py-1.5 font-semibold text-ink hover:border-ink">+ Add text layer</button>
+                </div>
+                {selectedTextOverlays.length === 0 ? <p className="rounded-md border border-dashed border-line p-2 text-muted">No title layers yet. Add one to this clip to create a title, label or call to action.</p> : selectedTextOverlays.map(({ overlay, index }) => (
+                  <div
+                    key={index}
+                    role="group"
+                    aria-current={selectedTextOverlayIndex === index ? 'true' : undefined}
+                    onFocusCapture={() => setSelectedTextOverlayIndex(index)}
+                    onClick={() => setSelectedTextOverlayIndex(index)}
+                    className={cn(
+                      "flex flex-col gap-2 rounded-md border bg-panel p-2 transition-colors",
+                      selectedTextOverlayIndex === index ? "border-acid ring-2 ring-acid/40" : "border-line",
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-ink">Text layer {index + 1}{selectedTextOverlayIndex === index ? ' · Selected' : ''}</span>
+                      <button type="button" onClick={() => onRemoveTextOverlay(index)} className="text-[11px] text-bad underline">Remove</button>
+                    </div>
+                    <label className="flex flex-col gap-1 text-muted">Title text
+                      <input value={overlay.text} maxLength={160} onChange={(event) => onUpdateTextOverlay(index, { text: event.target.value })}
+                        className="rounded border border-line bg-surface px-2 py-2 text-ink" />
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="flex flex-col gap-1 text-muted">Start · {formatDuration(overlay.start_seconds)}
+                        <input type="number" min={0} max={Math.max(0, overlay.end_seconds - 0.1)} step={0.1} value={overlay.start_seconds}
+                          onChange={(event) => onUpdateTextOverlay(index, { start_seconds: Math.max(0, Math.min(overlay.end_seconds - 0.1, Number(event.target.value))) })}
+                          className="rounded border border-line bg-surface px-2 py-1.5 text-ink" />
+                      </label>
+                      <label className="flex flex-col gap-1 text-muted">End · {formatDuration(overlay.end_seconds)}
+                        <input type="number" min={overlay.start_seconds + 0.1} step={0.1} value={overlay.end_seconds}
+                          onChange={(event) => onUpdateTextOverlay(index, { end_seconds: Math.max(overlay.start_seconds + 0.1, Number(event.target.value)) })}
+                          className="rounded border border-line bg-surface px-2 py-1.5 text-ink" />
+                      </label>
+                    </div>
+                    {([
+                      ['Horizontal', overlay.position_x, 'position_x', 5, 95, '%'],
+                      ['Vertical', overlay.position_y, 'position_y', 5, 95, '%'],
+                      ['Text size', overlay.font_size_percent, 'font_size_percent', 60, 200, '%'],
+                    ] as const).map(([label, value, key, min, max, suffix]) => (
+                      <label key={label} className="flex flex-col gap-1 text-muted">{label} · {value}{suffix}
+                        <input type="range" min={min} max={max} step={key === 'font_size_percent' ? 5 : 1} value={value}
+                          onChange={(event) => onUpdateTextOverlay(index, { [key]: Number(event.target.value) })} />
+                      </label>
+                    ))}
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="flex items-center justify-between gap-2 text-muted">Text color
+                        <input type="color" value={overlay.color} onChange={(event) => onUpdateTextOverlay(index, { color: event.target.value.toUpperCase() })} className="h-8 w-10 rounded border border-line bg-transparent" />
+                      </label>
+                      <label className="flex flex-col gap-1 text-muted">Font
+                        <select value={overlay.font_family ?? 'Arial'} onChange={(event) => onUpdateTextOverlay(index, { font_family: event.target.value as CampaignTextOverlay['font_family'] })} className="rounded border border-line bg-surface px-2 py-1.5 text-ink">
+                          <option value="Arial">Arial</option><option value="Georgia">Georgia</option><option value="Impact">Impact</option><option value="Trebuchet MS">Trebuchet MS</option><option value="Verdana">Verdana</option>
+                        </select>
+                      </label>
+                      <label className="flex flex-col gap-1 text-muted">Weight
+                        <select value={overlay.font_weight ?? 'bold'} onChange={(event) => onUpdateTextOverlay(index, { font_weight: event.target.value as CampaignTextOverlay['font_weight'] })} className="rounded border border-line bg-surface px-2 py-1.5 text-ink">
+                          <option value="regular">Regular</option><option value="bold">Bold</option>
+                        </select>
+                      </label>
+                      <label className="flex flex-col gap-1 text-muted">Text effect
+                        <select value={overlay.text_effect ?? 'shadow'} onChange={(event) => onUpdateTextOverlay(index, { text_effect: event.target.value as CampaignTextOverlay['text_effect'] })} className="rounded border border-line bg-surface px-2 py-1.5 text-ink">
+                          <option value="none">None</option><option value="shadow">Soft shadow</option><option value="outline">Outline</option>
+                        </select>
+                      </label>
+                    </div>
+                    <label className="flex items-center gap-2 text-muted">
+                      <input type="checkbox" checked={overlay.background} onChange={(event) => onUpdateTextOverlay(index, { background: event.target.checked })} />
+                      Background panel
+                    </label>
+                    <label className="flex flex-col gap-1 text-muted">Entrance animation
+                      <select value={overlay.animation} onChange={(event) => onUpdateTextOverlay(index, { animation: event.target.value as CampaignTextOverlay['animation'] })}
+                        className="rounded border border-line bg-surface px-2 py-2 text-ink">
+                        <option value="none">None</option><option value="fade">Fade</option><option value="pop">Pop</option><option value="slide">Slide up</option>
+                      </select>
+                    </label>
+                  </div>
+                ))}
+                <button type="button" onClick={onSaveText} disabled={savingText}
+                  className="rounded-md bg-ink px-3 py-2 font-semibold text-white disabled:opacity-40">{savingText ? 'Applying…' : 'Apply text changes & re-render'}</button>
+              </div>
+            )}
+          </aside>
+          </div>
           {edit.shots.length < 3 && <p className="text-xs text-bad">Restore the AI plan or keep at least 3 shots in this output.</p>}
         </section>
         )
@@ -1730,13 +2499,21 @@ function CampaignTimeline({
   lyricsBehindSubject,
   lyrics,
   onUpdateLyric,
+  selectedPhraseIndex,
+  onSelectLyricPhrase,
   lyricWords,
+  selectedLyricWordIndex,
+  onSelectLyricWord,
+  onUpdateLyricWord,
   wordsOnScreen,
   lyricsColor,
   lyricsHighlightColor,
   textOverlays,
   onUpdateTextOverlay,
+  onSelectTextOverlay,
   transitionStyle,
+  selectedShotIndex,
+  onSelectShot,
   onMoveShot,
   onUpdateShot,
 }: {
@@ -1750,19 +2527,37 @@ function CampaignTimeline({
   lyricsBehindSubject: boolean
   lyrics: CampaignPreviewLyric[]
   onUpdateLyric: (phraseIndex: number, patch: Partial<CampaignLyricPhraseEdit>) => void
+  selectedPhraseIndex: number
+  onSelectLyricPhrase: (phraseIndex: number) => void
   lyricWords: CampaignPreviewWord[]
+  selectedLyricWordIndex: number
+  onSelectLyricWord: (wordIndex: number) => void
+  onUpdateLyricWord: (wordIndex: number, patch: { word?: string; start_seconds?: number; end_seconds?: number }) => void
   wordsOnScreen: 1 | 2 | 3
   lyricsColor: string
   lyricsHighlightColor: string
   textOverlays: CampaignTextOverlay[]
   onUpdateTextOverlay: (overlayIndex: number, patch: Partial<CampaignTextOverlay>) => void
+  onSelectTextOverlay: (overlayIndex: number) => void
   transitionStyle: 'auto' | 'cut' | 'cinematic' | 'dynamic'
+  selectedShotIndex: number
+  onSelectShot: (index: number) => void
   onMoveShot: (fromIndex: number, toIndex: number) => void
   onUpdateShot: (shotIndex: number, patch: Partial<CampaignShot>) => void
 }) {
-  const [previewShotIndex, setPreviewShotIndex] = useState(0)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const lyricWordDragRef = useRef<{
+    wordIndex: number
+    mode: 'move' | 'start' | 'end'
+    pointerId: number
+    startX: number
+    initialStart: number
+    initialEnd: number
+    timelineWidth: number
+    moved: boolean
+  } | null>(null)
+  const suppressLyricWordClickRef = useRef(false)
   const pendingSeekRef = useRef<number | null>(null)
   const seekToTimelineRef = useRef<(seconds: number) => void>(() => undefined)
   const advancingShotRef = useRef(false)
@@ -1777,7 +2572,17 @@ function CampaignTimeline({
     vertical: null,
     horizontal: null,
   })
-  const positionDragRef = useRef<{ pointerId: number; target: 'lyric' | 'text' } | null>(null)
+  const positionDragRef = useRef<{
+    pointerId: number
+    target: 'lyric' | 'text'
+    overlayIndex?: number
+    lyricIndex?: number
+    startX?: number
+    startY?: number
+    moved?: boolean
+    offsetX?: number
+    offsetY?: number
+  } | null>(null)
   const transformDragRef = useRef<{ pointerId: number; target: 'lyric' | 'text'; action: 'resize' | 'rotate'; startX: number; initialValue: number } | null>(null)
   useEffect(() => setPreviewTransitionStyle(transitionStyle), [transitionStyle])
   const transitionDurationMs = previewTransitionStyle === 'cut' || (previewTransitionStyle === 'auto' && (musicAnalysis?.detected_beats ?? 0) > 0) ? 0 : 240
@@ -1787,12 +2592,42 @@ function CampaignTimeline({
   const [isPlaying, setIsPlaying] = useState(false)
   const [playheadSeconds, setPlayheadSeconds] = useState(0)
   const [maskTimestamp, setMaskTimestamp] = useState(0)
-  const updateLiveTextPosition = (event: ReactPointerEvent<HTMLDivElement>, target: 'lyric' | 'text') => {
+  const [timelineZoom, setTimelineZoom] = useState(1)
+  const [followPlayhead, setFollowPlayhead] = useState(false)
+  const [snapTimelineEnabled, setSnapTimelineEnabled] = useState(true)
+  const timelineRootRef = useRef<HTMLDivElement | null>(null)
+  const programmaticTimelineScrollsRef = useRef(new Map<HTMLElement, number>())
+  const syncTimelineScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const source = event.currentTarget
+    const expectedScrollLeft = programmaticTimelineScrollsRef.current.get(source)
+    if (expectedScrollLeft !== undefined) {
+      programmaticTimelineScrollsRef.current.delete(source)
+      if (Math.abs(source.scrollLeft - expectedScrollLeft) < 1) return
+    }
+
+    const sourceOffset = Number(source.dataset.campaignTimelineOffset ?? 0)
+    const timelineScrollPosition = source.scrollLeft - sourceOffset
+    timelineRootRef.current?.querySelectorAll<HTMLElement>('[data-campaign-timeline-scroll]').forEach((track) => {
+      if (track === source) return
+      const targetOffset = Number(track.dataset.campaignTimelineOffset ?? 0)
+      const nextScrollLeft = Math.max(0, timelineScrollPosition + targetOffset)
+      if (Math.abs(track.scrollLeft - nextScrollLeft) < 1) return
+      programmaticTimelineScrollsRef.current.set(track, nextScrollLeft)
+      track.scrollLeft = nextScrollLeft
+    })
+  }
+  const updateLiveTextPosition = (
+    event: ReactPointerEvent<HTMLDivElement>,
+    target: 'lyric' | 'text',
+    selectedOverlayIndex?: number,
+    dragOffset?: { x: number; y: number },
+    selectedLyricPhraseIndex?: number,
+  ) => {
     const stage = event.currentTarget.closest('[data-campaign-preview-stage]') as HTMLDivElement | null
     const bounds = stage?.getBoundingClientRect()
     if (!bounds || bounds.width <= 0 || bounds.height <= 0) return
-    const rawX = Math.max(5, Math.min(95, ((event.clientX - bounds.left) / bounds.width) * 100))
-    const rawY = Math.max(5, Math.min(95, ((event.clientY - bounds.top) / bounds.height) * 100))
+    const rawX = Math.max(5, Math.min(95, ((event.clientX - bounds.left) / bounds.width) * 100 - (dragOffset?.x ?? 0)))
+    const rawY = Math.max(5, Math.min(95, ((event.clientY - bounds.top) / bounds.height) * 100 - (dragOffset?.y ?? 0)))
     const snapAxis = (value: number) => {
       if (!snapTextToGuides) return { value: Math.round(value), guide: null as number | null }
       const nearest = [25, 50, 75].reduce((best, candidate) =>
@@ -1808,22 +2643,63 @@ function CampaignTimeline({
     const y = snappedY.value
     setAlignmentGuides({ vertical: snappedX.guide, horizontal: snappedY.guide })
     if (target === 'lyric') {
-      const lyric = lyrics.find((item) => playheadSeconds >= item.start_seconds && playheadSeconds <= item.end_seconds)
+      const lyric = selectedLyricPhraseIndex === undefined
+        ? lyrics.find((item) => playheadSeconds >= item.start_seconds && playheadSeconds <= item.end_seconds)
+        : lyrics.find((item) => item.phrase_index === selectedLyricPhraseIndex)
       if (lyric) onUpdateLyric(lyric.phrase_index, { position_x: x, position_y: y })
     } else {
-      const overlayIndex = textOverlays.findIndex((item) =>
+      const overlayIndex = selectedOverlayIndex ?? textOverlays.findIndex((item) =>
         item.rank === edit.rank && playheadSeconds >= item.start_seconds && playheadSeconds <= item.end_seconds
       )
-      if (overlayIndex >= 0) onUpdateTextOverlay(overlayIndex, { position_x: x, position_y: y })
+      if (overlayIndex >= 0 && textOverlays[overlayIndex]?.rank === edit.rank) {
+        onUpdateTextOverlay(overlayIndex, { position_x: x, position_y: y })
+      }
     }
   }
-  const beginLiveTextDrag = (event: ReactPointerEvent<HTMLDivElement>, target: 'lyric' | 'text') => {
-    if (positioningTarget !== target) return
+  const beginPreviewLyricDrag = (event: ReactPointerEvent<HTMLDivElement>, phrase: CampaignPreviewLyric) => {
     event.preventDefault()
     event.stopPropagation()
-    positionDragRef.current = { pointerId: event.pointerId, target }
+    onSelectLyricPhrase(phrase.phrase_index)
+    setPositioningTarget('lyric')
+    const stage = event.currentTarget.closest('[data-campaign-preview-stage]') as HTMLDivElement | null
+    const bounds = stage?.getBoundingClientRect()
+    const pointerX = bounds && bounds.width > 0 ? ((event.clientX - bounds.left) / bounds.width) * 100 : phrase.position_x
+    const pointerY = bounds && bounds.height > 0 ? ((event.clientY - bounds.top) / bounds.height) * 100 : phrase.position_y
+    positionDragRef.current = {
+      pointerId: event.pointerId,
+      target: 'lyric',
+      lyricIndex: phrase.phrase_index,
+      startX: event.clientX,
+      startY: event.clientY,
+      offsetX: pointerX - phrase.position_x,
+      offsetY: pointerY - phrase.position_y,
+      moved: false,
+    }
     event.currentTarget.setPointerCapture(event.pointerId)
-    updateLiveTextPosition(event, target)
+  }
+  const beginPreviewTextDrag = (event: ReactPointerEvent<HTMLDivElement>, overlayIndex: number) => {
+    const overlay = textOverlays[overlayIndex]
+    if (!overlay || overlay.rank !== edit.rank) return
+    event.preventDefault()
+    event.stopPropagation()
+    setSelectedOverlayIndex(overlayIndex)
+    onSelectTextOverlay(overlayIndex)
+    setPositioningTarget('text')
+    const stage = event.currentTarget.closest('[data-campaign-preview-stage]') as HTMLDivElement | null
+    const bounds = stage?.getBoundingClientRect()
+    const pointerX = bounds && bounds.width > 0 ? ((event.clientX - bounds.left) / bounds.width) * 100 : overlay.position_x
+    const pointerY = bounds && bounds.height > 0 ? ((event.clientY - bounds.top) / bounds.height) * 100 : overlay.position_y
+    positionDragRef.current = {
+      pointerId: event.pointerId,
+      target: 'text',
+      overlayIndex,
+      startX: event.clientX,
+      startY: event.clientY,
+      offsetX: pointerX - overlay.position_x,
+      offsetY: pointerY - overlay.position_y,
+      moved: false,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
   }
   const beginTransformDrag = (
     event: ReactPointerEvent<HTMLButtonElement>,
@@ -1864,7 +2740,15 @@ function CampaignTimeline({
     }
     const drag = positionDragRef.current
     if (!drag || drag.pointerId !== event.pointerId) return
-    updateLiveTextPosition(event, drag.target)
+    if (drag.overlayIndex !== undefined && !drag.moved) {
+      const distance = Math.hypot(event.clientX - (drag.startX ?? event.clientX), event.clientY - (drag.startY ?? event.clientY))
+      if (distance < 3) return
+      drag.moved = true
+    }
+    updateLiveTextPosition(event, drag.target, drag.overlayIndex, {
+      x: drag.offsetX ?? 0,
+      y: drag.offsetY ?? 0,
+    }, drag.lyricIndex)
   }
   const endLiveTextDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (positionDragRef.current?.pointerId === event.pointerId) positionDragRef.current = null
@@ -1877,6 +2761,7 @@ function CampaignTimeline({
     enabled: hasMusic,
     staleTime: Infinity,
   })
+  const musicWindowDragRef = useRef<{ pointerId: number; startX: number; initialStart: number; trackWidth: number } | null>(null)
   const [activeLyricTrim, setActiveLyricTrim] = useState<{
     pointerId: number
     phraseIndex: number
@@ -1887,6 +2772,7 @@ function CampaignTimeline({
     trackWidth: number
     initialTotal: number
   } | null>(null)
+  const [selectedOverlayIndex, setSelectedOverlayIndex] = useState<number | null>(null)
   const [activeOverlayTrim, setActiveOverlayTrim] = useState<{
     pointerId: number
     overlayIndex: number
@@ -1915,7 +2801,62 @@ function CampaignTimeline({
     duration: Math.max(0.1, shot.end_seconds - shot.start_seconds),
   }))
   const total = Math.max(0.1, shots.reduce((sum, item) => sum + item.duration, 0))
+  useEffect(() => {
+    if (!isPlaying || !followPlayhead || total <= 0) return
+    const tracks = timelineRootRef.current?.querySelectorAll<HTMLElement>('[data-campaign-timeline-scroll]')
+    if (!tracks?.length) return
+    const timelineFraction = Math.max(0, Math.min(1, playheadSeconds / total))
+    tracks.forEach((track) => {
+      const offset = Number(track.dataset.campaignTimelineOffset ?? 0)
+      const contentWidth = Math.max(0, track.scrollWidth - offset)
+      const playheadPosition = timelineFraction * contentWidth
+      const visibleLeft = Math.max(0, track.scrollLeft - offset)
+      const visibleRight = visibleLeft + track.clientWidth
+      const margin = Math.min(48, track.clientWidth * 0.12)
+      if (playheadPosition >= visibleLeft + margin && playheadPosition <= visibleRight - margin) return
+      const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth)
+      const nextScrollLeft = Math.max(0, Math.min(maxScroll, playheadPosition - track.clientWidth / 2 + offset))
+      if (Math.abs(track.scrollLeft - nextScrollLeft) < 1) return
+      programmaticTimelineScrollsRef.current.set(track, nextScrollLeft)
+      track.scrollLeft = nextScrollLeft
+    })
+  }, [followPlayhead, isPlaying, playheadSeconds, total])
   const musicStart = Math.max(0, musicStartSeconds)
+  const snapTimelineValue = (value: number, offset = 0) => {
+    if (!snapTimelineEnabled) return value
+    const targets = [offset, total + offset, playheadSeconds + offset]
+    let elapsed = 0
+    shots.forEach((item, index) => {
+      if (index > 0) targets.push(elapsed + offset)
+      elapsed += item.duration
+    })
+    ;(musicAnalysis?.beat_markers ?? []).forEach((marker) => {
+      const timelineBeat = marker.time_seconds - musicStart + offset
+      if (timelineBeat >= offset && timelineBeat <= total + offset) targets.push(timelineBeat)
+    })
+    const nearest = targets.reduce((best, candidate) =>
+      Math.abs(candidate - value) < Math.abs(best - value) ? candidate : best
+    )
+    return Math.abs(nearest - value) <= 0.18 ? Math.round(nearest * 1000) / 1000 : value
+  }
+  useEffect(() => {
+    const selected = edit.shots[selectedShotIndex]
+    if (!selected) return
+    const timelineStart = edit.shots.slice(0, selectedShotIndex).reduce(
+      (sum, shot) => sum + Math.max(0.1, shot.end_seconds - shot.start_seconds),
+      0,
+    )
+    videoRef.current?.pause()
+    audioRef.current?.pause()
+    setIsPlaying(false)
+    pendingSeekRef.current = selected.start_seconds
+    if (videoRef.current && videoRef.current.readyState >= 1) {
+      videoRef.current.currentTime = selected.start_seconds
+      pendingSeekRef.current = null
+    }
+    if (audioRef.current) audioRef.current.currentTime = musicStart + timelineStart
+    setPlayheadSeconds(timelineStart)
+  }, [selectedShotIndex, edit.shots, musicStart])
   const waveform = waveformQuery.data
   const waveformPeaks = waveform && waveform.duration_seconds > 0
     ? waveform.peaks.slice(
@@ -1925,13 +2866,45 @@ function CampaignTimeline({
     : []
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3">
-      <div className="flex items-center justify-between gap-3">
-        <span className="label text-muted">Video timeline · drag shots to reorder</span>
-        <span className="font-mono text-[11px] text-faint">{formatDuration(total)} estimated</span>
+    <div ref={timelineRootRef} className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <span className="label text-muted">Video timeline · drag clips to reorder and trim</span>
+          <p className="mt-1 text-[10px] text-faint">Scroll any track horizontally; all tracks stay aligned.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setTimelineZoom((zoom) => Math.max(0.75, Math.round((zoom - 0.25) * 100) / 100))} disabled={timelineZoom <= 0.75} aria-label="Zoom timeline out" className="rounded border border-line px-2 py-1 text-xs disabled:opacity-40">−</button>
+          <label className="flex items-center gap-2 text-[11px] text-muted">
+            Zoom <input aria-label="Timeline zoom" type="range" min="0.75" max="3" step="0.25" value={timelineZoom} onChange={(event) => setTimelineZoom(Number(event.target.value))} className="w-24 accent-current" />
+          </label>
+          <span className="w-10 text-right font-mono text-[11px] text-faint">{Math.round(timelineZoom * 100)}%</span>
+          <button type="button" aria-pressed={snapTimelineEnabled} onClick={() => setSnapTimelineEnabled((enabled) => !enabled)}
+            title="Snap clip, lyric and title timing to beats, shot boundaries and the playhead"
+            className={cn('rounded border px-2 py-1 text-[11px] font-medium', snapTimelineEnabled ? 'border-acid bg-acid/15 text-ink' : 'border-line text-muted hover:border-ink')}>
+            Snap {snapTimelineEnabled ? 'On' : 'Off'}
+          </button>
+          <button type="button" onClick={() => setTimelineZoom((zoom) => Math.min(3, Math.round((zoom + 0.25) * 100) / 100))} disabled={timelineZoom >= 3} aria-label="Zoom timeline in" className="rounded border border-line px-2 py-1 text-xs disabled:opacity-40">+</button>
+          <button type="button" aria-pressed={followPlayhead} onClick={() => setFollowPlayhead((enabled) => !enabled)}
+            title="Keep the playing position visible across all timeline tracks"
+            className={cn('rounded border px-2 py-1 text-[11px] font-medium', followPlayhead ? 'border-acid bg-acid/15 text-ink' : 'border-line text-muted hover:border-ink')}>
+            Follow {followPlayhead ? 'On' : 'Off'}
+          </button>
+          <button type="button" onClick={() => {
+            timelineRootRef.current?.querySelectorAll<HTMLElement>('[data-campaign-timeline-scroll]').forEach((track) => {
+              const offset = Number(track.dataset.campaignTimelineOffset ?? 0)
+              const contentWidth = Math.max(0, track.scrollWidth - offset)
+              const playheadPosition = total > 0 ? (Math.max(0, Math.min(total, playheadSeconds)) / total) * contentWidth : 0
+              const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth)
+              const nextScrollLeft = Math.max(0, Math.min(maxScroll, playheadPosition - track.clientWidth / 2 + offset))
+              programmaticTimelineScrollsRef.current.set(track, nextScrollLeft)
+              track.scrollLeft = nextScrollLeft
+            })
+          }} aria-label="Center timeline on playhead" title="Scroll all timeline tracks to the current playhead" className="rounded border border-line px-2 py-1 text-[11px] text-muted">Center playhead</button>
+          <button type="button" onClick={() => { setTimelineZoom(1); timelineRootRef.current?.querySelectorAll<HTMLElement>('[data-campaign-timeline-scroll]').forEach((track) => { track.scrollLeft = 0 }) }} className="rounded border border-line px-2 py-1 text-[11px] text-muted">Fit</button>
+        </div>
       </div>
       {shots.length > 0 && (() => {
-        const preview = shots[previewShotIndex] ?? shots[0]
+        const preview = shots[selectedShotIndex] ?? shots[0]
         const dynamicTransitionNames = ['fade', 'smoothleft', 'smoothright', 'wipeleft', 'wiperight', 'slideleft', 'slideright']
         const activeTransition = previewTransitionStyle === 'dynamic' ? dynamicTransitionNames[Math.max(0, preview.index - 1) % dynamicTransitionNames.length] : 'fade'
         const source = sourceByIndex.get(preview.shot.source_index)
@@ -1973,7 +2946,7 @@ function CampaignTimeline({
           pendingSeekRef.current = sourceTime
           setPlayheadSeconds(boundedTime)
           if (targetIndex !== preview.index) {
-            setPreviewShotIndex(targetIndex)
+            onSelectShot(targetIndex)
           } else if (videoRef.current) {
             videoRef.current.currentTime = sourceTime
             pendingSeekRef.current = null
@@ -2156,6 +3129,27 @@ function CampaignTimeline({
                 {' '}Positions update in the edit draft; use the existing Apply controls to save and render.
               </span>
             </div>
+            <div className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-panel px-3 py-2" role="group" aria-label="Select visible preview layer">
+              <span className="mr-1 text-xs font-semibold text-ink">Visible layers</span>
+              {activeLyric && (
+                <button type="button" aria-pressed={positioningTarget === 'lyric' && selectedPhraseIndex === activeLyric.phrase_index}
+                  onClick={() => { onSelectLyricPhrase(activeLyric.phrase_index); setPositioningTarget('lyric') }}
+                  className={cn('max-w-full truncate rounded-md border px-2.5 py-1.5 text-xs font-medium',
+                    positioningTarget === 'lyric' && selectedPhraseIndex === activeLyric.phrase_index ? 'border-sky-500 bg-sky-500/10 text-ink' : 'border-line bg-surface text-muted hover:border-ink')}>
+                  Lyrics · {activeLyric.text.slice(0, 28)}
+                </button>
+              )}
+              {activeOverlay && (
+                <button type="button" aria-pressed={positioningTarget === 'text' && selectedOverlayIndex === activeOverlayIndex}
+                  onClick={() => { setSelectedOverlayIndex(activeOverlayIndex); onSelectTextOverlay(activeOverlayIndex); setPositioningTarget('text') }}
+                  className={cn('max-w-full truncate rounded-md border px-2.5 py-1.5 text-xs font-medium',
+                    positioningTarget === 'text' && selectedOverlayIndex === activeOverlayIndex ? 'border-sky-500 bg-sky-500/10 text-ink' : 'border-line bg-surface text-muted hover:border-ink')}>
+                  Title · {activeOverlay.text.slice(0, 28)}
+                </button>
+              )}
+              {!activeLyric && !activeOverlay && <span className="text-xs text-muted">No timed text layers at this playhead position.</span>}
+              <span className="ml-auto text-[11px] text-muted">Select a layer to bring it forward · arrow keys nudge it</span>
+            </div>
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(180px,1fr)] sm:items-center">
             <div data-campaign-preview-stage className="relative overflow-hidden rounded-md bg-black">
               <video
@@ -2163,6 +3157,44 @@ function CampaignTimeline({
                 key={String(preview.index) + "-" + String(preview.shot.source_index) + "-" + String(preview.shot.start_seconds)}
                 playsInline
                 preload="metadata"
+                tabIndex={0}
+                aria-label="Campaign video preview. Press Space to play or pause, Left or Right Arrow to seek one second, Shift plus Arrow to seek five seconds."
+                aria-keyshortcuts="Space ArrowLeft ArrowRight Home End"
+                onKeyDown={(event) => {
+                  if (event.key === ' ' || event.code === 'Space') {
+                    event.preventDefault()
+                    const video = videoRef.current
+                    const audio = audioRef.current
+                    if (isPlaying) {
+                      video?.pause()
+                      audio?.pause()
+                      setIsPlaying(false)
+                    } else if (video) {
+                      void video.play().then(() => {
+                        if (audio) {
+                          audio.currentTime = musicStart + playheadSeconds
+                          void audio.play().catch(() => undefined)
+                        }
+                        setIsPlaying(true)
+                      }).catch(() => setIsPlaying(false))
+                    }
+                    return
+                  }
+                  const seekStep = event.shiftKey ? 5 : 1
+                  if (event.key === 'ArrowLeft') {
+                    event.preventDefault()
+                    seekToTimelineRef.current(playheadSeconds - seekStep)
+                  } else if (event.key === 'ArrowRight') {
+                    event.preventDefault()
+                    seekToTimelineRef.current(playheadSeconds + seekStep)
+                  } else if (event.key === 'Home') {
+                    event.preventDefault()
+                    seekToTimelineRef.current(0)
+                  } else if (event.key === 'End') {
+                    event.preventDefault()
+                    seekToTimelineRef.current(total)
+                  }
+                }}
                 src={"/api/runs/" + runId + "/campaign-source?source_index=" + preview.shot.source_index}
                 onLoadedMetadata={(event) => {
                   advancingShotRef.current = false
@@ -2207,7 +3239,7 @@ function CampaignTimeline({
                     transitionTimerRef.current = setTimeout(() => {
                       if (preview.index < shots.length - 1) {
                         setTransitionPhase('in')
-                        setPreviewShotIndex(preview.index + 1)
+                        onSelectShot(preview.index + 1)
                       } else {
                         videoRef.current?.pause()
                         audio?.pause()
@@ -2256,15 +3288,45 @@ function CampaignTimeline({
                   } : undefined}
                 >
                   <div
-                    className={cn('absolute flex w-[90%] justify-center px-3',
-                      positioningTarget === 'lyric' ? 'pointer-events-auto cursor-move touch-none relative rounded-sm outline outline-1 outline-dashed outline-sky-300 outline-offset-4' : 'pointer-events-none')}
-                    onPointerDown={(event) => beginLiveTextDrag(event, 'lyric')}
+                    role="group"
+                    tabIndex={0}
+                    aria-label={'Lyric phrase: ' + activeLyric.text}
+                    aria-current={selectedPhraseIndex === activeLyric.phrase_index ? 'true' : undefined}
+                    className={cn(
+                      'absolute flex w-[90%] justify-center px-3 touch-none rounded-sm outline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300',
+                      selectedPhraseIndex === activeLyric.phrase_index
+                        ? 'pointer-events-auto cursor-move outline outline-1 outline-dashed outline-sky-300'
+                        : 'pointer-events-auto cursor-pointer hover:outline hover:outline-1 hover:outline-dashed hover:outline-white/60',
+                    )}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        onSelectLyricPhrase(activeLyric.phrase_index)
+                        setPositioningTarget('lyric')
+                        return
+                      }
+                      const deltas: Record<string, [number, number]> = {
+                        ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
+                      }
+                      const delta = deltas[event.key]
+                      if (!delta) return
+                      event.preventDefault()
+                      onSelectLyricPhrase(activeLyric.phrase_index)
+                      setPositioningTarget('lyric')
+                      const step = event.shiftKey ? 5 : 1
+                      onUpdateLyric(activeLyric.phrase_index, {
+                        position_x: Math.max(5, Math.min(95, activeLyric.position_x + delta[0] * step)),
+                        position_y: Math.max(5, Math.min(95, activeLyric.position_y + delta[1] * step)),
+                      })
+                    }}
+                    onPointerDown={(event) => beginPreviewLyricDrag(event, activeLyric)}
                     onPointerMove={moveLiveTextDrag}
                     onPointerUp={endLiveTextDrag}
                     onPointerCancel={endLiveTextDrag}
                     style={{
                       left: activeLyric.position_x + '%',
                       top: activeLyric.position_y + '%',
+                      zIndex: positioningTarget === 'lyric' ? 30 : 10,
                       transform: 'translate(-50%, -50%) rotate(' + activeLyric.rotation_degrees + 'deg)',
                     }}
                   >
@@ -2304,13 +3366,44 @@ function CampaignTimeline({
               )}
               {activeOverlay && (
                 <div
-                  className={cn('absolute flex items-center justify-center px-4',
-                    positioningTarget === 'text' ? 'pointer-events-auto cursor-move touch-none relative rounded-sm outline outline-1 outline-dashed outline-sky-300 outline-offset-4' : 'pointer-events-none')}
-                  onPointerDown={(event) => beginLiveTextDrag(event, 'text')}
+                  role="group"
+                  tabIndex={0}
+                  aria-label={'Title layer: ' + activeOverlay.text}
+                  aria-current={selectedOverlayIndex === activeOverlayIndex ? 'true' : undefined}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setSelectedOverlayIndex(activeOverlayIndex)
+                      onSelectTextOverlay(activeOverlayIndex)
+                      setPositioningTarget('text')
+                      return
+                    }
+                    const deltas: Record<string, [number, number]> = {
+                      ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
+                    }
+                    const delta = deltas[event.key]
+                    if (!delta) return
+                    event.preventDefault()
+                    setSelectedOverlayIndex(activeOverlayIndex)
+                    onSelectTextOverlay(activeOverlayIndex)
+                    setPositioningTarget('text')
+                    const step = event.shiftKey ? 5 : 1
+                    onUpdateTextOverlay(activeOverlayIndex, {
+                      position_x: Math.max(5, Math.min(95, activeOverlay.position_x + delta[0] * step)),
+                      position_y: Math.max(5, Math.min(95, activeOverlay.position_y + delta[1] * step)),
+                    })
+                  }}
+                  className={cn(
+                    'absolute flex items-center justify-center px-4 touch-none rounded-sm outline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300',
+                    selectedOverlayIndex === activeOverlayIndex
+                      ? 'pointer-events-auto cursor-move outline outline-1 outline-dashed outline-sky-300'
+                      : 'pointer-events-auto cursor-pointer hover:outline hover:outline-1 hover:outline-dashed hover:outline-white/60',
+                  )}
+                  onPointerDown={(event) => beginPreviewTextDrag(event, activeOverlayIndex)}
                   onPointerMove={moveLiveTextDrag}
                   onPointerUp={endLiveTextDrag}
                   onPointerCancel={endLiveTextDrag}
-                  style={{ left: activeOverlay.position_x + '%', top: activeOverlay.position_y + '%', transform: 'translate(-50%, -50%) rotate(' + (activeOverlay.rotation_degrees ?? 0) + 'deg)', width: '90%' }}>
+                  style={{ left: activeOverlay.position_x + '%', top: activeOverlay.position_y + '%', zIndex: positioningTarget === 'text' ? 30 : 10, transform: 'translate(-50%, -50%) rotate(' + (activeOverlay.rotation_degrees ?? 0) + 'deg)', width: '90%' }}>
                   <span key={activeOverlay.rank + '-' + activeOverlayIndex + '-' + previewTextAnimation}
                     className="inline-block text-center font-extrabold leading-tight"
                     style={{
@@ -2392,8 +3485,8 @@ function CampaignTimeline({
           className="hidden"
         />
       )}
-      <div className="overflow-x-auto">
-        <div data-campaign-timeline-track className="relative flex min-w-[680px] gap-1 rounded-md bg-surface p-2">
+      <div data-campaign-timeline-scroll className="overflow-x-auto" onScroll={syncTimelineScroll}>
+        <div data-campaign-timeline-track className="relative flex gap-1 rounded-md bg-surface p-2" style={{ minWidth: `${Math.round(680 * timelineZoom)}px` }}>
           {shots.map(({ shot, index, duration }) => {
             const source = sourceByIndex.get(shot.source_index)
             return (
@@ -2402,15 +3495,30 @@ function CampaignTimeline({
                 type="button"
                 title={`Shot ${index + 1}: ${source?.title ?? `Source ${shot.source_index + 1}`} · ${formatDuration(shot.end_seconds - shot.start_seconds)}`}
                 aria-label={`Jump to shot ${index + 1} in the storyboard editor`}
+                aria-pressed={selectedShotIndex === index}
+                aria-keyshortcuts="ArrowLeft ArrowRight Home End"
+                data-campaign-shot-index={index}
+                onKeyDown={(event) => {
+                  let targetIndex: number | null = null
+                  if (event.key === 'ArrowLeft') targetIndex = Math.max(0, index - 1)
+                  else if (event.key === 'ArrowRight') targetIndex = Math.min(shots.length - 1, index + 1)
+                  else if (event.key === 'Home') targetIndex = 0
+                  else if (event.key === 'End') targetIndex = shots.length - 1
+                  if (targetIndex === null) return
+                  event.preventDefault()
+                  const nextButton = event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`[data-campaign-shot-index="${targetIndex}"]`)
+                  nextButton?.focus()
+                  onSelectShot(targetIndex)
+                }}
                 onClick={() => {
                   videoRef.current?.pause()
                   audioRef.current?.pause()
                   setIsPlaying(false)
                   const timelineStart = shots.slice(0, index).reduce((sum, item) => sum + item.duration, 0)
                   pendingSeekRef.current = shot.start_seconds
-                  setPreviewShotIndex(index)
+                  onSelectShot(index)
                   setPlayheadSeconds(timelineStart)
-                  if (index === previewShotIndex && videoRef.current) {
+                  if (index === selectedShotIndex && videoRef.current) {
                     videoRef.current.currentTime = shot.start_seconds
                     pendingSeekRef.current = null
                   }
@@ -2431,9 +3539,9 @@ function CampaignTimeline({
                   const draggedIndex = event.dataTransfer.getData('text/plain')
                   if (!draggedIndex.trim()) return
                   const fromIndex = Number(draggedIndex)
-                  if (Number.isInteger(fromIndex)) { onMoveShot(fromIndex, index); setPreviewShotIndex(index) }
+                  if (Number.isInteger(fromIndex)) { onMoveShot(fromIndex, index); onSelectShot(index) }
                 }}
-                className="group relative min-w-[104px] flex-1 cursor-grab overflow-hidden rounded-md border border-line bg-paper text-left transition-colors hover:border-ink active:cursor-grabbing"
+                className={cn('group relative min-w-[104px] flex-1 cursor-grab overflow-hidden rounded-md border bg-paper text-left transition-colors hover:border-ink active:cursor-grabbing', selectedShotIndex === index ? 'border-ink ring-2 ring-ink/30' : 'border-line')}
                 style={{ flex: `${duration} 1 0%` }}
               >
                 {(['start', 'end'] as const).map((side) => {
@@ -2525,15 +3633,26 @@ function CampaignTimeline({
           <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 z-20 w-0.5 bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.9)]" style={{ left: 'calc(' + Math.max(0, Math.min(100, (playheadSeconds / total) * 100)) + '%)' }} />
         </div>
       </div>
-      <div className="label flex justify-between px-1 text-faint">
-        <span>0:00</span>
-        <span>{formatDuration(total / 2)}</span>
-        <span>{formatDuration(total)}</span>
+      <div data-campaign-timeline-scroll className="overflow-x-auto" onScroll={syncTimelineScroll} aria-label="Timeline time ruler">
+        <div className="relative h-6 text-[10px] font-mono text-faint" style={{ minWidth: String(Math.round(680 * timelineZoom)) + 'px' }}>
+          {[0, 0.25, 0.5, 0.75, 1].map((fraction) => (
+            <span
+              key={fraction}
+              className={cn(
+                "absolute top-0 whitespace-nowrap",
+                fraction === 0 ? "translate-x-0" : fraction === 1 ? "-translate-x-full" : "-translate-x-1/2",
+              )}
+              style={{ left: String(fraction * 100) + '%' }}
+            >
+              {formatDuration(total * fraction)}
+            </span>
+          ))}
+        </div>
       </div>
       {(lyrics.length > 0 || lyricWords.length > 0) && (
         <div className="flex flex-col gap-2" aria-label="Campaign editing tracks">
-          <div className="overflow-x-auto">
-            <div className="grid min-w-[780px] grid-cols-[76px_minmax(680px,1fr)] items-center gap-2">
+          <div data-campaign-timeline-scroll data-campaign-timeline-offset="92" className="overflow-x-auto" onScroll={syncTimelineScroll}>
+            <div className="grid grid-cols-[76px_minmax(0,1fr)] items-center gap-2" style={{ minWidth: `${92 + Math.round(680 * timelineZoom)}px` }}>
               <span className="label text-muted" title="Drag a lyric block to move it; drag either edge to adjust its timing.">LYRICS</span>
               <div
                 data-campaign-lyrics-track
@@ -2545,12 +3664,13 @@ function CampaignTimeline({
                   let start = activeLyricTrim.initialStart
                   let end = activeLyricTrim.initialEnd
                   if (activeLyricTrim.side === 'move') {
-                    start = Math.max(0, Math.min(activeLyricTrim.initialTotal - length, start + delta))
+                    const proposed = Math.max(0, Math.min(activeLyricTrim.initialTotal - length, start + delta))
+                    start = Math.max(0, Math.min(activeLyricTrim.initialTotal - length, snapTimelineValue(proposed, musicStart)))
                     end = start + length
                   } else if (activeLyricTrim.side === 'start') {
-                    start = Math.max(0, Math.min(end - 0.1, start + delta))
+                    start = Math.max(0, Math.min(end - 0.1, snapTimelineValue(start + delta, musicStart)))
                   } else {
-                    end = Math.max(start + 0.1, Math.min(activeLyricTrim.initialTotal, end + delta))
+                    end = Math.max(start + 0.1, Math.min(activeLyricTrim.initialTotal, snapTimelineValue(end + delta, musicStart)))
                   }
                   onUpdateLyric(activeLyricTrim.phraseIndex, {
                     start_seconds: Math.round((start + musicStart) * 100) / 100,
@@ -2603,7 +3723,7 @@ function CampaignTimeline({
                           const nextStart = Math.max(0, Math.min(lyric.end_seconds - 0.1, lyric.start_seconds + delta))
                           onUpdateLyric(lyric.phrase_index, { start_seconds: Math.round((nextStart + musicStart) * 100) / 100 })
                         }}
-                        className="absolute inset-y-0 left-0 z-10 w-2 cursor-ew-resize bg-white/40 opacity-0 transition-opacity group-hover:opacity-100" />
+                        className="absolute inset-y-0 left-0 z-10 w-3 cursor-ew-resize bg-white/70 opacity-100 transition-opacity sm:w-2 sm:bg-white/40 sm:opacity-0 sm:group-hover:opacity-100" />
                       <span role="slider" tabIndex={0} aria-label={`Trim end of lyric: ${lyric.text}`}
                         aria-valuemin={lyric.start_seconds + 0.1} aria-valuemax={total} aria-valuenow={lyric.end_seconds}
                         onPointerDown={(event) => beginDrag(event, 'end')}
@@ -2614,24 +3734,167 @@ function CampaignTimeline({
                           const nextEnd = Math.max(lyric.start_seconds + 0.1, Math.min(total, lyric.end_seconds + delta))
                           onUpdateLyric(lyric.phrase_index, { end_seconds: Math.round((nextEnd + musicStart) * 100) / 100 })
                         }}
-                        className="absolute inset-y-0 right-0 z-10 w-2 cursor-ew-resize bg-white/40 opacity-0 transition-opacity group-hover:opacity-100" />
+                        className="absolute inset-y-0 right-0 z-10 w-3 cursor-ew-resize bg-white/70 opacity-100 transition-opacity sm:w-2 sm:bg-white/40 sm:opacity-0 sm:group-hover:opacity-100" />
                     </div>
                   )
-                }) : lyricWords.map((word, index) => {
-                  const left = Math.max(0, Math.min(100, (word.start_seconds / total) * 100))
-                  const width = Math.max(0.55, Math.min(100 - left, ((word.end_seconds - word.start_seconds) / total) * 100))
-                  return (
-                    <button key={`lyric-word-track-${index}`} type="button"
-                      title={`${word.word} · ${formatDuration(word.start_seconds)}–${formatDuration(word.end_seconds)}`}
-                      aria-label={`Seek to lyric word: ${word.word}`}
-                      onClick={() => seekToTimelineRef.current(word.start_seconds)}
-                      className="absolute inset-y-1 overflow-hidden rounded-sm border border-acid/50 bg-acid/20 text-[9px] text-ink hover:bg-acid/40"
-                      style={{ left: `${left}%`, width: `${width}%` }} />
-                  )
-                })}
+                }) : null}
                 <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 z-10 w-0.5 bg-red-500"
                   style={{ left: `${Math.max(0, Math.min(100, (playheadSeconds / total) * 100))}%` }} />
               </div>
+              {lyricWords.length > 0 && (
+                <>
+                  <span className="label mt-1 text-muted">WORDS</span>
+                  <span className="text-[10px] text-muted">Drag a word to move it; drag its left or right edge to trim timing. Changes remain local until you save lyrics.</span>
+                  <div data-lyric-word-timeline className="relative h-9 overflow-hidden rounded-md border border-line bg-surface touch-none select-none">
+                    {lyricWords.map((word) => {
+                      const left = Math.max(0, Math.min(100, (word.start_seconds / total) * 100))
+                      const width = Math.max(0.55, Math.min(100 - left, ((word.end_seconds - word.start_seconds) / total) * 100))
+                      const beginWordDrag = (event: ReactPointerEvent<HTMLButtonElement>, mode: 'move' | 'start' | 'end') => {
+                        const timeline = event.currentTarget.closest('[data-lyric-word-timeline]')
+                        if (!(timeline instanceof HTMLElement)) return
+                        const bounds = timeline.getBoundingClientRect()
+                        event.preventDefault()
+                        event.stopPropagation()
+                        event.currentTarget.setPointerCapture(event.pointerId)
+                        lyricWordDragRef.current = {
+                          wordIndex: word.word_index,
+                          mode,
+                          pointerId: event.pointerId,
+                          startX: event.clientX,
+                          initialStart: word.start_seconds,
+                          initialEnd: word.end_seconds,
+                          timelineWidth: Math.max(1, bounds.width),
+                          moved: false,
+                        }
+                        onSelectLyricWord(word.word_index)
+                      }
+                      const moveWordDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+                        const drag = lyricWordDragRef.current
+                        if (!drag || drag.pointerId !== event.pointerId || !event.currentTarget.hasPointerCapture(event.pointerId)) return
+                        const delta = ((event.clientX - drag.startX) / drag.timelineWidth) * total
+                        if (Math.abs(event.clientX - drag.startX) > 2) drag.moved = true
+                        if (!drag.moved) return
+                        suppressLyricWordClickRef.current = true
+                        const minDuration = 0.05
+                        if (drag.mode === 'move') {
+                          const duration = drag.initialEnd - drag.initialStart
+                          const proposed = Math.max(0, Math.min(total - duration, drag.initialStart + delta))
+                          const nextStart = Math.max(0, Math.min(total - duration, snapTimelineValue(proposed)))
+                          onUpdateLyricWord(drag.wordIndex, { start_seconds: nextStart, end_seconds: nextStart + duration })
+                        } else if (drag.mode === 'start') {
+                          const nextStart = snapTimelineValue(drag.initialStart + delta)
+                          onUpdateLyricWord(drag.wordIndex, { start_seconds: Math.max(0, Math.min(drag.initialEnd - minDuration, nextStart)) })
+                        } else {
+                          const nextEnd = snapTimelineValue(drag.initialEnd + delta)
+                          onUpdateLyricWord(drag.wordIndex, { end_seconds: Math.max(drag.initialStart + minDuration, Math.min(total, nextEnd)) })
+                        }
+                      }
+                      const finishWordDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+                        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+                        if (lyricWordDragRef.current?.pointerId === event.pointerId) {
+                          if (lyricWordDragRef.current.moved) {
+                            suppressLyricWordClickRef.current = true
+                            const drag = lyricWordDragRef.current
+                            const delta = ((event.clientX - drag.startX) / drag.timelineWidth) * total
+                            const nextStart = drag.mode === 'move'
+                              ? Math.max(0, Math.min(total - (drag.initialEnd - drag.initialStart), drag.initialStart + delta))
+                              : drag.mode === 'start'
+                                ? Math.max(0, Math.min(drag.initialEnd - 0.05, drag.initialStart + delta))
+                                : drag.initialStart
+                            seekToTimelineRef.current(nextStart)
+                          }
+                          lyricWordDragRef.current = null
+                        }
+                      }
+                      return (
+                        <div key={`lyric-word-track-${word.word_index}`} className="absolute inset-y-1 group/word"
+                          style={{ left: `${left}%`, width: `${width}%`, minWidth: '8px' }}>
+                          <button type="button"
+                            title={`${word.word} · Drag to move · Drag edges to trim · ${formatDuration(word.start_seconds)}–${formatDuration(word.end_seconds)}`}
+                            data-lyric-word-index={word.word_index}
+                            aria-label={`Move lyric word: ${word.word}; ${formatDuration(word.start_seconds)} to ${formatDuration(word.end_seconds)}. Use up and down arrows to navigate words; left and right arrows to move; hold Shift for larger steps.`}
+                            aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowLeft Shift+ArrowRight"
+                            onKeyDown={(event) => {
+                              if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+                                event.preventDefault()
+                                event.stopPropagation()
+                                const currentIndex = lyricWords.findIndex((item) => item.word_index === word.word_index)
+                                const nextWord = lyricWords[currentIndex + (event.key === 'ArrowDown' ? 1 : -1)]
+                                if (!nextWord) return
+                                onSelectLyricWord(nextWord.word_index)
+                                seekToTimelineRef.current(nextWord.start_seconds)
+                                const timeline = event.currentTarget.closest('[data-lyric-word-timeline]')
+                                const nextButton = timeline?.querySelector<HTMLButtonElement>(`[data-lyric-word-index="${nextWord.word_index}"]`)
+                                nextButton?.focus()
+                                return
+                              }
+                              if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+                              event.preventDefault()
+                              event.stopPropagation()
+                              const delta = (event.key === 'ArrowRight' ? 1 : -1) * (event.shiftKey ? 0.5 : 0.05)
+                              const duration = word.end_seconds - word.start_seconds
+                              const proposed = Math.max(0, Math.min(total - duration, word.start_seconds + delta))
+                              const nextStart = Math.max(0, Math.min(total - duration, snapTimelineValue(proposed)))
+                              onSelectLyricWord(word.word_index)
+                              onUpdateLyricWord(word.word_index, {
+                                start_seconds: Math.round(nextStart * 100) / 100,
+                                end_seconds: Math.round((nextStart + duration) * 100) / 100,
+                              })
+                            }}
+                            onPointerDown={(event) => beginWordDrag(event, 'move')}
+                            onPointerMove={moveWordDrag}
+                            onPointerUp={finishWordDrag}
+                            onPointerCancel={finishWordDrag}
+                            onClick={() => {
+                              if (suppressLyricWordClickRef.current) {
+                                suppressLyricWordClickRef.current = false
+                                return
+                              }
+                              onSelectLyricWord(word.word_index)
+                              seekToTimelineRef.current(word.start_seconds)
+                            }}
+                            className={cn("absolute inset-0 w-full overflow-hidden rounded-sm border text-[9px] text-ink touch-none cursor-grab active:cursor-grabbing hover:bg-acid/40",
+                              selectedLyricWordIndex === word.word_index ? "border-ink bg-acid/50" : "border-acid/50 bg-acid/20")}>
+                            <span className="sr-only">{word.word}</span>
+                          </button>
+                          <button type="button" aria-label={`Trim start of ${word.word} · ${formatDuration(word.start_seconds)}`} aria-keyshortcuts="ArrowLeft ArrowRight Shift+ArrowLeft Shift+ArrowRight" title="Drag or use arrow keys to change word start"
+                            onKeyDown={(event) => {
+                              if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+                              event.preventDefault()
+                              event.stopPropagation()
+                              const delta = (event.key === 'ArrowRight' ? 1 : -1) * (event.shiftKey ? 0.5 : 0.05)
+                              const proposed = snapTimelineValue(word.start_seconds + delta)
+                              onSelectLyricWord(word.word_index)
+                              onUpdateLyricWord(word.word_index, {
+                                start_seconds: Math.round(Math.max(0, Math.min(word.end_seconds - 0.05, proposed)) * 100) / 100,
+                              })
+                            }}
+                            onPointerDown={(event) => beginWordDrag(event, 'start')} onPointerMove={moveWordDrag}
+                            onPointerUp={finishWordDrag} onPointerCancel={finishWordDrag}
+                            className="absolute inset-y-0 left-0 z-10 w-3 cursor-ew-resize touch-none bg-white/80 opacity-100 sm:w-2 sm:opacity-0 sm:group-hover/word:opacity-100" />
+                          <button type="button" aria-label={`Trim end of ${word.word} · ${formatDuration(word.end_seconds)}`} aria-keyshortcuts="ArrowLeft ArrowRight Shift+ArrowLeft Shift+ArrowRight" title="Drag or use arrow keys to change word end"
+                            onKeyDown={(event) => {
+                              if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+                              event.preventDefault()
+                              event.stopPropagation()
+                              const delta = (event.key === 'ArrowRight' ? 1 : -1) * (event.shiftKey ? 0.5 : 0.05)
+                              const proposed = snapTimelineValue(word.end_seconds + delta)
+                              onSelectLyricWord(word.word_index)
+                              onUpdateLyricWord(word.word_index, {
+                                end_seconds: Math.round(Math.max(word.start_seconds + 0.05, Math.min(total, proposed)) * 100) / 100,
+                              })
+                            }}
+                            onPointerDown={(event) => beginWordDrag(event, 'end')} onPointerMove={moveWordDrag}
+                            onPointerUp={finishWordDrag} onPointerCancel={finishWordDrag}
+                            className="absolute inset-y-0 right-0 z-10 w-3 cursor-ew-resize touch-none bg-white/80 opacity-100 sm:w-2 sm:opacity-0 sm:group-hover/word:opacity-100" />
+                        </div>
+                      )
+                    })}
+                    <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 z-10 w-0.5 bg-red-500"
+                      style={{ left: `${Math.max(0, Math.min(100, (playheadSeconds / total) * 100))}%` }} />
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -2645,8 +3908,10 @@ function CampaignTimeline({
             </span>
           </div>
           {waveformPeaks.length > 0 ? (
+            <div data-campaign-timeline-scroll className="overflow-x-auto" onScroll={syncTimelineScroll}>
             <div
-              className="relative flex h-14 min-w-[680px] touch-none cursor-crosshair items-center gap-px overflow-hidden rounded-md bg-surface px-2 outline-none focus-visible:ring-2 focus-visible:ring-ink"
+              className="relative flex h-14 touch-none cursor-crosshair items-center gap-px overflow-hidden rounded-md bg-surface px-2 outline-none focus-visible:ring-2 focus-visible:ring-ink"
+              style={{ minWidth: `${Math.round(680 * timelineZoom)}px` }}
               role="slider"
               tabIndex={0}
               aria-label="Soundtrack waveform timeline scrubber"
@@ -2657,12 +3922,12 @@ function CampaignTimeline({
               onPointerDown={(event) => {
                 event.currentTarget.setPointerCapture(event.pointerId)
                 const bounds = event.currentTarget.getBoundingClientRect()
-                seekToTimelineRef.current(((event.clientX - bounds.left) / bounds.width) * total)
+                seekToTimelineRef.current(((event.clientX - bounds.left + (event.currentTarget.parentElement?.scrollLeft ?? 0)) / bounds.width) * total)
               }}
               onPointerMove={(event) => {
                 if (event.buttons !== 1) return
                 const bounds = event.currentTarget.getBoundingClientRect()
-                seekToTimelineRef.current(((event.clientX - bounds.left) / bounds.width) * total)
+                seekToTimelineRef.current(((event.clientX - bounds.left + (event.currentTarget.parentElement?.scrollLeft ?? 0)) / bounds.width) * total)
               }}
               onKeyDown={(event) => {
                 if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
@@ -2699,11 +3964,103 @@ function CampaignTimeline({
                 style={{ left: 'calc(' + Math.max(0, Math.min(100, (playheadSeconds / total) * 100)) + '%)' }}
               />
             </div>
+            </div>
           ) : (
             <p className="text-xs text-faint">
               {waveformQuery.isError ? 'Could not analyze this soundtrack. Playback is still available.' : 'Waveform will appear after the soundtrack is analyzed.'}
             </p>
           )}
+        </div>
+      )}
+      {waveform && waveform.duration_seconds > total && (
+        <div className="flex flex-col gap-2 border-t border-line pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="label text-muted">Music source window</span>
+            <span className="font-mono text-[11px] text-faint">
+              {formatDuration(musicStart)} – {formatDuration(musicStart + total)} / {formatDuration(waveform.duration_seconds)}
+            </span>
+          </div>
+          <div
+            className="relative h-10 touch-none select-none overflow-hidden rounded-md border border-line bg-surface"
+            style={{ minWidth: `${Math.round(680 * timelineZoom)}px` }}
+            role="slider"
+            tabIndex={0}
+            aria-label="Music source window position"
+            aria-valuemin={0}
+            aria-valuemax={Math.max(0, waveform.duration_seconds - total)}
+            aria-valuenow={Math.min(musicStart, Math.max(0, waveform.duration_seconds - total))}
+            aria-valuetext={`Starts at ${formatDuration(musicStart)}; selected duration ${formatDuration(total)}`}
+            title="Drag to move the soundtrack window. Use arrow keys for precise adjustment."
+            onKeyDown={(event) => {
+              const maxStart = Math.max(0, waveform.duration_seconds - total)
+              const step = event.shiftKey ? 0.5 : 0.05
+              let nextStart = musicStart
+              if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') nextStart -= step
+              else if (event.key === 'ArrowRight' || event.key === 'ArrowUp') nextStart += step
+              else if (event.key === 'PageDown') nextStart -= 1
+              else if (event.key === 'PageUp') nextStart += 1
+              else if (event.key === 'Home') nextStart = 0
+              else if (event.key === 'End') nextStart = maxStart
+              else return
+              event.preventDefault()
+              nextStart = Math.max(0, Math.min(maxStart, nextStart))
+              if (snapTimelineEnabled && event.key.startsWith('Arrow')) {
+                const nearestBeat = (musicAnalysis?.beat_markers ?? []).reduce((best, marker) =>
+                  Math.abs(marker.time_seconds - nextStart) < Math.abs(best - nextStart) ? marker.time_seconds : best, nextStart)
+                if (Math.abs(nearestBeat - nextStart) <= 0.18) nextStart = nearestBeat
+              }
+              nextStart = Math.round(nextStart * 100) / 100
+              onMusicStartChange(nextStart)
+              if (audioRef.current) audioRef.current.currentTime = nextStart + playheadSeconds
+            }}
+            onPointerDown={(event) => {
+              const bounds = event.currentTarget.getBoundingClientRect()
+              if (bounds.width <= 0) return
+              event.currentTarget.setPointerCapture(event.pointerId)
+              const maxStart = Math.max(0, waveform.duration_seconds - total)
+              const pointerRatio = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width))
+              const windowRatio = total / waveform.duration_seconds
+              const currentLeft = musicStart / waveform.duration_seconds
+              const currentRight = currentLeft + windowRatio
+              const insideWindow = pointerRatio >= currentLeft && pointerRatio <= currentRight
+              const nextStart = insideWindow ? musicStart : Math.max(0, Math.min(maxStart, pointerRatio * waveform.duration_seconds - total / 2))
+              musicWindowDragRef.current = { pointerId: event.pointerId, startX: event.clientX, initialStart: nextStart, trackWidth: bounds.width }
+              if (!insideWindow) {
+                onMusicStartChange(nextStart)
+                if (audioRef.current) audioRef.current.currentTime = nextStart + playheadSeconds
+              }
+            }}
+            onPointerMove={(event) => {
+              const drag = musicWindowDragRef.current
+              if (!drag || drag.pointerId !== event.pointerId || !event.currentTarget.hasPointerCapture(event.pointerId)) return
+              const maxStart = Math.max(0, waveform.duration_seconds - total)
+              const delta = ((event.clientX - drag.startX) / drag.trackWidth) * waveform.duration_seconds
+              let nextStart = Math.max(0, Math.min(maxStart, drag.initialStart + delta))
+              if (snapTimelineEnabled) {
+                const nearestBeat = (musicAnalysis?.beat_markers ?? []).reduce((best, marker) =>
+                  Math.abs(marker.time_seconds - nextStart) < Math.abs(best - nextStart) ? marker.time_seconds : best, nextStart)
+                if (Math.abs(nearestBeat - nextStart) <= 0.18) nextStart = nearestBeat
+              }
+              nextStart = Math.round(nextStart * 100) / 100
+              onMusicStartChange(nextStart)
+              if (audioRef.current) audioRef.current.currentTime = nextStart + playheadSeconds
+            }}
+            onPointerUp={(event) => {
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+              if (musicWindowDragRef.current?.pointerId === event.pointerId) musicWindowDragRef.current = null
+            }}
+            onPointerCancel={() => { musicWindowDragRef.current = null }}
+          >
+            {(musicAnalysis?.beat_markers ?? []).map((marker, index) => (
+              <span key={`source-beat-${index}`} aria-hidden="true" className="pointer-events-none absolute inset-y-0 w-px bg-white/20"
+                style={{ left: `${(marker.time_seconds / waveform.duration_seconds) * 100}%` }} />
+            ))}
+            <div className="absolute inset-y-1 rounded border-2 border-acid bg-acid/25 shadow-[0_0_0_1px_rgba(0,0,0,0.35)]"
+              style={{ left: `${(musicStart / waveform.duration_seconds) * 100}%`, width: `${Math.min(100, (total / waveform.duration_seconds) * 100)}%` }}>
+              <span className="flex h-full items-center justify-center truncate px-1 text-[9px] font-semibold text-ink">SELECTED {formatDuration(total)}</span>
+            </div>
+          </div>
+          <p className="text-xs text-muted">Drag the highlighted window to move the soundtrack section used in this edit. Beat snapping follows the source track; the precise start slider remains available below.</p>
         </div>
       )}
       {waveform && (
@@ -2733,8 +4090,8 @@ function CampaignTimeline({
             </span>
           </div>
           {(musicAnalysis.energy_sections ?? []).length > 0 ? (
-            <div className="overflow-x-auto">
-              <div className="relative h-9 min-w-[680px] overflow-hidden rounded-md bg-surface">
+            <div data-campaign-timeline-scroll className="overflow-x-auto" onScroll={syncTimelineScroll}>
+              <div className="relative h-9 overflow-hidden rounded-md bg-surface" style={{ minWidth: `${Math.round(680 * timelineZoom)}px` }}>
                 {(musicAnalysis.energy_sections ?? []).map((section, index) => {
                   const left = Math.max(0, section.start_seconds - 0.25 - musicStart)
                   const right = Math.min(total, section.end_seconds + 0.25 - musicStart)
@@ -2769,25 +4126,27 @@ function CampaignTimeline({
           <span className="label text-muted">Independent text overlay track</span>
           <span className="text-[10px] text-faint">Drag a block to move it · drag either edge to trim</span>
         </div>
-        <div className="overflow-x-auto">
+        <div data-campaign-timeline-scroll className="overflow-x-auto" onScroll={syncTimelineScroll}>
           <div
             data-campaign-overlay-track
-            className="relative h-10 min-w-[680px] touch-none overflow-hidden rounded-md border border-line bg-surface"
+            className="relative h-10 touch-none overflow-hidden rounded-md border border-line bg-surface"
+            style={{ minWidth: `${Math.round(680 * timelineZoom)}px` }}
             onPointerMove={(event) => {
               if (!activeOverlayTrim || event.pointerId !== activeOverlayTrim.pointerId) return
               const delta = ((event.clientX - activeOverlayTrim.startX) / activeOverlayTrim.trackWidth) * activeOverlayTrim.initialTotal
               const length = activeOverlayTrim.initialEnd - activeOverlayTrim.initialStart
               if (activeOverlayTrim.side === 'move') {
-                const start = Math.max(0, Math.min(activeOverlayTrim.initialTotal - length, activeOverlayTrim.initialStart + delta))
+                const proposed = Math.max(0, Math.min(activeOverlayTrim.initialTotal - length, activeOverlayTrim.initialStart + delta))
+                const start = Math.max(0, Math.min(activeOverlayTrim.initialTotal - length, snapTimelineValue(proposed)))
                 onUpdateTextOverlay(activeOverlayTrim.overlayIndex, {
                   start_seconds: Math.round(start * 100) / 100,
                   end_seconds: Math.round((start + length) * 100) / 100,
                 })
               } else if (activeOverlayTrim.side === 'start') {
-                const start = Math.max(0, Math.min(activeOverlayTrim.initialEnd - 0.1, activeOverlayTrim.initialStart + delta))
+                const start = Math.max(0, Math.min(activeOverlayTrim.initialEnd - 0.1, snapTimelineValue(activeOverlayTrim.initialStart + delta)))
                 onUpdateTextOverlay(activeOverlayTrim.overlayIndex, { start_seconds: Math.round(start * 100) / 100 })
               } else {
-                const end = Math.max(activeOverlayTrim.initialStart + 0.1, Math.min(activeOverlayTrim.initialTotal, activeOverlayTrim.initialEnd + delta))
+                const end = Math.max(activeOverlayTrim.initialStart + 0.1, Math.min(activeOverlayTrim.initialTotal, snapTimelineValue(activeOverlayTrim.initialEnd + delta)))
                 onUpdateTextOverlay(activeOverlayTrim.overlayIndex, { end_seconds: Math.round(end * 100) / 100 })
               }
             }}
@@ -2824,10 +4183,32 @@ function CampaignTimeline({
                 return (
                   <div
                     key={"text-overlay-" + edit.rank + "-" + overlayIndex}
+                    role="group"
+                    tabIndex={0}
+                    aria-current={selectedOverlayIndex === overlayIndex ? "true" : undefined}
+                    aria-label={"Text layer " + overlay.text + ", " + formatDuration(overlay.start_seconds) + " to " + formatDuration(overlay.end_seconds)}
                     title={overlay.text + " · " + formatDuration(overlay.start_seconds) + "–" + formatDuration(overlay.end_seconds)}
-                    onClick={() => seekToTimelineRef.current(overlay.start_seconds)}
-                    onPointerDown={(event) => beginDrag(event, 'move')}
-                    className="group absolute inset-y-1 flex min-w-0 cursor-grab touch-none items-center overflow-hidden rounded border px-1.5 active:cursor-grabbing"
+                    onClick={() => {
+                      setSelectedOverlayIndex(overlayIndex)
+                      onSelectTextOverlay(overlayIndex)
+                      seekToTimelineRef.current(overlay.start_seconds)
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') return
+                      event.preventDefault()
+                      setSelectedOverlayIndex(overlayIndex)
+                      onSelectTextOverlay(overlayIndex)
+                      seekToTimelineRef.current(overlay.start_seconds)
+                    }}
+                    onPointerDown={(event) => {
+                      setSelectedOverlayIndex(overlayIndex)
+                      onSelectTextOverlay(overlayIndex)
+                      beginDrag(event, 'move')
+                    }}
+                    className={cn(
+                      "group absolute inset-y-1 z-[1] flex min-w-0 cursor-grab touch-none items-center overflow-hidden rounded border px-1.5 outline-none active:cursor-grabbing focus-visible:ring-2 focus-visible:ring-acid",
+                      selectedOverlayIndex === overlayIndex && "z-[2] ring-2 ring-acid ring-offset-1 ring-offset-panel",
+                    )}
                     style={{
                       left: String((left / total) * 100) + "%",
                       width: String(Math.max(1.2, ((right - left) / total) * 100)) + "%",
@@ -2838,22 +4219,38 @@ function CampaignTimeline({
                   >
                     <div
                       role="slider"
+                      tabIndex={0}
                       aria-label={"Trim start of " + overlay.text}
                       aria-valuemin={0}
                       aria-valuemax={overlay.end_seconds - 0.1}
                       aria-valuenow={overlay.start_seconds}
+                      aria-valuetext={formatDuration(overlay.start_seconds)}
                       onPointerDown={(event) => beginDrag(event, 'start')}
-                      className="absolute inset-y-0 left-0 z-10 w-2 cursor-ew-resize bg-white/40 opacity-0 transition-opacity group-hover:opacity-100"
+                      onKeyDown={(event) => {
+                        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+                        event.preventDefault()
+                        const next = snapTimelineValue(overlay.start_seconds + (event.key === 'ArrowRight' ? 0.05 : -0.05))
+                        onUpdateTextOverlay(overlayIndex, { start_seconds: Math.max(0, Math.min(overlay.end_seconds - 0.1, next)) })
+                      }}
+                      className="absolute inset-y-0 left-0 z-10 w-3 cursor-ew-resize touch-none bg-white/70 opacity-100 outline-none transition-opacity sm:w-2 sm:bg-white/40 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:bg-acid focus-visible:opacity-100"
                     />
                     <span className="pointer-events-none truncate text-[10px] font-semibold">{overlay.text}</span>
                     <div
                       role="slider"
+                      tabIndex={0}
                       aria-label={"Trim end of " + overlay.text}
                       aria-valuemin={overlay.start_seconds + 0.1}
                       aria-valuemax={total}
                       aria-valuenow={overlay.end_seconds}
+                      aria-valuetext={formatDuration(overlay.end_seconds)}
                       onPointerDown={(event) => beginDrag(event, 'end')}
-                      className="absolute inset-y-0 right-0 z-10 w-2 cursor-ew-resize bg-white/40 opacity-0 transition-opacity group-hover:opacity-100"
+                      onKeyDown={(event) => {
+                        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+                        event.preventDefault()
+                        const next = snapTimelineValue(overlay.end_seconds + (event.key === 'ArrowRight' ? 0.05 : -0.05))
+                        onUpdateTextOverlay(overlayIndex, { end_seconds: Math.max(overlay.start_seconds + 0.1, Math.min(total, next)) })
+                      }}
+                      className="absolute inset-y-0 right-0 z-10 w-3 cursor-ew-resize touch-none bg-white/70 opacity-100 outline-none transition-opacity sm:w-2 sm:bg-white/40 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:bg-acid focus-visible:opacity-100"
                     />
                   </div>
                 )
