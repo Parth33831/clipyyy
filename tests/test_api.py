@@ -241,8 +241,6 @@ def test_run_download_archive_is_persisted_under_clipyyy_home(client, tmp_path):
 
 
 def test_run_download_keeps_duplicate_clip_filenames_in_archive(client, tmp_path):
-    import zipfile
-
     from clipyyy.config import home
 
     run = db.create_run("local-video.mp4", {}, status="completed")
