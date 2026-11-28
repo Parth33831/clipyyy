@@ -773,14 +773,15 @@ export function RunDetailPage() {
             <div className="mt-6 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
-                className="btn btn-secondary"
+                autoFocus
+                className="btn btn-acid px-4 py-2 text-sm font-semibold"
                 onClick={() => navigationBlocker.reset()}
               >
                 Keep editing
               </button>
               <button
                 type="button"
-                className="btn btn-danger"
+                className="btn btn-ink px-4 py-2 text-sm font-semibold"
                 onClick={() => navigationBlocker.proceed()}
               >
                 Leave without saving
