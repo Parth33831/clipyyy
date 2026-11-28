@@ -77,6 +77,20 @@ def test_upload_and_health(client, tmp_path, monkeypatch):
     assert checks["llm"]["ok"] is False
 
 
+def test_video_upload_limit_rejects_oversized_file_and_cleans_partial_file(client, tmp_path, monkeypatch):
+    upload_dir = tmp_path / "uploads"
+    monkeypatch.setattr(api, "uploads_dir", lambda: upload_dir)
+    monkeypatch.setattr(api, "MAX_VIDEO_UPLOAD_BYTES", 4)
+
+    response = client.post(
+        "/api/uploads",
+        files={"file": ("too-large.mp4", b"12345", "video/mp4")},
+    )
+
+    assert response.status_code == 413
+    assert list(upload_dir.iterdir()) == []
+
+
 def test_uploaded_source_runs_through_pipeline_and_exports_clips(client, tmp_path, monkeypatch):
     import zipfile
     from io import BytesIO
@@ -213,6 +227,28 @@ def test_campaign_run_accepts_public_campaign_url_without_manual_brief(client):
     )
     assert response.status_code == 200
     assert response.json()[0]["options"]["campaign_url"] == "https://campaign.example/details"
+
+
+def test_campaign_music_upload_limit_rejects_oversized_file_and_keeps_run_unchanged(
+    client, tmp_path, monkeypatch
+):
+    upload_dir = tmp_path / "uploads"
+    monkeypatch.setattr(api, "uploads_dir", lambda: upload_dir)
+    monkeypatch.setattr(api, "MAX_CAMPAIGN_MUSIC_UPLOAD_BYTES", 4)
+    run = db.create_run(
+        "local-video.mp4",
+        {"campaign_mode": True, "campaign_music_path": None},
+        status="failed",
+    )
+
+    response = client.post(
+        f"/api/runs/{run['id']}/campaign-music",
+        files={"file": ("too-large.mp3", b"12345", "audio/mpeg")},
+    )
+
+    assert response.status_code == 413
+    assert db.get_run(run["id"])["options"]["campaign_music_path"] is None
+    assert list(upload_dir.iterdir()) == []
 
 
 def test_campaign_music_can_be_attached_to_an_existing_run(client):

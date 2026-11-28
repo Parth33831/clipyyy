@@ -6,7 +6,6 @@ import json
 import math
 import mimetypes
 import os
-import shutil
 import subprocess
 import zipfile
 from array import array
@@ -28,6 +27,46 @@ from clipyyy.publish import BufferClient, PublishError, PublishMode, publish_cli
 from clipyyy.worker import Worker
 
 WEB_DIR = PACKAGE_DIR / "web"
+
+DEFAULT_VIDEO_UPLOAD_LIMIT_BYTES = 50 * 1024**3
+DEFAULT_CAMPAIGN_MUSIC_UPLOAD_LIMIT_BYTES = 2 * 1024**3
+
+
+def _configured_upload_limit(name: str, default: int) -> int:
+    """Read a positive byte limit from the environment, falling back safely."""
+    try:
+        value = int(os.environ.get(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
+MAX_VIDEO_UPLOAD_BYTES = _configured_upload_limit(
+    "CLIPYYY_MAX_VIDEO_UPLOAD_BYTES", DEFAULT_VIDEO_UPLOAD_LIMIT_BYTES
+)
+MAX_CAMPAIGN_MUSIC_UPLOAD_BYTES = _configured_upload_limit(
+    "CLIPYYY_MAX_CAMPAIGN_MUSIC_UPLOAD_BYTES", DEFAULT_CAMPAIGN_MUSIC_UPLOAD_LIMIT_BYTES
+)
+
+
+def _save_limited_upload(file: UploadFile, target: Path, max_bytes: int, label: str) -> int:
+    """Stream an upload to disk with a hard byte limit and remove partial files on failure."""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    total = 0
+    try:
+        with target.open("wb") as output:
+            while chunk := file.file.read(1024 * 1024):
+                total += len(chunk)
+                if total > max_bytes:
+                    raise HTTPException(
+                        413,
+                        f"{label} exceeds the configured upload limit ({max_bytes} bytes).",
+                    )
+                output.write(chunk)
+    except Exception:
+        target.unlink(missing_ok=True)
+        raise
+    return total
 
 
 class CreateRuns(BaseModel):
@@ -242,12 +281,10 @@ def create_app(start_worker: bool = True) -> FastAPI:
 
     @app.post("/api/uploads")
     def upload(file: UploadFile) -> dict:
-        name = Path(file.filename or "upload.mp4").name
+        name = Path((file.filename or "upload.mp4").replace("\\\\", "/")).name
         target = uploads_dir() / f"{db.new_id()}-{name}"
-        target.parent.mkdir(parents=True, exist_ok=True)
-        with target.open("wb") as fh:
-            shutil.copyfileobj(file.file, fh, length=1024 * 1024)
-        return {"source": str(target), "name": name}
+        size_bytes = _save_limited_upload(file, target, MAX_VIDEO_UPLOAD_BYTES, "Video upload")
+        return {"source": str(target), "name": name, "size_bytes": size_bytes}
 
     @app.put("/api/runs/{run_id}/campaign-lyrics")
     def update_campaign_lyrics(run_id: str, body: CampaignLyricsUpdate) -> dict:
@@ -500,16 +537,14 @@ def create_app(start_worker: bool = True) -> FastAPI:
             raise HTTPException(400, "Campaign music can only be attached to campaign runs.")
         if run["status"] in {"queued", "running"}:
             raise HTTPException(409, "Wait for the campaign run to finish before changing its music.")
-        name = Path(file.filename or "campaign-music").name
+        name = Path((file.filename or "campaign-music").replace("\\\\", "/")).name
         allowed_extensions = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac", ".opus", ".wma", ".aiff"}
         is_audio = (file.content_type or "").startswith("audio/")
         has_audio_extension = Path(name).suffix.lower() in allowed_extensions
         if not is_audio and not has_audio_extension:
             raise HTTPException(400, "Choose an audio file for campaign music.")
         target = uploads_dir() / f"{db.new_id()}-{name}"
-        target.parent.mkdir(parents=True, exist_ok=True)
-        with target.open("wb") as fh:
-            shutil.copyfileobj(file.file, fh, length=1024 * 1024)
+        _save_limited_upload(file, target, MAX_CAMPAIGN_MUSIC_UPLOAD_BYTES, "Campaign music upload")
         options = {**run["options"], "campaign_music_path": str(target)}
         db.update_run(run_id, options=options)
         return {"name": name, "attached": True}
