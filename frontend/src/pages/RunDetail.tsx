@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, Download, Redo2, RotateCcw, Scissors, Send, Trash2, Undo2 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useUndoRedo } from '../hooks/useUndoRedo'
 import { toast } from 'sonner'
@@ -235,6 +235,7 @@ export function RunDetailPage() {
   const health = useQuery({ queryKey: ['health'], queryFn: api.health })
   const canPublish = ['buffer', 'storage'].every((name) => health.data?.checks.find((c) => c.name === name)?.ok)
   const [publishing, setPublishing] = useState<Clip | null>(null)
+  const [downloadingAll, setDownloadingAll] = useState(false)
   const [focused, setFocused] = useState<number | null>(null)
   const [selectedConceptId, setSelectedConceptId] = useState<string | null>(null)
   const [conceptCutVariants, setConceptCutVariants] = useState<Record<string, 'original' | 'refined'>>({})
@@ -676,6 +677,34 @@ export function RunDetailPage() {
   const musicSettingsChanged = musicVolume !== savedMusicVolume || musicDucking !== savedMusicDucking || Math.abs(musicStartSeconds - savedMusicStartSeconds) > 0.01 || musicFadeIn !== savedMusicFadeIn || musicFadeOut !== savedMusicFadeOut
   const sourceAudioSettingsChanged = sourceAudioVolume !== savedSourceAudioVolume
   const readyClips = data.clips.filter((c) => c.status === 'ready')
+  const downloadAll = async (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault()
+    if (downloadingAll) return
+    setDownloadingAll(true)
+    try {
+      const response = await fetch(`/api/runs/${runId}/download`)
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(typeof payload?.detail === 'string' ? payload.detail : `Download failed (${response.status}).`)
+      }
+      const archive = await response.blob()
+      const disposition = response.headers.get('content-disposition') ?? ''
+      const filename = disposition.match(/filename="?([^";]+)"?/i)?.[1] ?? `clipyyy-${runId.slice(0, 8)}.zip`
+      const objectUrl = URL.createObjectURL(archive)
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+      toast.success('Your clip archive is downloading.')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to download clips.')
+    } finally {
+      setDownloadingAll(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -712,8 +741,8 @@ export function RunDetailPage() {
         </div>
         <div className="flex gap-2">
           {readyClips.length > 0 && (
-            <a href={`/api/runs/${data.id}/download`}>
-              <Button variant="ink">
+            <a href={`/api/runs/${data.id}/download`} onClick={downloadAll}>
+              <Button variant="ink" loading={downloadingAll}>
                 <Download className="h-4 w-4" /> Download all
               </Button>
             </a>
