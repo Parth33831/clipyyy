@@ -65,9 +65,15 @@ def test_invalid_options_rejected(client):
     assert r.status_code == 422
 
 
-def test_upload_and_health(client):
-    r = client.post("/api/uploads", files={"file": ("talk.mp4", b"data", "video/mp4")})
+def test_upload_and_health(client, tmp_path, monkeypatch):
+    upload_dir = tmp_path / "uploads"
+    monkeypatch.setattr(api, "uploads_dir", lambda: upload_dir)
+    r = client.post("/api/uploads", files={"file": ("talk.mp4", b"video-test-data", "video/mp4")})
     assert r.status_code == 200 and r.json()["name"] == "talk.mp4"
+    saved_upload = Path(r.json()["source"])
+    assert saved_upload.parent == upload_dir
+    assert saved_upload.name.endswith("-talk.mp4")
+    assert saved_upload.read_bytes() == b"video-test-data"
     checks = {c["name"]: c for c in client.get("/api/health").json()["checks"]}
     assert checks["llm"]["ok"] is False
 
