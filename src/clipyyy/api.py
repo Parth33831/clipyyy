@@ -281,7 +281,7 @@ def create_app(start_worker: bool = True) -> FastAPI:
 
     @app.post("/api/uploads")
     def upload(file: UploadFile) -> dict:
-        name = Path((file.filename or "upload.mp4").replace("\\\\", "/")).name
+        name = Path((file.filename or "upload.mp4").replace("\\", "/")).name
         target = uploads_dir() / f"{db.new_id()}-{name}"
         size_bytes = _save_limited_upload(file, target, MAX_VIDEO_UPLOAD_BYTES, "Video upload")
         return {"source": str(target), "name": name, "size_bytes": size_bytes}
@@ -537,7 +537,7 @@ def create_app(start_worker: bool = True) -> FastAPI:
             raise HTTPException(400, "Campaign music can only be attached to campaign runs.")
         if run["status"] in {"queued", "running"}:
             raise HTTPException(409, "Wait for the campaign run to finish before changing its music.")
-        name = Path((file.filename or "campaign-music").replace("\\\\", "/")).name
+        name = Path((file.filename or "campaign-music").replace("\\", "/")).name
         allowed_extensions = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac", ".opus", ".wma", ".aiff"}
         is_audio = (file.content_type or "").startswith("audio/")
         has_audio_extension = Path(name).suffix.lower() in allowed_extensions

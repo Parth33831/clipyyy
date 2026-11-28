@@ -69,6 +69,7 @@ def test_upload_and_health(client, tmp_path, monkeypatch):
     monkeypatch.setattr(api, "uploads_dir", lambda: upload_dir)
     r = client.post("/api/uploads", files={"file": ("talk.mp4", b"video-test-data", "video/mp4")})
     assert r.status_code == 200 and r.json()["name"] == "talk.mp4"
+    assert r.json()["size_bytes"] == len(b"video-test-data")
     saved_upload = Path(r.json()["source"])
     assert saved_upload.parent == upload_dir
     assert saved_upload.name.endswith("-talk.mp4")
