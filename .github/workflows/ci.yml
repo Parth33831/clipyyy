@@ -46,9 +46,9 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-  # Full validation is available on demand before releases or larger changes.
+  # Run the complete backend suite for every PR and on demand before releases.
   full-backend:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.number == 142)
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

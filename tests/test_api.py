@@ -78,6 +78,27 @@ def test_upload_and_health(client, tmp_path, monkeypatch):
     assert checks["llm"]["ok"] is False
 
 
+@pytest.mark.parametrize("filename", ["..\\\\..\\\\outside.mp4", "../../outside.mp4"])
+def test_video_upload_sanitizes_client_filename_and_accepts_exact_limit(
+    client, tmp_path, monkeypatch, filename
+):
+    upload_dir = tmp_path / "uploads"
+    monkeypatch.setattr(api, "uploads_dir", lambda: upload_dir)
+    monkeypatch.setattr(api, "MAX_VIDEO_UPLOAD_BYTES", 4)
+
+    response = client.post(
+        "/api/uploads",
+        files={"file": (filename, b"1234", "video/mp4")},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "outside.mp4"
+    assert response.json()["size_bytes"] == 4
+    saved = Path(response.json()["source"])
+    assert saved.parent == upload_dir
+    assert saved.read_bytes() == b"1234"
+
+
 def test_video_upload_limit_rejects_oversized_file_and_cleans_partial_file(client, tmp_path, monkeypatch):
     upload_dir = tmp_path / "uploads"
     monkeypatch.setattr(api, "uploads_dir", lambda: upload_dir)
@@ -250,6 +271,27 @@ def test_campaign_music_upload_limit_rejects_oversized_file_and_keeps_run_unchan
     assert response.status_code == 413
     assert db.get_run(run["id"])["options"]["campaign_music_path"] is None
     assert list(upload_dir.iterdir()) == []
+
+
+def test_campaign_music_sanitizes_client_filename(client, tmp_path, monkeypatch):
+    upload_dir = tmp_path / "uploads"
+    monkeypatch.setattr(api, "uploads_dir", lambda: upload_dir)
+    run = db.create_run(
+        "local-video.mp4",
+        {"campaign_mode": True, "campaign_music_path": None},
+        status="failed",
+    )
+
+    response = client.post(
+        f"/api/runs/{run['id']}/campaign-music",
+        files={"file": ("..\\\\..\\\\theme.mp3", b"audio-data", "audio/mpeg")},
+    )
+
+    assert response.status_code == 200
+    saved = Path(response.json()["path"])
+    assert saved.parent == upload_dir
+    assert saved.name.endswith("-theme.mp3")
+    assert saved.read_bytes() == b"audio-data"
 
 
 def test_campaign_music_can_be_attached_to_an_existing_run(client):
