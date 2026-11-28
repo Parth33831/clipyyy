@@ -616,8 +616,10 @@ export function RunDetailPage() {
   }
   const hasUnsavedCampaignChanges = Boolean(savedOptions?.campaign_mode)
     && JSON.stringify(campaignHistoryValue) !== JSON.stringify(savedCampaignState)
+  const allowNavigationRef = useRef(false)
   const navigationBlocker = useBlocker(({ currentLocation, nextLocation }) =>
-    hasUnsavedCampaignChanges
+    !allowNavigationRef.current
+      && hasUnsavedCampaignChanges
       && (currentLocation.pathname !== nextLocation.pathname
         || currentLocation.search !== nextLocation.search
         || currentLocation.hash !== nextLocation.hash),
@@ -637,6 +639,7 @@ export function RunDetailPage() {
     mutationFn: () => api.deleteRun(runId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['runs'] })
+      allowNavigationRef.current = true
       navigate('/runs')
     },
     onError: (e) => toast.error(e.message),
