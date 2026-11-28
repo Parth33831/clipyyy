@@ -175,7 +175,7 @@ def test_uploaded_source_runs_through_pipeline_and_exports_clips(client, tmp_pat
         assert manifest[0]["title"] == "Demo highlight"
         assert "#demo" in archive.read("POSTING-COPY.txt").decode("utf-8")
     assert list((home() / "exports").glob(f"clipyyy-*-{run_id[:8]}.zip"))
-    
+
 
 def test_buffer_without_key(client):
     assert client.get("/api/buffer/channels").status_code == 400
