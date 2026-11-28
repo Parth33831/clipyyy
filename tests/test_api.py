@@ -297,6 +297,8 @@ def test_run_download_keeps_duplicate_clip_filenames_in_archive(client, tmp_path
         names = [name for name in archive.namelist() if name.endswith(".mp4")]
         assert len(names) == 2
         assert len(set(names)) == 2
+        manifest = json.loads(archive.read("clips.json"))
+        assert {item["archive_filename"] for item in manifest} == set(names)
         assert archive.read(names[0]) in {b"first-video", b"second-video"}
         assert archive.read(names[1]) in {b"first-video", b"second-video"}
 

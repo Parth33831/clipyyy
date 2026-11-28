@@ -800,6 +800,7 @@ def create_app(start_worker: bool = True) -> FastAPI:
         archive_path = export_dir / name
         with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_STORED) as zf:
             used_names: set[str] = set()
+            export_metadata: list[dict] = []
             for clip in clips:
                 original_name = Path(clip["file_path"]).name
                 archive_name = original_name
@@ -811,8 +812,9 @@ def create_app(start_worker: bool = True) -> FastAPI:
                         suffix += 1
                 used_names.add(archive_name)
                 zf.write(clip["file_path"], archive_name)
+                export_metadata.append({**_clip_public(clip), "archive_filename": archive_name})
             zf.writestr(
-                "clips.json", json.dumps([_clip_public(c) for c in clips], indent=2, ensure_ascii=False)
+                "clips.json", json.dumps(export_metadata, indent=2, ensure_ascii=False)
             )
             zf.writestr("POSTING-COPY.txt", _posting_copy(clips))
         return FileResponse(archive_path, filename=name, media_type="application/zip")
