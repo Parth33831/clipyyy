@@ -459,7 +459,7 @@ def campaign_shot_filter(
         f"crop={zoom_width}:{zoom_height},"
         f"crop={width}:{height}:"
         f"x='(iw-ow)*(0.5+0.24*sin(t*0.32+{phase:.4f}))':"
-        f"y='(ih-oh)*(0.5+0.18*cos(t*0.26+{phase:.4f}))':"
+        f"y='(ih-oh)*(0.5+0.18*cos(t*0.26+{phase:.4f}))',"
         f"setsar=1,fps={FPS},format=yuv420p{base_grade}"
     )
 
