@@ -1,6 +1,7 @@
 import json
 import struct
 import subprocess
+import zipfile
 from pathlib import Path
 
 import pytest
