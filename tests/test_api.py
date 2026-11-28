@@ -1,7 +1,6 @@
 import json
 import struct
 import subprocess
-import zipfile
 from pathlib import Path
 
 import pytest
@@ -338,6 +337,8 @@ def test_individual_clip_download_uses_attachment_disposition(client, tmp_path):
 
 
 def test_run_download_rejects_ready_clips_with_missing_files(client, tmp_path):
+    import zipfile
+
     run = db.create_run("local-video.mp4", {}, status="completed")
     missing_file = tmp_path / "missing-rendered-clip.mp4"
     db.replace_clips(
