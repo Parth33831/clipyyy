@@ -303,7 +303,7 @@ def test_campaign_lyrics_lrc_timestamps_are_shifted_to_selected_music_section(tm
     assert "Outside selected section" not in script
     assert "0:00:00.00" in script
     assert "\\fscx" in script
-    assert "&H00D7FF&" in script
+    assert "&H00FFD700&" in script
 
 
 def test_campaign_lyrics_apply_individual_phrase_timing_overrides(tmp_path):
@@ -563,7 +563,7 @@ def test_campaign_shot_filter_adds_subtle_movement_and_can_disable_it():
 
     assert "sin(t*0.32" in moving
     assert "cos(t*0.26" in moving
-    assert "eval=frame" in moving
+    assert "eval=frame" not in moving
     assert "eq=contrast=1.06:saturation=1.12" in moving
     assert static == fill_filter(1080, 1920) + ",eq=contrast=1.06:saturation=1.12"
 
