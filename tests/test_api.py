@@ -201,6 +201,8 @@ def test_campaign_audio_settings_reject_out_of_range_values(client):
 
 
 def test_run_download_archive_is_persisted_under_clipyyy_home(client, tmp_path):
+    import zipfile
+
     from clipyyy.config import home
 
     run = db.create_run("local-video.mp4", {}, status="completed")
@@ -243,6 +245,7 @@ def test_run_download_archive_is_persisted_under_clipyyy_home(client, tmp_path):
 
 
 def test_run_download_keeps_duplicate_clip_filenames_in_archive(client, tmp_path):
+    import zipfile
 
     from clipyyy.config import home
 
@@ -337,8 +340,6 @@ def test_individual_clip_download_uses_attachment_disposition(client, tmp_path):
 
 
 def test_run_download_rejects_ready_clips_with_missing_files(client, tmp_path):
-    import zipfile
-
     run = db.create_run("local-video.mp4", {}, status="completed")
     missing_file = tmp_path / "missing-rendered-clip.mp4"
     db.replace_clips(
